@@ -6,10 +6,10 @@ Platform Configuration
 
 Each instance of the VOLTTRON platform includes a `config` file which is used to configure the platform instance on
 startup.  This file is kept in :term:`VOLTTRON_HOME` and is created using the `volttron-cfg` (`vcfg`) command, or will
-be created with default values on start up of the platform otherwise.
+be created with default values on start up of the platform otherwise. `vcfg` also provides commands to configure and
+install few frequently used agents and update configuration-store entries
 
 Following is helpful information about the `config` file and the `vcfg` command.
-
 
 VOLTTRON_HOME
 =============
@@ -75,9 +75,13 @@ The example consists of the following entries:
 VOLTTRON Config
 ===============
 
-The `volttron-cfg` or `vcfg` command allows for an easy configuration of the VOLTTRON environment.  The command includes
-the ability to set up the platform configuration, an instance of the platform historian, VOLTTRON Central UI, and
-VOLTTRON Central Platform agent.
+The `volttron-cfg` or `vcfg` command allows for an easy configuration of the VOLTTRON environment.
+The `vcfg` command can be run without any arguments to go through all available configuration steps sequentially and
+pick what is appropriate for a given instance of VOLTTRON. This is useful when starting with a new VOLTTRON instance.
+
+`vcfg` command can also be used with specific subcommands to configure and install specific agents such as
+listener agent, platform historian, VOLTTRON Central UI, and VOLTTRON Central Platform agent
+or add one or more agent configurations to VOLTTRON's configuration store.
 
 Running `vcfg` will create a `config` file in `VOLTTRON_HOME` which will be populated according to the answers to
 prompts.  This process should be repeated for each platform instance, and can be re-run to reconfigure a platform
@@ -158,11 +162,51 @@ Optional Arguments
   - **-v, --verbose** - Enables verbose output in standard-output (PIP output, etc.)
   - **--vhome VHOME** - Provide a path to set `VOLTTRON_HOME` for this instance
   - **--instance-name INSTANCE_NAME** - Provide a name for this instance.  Required for running secure agents mode
-  - **--list-agents** - Display a list of configurable agents (Listener, Platform Driver, Platform Historian, VOLTTRON
-    Central, VOLTTRON Central Platform)
-  - **--agent AGENT [AGENT ...]** - Configure listed agents
   - **--agent-isolation-mode** - Require that agents run as their own Unix users (this requires running
     `scripts/secure_user_permissions.sh` as `sudo`)
+
+Sub commands
+------------
+**--list-agents**
+~~~~~~~~~~~~~~~~~~
+    Display a list of configurable agents (Listener, Platform Driver, Platform Historian, VOLTTRON
+    Central, VOLTTRON Central Platform)
+
+**--agent AGENT [AGENT ...]**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure and install one of the listed agents for a specific VOLTTRON instance
+
+**update-config-store --metadata-file METADATA_FILE_OR_DIR [METADATA_FILE_OR_DIR ...]**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Command to bulk add/update multiple agent configurations to VOLTTRON's configuration store. This is especially useful
+for automated deployment use cases. For example, a automated deployment setup where devices in a network are
+detected, and configurations for platform driver and control agents such as ILCAgent are auto generated using semantic
+tags. In such as scenario, adding all the generated configurations to the configuration store using the below command
+is more efficient than running the "vctl config store" command once for each configuration
+
+This command can only be used when volttron instance is not running.
+
+Usage:
+
+.. code-block:: bash
+
+    vcfg update-config-store --metadata-file <one or more metadata file or directories containing metadata files separated by space>
+
+
+Format for Metadata file:
+
+.. code-block::
+
+    { "vip-id": [
+     {
+         "config-name": "optional. name. defaults to config
+         "config": "json config or string config or config file name",
+         "config-type": "optional. type of config - csv or json or raw. defaults to json"
+     }, ...
+     ],...
+    }
+
 
 RabbitMQ Arguments
 ------------------

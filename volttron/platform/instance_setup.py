@@ -37,6 +37,7 @@
 # }}}
 import argparse
 import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -46,6 +47,7 @@ from configparser import ConfigParser
 from shutil import copy
 from urllib.parse import urlparse
 import logging
+from argparse import RawTextHelpFormatter
 
 from gevent import subprocess
 from gevent.subprocess import Popen
@@ -57,10 +59,13 @@ from volttron.platform.auth import certs
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
-    is_volttron_running, wait_for_volttron_shutdown, setup_logging
+    is_volttron_running, wait_for_volttron_shutdown, setup_logging, format_timestamp, get_aware_utc_now, \
+    parse_json_config
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from . import get_home, get_services_core, set_home
+from volttron.platform.agent.utils import load_config as load_yml_or_json
+from volttron.platform.store import process_raw_config
 
 if is_rabbitmq_available():
     from bootstrap import install_rabbit, default_rmq_dir
@@ -78,6 +83,7 @@ available_agents = {}
 
 # Determines if VOLTTRON instance can remain running with vcfg
 use_active = "N"
+
 
 def _load_config():
     """Loads the config file if the path exists."""
@@ -155,24 +161,24 @@ def _is_bound_already(address):
     return already_bound
 
 
-def fail_if_instance_running(args):
+def fail_if_instance_running(message, prompt=True):
 
     home = get_home()
 
     if os.path.exists(home) and\
        is_volttron_running(home):
-        global use_active
-        use_active = prompt_response(
-            "The VOLTTRON Instance is currently running. "
-            "Installing agents to an active instance may overwrite currently installed "
-            "and active agents on the platform, causing undesirable behavior. "
-            "Would you like to continue?",
-            valid_answers=y_or_n,
-            default='Y')
-        if use_active in y:
-            return
+        if prompt:
+            global use_active
+            use_active = prompt_response(
+                message +
+                "Would you like to continue?",
+                valid_answers=y_or_n,
+                default='Y')
+            if use_active in y:
+                return
         else:
-            print("""
+            print(message)
+        print("""
 Please execute:
 
     volttron-ctl shutdown --platform
@@ -180,7 +186,7 @@ Please execute:
 to stop the instance.
 """)
 
-        sys.exit()
+        sys.exit(1)
 
 
 def fail_if_not_in_src_root():
@@ -189,7 +195,7 @@ def fail_if_not_in_src_root():
         print("""
 volttron-cfg needs to be run from the volttron top level source directory.
 """)
-        sys.exit()
+        sys.exit(1)
 
 
 def _start_platform():
@@ -261,13 +267,14 @@ def _is_agent_installed(tag):
 def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
+
         def func(*args, **kwargs):
             global use_active
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
-            #TODO: Optimize long vcfg install times
-            #TODO: (potentially only starting the platform once per vcfg)
+            # TODO: Optimize long vcfg install times
+            # TODO: (potentially only starting the platform once per vcfg)
 
             if use_active in n:
                 _start_platform()
@@ -375,6 +382,7 @@ def set_dependencies(requirement):
     subprocess.check_call(cmds)
     return
 
+
 def _create_web_certs():
     global config_opts
     """
@@ -403,7 +411,7 @@ def _create_web_certs():
             prompt = '\tOrganization:'
             cert_data['organization'] = prompt_response(prompt, mandatory=True)
             prompt = '\tOrganization Unit:'
-            cert_data['organization-unit'] = prompt_response(prompt,mandatory=True)
+            cert_data['organization-unit'] = prompt_response(prompt, mandatory=True)
             cert_data['common-name'] = get_platform_instance_name() + '-root-ca'
             data = {'C': cert_data.get('country'),
                     'ST': cert_data.get('state'),
@@ -412,12 +420,13 @@ def _create_web_certs():
                     'OU': cert_data.get('organization-unit'),
                     'CN': cert_data.get('common-name')}
             crts.create_root_ca(overwrite=False, **data)
-            copy(crts.cert_file(crts.root_ca_name),crts.cert_file(crts.trusted_ca_name))
+            copy(crts.cert_file(crts.root_ca_name), crts.cert_file(crts.trusted_ca_name))
         else:
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name,
+                                  fqdn=get_hostname())
     return 0
 
 
@@ -527,13 +536,15 @@ def do_instance_name():
             instance_name = new_instance_name
     config_opts['instance-name'] = '"{}"'.format(instance_name)
 
+
 def do_web_enabled_rmq(vhome):
     global config_opts
 
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
-    full_bind_web_address = config_opts.get('bind-web-address',
-            'https://' + get_hostname())
+    full_bind_web_address = config_opts.get(
+        'bind-web-address',
+        'https://' + get_hostname())
 
     parsed = urlparse(full_bind_web_address)
 
@@ -575,11 +586,9 @@ def do_web_enabled_rmq(vhome):
 def do_web_enabled_zmq(vhome):
     global config_opts
 
-
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
-    full_bind_web_address = config_opts.get('bind-web-address',
-            'https://' + get_hostname())
+    full_bind_web_address = config_opts.get('bind-web-address', 'https://' + get_hostname())
 
     parsed = urlparse(full_bind_web_address)
 
@@ -698,7 +707,7 @@ def get_cert_and_key(vhome):
         try:
             if certs.Certs.validate_key_pair(platform_web_cert, platform_web_key):
                 print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(
-                    platform_web_cert,platform_web_key))
+                    platform_web_cert, platform_web_key))
                 prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = platform_web_cert
@@ -712,8 +721,6 @@ def get_cert_and_key(vhome):
         except RuntimeError as e:
             print(e)
             pass
-
-
 
     # Either are there no valid existing certs or user decided to overwrite the existing file.
     # Prompt for new files
@@ -753,10 +760,8 @@ def get_cert_and_key(vhome):
         else:
             cert_error = _create_web_certs()
             if not cert_error:
-                platform_web_cert = os.path.join(vhome, 'certificates/certs/',
-                        PLATFORM_WEB+"-server.crt")
-                platform_web_key = os.path.join(vhome, 'certificates/private/',
-                        PLATFORM_WEB + "-server.pem")
+                platform_web_cert = os.path.join(vhome, 'certificates/certs/', PLATFORM_WEB+"-server.crt")
+                platform_web_key = os.path.join(vhome, 'certificates/private/', PLATFORM_WEB + "-server.pem")
                 config_opts['web-ssl-cert'] = platform_web_cert
                 config_opts['web-ssl-key'] = platform_web_key
 
@@ -793,8 +798,7 @@ def do_vcp():
         
     except KeyError:
         vc_address = config_opts.get('volttron-central-address',
-                                     config_opts.get('bind-web-address',
-                                     'https://' + get_hostname()))
+                                     config_opts.get('bind-web-address', 'https://' + get_hostname()))
     if not is_vc:
         parsed = urlparse(vc_address)
         address_only = vc_address
@@ -892,7 +896,6 @@ def wizard():
 
     # Start true configuration here.
     volttron_home = get_home()
-    confirm_volttron_home()
     _load_config()
     _update_config_file()
     if use_active in n:
@@ -965,8 +968,7 @@ def wizard():
         prompt = 'Will this instance be controlled by volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
         if response in y:
-            if not _check_dependencies_met(
-                "drivers") or not _check_dependencies_met("web"):
+            if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
                 print("VCP dependencies not installed. Installing now...")
                 if not _check_dependencies_met("drivers"):
                     set_dependencies("drivers")
@@ -993,11 +995,137 @@ def wizard():
         if response in y:
             do_listener()
 
+
+def read_agent_configs_from_store(store_source, path=True):
+    if path:
+        with open(store_source) as f:
+            store = parse_json_config(f.read())
+    else:
+        store = store_source
+    return store
+
+
+def update_configs_in_store(args_dict):
+
+    vhome = get_home()
+    metadata_files = list()
+
+    args_list = args_dict['metadata_file']
+    # validate args
+    for item in args_list:
+        if os.path.isdir(item):
+            for f in os.listdir(item):
+                file_path = os.path.join(item, f)
+                if os.path.isfile(file_path):
+                    metadata_files.append(file_path)
+        elif os.path.isfile(item):
+            metadata_files.append(item)
+        else:
+            print(f"Value is neither a file nor a directory: {args_dict['metadata_file']}: ")
+            print(f"The --metadata-file accepts one or more metadata files or directory containing metadata file")
+            _exit_with_metadata_error()
+
+    # Validate each file content and load config
+    for metadata_file in metadata_files:
+        metadata_dict = dict()
+        try:
+            metadata_dict = load_yml_or_json(metadata_file)
+        except Exception as e:
+            print(f"Invalid metadata file: {metadata_file}: {e}")
+            exit(1)
+
+        for vip_id in metadata_dict:
+            configs = metadata_dict[vip_id]
+            if isinstance(configs, dict):
+                # only single config for this vip id
+                configs = [configs]
+            if not isinstance(configs, list):
+                print(
+                    f"Metadata for vip-identity {vip_id} in file {metadata_file} "
+                    f"should be a dictionary or list of dictionary. "
+                    f"Got type {type(configs)}")
+                _exit_with_metadata_error()
+
+            configs_updated = False
+            agent_store_path = os.path.join(vhome, "configuration_store", vip_id+".store")
+            if os.path.isfile(agent_store_path):
+                # load current store configs as python object for comparison
+                store_configs = read_agent_configs_from_store(agent_store_path)
+            else:
+                store_configs = dict()
+
+            for config_dict in configs:
+                if not isinstance(config_dict, dict):
+                    print(f"Metadata for vip-identity {vip_id} in file {metadata_file} "
+                          f"should be a dictionary or list of dictionary. "
+                          f"Got type {type(config_dict)}")
+                    _exit_with_metadata_error()
+
+                config_name = config_dict.get("config-name", "config")
+                config_type = config_dict.get("config-type", "json")
+                config = config_dict.get("config")
+                if config is None:
+                    print(f"No config entry found in file {metadata_file} for vip-id {vip_id} and "
+                          f"config-name {config_name}")
+                    _exit_with_metadata_error()
+
+                # If there is config validate it
+                # Check if config is file path
+                if isinstance(config, str) and os.path.isfile(config):
+                    raw_data = open(config).read()
+                    # try loading it into appropriate python object to validate if file content and config-type match
+                    processed_data = process_raw_config(raw_data, config_type)
+                elif isinstance(config, str) and config_type == 'raw':
+                    raw_data = config
+                    processed_data = config
+                else:
+                    if not isinstance(config, (list, dict)):
+                        processed_data = raw_data = None
+                        print('Value for key "config" should be one of the following: \n'
+                              '1. filepath \n'
+                              '2. string with "config-type" set to "raw" \n'
+                              '3. a dictionary \n'
+                              '4. list ')
+                        _exit_with_metadata_error()
+                    else:
+                        processed_data = config
+                        raw_data = jsonapi.dumps(processed_data)
+
+                current = store_configs.get(config_name)
+
+                if not current or process_raw_config(current.get('data'), current.get('type')) != processed_data:
+                    store_configs[config_name] = dict()
+                    store_configs[config_name]['data'] = raw_data
+                    store_configs[config_name]['type'] = config_type
+                    store_configs[config_name]['modified'] = format_timestamp(get_aware_utc_now())
+                    configs_updated = True
+
+            # All configs processed for current vip-id
+            # if there were updates write the new configs to file
+            if configs_updated:
+                os.makedirs(os.path.dirname(agent_store_path), exist_ok=True)
+                with open(agent_store_path, 'w+') as f:
+                    json.dump(store_configs, f)
+
+
+def _exit_with_metadata_error():
+    print("""
+Metadata file format:
+{ "vip-id": [
+ { 
+     "config-name": "optional. name. defaults to config
+     "config": "json config or string config or config file name", 
+     "config-type": "optional. type of config - csv or json or raw. defaults to json"
+ }, ...
+ ],...
+}""")
+    exit(1)
+
+
 def process_rmq_inputs(args_dict, instance_name=None):
-    #print(f"args_dict:{args_dict}, args")
     if not is_rabbitmq_available():
         raise RuntimeError("Rabbitmq Dependencies not installed please run python bootstrap.py --rabbitmq")
-    confirm_volttron_home()
+
     vhome = get_home()
 
     if args_dict['installation-type'] in ['federation', 'shovel'] and not _check_dependencies_met('web'):
@@ -1042,9 +1170,11 @@ def process_rmq_inputs(args_dict, instance_name=None):
         else:
             print("Invalid installation type. Acceptable values single|federation|shovel")
             sys.exit(1)
-        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, instance_name=instance_name, max_retries=args_dict['max_retries'])
+        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, instance_name=instance_name,
+                                max_retries=args_dict['max_retries'])
     else:
-        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, prompt=True, instance_name=instance_name, max_retries=args_dict['max_retries'])
+        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, prompt=True, instance_name=instance_name,
+                                max_retries=args_dict['max_retries'])
 
 
 def main():
@@ -1055,34 +1185,60 @@ def main():
     parser.add_argument('--vhome', help="Path to volttron home")
     parser.add_argument('--instance-name', dest='instance_name', help="Name of this volttron instance")
     parser.set_defaults(is_rabbitmq=False)
+    parser.set_defaults(config_update=False)
     group = parser.add_mutually_exclusive_group()
 
     agent_list = '\n\t' + '\n\t'.join(sorted(available_agents.keys()))
     group.add_argument('--list-agents', action='store_true', dest='list_agents',
                        help='list configurable agents{}'.format(agent_list))
-    rabbitmq_parser = parser.add_subparsers(title='rabbitmq',
-                                            metavar='',
-                                            dest='parser_name')
-    single_parser = rabbitmq_parser.add_parser('rabbitmq', help='Configure rabbitmq for single instance, '
-                            'federation, or shovel either based on '
-                            'configuration file in yml format or providing '
-                            'details when prompted. \nUsage: vcfg rabbitmq '
-                            'single|federation|shovel --config <rabbitmq config '
-                            'file> --max-retries <attempt number>]')
-    single_parser.add_argument('installation-type', default='single', help='Rabbitmq option for installation. Installation type can be single|federation|shovel')
+    subparsers = parser.add_subparsers(dest="cmd")
+    single_parser = subparsers.add_parser('rabbitmq', help='Configure rabbitmq for single instance, '
+                                          'federation, or shovel either based on '
+                                          'configuration file in yml format or providing '
+                                          'details when prompted. \nUsage: vcfg rabbitmq '
+                                          'single|federation|shovel --config <rabbitmq config '
+                                          'file> --max-retries <attempt number>]')
+    single_parser.add_argument('installation-type', default='single',
+                               help='Rabbitmq option for installation. '
+                                    'Installation type can be single|federation|shovel')
     single_parser.add_argument('--max-retries', help='Optional Max retry attempt', type=int, default=12)
     single_parser.add_argument('--config', help='Optional path to rabbitmq config yml', type=str)
     single_parser.set_defaults(is_rabbitmq=True)
 
     group.add_argument('--agent', nargs='+',
-                        help='configure listed agents')
+                       help='configure listed agents')
 
     group.add_argument('--agent-isolation-mode', action='store_true', dest='agent_isolation_mode',
                        help='Require that agents run with their own users (this requires running '
                             'scripts/secure_user_permissions.sh as sudo)')
+    config_store_parser = subparsers.add_parser("update-config-store", formatter_class=RawTextHelpFormatter,
+                                                help="Update one or more config entries for one more agents")
+    config_store_parser.set_defaults(config_update=True)
+    # start with just a metadata file support.
+    # todo - add support vip-id, directory
+    #  vip-id, file with multiple configs etc.
+    # config_arg_group = config_store_parser.add_mutually_exclusive_group()
+    # meta_group = config_arg_group.add_mutually_exclusive_group()
+    config_store_parser.add_argument('--metadata-file', required=True, nargs='+',
+                                     help="""One or more metadata file or directory containing metadata file, 
+where each metadata file contain details of configs for one or more agent instance   
+Metadata file format:
+{ "vip-id": [
+ { 
+     "config-name": "optional. name. defaults to config
+     "config": "json config or string config or config file name", 
+     "config-type": "optional. type of config - csv or json or raw. defaults to json"
+ }, ...
+ ],...
+}""")
+
+    # single_agent_group = config_arg_group.add_mutually_exclusive_group()
+    # single_agent_group.add_argument("--vip-id",
+    #                                 help='vip-identity of the agent for which config store should be updated')
+    # single_agent_group.add_argument("--config-path",
+    #                                 help="json file containing configs or directory containing config files")
 
     args = parser.parse_args()
-
     verbose = args.verbose
     # Protect against configuration of base logger when not the "main entry point"
     if verbose:
@@ -1094,8 +1250,18 @@ def main():
     if args.vhome:
         set_home(args.vhome)
         prompt_vhome = False
+
+    confirm_volttron_home()
     # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
-    fail_if_instance_running(args)
+    if args.agent:
+        message = "The VOLTTRON Instance is currently running. " \
+                  "Installing agents to an active instance may overwrite currently installed "\
+                  "and active agents on the platform, causing undesirable behavior. "
+        fail_if_instance_running(message)
+    if args.config_update:
+        message = f"VOLTTRON is running using at {get_home()}, " \
+                  "you can add/update single configuration using vctl config command."
+        fail_if_instance_running(message, prompt=False)
     fail_if_not_in_src_root()
     if use_active in n:
         atexit.register(_cleanup_on_exit)
@@ -1110,6 +1276,8 @@ def main():
         _update_config_file()
     elif args.is_rabbitmq:
         process_rmq_inputs(vars(args))
+    elif args.config_update:
+        update_configs_in_store(vars(args))
     elif not args.agent:
         wizard()
 
@@ -1121,8 +1289,6 @@ def main():
                 print('"{}" not configurable with this tool'.format(agent))
             else:
                 valid_agents = True
-        if valid_agents:
-            confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:

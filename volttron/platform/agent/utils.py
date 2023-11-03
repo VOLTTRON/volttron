@@ -151,7 +151,8 @@ def load_config(config_path):
 
     if not os.path.exists(config_path):
         raise ValueError(
-            f"Config file specified by AGENT_CONFIG path {config_path} does not exist.")
+             f"Config file specified by path {config_path} does not exist."
+        )
 
     # First attempt parsing the file with a yaml parser (allows comments natively)
     # Then if that fails we fallback to our modified json parser.
@@ -166,7 +167,7 @@ def load_config(config_path):
             with open(config_path) as f:
                 return parse_json_config(f.read())
         except Exception as e:
-            _log.error("Problem parsing agent configuration")
+            _log.error(f"Problem parsing configuration {config_path}: {e}")
             raise
 
 
