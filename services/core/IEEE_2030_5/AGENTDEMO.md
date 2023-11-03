@@ -91,8 +91,8 @@ run VOLTTRON in the background and write to a `volttron.log` file.
     ```
 
     >**Warning**
-    >If you are monitoring the log then open a new command prompt before continuing and follow step 1
-    >before continuing
+    >If monitoring the log then open a new command prompt before continuing and follow step 1
+    >before continuing.
 
 1. Install a platform.driver agent
 
@@ -115,43 +115,28 @@ run VOLTTRON in the background and write to a `volttron.log` file.
     (volttron)> vctl config store 'platform.driver' 'inverter.points.csv' 'demo/inverter.points.csv'
     ```
 
-1. Open another terminal to install the 2030.5 agent and add it's property map to the configuration store.
+1. Add config store entries for the 2030.5 agent.  We will use the identity `ed1`` for the agent.
 
     ```bash
-    > cd $VOLTTRON_ROOT
-    > source env/bin/activate
-    (volttron)> vctl install services/core/IEEE_2030_5/ --vip-identity ed1 --agent-config services/core/IEEE_2030_5/example.config.yml
-    (volttron)> vctl config store ed1 inverter_sample.csv services/core/IEEE_2030_5/inverter_sample.csv --csv
+    (volttron)> vctl config store 'ed1' inverter_sample.csv services/core/IEEE_2030_5/inverter_sample.csv
+    --csv
     ```
 
-    <mark>Note ed1 is the identity that needs to be in the configuration on the web demo</mark>
-
-1. Open another terminal to run a simulated platform.driver.  In this case, an inverter with a
-   connected battery is being simulated.
+1. Install and start the 2030.5 agent.
 
     ```bash
-    > cd $VOLTTRON_ROOT
-    > source env/bin/activate
-    (volttron)> pip install -r requirements_demo.txt
-    (volttron)> python services/core/IEEE_2030_5/demo/inverter_runner.py
+    (volttron)> vctl install services/core/IEEE_2030_5/ --vip-identity ed1 --start
+    --agent-config services/core/IEEE_2030_5/example.config.yml
     ```
 
-    This process will start publishing "all" messages for the inverter to the VOLTTRON message bus.
-
-1. Open another terminal to start the demo server in.
-
-    ```bash
-    > cd $VOLTTRON_ROOT
-    > source env/bin/activate
-    (volttron)> cd services/core/IEEE_2030_5
-    ...
-    ```
-
-1. Run the webgui.py script using the python interpretor.  This should open a webpage allowing one
+1. Finally start the web based demo. This should open a webpage allowing one
    to test the functionality of the 2030.5 agent.  By default it will open at <http://0.0.0.0:8080>.
+   If this does not work you can browse to <http://localhost:8080> and that should work as well.
 
     ```bash
+    (volttron)> cd services/core/IEEE_2030_5
     (volttron)> python demo/webgui.py
+    ...
     ```
 
 ## The Demo ##
