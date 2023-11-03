@@ -90,9 +90,9 @@ run VOLTTRON in the background and write to a `volttron.log` file.
     (volttron)> tail -f volttron.log
     ```
 
-    **NOTE**
-    If you are monitoring the log then open a new command prompt before continuing and follow step 1
-    before continuing***
+    >**NOTE**
+    >If you are monitoring the log then open a new command prompt before continuing and follow step 1
+    >before continuing
 
 1. Install a platform.driver agent
 
