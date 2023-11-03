@@ -86,7 +86,7 @@ def _calc_min_unique_uuid_length(uuids: list) -> int:
     >> 36
     """
     common_len = 1
-    while common_len < len(uuids[0]):  # assuming all uuids have the same length
+    while common_len <= len(uuids[0]):  # assuming all uuids have the same length
         head_uuids = [uuid[:common_len] for uuid in uuids]
         if len(head_uuids) == len(set(head_uuids)):
             break
