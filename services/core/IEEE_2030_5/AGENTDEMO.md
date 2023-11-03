@@ -141,23 +141,88 @@ run VOLTTRON in the background and write to a `volttron.log` file.
 
 ## The Demo ##
 
-The demo starts with local time in the top followed by 2030.5's GMT time as a intenger.  The integer
-is how 2030.5 communicates datetimes within the protocol.  Five tabs are displayable and are
-pictured below:
+Once you start the demo, you'll see the local time displayed at the top, followed by the 2030.5 GMT
+time represented as an integer. This integer representation is how the 2030.5 protocol communicates
+datetime values.
+
+The demo interface includes six tabs:
+
+### Configuration Tab ###
+
+The "Configuration Tab" in the demo interface is typically used to set up and manage the configuration
+settings for the demo.
+
+By adjusting these settings, you can customize the behavior of the demo to suit your specific needs.
 
 ![Configuration Tab](./demo/images/configuration.png)
 
-On the default control tab one can specify the default mode for the inverter to run in.  Clicking
-on the save button sends the default control to the server where the agent will then poll and retrieve
-the default value.
+### DER Default Control Tab ###
+
+The "DER Default Control Tab" in the demo interface allows you to set default operational parameters
+for Distributed Energy Resources (DERs).
+
+In this tab, you can specify the default mode for the inverter to operate in. Once you set the
+parameters and click on the "Save" button, these default control settings are sent to the server.
+The 2030.5 agent then polls the server and retrieves these default values to control the operation
+of the DERs.
+
 ![DER Default Control](./demo/images/default_control.png)
+
+### New DER Control Tab ###
+
+The "New DER Control Tab" in the demo interface is used to create new DER Control events.
+
+In this tab, you can specify the parameters for a new control event, such as the start and end times,
+operational mode, and other settings. Once you've set these parameters, you can submit the new
+control event. This event is then sent to the server and scheduled for execution.
 
 ![New DER Control](./demo/images/control_entry.png)
 
-![DER Control List - No Events](./demo/images/control_list_no_events.png)
+This tab is crucial for scheduling specific control events that override the default operational
+parameters set in the "DER Default Control Tab". These events allow for more dynamic and responsive
+control of the DERs based on changing conditions or requirements.
 
-![DER Control List - Scheduled](./demo/images/control_list_scheduled.png)
+### DER Control List Tab ###
 
-![DER Control List - Active](./demo/images/control_list_active.png)
+The "DER Control List Tab" in the demo interface provides a comprehensive list of all the DER Control
+events that have been scheduled.
 
-![DER Control List - Complete](./demo/images/control_list_complete.png)
+This tab displays the status of each event, whether it's scheduled, active, or completed. It provides
+an overview of all the control events, allowing you to monitor their progress and see when they are completed.
+
+Here's how the interface looks in different states:
+
+- No Events: ![DER Control List - No Events](./demo/images/control_list_no_events.png)
+- Scheduled: ![DER Control List - Scheduled](./demo/images/control_list_scheduled.png)
+- Active: ![DER Control List - Active](./demo/images/control_list_active.png)
+- Complete: ![DER Control List - Complete](./demo/images/control_list_complete.png)
+
+This tab is crucial for managing and monitoring the control events that are used to dynamically control
+the operation of the DERs.
+
+### DER Status Tab ###
+
+The "DER Status Tab" in the demo interface is used to monitor the current status of the DER.
+
+This tab provides real-time information about the operation of the DER, including their current mode
+of operation, power output, and other operational parameters.
+
+### Usage Point Tab ###
+
+The "Usage Point Tab" in the demo interface is used to display the usage points.
+
+Usage points represent a collection of meter readings and are used to monitor the energy consumption
+or production at a specific point. This could be a point of consumption like a building or a point of
+production like a solar panel array.
+
+By monitoring the Usage Point Tab, you can get a live view of how much energy is being consumed or
+produced at each usage point. This can be useful for energy management, performance monitoring, and
+ensuring that the energy production or consumption is as expected.
+
+![Usage Point](./demo/images/usage_point.png)
+
+<!--
+## Next Steps ##
+
+The next step is to configure your own der and see how it performs.  Please see [CONFIGURE.md](CONFIGURE.md)
+for information about the configuration file and config store entries for this agent. -->
