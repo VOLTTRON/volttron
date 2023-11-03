@@ -23,6 +23,7 @@ from pprint import pformat
 from typing import Any, Dict, List
 
 import ieee_2030_5.models as m
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from . import AllPoints
 from .client import IEEE2030_5_Client
 
@@ -263,7 +264,7 @@ class IEEE_2030_5_Agent(Agent):
                         point_value = getattr(point_value, "value")
 
                     if point_value:
-                        self.vip.rpc.call("platform.driver", "set_point", self._device_topic,
+                        self.vip.rpc.call(PLATFORM_DRIVER, "set_point", self._device_topic,
                                           point.point_on_bus, point_value)
             except TypeError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
@@ -280,7 +281,7 @@ class IEEE_2030_5_Agent(Agent):
                         point_value = getattr(point_value, "value")
 
                     if point_value:
-                        self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
+                        self.vip.rpc.call(PLATFORM_DRIVER, "set_point", point.point_on_bus,
                                           point_value)
             except TypeError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
@@ -337,7 +338,7 @@ class IEEE_2030_5_Agent(Agent):
 
                     if point_value:
                         _log.debug(f"Setting point: {point.point_on_bus} to {point_value}")
-                        self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
+                        self.vip.rpc.call(PLATFORM_DRIVER, "set_point", point.point_on_bus,
                                           point_value)
             except TypeError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
@@ -415,7 +416,6 @@ class IEEE_2030_5_Agent(Agent):
                 found = next(
                     filter(lambda x: x.mRID == mup.mRID, server_usage_points.MirrorUsagePoint))
             except StopIteration:
-                # TODO Create new usage point
                 location = self._client.create_mirror_usage_point(mup)
                 mup_reading = m.MirrorMeterReading(
                     mRID=mup.MirrorMeterReading[0].mRID,
