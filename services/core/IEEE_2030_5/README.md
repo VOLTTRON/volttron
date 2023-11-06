@@ -112,6 +112,17 @@ point_map: config:///inverter_sample.csv
 
 See the [inverter_sample.csv](inverter_sample.csv) file.
 
+In the inverter_sample.csv file we have columns such as the following excerpt.  The Point Name
+corresponds to an all message published to the device_topic.  Only the points with both the
+Parameter Type and the Point Name are used when publshing/setting points to the platform.driver.
+
+| Point Name             | Description       | Multiplier | MRID | Offset | Parameter Type                              | Notes                                             |
+|------------------------|-------------------|------------|------|--------|---------------------------------------------|---------------------------------------------------|
+| ctrl_connected         |                   |            |      |        | DERControlBase::opModConnect                | True/False Connected = True, Disconnected = False |
+| ctrl_energized         |                   |            |      |        | DERControlBase::opModEnergize               | True/False Energized = True, De-Energized = False |
+| ctrl_fixed_pf_absorb_w |                   |            |      |        | DERControlBase::opModFixedPFAbsorbW         |                                                   |
+|------------------------|-------------------|------------|------|--------|---------------------------------------------|---------------------------------------------------|
+
 ## Agent Installation ##
 
 The 2030.5 agent can be installed and started using an activated terminal from the root of the volttron
