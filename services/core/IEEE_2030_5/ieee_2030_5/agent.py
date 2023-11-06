@@ -131,6 +131,13 @@ class MappedPoint:
 
     @staticmethod
     def build_from_csv(data: Dict[str, str]) -> MappedPoint:
+        """Create a mapped point from a row of data.
+
+        :param data: A row of data from the point_map csv file.
+        :type data: Dict[str, str]
+        :return: A mapped point object.
+        :rtype: MappedPoint
+        """
         return MappedPoint(point_on_bus=data['Point Name'].strip(),
                            description=data['Description'].strip(),
                            multiplier=data['Multiplier'].strip(),
@@ -363,15 +370,21 @@ class IEEE_2030_5_Agent(Agent):
                         if isinstance(point_value, m.PowerFactor):
                             point_value = point_value.displacement * math.pow(
                                 10, -point_value.multiplier)
-                        else:
+                        elif point_value.value is not None and point_value.multiplier is not None:
                             point_value = point_value.value * math.pow(10, -point_value.multiplier)
+                        else:
+                            point_value = None
                     elif isinstance(point_value, m.FixedVar):
-                        ...
+                        # TODO: Deal with ref type?
+                        point_value = point_value.value
 
                     elif isinstance(point_value, m.DERCurveLink):
+                        # TODO Handle DERCurve Types
                         ...
                     elif isinstance(point_value, bool):
                         point_value = 1 if point_value else 0
+                    elif isinstance(point_value, m.PowerFactorWithExcitation):
+                        point_value = point_value.displacement
 
                     if point_value:
                         _log.debug(f'Setting point: {point.point_on_bus} to {point_value}')
