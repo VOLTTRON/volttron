@@ -148,10 +148,8 @@ The demo interface includes six tabs:
 
 ### Configuration Tab ###
 
-The "Configuration Tab" in the demo interface is typically used to set up and manage the configuration
-settings for the demo.
-
-By adjusting these settings, you can customize the behavior of the demo to suit your specific needs.
+The "Configuration Tab" in the demo interface shows the configuration settings for the demo. The values are 
+set based on your VOLTTRON environment and 2030.5 server configuration
 
 ![Configuration Tab](./demo/images/configuration.png)
 
@@ -173,13 +171,14 @@ The "New DER Control Tab" in the demo interface is used to create new DER Contro
 
 In this tab, you can specify the parameters for a new control event, such as the start and end times,
 operational mode, and other settings. Once you've set these parameters, you can submit the new
-control event. This event is then sent to the server and scheduled for execution.
+control event. This event is then sent to the server and scheduled for execution. 
 
 ![New DER Control](./demo/images/control_entry.png)
 
 This tab is crucial for scheduling specific control events that override the default operational
 parameters set in the "DER Default Control Tab". These events allow for more dynamic and responsive
-control of the DERs based on changing conditions or requirements.
+control of the DERs based on changing conditions or requirements. Using the refresh icon 
+next to the "DER Control Entry" heading sets the schedule time of the event as current time + 30 seconds. 
 
 ### DER Control List Tab ###
 
