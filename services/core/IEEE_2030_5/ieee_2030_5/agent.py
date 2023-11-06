@@ -98,6 +98,16 @@ class MappedPoint:
             self.changed = True
 
     def __post_init__(self):
+        """Post initialization of the MappedPoint object.
+
+        This method is called after the object is initialized.  It is used to
+        verify that the parameter_type is valid and that the parent_object and
+        parameter are set correctly.  The parent_object is the object that the
+        parameter is a property of.
+
+        The parameter_type must be in the format <object>::<property> where object
+        is one of DERSettings, DERCapability, DERControlBase, or DERStatus.
+        """
         params = self.parameter_type.split('::')
 
         # Only if we have a proper object specifier that we know about
@@ -136,6 +146,31 @@ class IEEE_2030_5_Agent(Agent):
     """
 
     def __init__(self, config_path: str, **kwargs):
+        """Initialize the IEEE 2030.5 agent.
+
+        The IEEE 2030.5 agent is responsible for connecting to the IEEE 2030.5 server and
+        sending it data from the platform driver.  The agent is also responsible for
+        creating MirrorUsagePoints on the IEEE 2030.5 server and sending data from the
+        platform driver to the IEEE 2030.5 server based upon those MirrorUsagePoints.
+        The configuration file holds information in order for the 2030.5 agent to accomplish
+        these tasks.
+
+        In addition, the 2030.5 agent will poll the IEEE 2030.5 server for DERControl, and
+        DefaultDERControl objects.  The DefaultDERControl object is used to set the default
+        mode of operation for the DER.  When the DefaultDERControl object is updated, the
+        2030.5 agent will send the updated values to the platform driver.  During a DERControl
+        event, the 2030.5 agent will send the DERControl object data to the platform driver.
+        Once the DERControl event has ended, the 2030.5 agent will revert back to the
+        DefaultDERControl object and send that object to the platform driver.
+
+        The Mapping of points from/to the platform driver and 2030.5 objects is done via the
+        config store entry point_map field within the configuration file.
+
+        :param config_path: A path to the configuration file that holds the
+                            defaults for the agent and connection to the
+                            IEEE 2030.5 server.
+        :type config_path: str
+        """
         super().__init__(**kwargs)
         _log.debug('vip_identity: ' + self.core.identity)
 
@@ -217,32 +252,23 @@ class IEEE_2030_5_Agent(Agent):
         # Hook self.configure up to changes to the configuration file "config".
         self.vip.config.subscribe(self.configure, actions=['NEW', 'UPDATE'], pattern='config')
 
-    @RPC.export
-    def update_der_settings(self, href: str, new_settings: m.DERSettings) -> int:
-        resp = self._client.put_der_settings(href, new_settings)
-        return resp
-
-    @RPC.export
-    def update_der_availability(self, href: str, new_availability: m.DERAvailability) -> int:
-        resp = self._client.put_der_availability(href, new_availability)
-        return resp
-
-    @RPC.export
-    def update_der_status(self, href: str, new_availability: m.DERAvailability) -> int:
-        resp = self._client.put_der_status(href, new_availability)
-        return resp
-
-    @RPC.export
-    def get_der_references(self) -> List[str]:
-        return self._client.get_der_hrefs()
-
     def _active_controls_changed(self, active: m.DERControlList):
+        """Callback when the active controls have changed on the IEEE 2030.5 server.
+
+        :param active: A list of active controls
+        :type active: m.DERControlList
+        """
         if not isinstance(active, m.DERControlList):
             _log.error('Invalid instance passed to active control changed')
             return
-        _log.debug(active)
+        _log.debug('Active controls changed')
 
     def _default_control_changed(self, default_control: m.DefaultDERControl):
+        """Calback when the default control has changed on the IEEE 2030.5 server.
+
+        @param: default_control: The new default control.
+        @type: default_control: m.DefaultDERControl
+        """
         if not isinstance(default_control, m.DefaultDERControl):
             _log.error('Invalid instance of default control')
             raise ValueError(f'Invalid instance of default control was {type(default_control)}')
@@ -250,7 +276,7 @@ class IEEE_2030_5_Agent(Agent):
         if self._current_control is not None:
             _log.info('Default config has been overwritten by event.')
             return
-        _log.info('Sending controls to platform.driver')
+        _log.info('Sending default control to platform.driver')
 
         self._default_der_control = default_control
 
@@ -291,16 +317,22 @@ class IEEE_2030_5_Agent(Agent):
             except TypeError:
                 _log.error(f'Error setting point {point.point_on_bus} to {point_value}')
 
-    def _control_event_started(self, sender: m.DERControl):
-        _log.debug(f"{'='*50}Control event started\n{sender}")
-        if not isinstance(sender, m.DERControl):
+    def _control_event_started(self, control: m.DERControl):
+        """A control event has started.
+
+        :param control: The control that has started.
+        :type control: m.DERControl
+        :raises ValueError: If the control is not an instance of m.DERControl
+        """
+        _log.debug(f"{'='*50}Control event started")
+        if not isinstance(control, m.DERControl):
             _log.error('Invalid control event passed to event_started')
             raise ValueError(
-                f'Invalid type passed to event_started {type(sender)} instead of {type(m.DERControl)}'
+                f'Invalid type passed to event_started {type(control)} instead of {type(m.DERControl)}'
             )
 
-        self._current_control = sender
-        der_control: m.DERControl = sender
+        self._current_control = control
+        der_control: m.DERControl = control
         # We override some of the base controls with the event controls
         der_control_base: m.DERControlBase = None
         if self._default_der_control is not None and self._default_der_control.DERControlBase is not None:
@@ -348,9 +380,18 @@ class IEEE_2030_5_Agent(Agent):
             except TypeError:
                 _log.error(f'Error setting point {point.point_on_bus} to {point_value}')
 
-    def _control_event_ended(self, sender: m.DERControl):
-        _log.debug(f"{'='*50}Control event ended\n{sender}")
+    def _control_event_ended(self, control: m.DERControl):
+        """Callback when a control event has ended.
+
+        When the control event ends, we need to reset the controls to the default control
+        specified by the IEEE 2030.5 server.
+
+        :param control: The control that has ended.
+        :type control: m.DERControl
+        """
+        _log.debug(f"{'='*50}Control event ended")
         self._current_control = None
+        self._default_control_changed(self._default_der_control)
 
     def configure(self, config_name, action, contents):
         """
