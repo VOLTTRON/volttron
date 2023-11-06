@@ -188,10 +188,12 @@ class IEEE_2030_5_Agent(Agent):
         self._certfile = Path(config['certfile']).expanduser()
         self._pin = config['pin']
         self._log_req_resp = bool(config.get('log_req_resp', False))
+        if config['device_topic'].endswith('/all'):
+            config['device_topic'] = config['device_topic'][:-len('/all')]
         self._device_topic = config['device_topic']
-        # Remove devices/ from prefix for sending data.
-        if self._device_topic.startswith('devices/'):
-            self._device_topic = self._device_topic[len('devices/'):]
+        self._control_point = config['device_topic']
+        if self._control_point.startswith('devices/'):
+            self._control_point = self._control_point[len('devices/'):]
         self._server_hostname = config['server_hostname']
         self._server_ssl_port = config.get('server_ssl_port', 443)
         self._server_http_port = config.get('server_http_port', None)
@@ -302,7 +304,7 @@ class IEEE_2030_5_Agent(Agent):
                         point_value = getattr(point_value, 'value')
 
                     if point_value:
-                        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', self._device_topic,
+                        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', self._control_point,
                                           point.point_on_bus, point_value)
             except TypeError:
                 _log.error(f'Error setting point {point.point_on_bus} to {point_value}')
@@ -319,7 +321,7 @@ class IEEE_2030_5_Agent(Agent):
                         point_value = getattr(point_value, 'value')
 
                     if point_value:
-                        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', self._device_topic,
+                        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', self._control_point,
                                           point.point_on_bus, point_value)
             except TypeError:
                 _log.error(f'Error setting point {point.point_on_bus} to {point_value}')
@@ -455,12 +457,14 @@ class IEEE_2030_5_Agent(Agent):
             _log.error('ERROR PROCESSING CONFIGURATION: {}'.format(e))
             return
 
-        all_message = '/'.join([self._device_topic, 'all'])
         self.vip.pubsub.unsubscribe(peer='pubsub',
-                                    prefix=all_message,
+                                    prefix=self._device_topic,
                                     callback=self._data_published)
 
         self._device_topic = device_topic
+        self._control_point = device_topic
+        if self._control_point.startswith('devices/'):
+            self._control_point = self._control_point[len('devices/'):]
 
         self._mup_readings.clear()
         self._mirror_usage_points.clear()
@@ -493,8 +497,10 @@ class IEEE_2030_5_Agent(Agent):
 
         self._server_usage_points = self._client.mirror_usage_point_list()
 
-        all_message = '/'.join([self._device_topic, 'all'])
-        self.vip.pubsub.subscribe(peer='pubsub', prefix=all_message, callback=self._data_published)
+        _log.debug(f'Subscribing to {self._device_topic}')
+        self.vip.pubsub.subscribe(peer='pubsub',
+                                  prefix=self._device_topic,
+                                  callback=self._data_published)
 
     def _cast_multipler(self, value: str) -> int:
         try:
@@ -641,45 +647,48 @@ class IEEE_2030_5_Agent(Agent):
         status = None
 
         for point in points:
-            assert isinstance(
-                point.parent_object,
-                m.DERStatus), f'Parent object is not a DERStatus object: {p.parent_object}'
+            try:
+                assert isinstance(
+                    point.parent_object,
+                    m.DERStatus), f'Parent object is not a DERStatus object: {p.parent_object}'
 
-            status: m.DERStatus = point.parent_object
+                status: m.DERStatus = point.parent_object
 
-            if point.parameter == 'genConnectStatus':
-                status.genConnectStatus = m.ConnectStatusType(dateTime=server_time,
-                                                              value=status.genConnectStatus)
+                if point.parameter == 'genConnectStatus':
+                    status.genConnectStatus = m.ConnectStatusType(dateTime=server_time,
+                                                                  value=status.genConnectStatus)
 
-            if point.parameter == 'inverterStatus':
-                status.inverterStatus = m.InverterStatusType(dateTime=server_time,
-                                                             value=status.inverterStatus)
+                if point.parameter == 'inverterStatus':
+                    status.inverterStatus = m.InverterStatusType(dateTime=server_time,
+                                                                 value=status.inverterStatus)
 
-            if point.parameter == 'localControlModeStatus':
-                status.localControlModeStatus = m.LocalControlModeStatusType(
-                    dateTime=server_time, value=status.localControlModeStatus)
+                if point.parameter == 'localControlModeStatus':
+                    status.localControlModeStatus = m.LocalControlModeStatusType(
+                        dateTime=server_time, value=status.localControlModeStatus)
 
-            if point.parameter == 'manufacturerStatus':
-                status.manufacturerStatus = m.ManufacturerStatusType(
-                    dateTime=server_time, value=status.manufacturerStatus)
+                if point.parameter == 'manufacturerStatus':
+                    status.manufacturerStatus = m.ManufacturerStatusType(
+                        dateTime=server_time, value=status.manufacturerStatus)
 
-            if point.parameter == 'operationalModeStatus':
-                status.operationalModeStatus = m.OperationalModeStatusType(
-                    dateTime=server_time, value=status.operationalModeStatus)
+                if point.parameter == 'operationalModeStatus':
+                    status.operationalModeStatus = m.OperationalModeStatusType(
+                        dateTime=server_time, value=status.operationalModeStatus)
 
-            if point.parameter == 'stateOfChargeStatus':
-                status.stateOfChargeStatus = m.StateOfChargeStatusType(
-                    dateTime=server_time, value=status.stateOfChargeStatus)
+                if point.parameter == 'stateOfChargeStatus':
+                    status.stateOfChargeStatus = m.StateOfChargeStatusType(
+                        dateTime=server_time, value=status.stateOfChargeStatus)
 
-            if point.parameter == 'storageModeStatus':
-                status.storageModeStatus = m.StorageModeStatusType(dateTime=server_time,
-                                                                   value=status.storageModeStatus)
+                if point.parameter == 'storageModeStatus':
+                    status.storageModeStatus = m.StorageModeStatusType(
+                        dateTime=server_time, value=status.storageModeStatus)
 
-            if point.parameter == 'storConnectStatus':
-                status.storConnectStatus = m.ConnectStatusType(dateTime=server_time,
-                                                               value=status.storConnectStatus)
+                if point.parameter == 'storConnectStatus':
+                    status.storConnectStatus = m.ConnectStatusType(dateTime=server_time,
+                                                                   value=status.storConnectStatus)
 
-            status.readingTime = server_time
+                status.readingTime = server_time
+            except Exception as e:
+                _log.error(f'Converting status: {e}')
         return status
 
     def _transform_capabilities(self, points: List[MappedPoint]) -> m.DERCapability:
@@ -698,7 +707,6 @@ class IEEE_2030_5_Agent(Agent):
         capabilities = None
 
         for point in points:
-
             assert isinstance(
                 point.parent_object, m.DERCapability
             ), f'Parent object is not a DERCapability object: {point.parent_object}'
