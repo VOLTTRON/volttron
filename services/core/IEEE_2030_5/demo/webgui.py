@@ -29,7 +29,7 @@ from nicegui import app, ui
 import ieee_2030_5.models as m
 from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
 
-logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 _log = logging.getLogger(__name__)
 
 
@@ -38,7 +38,7 @@ def uuid_2030_5() -> str:
 
 
 def timestamp_to_string(timestamp: int) -> str:
-    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def datetime_from_utc_to_local(utc_datetime):
@@ -49,12 +49,12 @@ def datetime_from_utc_to_local(utc_datetime):
 
 @dataclass
 class Configuration:
-    agent_2030_5_identity: str = "ed1"
-    volttron_home: str = Path("~/.volttron").expanduser().as_posix()
-    ieee_server: str = "https://127.0.0.1:8443"
-    ieee_client_pk: str = Path("~/tls/private/dev1.pem").expanduser().as_posix()
-    ieee_client_cert: str = Path("~/tls/certs/dev1.crt").expanduser().as_posix()
-    ieee_ca: str = Path("~/tls/certs/ca.crt").expanduser().as_posix()
+    agent_2030_5_identity: str = 'ed1'
+    volttron_home: str = Path('~/.volttron').expanduser().as_posix()
+    ieee_server: str = 'https://127.0.0.1:8443'
+    ieee_client_pk: str = Path('~/tls/private/dev1.pem').expanduser().as_posix()
+    ieee_client_cert: str = Path('~/tls/certs/dev1.crt').expanduser().as_posix()
+    ieee_ca: str = Path('~/tls/certs/ca.crt').expanduser().as_posix()
 
 
 @dataclass
@@ -78,7 +78,7 @@ class PlottedData:
     series_values: Dict[str, List[float]] = field(default_factory=dict)
 
     def df(self) -> pd.DataFrame:
-        data = {"ts": self.series_ts.copy()}
+        data = {'ts': self.series_ts.copy()}
         data.update(self.series_values)
 
         my_df = pd.DataFrame(data)
@@ -138,21 +138,21 @@ class PropertyWrapper:
             if isinstance(self.backing_obj,
                           (m.VoltageRMS, m.ApparentPower, m.CurrentRMS, m.ActivePower, m.FixedVar,
                            m.FixedPointType, m.ReactivePower, m.AmpereHour, m.WattHour)):
-                self.backing_obj.__dict__["value"] = self.parent_obj.__dict__[
+                self.backing_obj.__dict__['value'] = self.parent_obj.__dict__[
                     self.parent_property].value
 
     def __setattr__(self, key: str, value: Any):
-        if key in ("backing_obj", "parent_obj", "parent_property", "formatters", "appliers"):
+        if key in ('backing_obj', 'parent_obj', 'parent_property', 'formatters', 'appliers'):
             self.__dict__[key] = value
         else:
             if key in self.formatters:
                 self.backing_obj.__dict__[key] = self.formatters[key](value)
             else:
-                _log.debug(f"Setting on {type(self.backing_obj)} {key} -> {value}")
+                _log.debug(f'Setting on {type(self.backing_obj)} {key} -> {value}')
                 self.backing_obj.__dict__[key] = value
 
     def __getattr__(self, key: str) -> Any:
-        if key in ("data_obj", "parent_obj", "parent_property", "formatters", "appliers"):
+        if key in ('data_obj', 'parent_obj', 'parent_property', 'formatters', 'appliers'):
             return self.__dict__[key]
         else:
             return self.backing_obj.__dict__[key]
@@ -167,9 +167,9 @@ class PropertyWrapper:
         if self.should_be_none():
             setattr(self.parent_obj, self.parent_property, None)
         else:
-            _log.debug(f"Setting {self.parent_property} to {other_obj}")
+            _log.debug(f'Setting {self.parent_property} to {other_obj}')
             setattr(self.parent_obj, self.parent_property, other_obj)
-            _log.debug(f"Parent obj is {self.parent_obj}")
+            _log.debug(f'Parent obj is {self.parent_obj}')
 
     def should_be_none(self) -> bool:
         """Answers the question whether the parent property should be None.
@@ -188,8 +188,8 @@ class PropertyWrapper:
 def update_sessions():
     """Update the admin and client sessions with the current configuration."""
     tlsdir = Path(config.ieee_client_cert).parent.parent
-    admin_session.cert = (str(tlsdir.joinpath("certs/admin.crt")),
-                          str(tlsdir.joinpath("private/admin.pem")))
+    admin_session.cert = (str(tlsdir.joinpath('certs/admin.crt')),
+                          str(tlsdir.joinpath('private/admin.pem')))
     client_session.cert = (config.ieee_client_cert, config.ieee_client_pk)
     admin_session.verify = config.ieee_ca
     client_session.verify = config.ieee_ca
@@ -208,16 +208,16 @@ def get_from_server(context: str,
 
     params = {}
     if start is not None:
-        params["s"] = int(start)
+        params['s'] = int(start)
     if after is not None:
-        params["a"] = int(after)
+        params['a'] = int(after)
     if limit is not None:
-        params["l"] = int(limit)
+        params['l'] = int(limit)
 
     if admin_request:
-        response = session.get(config.ieee_server + f"/admin/{context}", params=params)
+        response = session.get(config.ieee_server + f'/admin/{context}', params=params)
     else:
-        response = session.get(config.ieee_server + f"/{context}", params=params)
+        response = session.get(config.ieee_server + f'/{context}', params=params)
 
     if deserialize:
         return xml_to_dataclass(response.text)
@@ -225,32 +225,32 @@ def get_from_server(context: str,
 
 
 def admin_uri(path: str):
-    path = path.replace("_", "/")
-    if path.startswith("/"):
+    path = path.replace('_', '/')
+    if path.startswith('/'):
         path = path[1:]
-    return f"{config.ieee_server}/admin/{path}"
+    return f'{config.ieee_server}/admin/{path}'
 
 
 def __uri__(path: str):
-    if path.startswith("/"):
+    if path.startswith('/'):
         path = path[1:]
-    return f"{config.ieee_server}/{path}"
+    return f'{config.ieee_server}/{path}'
 
 
 def post_as_admin(path, data):
-    print(f"POST: {admin_uri(path)}")
+    print(f'POST: {admin_uri(path)}')
     assert admin_session.cert
     return admin_session.post(admin_uri(path), data=data)
 
 
 def put_as_admin(path, data):
-    print(f"PUT: {admin_uri(path)}")
+    print(f'PUT: {admin_uri(path)}')
     assert admin_session.cert
     return admin_session.put(admin_uri(path), data=data)
 
 
 def post_as_device(path, data):
-    print(f"POST: {__uri__(path)}")
+    print(f'POST: {__uri__(path)}')
     return client_session.post(__uri__(path), data=data)
 
 
@@ -264,14 +264,14 @@ def save_config():
             paths_unavailable.append(path_text[index])
 
     if paths_unavailable:
-        ui.notify(f"Missing: {';'.join(paths_unavailable)}", type="warning", position='center')
+        ui.notify(f"Missing: {';'.join(paths_unavailable)}", type='warning', position='center')
     else:
         for fld in fields(config):
             setattr(config, fld.name, getattr(config_working, fld.name))
 
         update_sessions()
 
-        ui.notify("Configuration Updated")
+        ui.notify('Configuration Updated')
 
 
 def reset_config():
@@ -302,7 +302,7 @@ def convert_local_dt_to_utc_timestamp(dt: datetime) -> int:
 
 
 update_sessions()
-dcap: m.DeviceCapability = get_from_server("dcap", deserialize=True)
+dcap: m.DeviceCapability = get_from_server('dcap', deserialize=True)
 edl: m.EndDeviceList = get_from_server(dcap.EndDeviceListLink.href, deserialize=True)
 edev = edl.EndDevice[0]
 ders: m.DERList = get_from_server(edev.DERListLink.href, deserialize=True)
@@ -315,7 +315,7 @@ def noneable_int_change(obj: object, prop: str, value):
         num = int(value.sender.value)
         setattr(obj, prop, num)
     except (ValueError, TypeError):
-        if value.sender.value == "":
+        if value.sender.value == '':
             setattr(obj, prop, None)
 
 
@@ -324,7 +324,7 @@ def render_der_default_control_tab():
 
     def refresh_default_control_tab():
         render_der_default_control_tab.refresh()
-        ui.notify("Refreshed")
+        ui.notify('Refreshed')
 
     default: m.DefaultDERControl = get_from_server(program.DefaultDERControlLink.href,
                                                    deserialize=True)
@@ -337,93 +337,93 @@ def render_der_default_control_tab():
 
     with ui.row():
         with ui.column():
-            with ui.label("DER Default Control").style("font-size: 200%;"):
-                ui.button(icon="refresh",
-                          color="white",
+            with ui.label('DER Default Control').style('font-size: 200%;'):
+                ui.button(icon='refresh',
+                          color='white',
                           on_click=lambda: refresh_default_control_tab()).style(
-                              "margin:5px; padding: 5px;")
+                              'margin:5px; padding: 5px;')
             ui.label(
-                "Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard."
+                'Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.'
             )
 
-    with ui.row().classes("pt-10"):
-        with ui.column().classes("pr-15"):
-            ui.input("setESDelay (hundredth of a second)",
-                                      on_change=lambda e: noneable_int_change(default, "setESDelay", e)) \
-                                          .bind_value_from(default, "setESDelay").classes("w-96")
+    with ui.row().classes('pt-10'):
+        with ui.column().classes('pr-15'):
+            ui.input('setESDelay (hundredth of a second)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESDelay', e)) \
+                                          .bind_value_from(default, 'setESDelay').classes('w-96')
             #.bind_value_from(default, "setESDelay").classes("w-96")
-            ui.input("setESHighFreq (hundredth of a hertz)",
-                                      on_change=lambda e: noneable_int_change(default, "setESHighFreq", e)) \
-                .bind_value_from(default, "setESHighFreq").classes("w-96")
-            ui.input("setESHighVolt (hundredth of a volt)",
-                                      on_change=lambda e: noneable_int_change(default, "setESHighVolt", e)) \
-                .bind_value_from(default, "setESHighVolt").classes("w-96")
+            ui.input('setESHighFreq (hundredth of a hertz)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESHighFreq', e)) \
+                .bind_value_from(default, 'setESHighFreq').classes('w-96')
+            ui.input('setESHighVolt (hundredth of a volt)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESHighVolt', e)) \
+                .bind_value_from(default, 'setESHighVolt').classes('w-96')
 
-        with ui.column().classes("pr-15"):
-            ui.input("setESLowFreq (hundredth of a hertz)",
-                                      on_change=lambda e: noneable_int_change(default, "setESLowFreq", e)) \
-                .bind_value_from(default, "setESLowFreq").classes("w-96")
-            ui.input("setESLowVolt (hundredth of a volt)",
-                                      on_change=lambda e: noneable_int_change(default, "setESLowVolt", e)) \
-                .bind_value_from(default, "setESLowVolt").classes("w-96")
-            ui.input("setESRampTms (hundredth of a second)",
-                                      on_change=lambda e: noneable_int_change(default, "setESRampTms", e)) \
-                .bind_value_from(default, "setESRampTms").classes("w-96")
+        with ui.column().classes('pr-15'):
+            ui.input('setESLowFreq (hundredth of a hertz)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESLowFreq', e)) \
+                .bind_value_from(default, 'setESLowFreq').classes('w-96')
+            ui.input('setESLowVolt (hundredth of a volt)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESLowVolt', e)) \
+                .bind_value_from(default, 'setESLowVolt').classes('w-96')
+            ui.input('setESRampTms (hundredth of a second)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESRampTms', e)) \
+                .bind_value_from(default, 'setESRampTms').classes('w-96')
         with ui.column():
 
-            ui.input("setESRandomDelay (hundredth of a second)",
-                                      on_change=lambda e: noneable_int_change(default, "setESRandomDelay", e)) \
-                .bind_value_from(default, "setESRandomDelay").classes("w-96")
-            ui.input("setGradW (hundredth of a watt)",
-                                      on_change=lambda e: noneable_int_change(default, "setGradW", e)) \
-                .bind_value_from(default, "setGradW").classes("w-96")
-            ui.input("setSoftGradW (hundredth of a watt)",
-                                      on_change=lambda e: noneable_int_change(default, "setSoftGradW", e)) \
-                .bind_value_from(default, "setSoftGradW").classes("w-96")
+            ui.input('setESRandomDelay (hundredth of a second)',
+                                      on_change=lambda e: noneable_int_change(default, 'setESRandomDelay', e)) \
+                .bind_value_from(default, 'setESRandomDelay').classes('w-96')
+            ui.input('setGradW (hundredth of a watt)',
+                                      on_change=lambda e: noneable_int_change(default, 'setGradW', e)) \
+                .bind_value_from(default, 'setGradW').classes('w-96')
+            ui.input('setSoftGradW (hundredth of a watt)',
+                                      on_change=lambda e: noneable_int_change(default, 'setSoftGradW', e)) \
+                .bind_value_from(default, 'setSoftGradW').classes('w-96')
 
-    with ui.row().style("margin-top:15px;margin-bottom:15px;"):
-        ui.label("DER Control Base").style("font-size: 150%;")
+    with ui.row().style('margin-top:15px;margin-bottom:15px;'):
+        ui.label('DER Control Base').style('font-size: 150%;')
 
     with ui.row():
-        with ui.column().classes("pr-20"):
-            ui.checkbox("opModConnect", value=True).bind_value(der_base, "opModConnect")
-            ui.checkbox("opModEnergize", value=True).bind_value(der_base, "opModEnergize")
+        with ui.column().classes('pr-20'):
+            ui.checkbox('opModConnect', value=True).bind_value(der_base, 'opModConnect')
+            ui.checkbox('opModEnergize', value=True).bind_value(der_base, 'opModEnergize')
 
-        with ui.column().classes("pr-20"):
-            ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
+        with ui.column().classes('pr-20'):
+            ui.label('Power Factor Absorb Watts').style('font-size: 125%;')
             if der_base.opModFixedPFAbsorbW is None:
                 der_base.opModFixedPFAbsorbW = m.PowerFactorWithExcitation()
             opModFixedPFAbsorbW_wrapper = PropertyWrapper(der_base.opModFixedPFAbsorbW, der_base,
-                                                          "opModFixedPFAbsorbW")
+                                                          'opModFixedPFAbsorbW')
             wrappers.append(opModFixedPFAbsorbW_wrapper)
-            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, "displacement", e)) \
-                .bind_value_from(opModFixedPFAbsorbW_wrapper, "displacement")
-            ui.checkbox("excitation", value=False).bind_value(opModFixedPFAbsorbW_wrapper,
-                                                              "excitation")
+            ui.input('displacement', on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, 'displacement', e)) \
+                .bind_value_from(opModFixedPFAbsorbW_wrapper, 'displacement')
+            ui.checkbox('excitation', value=False).bind_value(opModFixedPFAbsorbW_wrapper,
+                                                              'excitation')
 
-            ui.label("Power Factor Inject Watts").style("font-size: 125%;")
+            ui.label('Power Factor Inject Watts').style('font-size: 125%;')
             if der_base.opModFixedPFInjectW is None:
                 der_base.opModFixedPFInjectW = m.PowerFactorWithExcitation()
             opModFixedPFInjectW_wrapper = PropertyWrapper(der_base.opModFixedPFInjectW, der_base,
-                                                          "opModFixedPFInjectW")
+                                                          'opModFixedPFInjectW')
             wrappers.append(opModFixedPFInjectW_wrapper)
-            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, "displacement", e)) \
-                .bind_value_from(opModFixedPFInjectW_wrapper, "displacement")
-            ui.checkbox("excitation", value=False).bind_value(opModFixedPFInjectW_wrapper,
-                                                              "excitation")
+            ui.input('displacement', on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, 'displacement', e)) \
+                .bind_value_from(opModFixedPFInjectW_wrapper, 'displacement')
+            ui.checkbox('excitation', value=False).bind_value(opModFixedPFInjectW_wrapper,
+                                                              'excitation')
 
-        with ui.column().classes("pr-20"):
-            fixedVar_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
+        with ui.column().classes('pr-20'):
+            fixedVar_wrapper = PropertyWrapper(m.FixedVar(), der_base, 'opModFixedVar')
             wrappers.append(fixedVar_wrapper)
-            ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
-                .bind_value_from(fixedVar_wrapper, "value")
+            ui.input('opModFixedVar', on_change=lambda e: noneable_int_change(fixedVar_wrapper, 'value', e)) \
+                .bind_value_from(fixedVar_wrapper, 'value')
 
             # fixedWatt_wrapper = PropertyWrapper(m.WattHour(), der_base, "opModFixedW")
             # wrappers.append(fixedWatt_wrapper)
             # ui.input("opModFixedW", on_change=lambda e: noneable_int_change(fixedWatt_wrapper, "value", e)) \
             #     .bind_value_from(fixedWatt_wrapper, "value")
-            ui.input("opModFixedW", on_change=lambda e: noneable_int_change(der_base, "opModFixedW", e)) \
-                .bind_value_from(der_base, "opModFixedW")
+            ui.input('opModFixedW', on_change=lambda e: noneable_int_change(der_base, 'opModFixedW', e)) \
+                .bind_value_from(der_base, 'opModFixedW')
 
             # freqDroop_wrapper = Wrapper(m.FreqDroopType(), der_base, "openLoopTms")
             # wrappers.append(freqDroop_wrapper)
@@ -431,19 +431,19 @@ def render_der_default_control_tab():
             #                                on_change=lambda e: noneable_int_change(freqDroop_wrapper, "openLoopTms", e)) \
             #     .bind_value_from(freqDroop_wrapper, "openLoopTms")
 
-            ui.input("opModMaxLimW", on_change=lambda e: noneable_int_change(der_base, "opModMaxLimW", e)) \
-                .bind_value_from(der_base, "opModMaxLimW")
+            ui.input('opModMaxLimW', on_change=lambda e: noneable_int_change(der_base, 'opModMaxLimW', e)) \
+                .bind_value_from(der_base, 'opModMaxLimW')
 
-        with ui.column().classes("pr-10"):
-            opModTargetVar_wrapper = PropertyWrapper(m.ReactivePower(), der_base, "opModTargetVar")
+        with ui.column().classes('pr-10'):
+            opModTargetVar_wrapper = PropertyWrapper(m.ReactivePower(), der_base, 'opModTargetVar')
             wrappers.append(opModTargetVar_wrapper)
-            ui.input("opModTargetVar", on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, "value", e)) \
-                .bind_value_from(opModTargetVar_wrapper, "value")
+            ui.input('opModTargetVar', on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, 'value', e)) \
+                .bind_value_from(opModTargetVar_wrapper, 'value')
 
-            opModTargetW_wrapper = PropertyWrapper(m.ActivePower(), der_base, "opModTargetW")
+            opModTargetW_wrapper = PropertyWrapper(m.ActivePower(), der_base, 'opModTargetW')
             wrappers.append(opModTargetW_wrapper)
-            ui.input("opModTargetW", on_change=lambda e: noneable_int_change(opModTargetW_wrapper, "value", e)) \
-                .bind_value_from(opModTargetW_wrapper, "value")
+            ui.input('opModTargetW', on_change=lambda e: noneable_int_change(opModTargetW_wrapper, 'value', e)) \
+                .bind_value_from(opModTargetW_wrapper, 'value')
 
             # opModVoltVar = ui.input("opModVoltVar",
             #                                on_change=lambda e: noneable_int_change(der_base, "opModVoltVar", e)) \
@@ -451,34 +451,34 @@ def render_der_default_control_tab():
             # opModWattPF = ui.input("opModWattPF",
             #                                on_change=lambda e: noneable_int_change(der_base, "opModWattPF", e)) \
             #     .bind_value_from(der_base, "opModWattPF")
-            ui.input("rampTms", on_change=lambda e: noneable_int_change(der_base, "rampTms", e)) \
-                .bind_value_from(der_base, "rampTms")
+            ui.input('rampTms', on_change=lambda e: noneable_int_change(der_base, 'rampTms', e)) \
+                .bind_value_from(der_base, 'rampTms')
     # render_default_control(der_base)
 
     def store_default_der_control():
         try:
-            _log.debug(f"Before Apply {der_base}")
+            _log.debug(f'Before Apply {der_base}')
             _log.debug(default)
             for wrapper in wrappers:
-                _log.debug(f"Wrapper parent object {id(wrapper.parent_obj)} {wrapper.parent_obj}")
+                _log.debug(f'Wrapper parent object {id(wrapper.parent_obj)} {wrapper.parent_obj}')
                 wrapper.apply_to_parent()
                 _log.debug(
-                    f"Wrapper parent object after apply {id(wrapper.parent_obj)} {wrapper.parent_obj}"
+                    f'Wrapper parent object after apply {id(wrapper.parent_obj)} {wrapper.parent_obj}'
                 )
 
-            _log.debug(f"After Apply {der_base}")
+            _log.debug(f'After Apply {der_base}')
             base_payload = dataclass_to_xml(der_base)
             _log.warning(base_payload)
             payload = dataclass_to_xml(default)
             put_as_admin(program.DefaultDERControlLink.href, payload)
-            ui.notify("Default DER Control Updated")
+            ui.notify('Default DER Control Updated')
             render_der_default_control_tab.refresh()
         except xsdata.exceptions.ParserError as ex:
             ui.notify(ex.message, type='negative')
 
-    with ui.row().classes("pt-10"):
+    with ui.row().classes('pt-10'):
         with ui.column():
-            ui.button("Save", on_click=lambda: store_default_der_control())
+            ui.button('Save', on_click=lambda: store_default_der_control())
 
 
 @ui.refreshable
@@ -486,20 +486,20 @@ def render_der_status_tab():
 
     def do_refresh():
         render_der_status_tab.refresh()
-        ui.notify("Refreshed")
+        ui.notify('Refreshed')
 
     settings: m.DERSettings = get_from_server(der.DERSettingsLink.href, deserialize=True)
     status: m.DERStatus = get_from_server(der.DERStatusLink.href, deserialize=True)
     capabilities: m.DERCapability = get_from_server(der.DERCapabilityLink.href, deserialize=True)
     with ui.row():
-        with ui.label("DER Status").style("font-size: 200%;"):
-            ui.button(icon="refresh", color="white",
-                      on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+        with ui.label('DER Status').style('font-size: 200%;'):
+            ui.button(icon='refresh', color='white',
+                      on_click=lambda: do_refresh()).style('margin:5px; padding: 5px;')
             # ui.icon("refresh", size="sm").style("cursor: pointer; vertical-align: center; padding-left: 5px;") \
             #     .on_click(lambda: render_der_status_tab.refresh())
     with ui.row():
         with ui.column():
-            ui.label("Section 10.10.4.4 DER info resources from 20305-2018 IEEE standard.")
+            ui.label('Section 10.10.4.4 DER info resources from 20305-2018 IEEE standard.')
 
     columns = [{
         'name': 'key',
@@ -521,7 +521,7 @@ def render_der_status_tab():
 
     with ui.row():
         with ui.column():
-            ui.label("DER Status").style("font-size: 150%;")
+            ui.label('DER Status').style('font-size: 150%;')
 
     with ui.row():
         with ui.column():
@@ -535,7 +535,7 @@ def render_der_status_tab():
 
     with ui.row():
         with ui.column():
-            ui.label("DER Settings").style("font-size: 150%;")
+            ui.label('DER Settings').style('font-size: 150%;')
 
     with ui.row():
         with ui.column():
@@ -549,7 +549,7 @@ def render_der_status_tab():
 
     with ui.row():
         with ui.column():
-            ui.label("DER Capabilities").style("font-size: 150%;")
+            ui.label('DER Capabilities').style('font-size: 150%;')
 
     with ui.row():
         with ui.column():
@@ -561,7 +561,7 @@ def render_der_control_list_tab():
 
     def do_refresh():
         render_der_control_list_tab.refresh()
-        ui.notify("Refreshed")
+        ui.notify('Refreshed')
 
     control_list: m.DERControlList = get_from_server(program.DERControlListLink.href,
                                                      deserialize=True,
@@ -571,11 +571,11 @@ def render_der_control_list_tab():
 
     with ui.row():
         with ui.column():
-            with ui.label("DER Control List").style("font-size: 200%;"):
-                ui.button(icon="refresh", color="white",
-                          on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+            with ui.label('DER Control List').style('font-size: 200%;'):
+                ui.button(icon='refresh', color='white',
+                          on_click=lambda: do_refresh()).style('margin:5px; padding: 5px;')
             ui.label(
-                "Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard."
+                'Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.'
             )
 
     columns = [{
@@ -602,17 +602,17 @@ def render_der_control_list_tab():
 
     def status_to_string(status: int):
         if status == 0:
-            return "Scheduled"
+            return 'Scheduled'
         elif status == 1:
-            return "Active"
+            return 'Active'
         elif status == 2:
-            return "Cancelled"
+            return 'Cancelled'
         elif status == 3:
-            return "Supersceded"
+            return 'Supersceded'
         elif status == 5:
-            return "Completed"
+            return 'Completed'
         else:
-            return "Unknown"
+            return 'Unknown'
 
     def build_list_rows(ctrl_list: m.DERControlList):
         control_list_rows = []
@@ -622,9 +622,9 @@ def render_der_control_list_tab():
 
             for obj, val in control.DERControlBase.__dict__.items():
                 if val is not None:
-                    if hasattr(val, "value"):
+                    if hasattr(val, 'value'):
                         val = val.value
-                    elif hasattr(val, "displacement"):
+                    elif hasattr(val, 'displacement'):
                         val = val.displacement
                     dct[obj] = val
             return pformat(dct)
@@ -648,7 +648,7 @@ def render_der_control_list_tab():
 
     with ui.row():
         with ui.column():
-            ui.label("Control Events").style("font-size: 150%")
+            ui.label('Control Events').style('font-size: 150%')
 
     # with ui.row():
     #     with ui.column():
@@ -685,42 +685,47 @@ def render_new_der_control_tab():
 
     def do_refresh():
         render_new_der_control_tab.refresh()
-        ui.notify("Refreshed")
+        ui.notify('Refreshed')
 
     with ui.row():
         with ui.column():
-            with ui.label("DER Control Entry").style("font-size: 200%;"):
-                ui.button(icon="refresh", color="white",
-                          on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+            with ui.label('DER Control Entry').style('font-size: 200%;'):
+                ui.button(icon='refresh', color='white',
+                          on_click=lambda: do_refresh()).style('margin:5px; padding: 5px;')
             ui.label(
-                "Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard."
+                'Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.'
             )
 
-    with ui.row().classes("pt-5"):
+    with ui.row().classes('pt-5'):
         with ui.column():
-            ui.label(f"DERProgram {der.CurrentDERProgramLink.href}").style("font-size: 150%")
+            ui.label(f'DERProgram {der.CurrentDERProgramLink.href}').style('font-size: 150%')
 
     new_control = m.DERControl(mRID=uuid_2030_5(), DERControlBase=der_base)
 
     def submit_new_control():
+
         for wrapper in wrappers:
             if not wrapper.should_be_none():
                 wrapper.apply_to_parent()
 
-        new_control.DERControlBase = der_base
-        _log.debug(f"Date Time Sending: {datetime.fromtimestamp(new_control.interval.start)}")
-        # Need to modify the time to be gmt time rather than in local time.
-        #new_control.interval.start = convert_datetime_to_int(new_control.interval.start)
+        event_start_time = datetime.fromtimestamp(new_control.interval.start)
 
-        #new_ctrl = m.DERControl(mRID="b234245afff", DERControlBase=dderc.DERControlBase, description="A new control is going here")
-        #new_control.interval = m.DateTimeInterval(start=current_time + 10, duration=20)
+        if event_start_time < datetime.utcnow():
+            # Focus on the date time input.
+            ui.notify('Event Start Time must be in the future', type='error')
+            from_date.run_method('focus')
+            return
+        new_control.DERControlBase = der_base
+
+        _log.debug(f'Date Time Sending: {datetime.fromtimestamp(new_control.interval.start)}')
+
         _log.debug(dataclass_to_xml(new_control))
         response = post_as_admin(program.DERControlListLink.href,
                                  data=dataclass_to_xml(new_control))
 
-        ui.notify("New Control Complete")
+        ui.notify('New Control Complete')
         render_der_control_list_tab.refresh()
-        panels.set_value("dercontrollist")
+        panels.set_value('dercontrollist')
         render_new_der_control_tab.refresh()
 
     def set_date(obj, prop, e):
@@ -728,63 +733,63 @@ def render_new_der_control_tab():
             dt = parse_timestamp_string(e.value)
             setattr(obj, prop, e.value)
         except ParserError:
-            _log.debug(f"Invalid datetime specified: {e.value}")
+            _log.debug(f'Invalid datetime specified: {e.value}')
 
     with ui.row():
         with ui.column():
             interval_wrapper = PropertyWrapper(
                 m.DateTimeInterval(duration=30, start=datetime.now() + timedelta(seconds=30)),
                 new_control,
-                "interval",
+                'interval',
                 formatters=dict(start=parse_timestamp_string),
                 applyers=dict(start=convert_local_dt_to_utc_timestamp))
             wrappers.append(interval_wrapper)
-            from_date = ui.input("Event Start", value=getattr(interval_wrapper, "start"),
-                                 on_change=lambda e: set_date(interval_wrapper, "start", e)) \
-                .classes("w-96")
-            duration = ui.number("Duration", min=0, value=getattr(interval_wrapper, "duration")) \
-                .bind_value_from(interval_wrapper, "duration")
+            from_date = ui.input('Event Start', value=getattr(interval_wrapper, 'start'),
+                                 on_change=lambda e: set_date(interval_wrapper, 'start', e)) \
+                .classes('w-96')
+            duration = ui.number('Duration', min=0, value=getattr(interval_wrapper, 'duration')) \
+                .bind_value_from(interval_wrapper, 'duration')
 
-            ui.input("MRID").bind_value(new_control, "mRID").classes("w-96")
+            ui.input('MRID').bind_value(new_control, 'mRID').classes('w-96')
 
-        with ui.column().classes("pr-20"):
-            ui.checkbox("opModConnect", value=True).bind_value(der_base, "opModConnect")
-            ui.checkbox("opModEnergize", value=True).bind_value(der_base, "opModEnergize")
+        with ui.column().classes('pr-20'):
+            ui.checkbox('opModConnect', value=True).bind_value(der_base, 'opModConnect')
+            ui.checkbox('opModEnergize', value=True).bind_value(der_base, 'opModEnergize')
 
-        with ui.column().classes("pr-20"):
-            ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
+        with ui.column().classes('pr-20'):
+            ui.label('Power Factor Absorb Watts').style('font-size: 125%;')
             if der_base.opModFixedPFAbsorbW is None:
                 der_base.opModFixedPFAbsorbW = m.PowerFactorWithExcitation()
             opModFixedPFAbsorbW_wrapper = PropertyWrapper(der_base.opModFixedPFAbsorbW, der_base,
-                                                          "opModFixedPFAbsorbW")
+                                                          'opModFixedPFAbsorbW')
             wrappers.append(opModFixedPFAbsorbW_wrapper)
-            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, "displacement", e)) \
-                .bind_value_from(opModFixedPFAbsorbW_wrapper, "displacement")
-            ui.checkbox("excitation", value=False).bind_value(opModFixedPFAbsorbW_wrapper,
-                                                              "excitation")
+            ui.input('displacement', on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, 'displacement', e)) \
+                .bind_value_from(opModFixedPFAbsorbW_wrapper, 'displacement')
+            ui.checkbox('excitation', value=False).bind_value(opModFixedPFAbsorbW_wrapper,
+                                                              'excitation')
 
-            ui.label("Power Factor Inject Watts").style("font-size: 125%;")
+            ui.label('Power Factor Inject Watts').style('font-size: 125%;')
             if der_base.opModFixedPFInjectW is None:
                 der_base.opModFixedPFInjectW = m.PowerFactorWithExcitation()
             opModFixedPFInjectW_wrapper = PropertyWrapper(der_base.opModFixedPFInjectW, der_base,
-                                                          "opModFixedPFInjectW")
+                                                          'opModFixedPFInjectW')
             wrappers.append(opModFixedPFInjectW_wrapper)
-            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, "displacement", e)) \
-                .bind_value_from(opModFixedPFInjectW_wrapper, "displacement")
-            ui.checkbox("excitation", value=False).bind_value(opModFixedPFInjectW_wrapper,
-                                                              "excitation")
+            ui.input('displacement', on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, 'displacement', e)) \
+                .bind_value_from(opModFixedPFInjectW_wrapper, 'displacement')
+            ui.checkbox('excitation', value=False).bind_value(opModFixedPFInjectW_wrapper,
+                                                              'excitation')
 
-        with ui.column().classes("pr-20"):
+        with ui.column().classes('pr-20'):
             if der_base.opModFixedVar is None:
                 der_base.opModFixedVar = m.FixedVar()
-            fixedVar_wrapper = PropertyWrapper(der_base.opModFixedVar, der_base, "opModFixedVar")
+            fixedVar_wrapper = PropertyWrapper(der_base.opModFixedVar, der_base, 'opModFixedVar')
             wrappers.append(fixedVar_wrapper)
-            ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
-                .bind_value_from(fixedVar_wrapper, "value")
+            ui.input('opModFixedVar', on_change=lambda e: noneable_int_change(fixedVar_wrapper, 'value', e)) \
+                .bind_value_from(fixedVar_wrapper, 'value')
 
             # Note this is not using PropertyWrapper because it is defined as an int in the xsd.
-            ui.input("opModFixedW", on_change=lambda e: noneable_int_change(der_base, "opModFixedW", e)) \
-                .bind_value_from(der_base, "opModFixedW")
+            ui.input('opModFixedW', on_change=lambda e: noneable_int_change(der_base, 'opModFixedW', e)) \
+                .bind_value_from(der_base, 'opModFixedW')
 
             # freqDroop_wrapper = Wrapper(m.FreqDroopType(), der_base, "openLoopTms")
             # wrappers.append(freqDroop_wrapper)
@@ -792,24 +797,24 @@ def render_new_der_control_tab():
             #                                on_change=lambda e: noneable_int_change(freqDroop_wrapper, "openLoopTms", e)) \
             #     .bind_value_from(freqDroop_wrapper, "openLoopTms")
 
-            ui.input("opModMaxLimW", on_change=lambda e: noneable_int_change(der_base, "opModMaxLimW", e)) \
-                .bind_value_from(der_base, "opModMaxLimW")
+            ui.input('opModMaxLimW', on_change=lambda e: noneable_int_change(der_base, 'opModMaxLimW', e)) \
+                .bind_value_from(der_base, 'opModMaxLimW')
 
-        with ui.column().classes("pr-20"):
+        with ui.column().classes('pr-20'):
             if der_base.opModTargetVar is None:
                 der_base.opModTargetVar = m.ReactivePower()
             opModTargetVar_wrapper = PropertyWrapper(der_base.opModTargetVar, der_base,
-                                                     "opModTargetVar")
+                                                     'opModTargetVar')
             wrappers.append(opModTargetVar_wrapper)
-            ui.input("opModTargetVar", on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, "value", e)) \
-                .bind_value_from(opModTargetVar_wrapper, "value")
+            ui.input('opModTargetVar', on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, 'value', e)) \
+                .bind_value_from(opModTargetVar_wrapper, 'value')
 
             if der_base.opModTargetW is None:
                 der_base.opModTargetW = m.ActivePower()
-            opModTargetW_wrapper = PropertyWrapper(der_base.opModTargetW, der_base, "opModTargetW")
+            opModTargetW_wrapper = PropertyWrapper(der_base.opModTargetW, der_base, 'opModTargetW')
             wrappers.append(opModTargetW_wrapper)
-            ui.input("opModTargetW", on_change=lambda e: noneable_int_change(opModTargetW_wrapper, "value", e)) \
-                .bind_value_from(opModTargetW_wrapper, "value")
+            ui.input('opModTargetW', on_change=lambda e: noneable_int_change(opModTargetW_wrapper, 'value', e)) \
+                .bind_value_from(opModTargetW_wrapper, 'value')
 
             # opModVoltVar = ui.input("opModVoltVar",
             #                                on_change=lambda e: noneable_int_change(der_base, "opModVoltVar", e)) \
@@ -817,17 +822,17 @@ def render_new_der_control_tab():
             # opModWattPF = ui.input("opModWattPF",
             #                                on_change=lambda e: noneable_int_change(der_base, "opModWattPF", e)) \
             #     .bind_value_from(der_base, "opModWattPF")
-            ui.input("rampTms", on_change=lambda e: noneable_int_change(der_base, "rampTms", e)) \
-                .bind_value_from(der_base, "rampTms")
+            ui.input('rampTms', on_change=lambda e: noneable_int_change(der_base, 'rampTms', e)) \
+                .bind_value_from(der_base, 'rampTms')
 
     # with ui.row().classes("pt-10"):
     #     with ui.column().classes("pr-20"):
     #         ui.label("Curve Selection")
     #         ui.label("TODO")
 
-    with ui.row().classes("pt-20"):
+    with ui.row().classes('pt-20'):
         with ui.column():
-            ui.button("Sumbit Control", on_click=lambda: submit_new_control())
+            ui.button('Sumbit Control', on_click=lambda: submit_new_control())
 
 
 @ui.refreshable
@@ -835,7 +840,7 @@ def render_usage_points_tab():
 
     def do_refresh():
         render_usage_points_tab.refresh()
-        ui.notify("Refreshed")
+        ui.notify('Refreshed')
 
     usage_points: m.UsagePointList = get_from_server(dcap.UsagePointListLink.href,
                                                      deserialize=True,
@@ -851,18 +856,18 @@ def render_usage_points_tab():
                                                             limit=10)
         for mr in meter_reading.MeterReading:
             mr_node = {'id': mr.href, 'label': mr.description, 'children': []}
-            upt_node["children"].append(mr_node)
+            upt_node['children'].append(mr_node)
 
             if mr.ReadingLink is not None and mr.ReadingLink.href is not None:
                 readings_list: m.ReadingList = get_from_server(mr.ReadingLink.href,
                                                                deserialize=True,
                                                                limit=10)
                 if len(readings_list.Reading) > 0:
-                    reading_node = {'id': reading.href, 'label': "Readings", 'children': []}
+                    reading_node = {'id': reading.href, 'label': 'Readings', 'children': []}
                     mr_node['children'].append(reading_node)
                     for reading in readings_list.Reading:
                         read_node = {'id': reading.href, 'label': reading.href, 'children': []}
-                        reading_node["children"].append(read_node)
+                        reading_node['children'].append(read_node)
 
             if mr.ReadingSetListLink is not None and mr.ReadingSetListLink.href is not None:
                 readingset_list: m.ReadingSetList = get_from_server(mr.ReadingSetListLink.href,
@@ -885,55 +890,55 @@ def render_usage_points_tab():
                                 period = timestamp_to_string(period.start)
                             read_node = {
                                 'id': rdng.href,
-                                'label': f"{period} Value: {rdng.value}",
+                                'label': f'{period} Value: {rdng.value}',
                                 'children': []
                             }
-                            reading_node["children"].append(read_node)
+                            reading_node['children'].append(read_node)
 
     with ui.row():
         with ui.column():
-            with ui.label("Usage Points").style("font-size: 200%;"):
-                ui.button(icon="refresh", color="white",
-                          on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+            with ui.label('Usage Points').style('font-size: 200%;'):
+                ui.button(icon='refresh', color='white',
+                          on_click=lambda: do_refresh()).style('margin:5px; padding: 5px;')
             ui.label(
-                "Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard."
+                'Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.'
             )
     with ui.row():
         ui.tree(nodes=nodes)
 
 
 with ui.header():
-    current_time_label = ui.label("Current Time")
+    current_time_label = ui.label('Current Time')
     ui.timer(
         1.0, lambda: current_time_label.set_text(
-            f"Local Time: {datetime.now().isoformat()} GMT TS: {convert_local_dt_to_utc_timestamp(datetime.now())}"
+            f'Local Time: {datetime.now().isoformat()} GMT TS: {convert_local_dt_to_utc_timestamp(datetime.now())}'
         ))
 with ui.tabs().classes('w-full') as tabs:
-    configuration_tab = ui.tab("configuration", "Configuration")
-    der_default_control_tab = ui.tab("derdefaultcontrol", "DER Default Control")
-    new_der_control_tab = ui.tab("newdercontrol", "New DER Control")
-    der_control_list_tab = ui.tab("dercontrollist", "DER Control List")
-    der_status_tab = ui.tab("derstatus", "DER Status")
-    usage_point_tab = ui.tab("usage_point", "Usage Points")
+    configuration_tab = ui.tab('configuration', 'Configuration')
+    der_default_control_tab = ui.tab('derdefaultcontrol', 'DER Default Control')
+    new_der_control_tab = ui.tab('newdercontrol', 'New DER Control')
+    der_control_list_tab = ui.tab('dercontrollist', 'DER Control List')
+    der_status_tab = ui.tab('derstatus', 'DER Status')
+    usage_point_tab = ui.tab('usage_point', 'Usage Points')
     #results_tab = ui.tab("results", "Results")
 line_plot = None
-with ui.tab_panels(tabs, value=configuration_tab).classes("w-full") as panels:
+with ui.tab_panels(tabs, value=configuration_tab).classes('w-full') as panels:
     with ui.tab_panel(configuration_tab):
         with ui.row():
             with ui.column():
-                ui.input("2030.5 Identity").classes("w-96").bind_value(
-                    config_working, "agent_2030_5_identity")
-                ui.input("VOLTTRON home").classes("w-96").bind_value(config_working,
-                                                                     "volttron_home")
-                ui.input("EndDevice private").classes("w-96").bind_value(
-                    config_working, "ieee_client_pk")
-                ui.input("EndDevice cert").classes("w-96").bind_value(
-                    config_working, "ieee_client_cert")
-                ui.input("CA cert").classes("w-96").bind_value(config_working, "ieee_ca")
+                ui.input('2030.5 Identity').classes('w-96').bind_value(
+                    config_working, 'agent_2030_5_identity')
+                ui.input('VOLTTRON home').classes('w-96').bind_value(config_working,
+                                                                     'volttron_home')
+                ui.input('EndDevice private').classes('w-96').bind_value(
+                    config_working, 'ieee_client_pk')
+                ui.input('EndDevice cert').classes('w-96').bind_value(
+                    config_working, 'ieee_client_cert')
+                ui.input('CA cert').classes('w-96').bind_value(config_working, 'ieee_ca')
 
-        with ui.row().classes("p-10"):
-            ui.button("Save", on_click=lambda: save_config())
-            ui.button("Reset", on_click=lambda: reset_config())
+        with ui.row().classes('p-10'):
+            ui.button('Save', on_click=lambda: save_config())
+            ui.button('Reset', on_click=lambda: reset_config())
 
     with ui.tab_panel(new_der_control_tab):
         render_new_der_control_tab()
