@@ -217,7 +217,7 @@ By monitoring the Usage Point Tab, you can get a live view of how much energy is
 produced at each usage point. This can be useful for energy management, performance monitoring, and
 ensuring that the energy production or consumption is as expected.
 
-![Usage Point](./demo/images/usage_point.png)
+![Usage Point](./demo/images/usage_points.png)
 
 <!--
 ## Next Steps ##
