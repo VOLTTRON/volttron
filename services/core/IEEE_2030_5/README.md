@@ -19,7 +19,75 @@ The following diagram illustrates the data flow for the 2030.5 agent, from the P
 
 To see this process in action, please try out the [Agent Demo](AGENTDEMO.md).
 
-## Agent Config File ##
+## Agent Configuration Files ##
+
+The IEEE 2030.5 Agent operates based on the output from the PlatformDriverAgent. This design allows the agent to remain
+protocol-agnostic regarding the DER's actual communication protocol. For testing purposes, we provide sample registry
+and device point files. These files generate changing numbers for some points and maintain steady set points, similar
+to a typical piece of equipment. The agent requires a mapping from the platform driver point to a 2030.5 point to
+identify which points are relevant to the 2030.5 protocol.
+
+### Example Platform Driver Files ###
+
+A platform driver manages communication with hardware, publishing and setting points using the hardware's specific
+protocol (e.g., BACnet, Modbus, DNP3, etc.). The following example uses a fake driver to generate sine and cosine
+function values, as well as some steady-state points for setting/getting from the 2030.5 agent.
+
+[demo/devices.inverter1.config](demo/devices.inverter1.config)
+
+```python
+{
+    "driver_config": {},
+    # note requires inverter1.points.csv to be in the platform.driver configuration store.
+    "registry_config":"config://inverter1.points.csv",
+    "interval": 5,
+    "timezone": "US/Pacific",
+    "heart_beat_point": "Heartbeat",
+    "driver_type": "fakedriver",
+    "publish_breadth_first_all": false,
+    "publish_depth_first": false,
+    "publish_breadth_first": false,
+    "campus": "devices",
+    "building": "inverter1"
+}
+```
+
+```shell
+vctl config store platform.driver ed1 demo/devices/devices.inverter1.config
+```
+
+[demo/inverter1.points.csv](demo/inverter1.points.csv)
+
+**Point Name**|**Volttron Point Name**|**Units**|**Units Details**|**Writable**|**Starting Value**|**Type**|**Notes**
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+Heartbeat|Heartbeat|On/Off|On/Off|TRUE|0|boolean|Point for heartbeat toggle
+EKG1|BAT\_SOC|waveform|waveform|TRUE|sin|float|Sine wave for baseline output
+EKG2|INV\_REAL\_PWR|waveform|waveform|TRUE|cos|float|Sine wave
+EKG3|INV\_REACT\_PWR|waveform|waveform|TRUE|tan|float|Cosine wave
+SampleBool3|energized|On / Off|on/off|FALSE|TRUE|boolean|Status indidcator of cooling stage 1
+SampleWritableBool3|connected|On / Off|on/off|TRUE|TRUE|boolean|Status indicator
+SampleLong3|INV\_OP\_STATUS\_MODE|Enumeration|1-4|FALSE|3|int|Mode of Inverter
+ctrl\_freq\_max|ctrl\_freq\_max| | |TRUE| |int|
+ctrl\_volt\_max|ctrl\_volt\_max| | |TRUE| |int|
+ctrl\_freq\_min|ctrl\_freq\_min| | |TRUE| |int|
+ctrl\_volt\_min|ctrl\_volt\_min| | |TRUE| |int|
+ctrl\_ramp\_tms|ctrl\_ramp\_tms| | |TRUE| |int|
+ctrl\_rand\_delay|ctrl\_rand\_delay| | |TRUE| |int|
+ctrl\_grad\_w|ctrl\_grad\_w| | |TRUE| |int|
+ctrl\_soft\_grad\_w|ctrl\_soft\_grad\_w| | |TRUE| |int|
+ctrl\_connected|ctrl\_connected| | |TRUE| |boolean|
+ctrl\_energized|ctrl\_energized| | |TRUE| |boolean|
+ctrl\_fixed\_pf\_absorb\_w|ctrl\_fixed\_pf\_absorb\_w| | |TRUE| |int|
+ctrl\_fixed\_pf\_ingect\_w|ctrl\_fixed\_pf\_ingect\_w| | |TRUE| |int|
+ctrl\_fixed\_var|ctrl\_fixed\_var| | |TRUE| |int|
+ctrl\_fixed\_w|ctrl\_fixed\_w| | |TRUE| |int|
+ctrl\_es\_delay|ctrl\_es\_delay| | |TRUE| |int|
+
+```shell
+vctl config store platform.driver inverter1.points.csv demo/devices/inverter1.points.csv --csv
+```
+
+### Agent Configuration ###
 
 An example configuration file is at the root of the agent directory (example.config.yml)
 
