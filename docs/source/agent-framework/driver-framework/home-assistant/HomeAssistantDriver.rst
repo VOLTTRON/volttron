@@ -61,11 +61,11 @@ Registry Configuration
 +++++++++++++++++++++++
 
 Registry file can contain one single device and its attributes or a logical group of devices and its
-attributes. Each entry should include the full entity id of the device, including but not limited to home assistant provided prefix 
+attributes. Each entry should include the full entity id of the device, including but not limited to home assistant provided prefix
 such as "light.",  "climate." etc. The driver uses these prefixes to convert states into integers.
 Like mentioned before, the driver can only control lights and thermostats but can get data from all devices
 controlled by home assistant
- 
+
 Each entry in a registry file should also have a 'Entity Point' and a unique value for 'Volttron Point Name'. The 'Entity ID' maps to the device instance, the 'Entity Point' extracts the attribute or state, and 'Volttron Point Name' determines the name of that point as it appears in VOLTTRON.
 
 Attributes can be located in the developer tools in the Home Assistant GUI.
@@ -108,7 +108,7 @@ id 'light.example':
 .. note::
 
 When using a single registry file to represent a logical group of multiple physical entities, make sure the
-"Volttron Point Name" is unique within a single registry file. 
+"Volttron Point Name" is unique within a single registry file.
 
 For example, if a registry file contains entities with
 id  'light.instance1' and 'light.instance2' the entry for the attribute brightness for these two light instances could
@@ -175,3 +175,12 @@ Upon completion, initiate the platform driver. Utilize the listener agent to ver
    [{'light_brightness': 254, 'state': 'on'},
     {'light_brightness': {'type': 'integer', 'tz': 'UTC', 'units': 'int'},
      'state': {'type': 'integer', 'tz': 'UTC', 'units': 'On / Off'}}]
+
+Running Tests
++++++++++++++++++++++++
+To run tests on the VOLTTRON home assistant driver you need to create a helper in your home assistant instance. This can be done by going to **Settings > Devices & services > Helpers > Create Helper > Toggle**. Name this new toggle **volttrontest**. After that run the pytest from the root of your VOLTTRON file.
+
+.. code-block:: bash
+    pytest volttron/services/core/PlatformDriverAgent/tests/test_home_assistant.py
+
+If everything works, you will see 6 passed tests.
