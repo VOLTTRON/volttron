@@ -28,3 +28,4 @@ ply
 psutil
 ws4py
 Jinja2==3.1.2
+PyYaml
