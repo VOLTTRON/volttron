@@ -1,25 +1,48 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-__NAMESPACE__ = "http://pypi.org/project/xsdata"
+__NAMESPACE__ = 'http://pypi.org/project/xsdata'
 
 
 @dataclass
 class TypeName:
 
     class Meta:
-        name = "ClassName"
-        namespace = "http://pypi.org/project/xsdata"
+        name = 'ClassName'
+        namespace = 'http://pypi.org/project/xsdata'
 
     case: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     safePrefix: Optional[str] = field(default=None,
                                       metadata={
-                                          "type": "Attribute",
-                                          "required": True,
+                                          'type': 'Attribute',
+                                          'required': True,
                                       })
 
 
@@ -27,20 +50,20 @@ class TypeName:
 class CompoundFields:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     defaultName: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Attribute",
-                                           "required": True,
+                                           'type': 'Attribute',
+                                           'required': True,
                                        })
     forceDefaultName: Optional[bool] = field(default=None,
                                              metadata={
-                                                 "type": "Attribute",
-                                                 "required": True,
+                                                 'type': 'Attribute',
+                                                 'required': True,
                                              })
     value: Optional[bool] = field(default=None, metadata={
-        "required": True,
+        'required': True,
     })
 
 
@@ -48,16 +71,16 @@ class CompoundFields:
 class ConstantName:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     case: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     safePrefix: Optional[str] = field(default=None,
                                       metadata={
-                                          "type": "Attribute",
-                                          "required": True,
+                                          'type': 'Attribute',
+                                          'required': True,
                                       })
 
 
@@ -65,16 +88,16 @@ class ConstantName:
 class FieldName:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     case: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     safePrefix: Optional[str] = field(default=None,
                                       metadata={
-                                          "type": "Attribute",
-                                          "required": True,
+                                          'type': 'Attribute',
+                                          'required': True,
                                       })
 
 
@@ -82,41 +105,41 @@ class FieldName:
 class Format:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     repr: Optional[bool] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     eq: Optional[bool] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     order: Optional[bool] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     unsafeHash: Optional[bool] = field(default=None,
                                        metadata={
-                                           "type": "Attribute",
-                                           "required": True,
+                                           'type': 'Attribute',
+                                           'required': True,
                                        })
     frozen: Optional[bool] = field(default=None,
                                    metadata={
-                                       "type": "Attribute",
-                                       "required": True,
+                                       'type': 'Attribute',
+                                       'required': True,
                                    })
     slots: Optional[bool] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     kwOnly: Optional[bool] = field(default=None,
                                    metadata={
-                                       "type": "Attribute",
-                                       "required": True,
+                                       'type': 'Attribute',
+                                       'required': True,
                                    })
-    value: str = field(default="", metadata={
-        "required": True,
+    value: str = field(default='', metadata={
+        'required': True,
     })
 
 
@@ -124,16 +147,16 @@ class Format:
 class ModuleName:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     case: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     safePrefix: Optional[str] = field(default=None,
                                       metadata={
-                                          "type": "Attribute",
-                                          "required": True,
+                                          'type': 'Attribute',
+                                          'required': True,
                                       })
 
 
@@ -141,16 +164,16 @@ class ModuleName:
 class PackageName:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     case: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     safePrefix: Optional[str] = field(default=None,
                                       metadata={
-                                          "type": "Attribute",
-                                          "required": True,
+                                          'type': 'Attribute',
+                                          'required': True,
                                       })
 
 
@@ -158,22 +181,22 @@ class PackageName:
 class Substitution:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     type_value: Optional[str] = field(default=None,
                                       metadata={
-                                          "name": "type",
-                                          "type": "Attribute",
-                                          "required": True,
+                                          'name': 'type',
+                                          'type': 'Attribute',
+                                          'required': True,
                                       })
     search: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     replace: Optional[str] = field(default=None,
                                    metadata={
-                                       "type": "Attribute",
-                                       "required": True,
+                                       'type': 'Attribute',
+                                       'required': True,
                                    })
 
 
@@ -181,32 +204,32 @@ class Substitution:
 class Conventions:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     ClassName: Optional[TypeName] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
+                                              'type': 'Element',
+                                              'required': True,
                                           })
     FieldName: Optional[FieldName] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
     ConstantName: Optional[ConstantName] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
     ModuleName: Optional[ModuleName] = field(default=None,
                                              metadata={
-                                                 "type": "Element",
-                                                 "required": True,
+                                                 'type': 'Element',
+                                                 'required': True,
                                              })
     PackageName: Optional[PackageName] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
 
 
@@ -214,61 +237,61 @@ class Conventions:
 class Output:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     maxLineLength: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Attribute",
-                                             "required": True,
+                                             'type': 'Attribute',
+                                             'required': True,
                                          })
     Package: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     Format: Optional[Format] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     Structure: Optional[str] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     DocstringStyle: Optional[str] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
+                                              'type': 'Element',
+                                              'required': True,
                                           })
     FilterStrategy: Optional[str] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
+                                              'type': 'Element',
+                                              'required': True,
                                           })
     RelativeImports: Optional[bool] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
+                                                'type': 'Element',
+                                                'required': True,
                                             })
     CompoundFields: Optional[CompoundFields] = field(default=None,
                                                      metadata={
-                                                         "type": "Element",
-                                                         "required": True,
+                                                         'type': 'Element',
+                                                         'required': True,
                                                      })
     PostponedAnnotations: Optional[bool] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
     UnnestClasses: Optional[bool] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
+                                              'type': 'Element',
+                                              'required': True,
                                           })
     IgnorePatterns: Optional[bool] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
 
 
@@ -276,12 +299,12 @@ class Output:
 class Substitutions:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     Substitution: List[Substitution] = field(default_factory=list,
                                              metadata={
-                                                 "type": "Element",
-                                                 "min_occurs": 1,
+                                                 'type': 'Element',
+                                                 'min_occurs': 1,
                                              })
 
 
@@ -289,25 +312,25 @@ class Substitutions:
 class Config:
 
     class Meta:
-        namespace = "http://pypi.org/project/xsdata"
+        namespace = 'http://pypi.org/project/xsdata'
 
     version: Optional[float] = field(default=None,
                                      metadata={
-                                         "type": "Attribute",
-                                         "required": True,
+                                         'type': 'Attribute',
+                                         'required': True,
                                      })
     Output: Optional[Output] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     Conventions: Optional[Conventions] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
     Substitutions: Optional[Substitutions] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })

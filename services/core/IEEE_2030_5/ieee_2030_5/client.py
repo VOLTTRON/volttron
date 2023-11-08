@@ -1,3 +1,26 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
 from __future__ import annotations
 
 import atexit
@@ -24,7 +47,7 @@ from blinker import Signal
 from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
 
 _log = logging.getLogger(__name__)
-_log_req_resp = logging.getLogger(f"{__name__}.req_resp")
+_log_req_resp = logging.getLogger(f'{__name__}.req_resp')
 
 TimeType = int
 StrPath = Union[str, Path]
@@ -52,7 +75,7 @@ class TimerSpec:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TimerSpec):
             raise NotImplementedError(
-                f"Comparison between {self.__class__.__name__} and {type(other)} not implemented")
+                f'Comparison between {self.__class__.__name__} and {type(other)} not implemented')
         return self.fn is other.fn
 
     def trigger(self, current_time: int):
@@ -68,7 +91,7 @@ class TimerSpec:
 
 
 class _TimerThread(gevent.Greenlet):
-    tick = Signal("tick")
+    tick = Signal('tick')
 
     def __init__(self):
         super().__init__()
@@ -77,7 +100,7 @@ class _TimerThread(gevent.Greenlet):
     @staticmethod
     def user_readable(timestamp: int):
         dt = datetime.fromtimestamp(timestamp)
-        return dt.strftime("%m/%d/%Y, %H:%M:%S")
+        return dt.strftime('%m/%d/%Y, %H:%M:%S')
 
     def run(self) -> None:
 
@@ -104,7 +127,7 @@ class IEEE2030_5_Client:
                  pin: str,
                  server_ssl_port: Optional[int] = 443,
                  debug: bool = True,
-                 device_capabilities_endpoint: str = "/dcap",
+                 device_capabilities_endpoint: str = '/dcap',
                  log_req_resp: bool = True):
 
         self._cafile: Path = cafile if isinstance(cafile, Path) else Path(cafile)
@@ -178,7 +201,7 @@ class IEEE2030_5_Client:
         self._der_control_event_started_signal = Signal('der-control-event-started')
         self._der_control_event_ended_signal = Signal('der-control-event-ended')
 
-        self._default_control_changed = Signal("default-control-changed")
+        self._default_control_changed = Signal('default-control-changed')
 
         self._dcap_endpoint = device_capabilities_endpoint
 
@@ -293,10 +316,10 @@ class IEEE2030_5_Client:
                 if existingctl.mRID == newderctl.mRID:
                     found = True
                     if existingctl == newderctl:
-                        _log.debug(f"Currently in event {newderctl.mRID}")
+                        _log.debug(f'Currently in event {newderctl.mRID}')
                     else:
                         _log.debug(
-                            "TODO ->>>>>>>>>>>>>>>>>>>>>>>>>>> Existing mRID should superscede????"
+                            'TODO ->>>>>>>>>>>>>>>>>>>>>>>>>>> Existing mRID should superscede????'
                         )
                     break
             if not found:
@@ -326,12 +349,12 @@ class IEEE2030_5_Client:
 
         if default != self._der_default_control:
             self._der_default_control = default
-            _log.debug("Default control changed....")
+            _log.debug('Default control changed....')
             self._default_control_changed.send(default)
 
         # Poll every 60 if default otherwise use setting in config file.
-        refresh_time = self._config.get("default_der_control_poll", 60)
-        self._update_timer_spec("der_control_event",
+        refresh_time = self._config.get('default_der_control_poll', 60)
+        self._update_timer_spec('der_control_event',
                                 refresh_time,
                                 fn=lambda: self._send_control_events(der_program_href))
 
@@ -347,7 +370,7 @@ class IEEE2030_5_Client:
         if not endpoint:
             endpoint = self._dcap_endpoint
             if not endpoint:
-                raise ValueError("Invalid device_capability_endpoint specified in constructor.")
+                raise ValueError('Invalid device_capability_endpoint specified in constructor.')
 
         self._before_dcap_update_signal.send(self)
 
@@ -363,7 +386,7 @@ class IEEE2030_5_Client:
 
         if dcap.EndDeviceListLink is None or dcap.EndDeviceListLink.all == 0:
             raise ValueError("Couldn't receive end device model from server. "
-                             "Check certificates or server configuration.")
+                             'Check certificates or server configuration.')
 
         # if time is available then grab and create an offset
         if dcap.TimeLink is not None and dcap.TimeLink.href:
@@ -372,14 +395,14 @@ class IEEE2030_5_Client:
 
         if dcap.EndDeviceListLink is not None and dcap.EndDeviceListLink.all > 0:
 
-            self._update_list(dcap.EndDeviceListLink.href, "EndDevice", self._end_device_map,
+            self._update_list(dcap.EndDeviceListLink.href, 'EndDevice', self._end_device_map,
                               self._end_devices)
 
             for ed in self._end_devices.values():
 
                 if not self.is_end_device_registered(ed, self._pin):
-                    raise ValueError(f"Device is not registered on this server!")
-                self._update_list(ed.FunctionSetAssignmentsListLink.href, "FunctionSetAssignments",
+                    raise ValueError(f'Device is not registered on this server!')
+                self._update_list(ed.FunctionSetAssignmentsListLink.href, 'FunctionSetAssignments',
                                   self._fsa_map, self._fsa)
 
                 if ed.DERListLink:
@@ -398,11 +421,11 @@ class IEEE2030_5_Client:
                     program = self._der_program_map[fsa.DERProgramListLink.href]
 
         if dcap.MirrorUsagePointListLink is not None and dcap.MirrorUsagePointListLink.href:
-            self._update_list(dcap.MirrorUsagePointListLink.href, "MirrorUsagePoint",
+            self._update_list(dcap.MirrorUsagePointListLink.href, 'MirrorUsagePoint',
                               self._mirror_usage_point_map, self._mirror_usage_point)
 
         self._dcap = dcap
-        self._update_timer_spec("dcap", dcap.pollRate, self._update_dcap_tree)
+        self._update_timer_spec('dcap', dcap.pollRate, self._update_dcap_tree)
 
     def _update_timer_spec(self, spec_name: str, rate: int, fn: Callable, *args, **kwargs):
         ts = self._timer_specs.get(spec_name)
@@ -414,7 +437,7 @@ class IEEE2030_5_Client:
         if not log_event.createdDateTime:
             log_event.createdDateTime = self.server_time
 
-        self.request(end_device.LogEventListLink.href, method="POST")
+        self.request(end_device.LogEventListLink.href, method='POST')
 
     def _update_list(self, path: str, list_prop: str, outer_map: Dict, inner_map: Dict):
         """Update mappings using 2030.5 list nomoclature.
@@ -438,10 +461,10 @@ class IEEE2030_5_Client:
             raise RuntimeError(my_response)
 
         if my_response is not None:
-            href = getattr(my_response, "href")
+            href = getattr(my_response, 'href')
             outer_map[href] = my_response
             for inner in getattr(my_response, list_prop):
-                href = getattr(inner, "href")
+                href = getattr(inner, 'href')
                 inner_map[href] = inner
 
     def _get_device_capabilities(self, endpoint: str) -> m.DeviceCapability:
@@ -464,12 +487,12 @@ class IEEE2030_5_Client:
 
     @property
     def lfdi(self) -> str:
-        cmd = ["openssl", "x509", "-in", str(self._certfile), "-noout", "-fingerprint", "-sha256"]
+        cmd = ['openssl', 'x509', '-in', str(self._certfile), '-noout', '-fingerprint', '-sha256']
         ret_value = subprocess.check_output(cmd, text=True)
-        if "=" in ret_value:
-            ret_value = ret_value.split("=")[1].strip()
+        if '=' in ret_value:
+            ret_value = ret_value.split('=')[1].strip()
 
-        fp = ret_value.replace(":", "")
+        fp = ret_value.replace(':', '')
         lfdi = fp[:40]
         return lfdi
 
@@ -484,7 +507,7 @@ class IEEE2030_5_Client:
         return self._end_devices
 
     @property
-    def enddevice(self, href: str = "") -> m.EndDevice:
+    def enddevice(self, href: str = '') -> m.EndDevice:
         """Retrieve a client's end device based upon the href of the end device.
 
         Args:
@@ -505,7 +528,7 @@ class IEEE2030_5_Client:
         reg = self.registration(end_device)
         return reg.pIN == self._pin
 
-    def new_uuid(self, url: str = "/uuid") -> str:
+    def new_uuid(self, url: str = '/uuid') -> str:
         res = self.__get_request__(url)
         return res
 
@@ -534,16 +557,16 @@ class IEEE2030_5_Client:
             fn(args)
             threading.currentThread().join()
 
-    def device_capability(self, url: str = "/dcap") -> m.DeviceCapability:
+    def device_capability(self, url: str = '/dcap') -> m.DeviceCapability:
         self._device_cap: m.DeviceCapability = self.__get_request__(url)
         if self._device_cap.pollRate is not None:
             self._dcap_poll_rate = self._device_cap.pollRate
         else:
             self._dcap_poll_rate = 600
 
-        _log.debug(f"devcap id {id(self._device_cap)}")
+        _log.debug(f'devcap id {id(self._device_cap)}')
         _log.debug(threading.currentThread().name)
-        _log.debug(f"DCAP: Poll rate: {self._dcap_poll_rate}")
+        _log.debug(f'DCAP: Poll rate: {self._dcap_poll_rate}')
         self._dcap_timer = Timer(self._dcap_poll_rate, self.poll_timer,
                                  (self.device_capability, url))
         self._dcap_timer.start()
@@ -566,8 +589,8 @@ class IEEE2030_5_Client:
         resp = self.__post__(reading.href, data=data)
 
         if not int(resp.status) >= 200 and int(resp.status) < 300:
-            _log.error(f"Posting to {reading.href}")
-            _log.error(f"Response status: {resp.status}")
+            _log.error(f'Posting to {reading.href}')
+            _log.error(f'Response status: {resp.status}')
             _log.error(f"{resp.read().decode('utf-8')}")
 
         return resp.headers['Location']
@@ -587,7 +610,7 @@ class IEEE2030_5_Client:
 
     def timelink(self):
         if self._device_cap is None:
-            raise ValueError("Request device capability first")
+            raise ValueError('Request device capability first')
         return self.__get_request__(url=self._device_cap.TimeLink.href)
 
     def disconnect(self):
@@ -595,7 +618,7 @@ class IEEE2030_5_Client:
         self._dcap_timer.cancel()
         IEEE2030_5_Client.clients.remove(self)
 
-    def request(self, endpoint: str, body: dict = {}, method: str = "GET", headers: dict = {}):
+    def request(self, endpoint: str, body: dict = {}, method: str = 'GET', headers: dict = {}):
 
         if method.upper() == 'GET':
             return self.__get_request__(endpoint, body, headers=headers)
@@ -623,14 +646,14 @@ class IEEE2030_5_Client:
             headers = {'Content-Type': 'text/xml'}
 
         if self._debug:
-            _log_req_resp.debug(f"----> PUT REQUEST\nurl: {url}\nbody: {data}")
+            _log_req_resp.debug(f'----> PUT REQUEST\nurl: {url}\nbody: {data}')
 
         try:
-            self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
+            self.http_conn.request(method='PUT', headers=headers, url=url, body=data)
         except http.client.CannotSendRequest as ex:
             self.http_conn.close()
-            _log.debug("Reconnecting to server")
-            self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
+            _log.debug('Reconnecting to server')
+            self.http_conn.request(method='PUT', headers=headers, url=url, body=data)
 
         response = self._http_conn.getresponse()
         return response
@@ -640,32 +663,32 @@ class IEEE2030_5_Client:
             headers = {'Content-Type': 'text/xml'}
 
         if self._debug:
-            _log_req_resp.debug(f"----> POST REQUEST\nurl: {url}\nbody: {data}")
+            _log_req_resp.debug(f'----> POST REQUEST\nurl: {url}\nbody: {data}')
 
-        self.http_conn.request(method="POST", headers=headers, url=url, body=data)
+        self.http_conn.request(method='POST', headers=headers, url=url, body=data)
         response = self._http_conn.getresponse()
-        response_data = response.read().decode("utf-8")
+        response_data = response.read().decode('utf-8')
         # response_data = response.read().decode("utf-8")
         if response_data and self._debug:
-            _log_req_resp.debug(f"<---- POST RESPONSE\n{response_data}")
+            _log_req_resp.debug(f'<---- POST RESPONSE\n{response_data}')
 
         return response
 
     def __get_request__(self, url: str, body=None, headers: Optional[Dict] = None):
         if headers is None:
-            headers = {"Connection": "keep-alive", "keep-alive": "timeout=30, max=1000"}
+            headers = {'Connection': 'keep-alive', 'keep-alive': 'timeout=30, max=1000'}
 
         if self._debug:
-            _log_req_resp.debug(f"----> GET REQUEST\nurl: {url}\nbody: {body}")
+            _log_req_resp.debug(f'----> GET REQUEST\nurl: {url}\nbody: {body}')
         try:
-            self.http_conn.request(method="GET", url=url, body=body, headers=headers)
+            self.http_conn.request(method='GET', url=url, body=body, headers=headers)
         except http.client.CannotSendRequest as ex:
             self.http_conn.close()
-            _log.debug("Reconnecting to server")
-            self.http_conn.request(method="GET", url=url, body=body, headers=headers)
+            _log.debug('Reconnecting to server')
+            self.http_conn.request(method='GET', url=url, body=body, headers=headers)
 
         response = self._http_conn.getresponse()
-        response_data = response.read().decode("utf-8")
+        response_data = response.read().decode('utf-8')
         self._response_headers = response.headers
         self._response_status = response.status
 
@@ -674,11 +697,11 @@ class IEEE2030_5_Client:
             response_obj = xml_to_dataclass(response_data)
             resp_xml = xml.dom.minidom.parseString(response_data)
             if resp_xml and self._debug:
-                _log_req_resp.debug(f"<---- GET RESPONSE\n{response_data}")    # toprettyxml()}")
+                _log_req_resp.debug(f'<---- GET RESPONSE\n{response_data}')    # toprettyxml()}")
 
         except xsdata.exceptions.ParserError as ex:
             if self._debug:
-                _log_req_resp.debug("<---- GET RESPONSE\n{response_data}")
+                _log_req_resp.debug('<---- GET RESPONSE\n{response_data}')
             response_obj = response_data
 
         return response_obj

@@ -1,3 +1,26 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,7 +41,7 @@ __parser_config__ = ParserConfig(fail_on_unknown_attributes=False,
 __xml_parser__ = XmlParser(config=__parser_config__, context=__xml_context__)
 __config__ = SerializerConfig(xml_declaration=False, pretty_print=True)
 __serializer__ = XmlSerializer(config=__config__)
-__ns_map__ = {None: "urn:ieee:std:2030.5:ns"}
+__ns_map__ = {None: 'urn:ieee:std:2030.5:ns'}
 
 
 def serialize_dataclass(obj) -> str:
@@ -27,7 +50,7 @@ def serialize_dataclass(obj) -> str:
     returning to a client.
     """
     if not is_dataclass(obj):
-        raise ValueError("Invalid object, must be a dataclass object.")
+        raise ValueError('Invalid object, must be a dataclass object.')
 
     return __serializer__.render(obj, ns_map=__ns_map__)
 
@@ -51,7 +74,7 @@ class AllPoints:
     def add(self, name: str, value: Any, meta: Dict = {}):
         self.points[name] = value
         self.meta[name] = meta
-        
+
     def get(self, name: str) -> Any:
         return self.points[name]
 
@@ -60,7 +83,7 @@ class AllPoints:
 
     @staticmethod
     def frombus(message: List) -> AllPoints:
-        assert len(message) == 2, "Message must have a length of 2"
+        assert len(message) == 2, 'Message must have a length of 2'
 
         points = AllPoints()
 

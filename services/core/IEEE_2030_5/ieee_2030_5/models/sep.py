@@ -1,9 +1,32 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-__NAMESPACE__ = "urn:ieee:std:2030.5:ns"
+__NAMESPACE__ = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -19,16 +42,16 @@ class ActivePower:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -42,16 +65,16 @@ class AmpereHour:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -66,16 +89,16 @@ class ApparentPower:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -92,11 +115,11 @@ class ApplianceLoadReduction:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     type: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -112,15 +135,15 @@ class AppliedTargetReduction:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     type: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -144,19 +167,19 @@ class Charge:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 20,
+                                           'type': 'Element',
+                                           'max_length': 20,
                                        })
     kind: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -172,26 +195,26 @@ class Condition:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     attributeIdentifier: Optional[int] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
     lowerThreshold: Optional[int] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
-                                              "min_inclusive": -140737488355328,
-                                              "max_inclusive": 140737488355328,
+                                              'type': 'Element',
+                                              'required': True,
+                                              'min_inclusive': -140737488355328,
+                                              'max_inclusive': 140737488355328,
                                           })
     upperThreshold: Optional[int] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
-                                              "min_inclusive": -140737488355328,
-                                              "max_inclusive": 140737488355328,
+                                              'type': 'Element',
+                                              'required': True,
+                                              'min_inclusive': -140737488355328,
+                                              'max_inclusive': 140737488355328,
                                           })
 
 
@@ -211,18 +234,18 @@ class ConnectStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[bytes] = field(default=None,
                                    metadata={
-                                       "type": "Element",
-                                       "required": True,
-                                       "max_length": 1,
-                                       "format": "base16",
+                                       'type': 'Element',
+                                       'required': True,
+                                       'max_length': 1,
+                                       'format': 'base16',
                                    })
 
 
@@ -237,16 +260,16 @@ class CreditTypeChange:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     newType: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     startTime: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
 
 
@@ -260,16 +283,16 @@ class CurrentRMS:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -295,18 +318,18 @@ class CurveData:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     excitation: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     xvalue: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     yvalue: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -320,15 +343,15 @@ class DateTimeInterval:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     duration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     start: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -353,12 +376,12 @@ class DutyCycle:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     normalValue: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
 
 
@@ -407,25 +430,25 @@ class EnvironmentalCost:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     amount: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     costKind: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     costLevel: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     numCostLevels: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
 
 
@@ -445,15 +468,15 @@ class Error:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     maxRetryDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     reasonCode: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
 
 
@@ -527,28 +550,28 @@ class EventStatus:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     currentStatus: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     potentiallySuperseded: Optional[bool] = field(default=None,
                                                   metadata={
-                                                      "type": "Element",
-                                                      "required": True,
+                                                      'type': 'Element',
+                                                      'required': True,
                                                   })
     potentiallySupersededTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     reason: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 192,
+        'type': 'Element',
+        'max_length': 192,
     })
 
 
@@ -563,16 +586,16 @@ class FixedPointType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -588,15 +611,15 @@ class FixedVar:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     refType: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -623,28 +646,28 @@ class FreqDroopType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dBOF: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     dBUF: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     kOF: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     kUF: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     openLoopTms: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
 
 
@@ -660,19 +683,19 @@ class GPSLocationType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     lat: Optional[str] = field(default=None,
                                metadata={
-                                   "type": "Element",
-                                   "required": True,
-                                   "max_length": 32,
+                                   'type': 'Element',
+                                   'required': True,
+                                   'max_length': 32,
                                })
     lon: Optional[str] = field(default=None,
                                metadata={
-                                   "type": "Element",
-                                   "required": True,
-                                   "max_length": 32,
+                                   'type': 'Element',
+                                   'required': True,
+                                   'max_length': 32,
                                })
 
 
@@ -698,15 +721,15 @@ class InverterStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -719,11 +742,11 @@ class Link:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     href: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
 
 
@@ -738,15 +761,15 @@ class LocalControlModeStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -760,17 +783,17 @@ class ManufacturerStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[str] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "max_length": 6,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'max_length': 6,
                                  })
 
 
@@ -809,17 +832,17 @@ class Offset:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     coolingOffset: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     heatingOffset: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     loadAdjustmentPercentageOffset: Optional[int] = field(default=None,
                                                           metadata={
-                                                              "type": "Element",
+                                                              'type': 'Element',
                                                           })
 
 
@@ -838,15 +861,15 @@ class OperationalModeStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -863,13 +886,13 @@ class PowerConfiguration:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     batteryInstallTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     lowChargeThreshold: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -886,17 +909,17 @@ class PowerFactor:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     displacement: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
 
 
@@ -917,22 +940,22 @@ class PowerFactorWithExcitation:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     displacement: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     excitation: Optional[bool] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
 
 
@@ -948,16 +971,16 @@ class ReactivePower:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -971,16 +994,16 @@ class ReactiveSusceptance:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -994,18 +1017,18 @@ class RealEnergy:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "max_inclusive": 281474976710655,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'max_inclusive': 281474976710655,
                                  })
 
 
@@ -1024,16 +1047,16 @@ class RequestStatus:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     requestStatus: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
 
 
@@ -1048,10 +1071,10 @@ class Resource:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     href: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -1066,17 +1089,17 @@ class ServiceChange:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     newStatus: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     startTime: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
 
 
@@ -1099,13 +1122,13 @@ class SetPoint:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     coolingSetpoint: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     heatingSetpoint: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -1119,19 +1142,19 @@ class SignedRealEnergy:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "min_inclusive": -140737488355328,
-                                     "max_inclusive": 140737488355328,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'min_inclusive': -140737488355328,
+                                     'max_inclusive': 140737488355328,
                                  })
 
 
@@ -1145,15 +1168,15 @@ class StateOfChargeStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1169,15 +1192,15 @@ class StorageModeStatusType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1198,15 +1221,15 @@ class TargetReduction:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     type: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1222,20 +1245,20 @@ class Temperature:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     subject: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1257,30 +1280,30 @@ class TimeConfiguration:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dstEndRule: Optional[bytes] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
-                                            "max_length": 4,
-                                            "format": "base16",
+                                            'type': 'Element',
+                                            'required': True,
+                                            'max_length': 4,
+                                            'format': 'base16',
                                         })
     dstOffset: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     dstStartRule: Optional[bytes] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
-                                              "max_length": 4,
-                                              "format": "base16",
+                                              'type': 'Element',
+                                              'required': True,
+                                              'max_length': 4,
+                                              'format': 'base16',
                                           })
     tzOffset: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1296,20 +1319,20 @@ class UnitValueType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     unit: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1324,16 +1347,16 @@ class UnsignedFixedPointType:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1347,16 +1370,16 @@ class VoltageRMS:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1370,16 +1393,16 @@ class WattHour:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1396,28 +1419,28 @@ class loWPAN:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     octetsRx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     octetsTx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     packetsRx: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     packetsTx: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     rxFragError: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
 
 
@@ -1428,7 +1451,7 @@ class AccountBalanceLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1444,24 +1467,24 @@ class AccountingUnit:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     energyUnit: Optional[RealEnergy] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     monetaryUnit: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     multiplier: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     value: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1473,7 +1496,7 @@ class AssociatedUsagePointLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1497,27 +1520,27 @@ class BillingPeriod(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     billLastPeriod: Optional[int] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "min_inclusive": -140737488355328,
-                                              "max_inclusive": 140737488355328,
+                                              'type': 'Element',
+                                              'min_inclusive': -140737488355328,
+                                              'max_inclusive': 140737488355328,
                                           })
     billToDate: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "min_inclusive": -140737488355328,
-                                          "max_inclusive": 140737488355328,
+                                          'type': 'Element',
+                                          'min_inclusive': -140737488355328,
+                                          'max_inclusive': 140737488355328,
                                       })
     interval: Optional[DateTimeInterval] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
     statusTimeStamp: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -1528,7 +1551,7 @@ class ConfigurationLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1564,25 +1587,25 @@ class ConsumptionTariffInterval(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     consumptionBlock: Optional[int] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
+                                                'type': 'Element',
+                                                'required': True,
                                             })
     EnvironmentalCost: List[EnvironmentalCost] = field(default_factory=list,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
     price: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     startValue: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
-                                          "max_inclusive": 281474976710655,
+                                          'type': 'Element',
+                                          'required': True,
+                                          'max_inclusive': 281474976710655,
                                       })
 
 
@@ -1595,7 +1618,7 @@ class CurrentDERProgramLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1605,7 +1628,7 @@ class CustomerAccountLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1615,7 +1638,7 @@ class DERAvailabilityLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1684,95 +1707,95 @@ class DERCapability(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     modesSupported: Optional[bytes] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
-                                                "max_length": 4,
-                                                "format": "base16",
+                                                'type': 'Element',
+                                                'required': True,
+                                                'max_length': 4,
+                                                'format': 'base16',
                                             })
     rtgAbnormalCategory: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxA: Optional[CurrentRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxAh: Optional[AmpereHour] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxChargeRateVA: Optional[ApparentPower] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     rtgMaxChargeRateW: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxDischargeRateVA: Optional[ApparentPower] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     rtgMaxDischargeRateW: Optional[ActivePower] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     rtgMaxV: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxVA: Optional[ApparentPower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxVar: Optional[ReactivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxVarNeg: Optional[ReactivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMaxW: Optional[ActivePower] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
     rtgMaxWh: Optional[WattHour] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgMinPFOverExcited: Optional[PowerFactor] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
     rtgMinPFUnderExcited: Optional[PowerFactor] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     rtgMinV: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgNormalCategory: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgOverExcitedPF: Optional[PowerFactor] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgOverExcitedW: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgReactiveSusceptance: Optional[ReactiveSusceptance] = field(default=None,
                                                                   metadata={
-                                                                      "type": "Element",
+                                                                      'type': 'Element',
                                                                   })
     rtgUnderExcitedPF: Optional[PowerFactor] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgUnderExcitedW: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rtgVNom: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     type: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -1783,7 +1806,7 @@ class DERCapabilityLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1793,7 +1816,7 @@ class DERCurveLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1803,7 +1826,7 @@ class DERLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1813,7 +1836,7 @@ class DERProgramLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1823,7 +1846,7 @@ class DERSettingsLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1833,7 +1856,7 @@ class DERStatusLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1862,24 +1885,24 @@ class DRLCCapabilities:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     averageEnergy: Optional[RealEnergy] = field(default=None,
                                                 metadata={
-                                                    "type": "Element",
-                                                    "required": True,
+                                                    'type': 'Element',
+                                                    'required': True,
                                                 })
     maxDemand: Optional[ActivePower] = field(default=None,
                                              metadata={
-                                                 "type": "Element",
-                                                 "required": True,
+                                                 'type': 'Element',
+                                                 'required': True,
                                              })
     optionsImplemented: Optional[bytes] = field(default=None,
                                                 metadata={
-                                                    "type": "Element",
-                                                    "required": True,
-                                                    "max_length": 4,
-                                                    "format": "base16",
+                                                    'type': 'Element',
+                                                    'required': True,
+                                                    'max_length': 4,
+                                                    'format': 'base16',
                                                 })
 
 
@@ -1892,7 +1915,7 @@ class DefaultDERControlLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1902,7 +1925,7 @@ class DemandResponseProgramLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1912,7 +1935,7 @@ class DeviceCapabilityLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1922,7 +1945,7 @@ class DeviceInformationLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1932,7 +1955,7 @@ class DeviceStatusLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1942,7 +1965,7 @@ class EndDeviceLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -1990,55 +2013,55 @@ class File(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     activateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     fileURI: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     lFDI: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "max_length": 20,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'max_length': 20,
+                                      'format': 'base16',
                                   })
     mfHwVer: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 32,
+        'type': 'Element',
+        'max_length': 32,
     })
     mfID: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     mfModel: Optional[str] = field(default=None,
                                    metadata={
-                                       "type": "Element",
-                                       "required": True,
-                                       "max_length": 32,
+                                       'type': 'Element',
+                                       'required': True,
+                                       'max_length': 32,
                                    })
     mfSerNum: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 32,
+        'type': 'Element',
+        'max_length': 32,
     })
     mfVer: Optional[str] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "max_length": 16,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'max_length': 16,
                                  })
     size: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     type: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 2,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 2,
+                                      'format': 'base16',
                                   })
 
 
@@ -2051,7 +2074,7 @@ class FileLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2061,7 +2084,7 @@ class FileStatusLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2078,22 +2101,22 @@ class IdentifiedObject(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     mRID: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 16,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 16,
+                                      'format': 'base16',
                                   })
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 32,
+                                           'type': 'Element',
+                                           'max_length': 32,
                                        })
     version: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -2110,17 +2133,17 @@ class List_type(Resource):
     """
 
     class Meta:
-        name = "List"
-        namespace = "urn:ieee:std:2030.5:ns"
+        name = 'List'
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     all: Optional[int] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     results: Optional[int] = field(default=None,
                                    metadata={
-                                       "type": "Attribute",
-                                       "required": True,
+                                       'type': 'Attribute',
+                                       'required': True,
                                    })
 
 
@@ -2137,10 +2160,10 @@ class ListLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     all: Optional[int] = field(default=None, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -2190,44 +2213,44 @@ class LogEvent(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     createdDateTime: Optional[int] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
     details: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 32,
+        'type': 'Element',
+        'max_length': 32,
     })
     extendedData: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     functionSet: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     logEventCode: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     logEventID: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     logEventPEN: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     profileID: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
 
 
@@ -2238,7 +2261,7 @@ class MeterReadingLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2252,21 +2275,21 @@ class Neighbor(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     isChild: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     linkQuality: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     shortAddress: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
 
 
@@ -2315,42 +2338,42 @@ class PEVInfo:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     chargingPowerNow: Optional[ActivePower] = field(default=None,
                                                     metadata={
-                                                        "type": "Element",
-                                                        "required": True,
+                                                        'type': 'Element',
+                                                        'required': True,
                                                     })
     energyRequestNow: Optional[RealEnergy] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })
     maxForwardPower: Optional[ActivePower] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })
     minimumChargingDuration: Optional[int] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })
     targetStateOfCharge: Optional[int] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
     timeChargeIsNeeded: Optional[int] = field(default=None,
                                               metadata={
-                                                  "type": "Element",
-                                                  "required": True,
+                                                  'type': 'Element',
+                                                  'required': True,
                                               })
     timeChargingStatusPEV: Optional[int] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
 
 
@@ -2361,7 +2384,7 @@ class PowerStatusLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2385,22 +2408,22 @@ class PrepayOperationStatus(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     creditTypeChange: Optional[CreditTypeChange] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     creditTypeInUse: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     serviceChange: Optional[ServiceChange] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     serviceStatus: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
 
 
@@ -2411,7 +2434,7 @@ class PrepayOperationStatusLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2421,7 +2444,7 @@ class PrepaymentLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2434,21 +2457,21 @@ class RPLSourceRoutes(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DestAddress: Optional[bytes] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
-                                             "max_length": 16,
-                                             "format": "base16",
+                                             'type': 'Element',
+                                             'required': True,
+                                             'max_length': 16,
+                                             'format': 'base16',
                                          })
     SourceRoute: Optional[bytes] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
-                                             "max_length": 16,
-                                             "format": "base16",
+                                             'type': 'Element',
+                                             'required': True,
+                                             'max_length': 16,
+                                             'format': 'base16',
                                          })
 
 
@@ -2459,7 +2482,7 @@ class RateComponentLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2496,28 +2519,28 @@ class ReadingBase(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     consumptionBlock: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     qualityFlags: Optional[bytes] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "max_length": 2,
-                                              "format": "base16",
+                                              'type': 'Element',
+                                              'max_length': 2,
+                                              'format': 'base16',
                                           })
     timePeriod: Optional[DateTimeInterval] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     touTier: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     value: Optional[int] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "min_inclusive": -140737488355328,
-                                     "max_inclusive": 140737488355328,
+                                     'type': 'Element',
+                                     'min_inclusive': -140737488355328,
+                                     'max_inclusive': 140737488355328,
                                  })
 
 
@@ -2528,7 +2551,7 @@ class ReadingLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2600,60 +2623,60 @@ class ReadingType(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     accumulationBehaviour: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     calorificValue: Optional[UnitValueType] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     commodity: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     conversionFactor: Optional[UnitValueType] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     dataQualifier: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     flowDirection: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     intervalLength: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     kind: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     maxNumberOfIntervals: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     numberOfConsumptionBlocks: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     numberOfTouTiers: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     phase: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     powerOfTenMultiplier: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     subIntervalLength: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     supplyLimit: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_inclusive": 281474976710655,
+                                           'type': 'Element',
+                                           'max_inclusive': 281474976710655,
                                        })
     tieredConsumptionBlocks: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     uom: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -2664,7 +2687,7 @@ class ReadingTypeLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2686,19 +2709,19 @@ class Registration(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     dateTimeRegistered: Optional[int] = field(default=None,
                                               metadata={
-                                                  "type": "Element",
-                                                  "required": True,
+                                                  'type': 'Element',
+                                                  'required': True,
                                               })
     pIN: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -2709,7 +2732,7 @@ class RegistrationLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2738,16 +2761,16 @@ class RespondableResource(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     replyTo: Optional[str] = field(default=None, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
-    responseRequired: bytes = field(default=b"\x00",
+    responseRequired: bytes = field(default=b'\x00',
                                     metadata={
-                                        "type": "Attribute",
-                                        "max_length": 1,
-                                        "format": "base16",
+                                        'type': 'Attribute',
+                                        'max_length': 1,
+                                        'format': 'base16',
                                     })
 
 
@@ -2782,27 +2805,27 @@ class Response(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     createdDateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     endDeviceLFDI: Optional[bytes] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
-                                               "max_length": 20,
-                                               "format": "base16",
+                                               'type': 'Element',
+                                               'required': True,
+                                               'max_length': 20,
+                                               'format': 'base16',
                                            })
     status: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     subject: Optional[bytes] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
-                                         "max_length": 16,
-                                         "format": "base16",
+                                         'type': 'Element',
+                                         'required': True,
+                                         'max_length': 16,
+                                         'format': 'base16',
                                      })
 
 
@@ -2813,7 +2836,7 @@ class SelfDeviceLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2823,7 +2846,7 @@ class ServiceSupplierLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2838,10 +2861,10 @@ class SubscribableResource(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     subscribable: int = field(default=0, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -2861,12 +2884,12 @@ class SubscriptionBase(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     subscribedResource: Optional[str] = field(default=None,
                                               metadata={
-                                                  "type": "Element",
-                                                  "required": True,
+                                                  'type': 'Element',
+                                                  'required': True,
                                               })
 
 
@@ -2881,17 +2904,17 @@ class SupplyInterruptionOverride(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 32,
+                                           'type': 'Element',
+                                           'max_length': 32,
                                        })
     interval: Optional[DateTimeInterval] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
 
 
@@ -2904,13 +2927,13 @@ class SupportedLocale(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     locale: Optional[str] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 42,
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 42,
                                   })
 
 
@@ -2921,7 +2944,7 @@ class TariffProfileLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -2961,41 +2984,41 @@ class Time(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     currentTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     dstEndTime: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     dstOffset: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     dstStartTime: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     localTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     quality: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     tzOffset: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -3006,7 +3029,7 @@ class TimeLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3016,7 +3039,7 @@ class UsagePointLink(Link):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3048,21 +3071,21 @@ class AccountBalance(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     availableCredit: Optional[AccountingUnit] = field(default=None,
                                                       metadata={
-                                                          "type": "Element",
-                                                          "required": True,
+                                                          'type': 'Element',
+                                                          'required': True,
                                                       })
     creditStatus: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     emergencyCredit: Optional[AccountingUnit] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     emergencyCreditStatus: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -3073,7 +3096,7 @@ class ActiveBillingPeriodListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3083,7 +3106,7 @@ class ActiveCreditRegisterListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3093,7 +3116,7 @@ class ActiveDERControlListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3103,7 +3126,7 @@ class ActiveEndDeviceControlListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3113,7 +3136,7 @@ class ActiveFlowReservationListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3123,7 +3146,7 @@ class ActiveProjectionReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3134,7 +3157,7 @@ class ActiveSupplyInterruptionOverrideListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3144,7 +3167,7 @@ class ActiveTargetReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3154,7 +3177,7 @@ class ActiveTextMessageListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3164,7 +3187,7 @@ class ActiveTimeTariffIntervalListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3175,7 +3198,7 @@ class AssociatedDERProgramListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3185,7 +3208,7 @@ class BillingPeriodListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3201,10 +3224,10 @@ class BillingReading(ReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Charge: List[Charge] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -3215,7 +3238,7 @@ class BillingReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3225,7 +3248,7 @@ class BillingReadingSetListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3235,11 +3258,11 @@ class ConsumptionTariffIntervalList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ConsumptionTariffInterval: List[ConsumptionTariffInterval] = field(default_factory=list,
                                                                        metadata={
-                                                                           "type": "Element",
+                                                                           'type': 'Element',
                                                                        })
 
 
@@ -3250,7 +3273,7 @@ class ConsumptionTariffIntervalListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3281,26 +3304,26 @@ class CreditRegister(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     creditAmount: Optional[AccountingUnit] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })
     creditType: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     effectiveTime: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
     token: Optional[str] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "max_length": 32,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'max_length': 32,
                                  })
 
 
@@ -3311,7 +3334,7 @@ class CreditRegisterListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3321,7 +3344,7 @@ class CustomerAccountListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3331,7 +3354,7 @@ class CustomerAgreementListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3356,30 +3379,30 @@ class DERAvailability(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     availabilityDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     maxChargeDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     readingTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     reserveChargePercent: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     reservePercent: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     statVarAvail: Optional[ReactivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     statWAvail: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -3599,89 +3622,89 @@ class DERControlBase:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     opModConnect: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModEnergize: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModFixedPFAbsorbW: Optional[PowerFactorWithExcitation] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
     opModFixedPFInjectW: Optional[PowerFactorWithExcitation] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
     opModFixedVar: Optional[FixedVar] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModFixedW: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModFreqDroop: Optional[FreqDroopType] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModFreqWatt: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModHFRTMayTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModHFRTMustTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModHVRTMayTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModHVRTMomentaryCessation: Optional[DERCurveLink] = field(default=None,
                                                                 metadata={
-                                                                    "type": "Element",
+                                                                    'type': 'Element',
                                                                 })
     opModHVRTMustTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModLFRTMayTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModLFRTMustTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModLVRTMayTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModLVRTMomentaryCessation: Optional[DERCurveLink] = field(default=None,
                                                                 metadata={
-                                                                    "type": "Element",
+                                                                    'type': 'Element',
                                                                 })
     opModLVRTMustTrip: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModMaxLimW: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModTargetVar: Optional[ReactivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModTargetW: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModVoltVar: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModVoltWatt: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModWattPF: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opModWattVar: Optional[DERCurveLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rampTms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -3692,7 +3715,7 @@ class DERControlListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3702,7 +3725,7 @@ class DERControlResponse(Response):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3758,58 +3781,58 @@ class DERCurve(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     autonomousVRefEnable: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     autonomousVRefTimeConstant: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     creationTime: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     CurveData: List[CurveData] = field(default_factory=list,
                                        metadata={
-                                           "type": "Element",
-                                           "min_occurs": 1,
-                                           "max_occurs": 10,
+                                           'type': 'Element',
+                                           'min_occurs': 1,
+                                           'max_occurs': 10,
                                        })
     curveType: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     openLoopTms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rampDecTms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rampIncTms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     rampPT1Tms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     vRef: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     xMultiplier: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     yMultiplier: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     yRefType: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -3820,7 +3843,7 @@ class DERCurveListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3830,7 +3853,7 @@ class DERListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3840,7 +3863,7 @@ class DERProgramListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -3930,107 +3953,107 @@ class DERSettings(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     modesEnabled: Optional[bytes] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "max_length": 4,
-                                              "format": "base16",
+                                              'type': 'Element',
+                                              'max_length': 4,
+                                              'format': 'base16',
                                           })
     setESDelay: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESHighFreq: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESHighVolt: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESLowFreq: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESLowVolt: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESRampTms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESRandomDelay: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setGradW: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     setMaxA: Optional[CurrentRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxAh: Optional[AmpereHour] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxChargeRateVA: Optional[ApparentPower] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     setMaxChargeRateW: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxDischargeRateVA: Optional[ApparentPower] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     setMaxDischargeRateW: Optional[ActivePower] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     setMaxV: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxVA: Optional[ApparentPower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxVar: Optional[ReactivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxVarNeg: Optional[ReactivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMaxW: Optional[ActivePower] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
     setMaxWh: Optional[WattHour] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setMinPFOverExcited: Optional[PowerFactor] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
     setMinPFUnderExcited: Optional[PowerFactor] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     setMinV: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setSoftGradW: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setVNom: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setVRef: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setVRefOfs: Optional[VoltageRMS] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     updatedTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
 
 
@@ -4067,50 +4090,50 @@ class DERStatus(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     alarmStatus: Optional[bytes] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "max_length": 4,
-                                             "format": "base16",
+                                             'type': 'Element',
+                                             'max_length': 4,
+                                             'format': 'base16',
                                          })
     genConnectStatus: Optional[ConnectStatusType] = field(default=None,
                                                           metadata={
-                                                              "type": "Element",
+                                                              'type': 'Element',
                                                           })
     inverterStatus: Optional[InverterStatusType] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     localControlModeStatus: Optional[LocalControlModeStatusType] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     manufacturerStatus: Optional[ManufacturerStatusType] = field(default=None,
                                                                  metadata={
-                                                                     "type": "Element",
+                                                                     'type': 'Element',
                                                                  })
     operationalModeStatus: Optional[OperationalModeStatusType] = field(default=None,
                                                                        metadata={
-                                                                           "type": "Element",
+                                                                           'type': 'Element',
                                                                        })
     readingTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     stateOfChargeStatus: Optional[StateOfChargeStatusType] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     storageModeStatus: Optional[StorageModeStatusType] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
     storConnectStatus: Optional[ConnectStatusType] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
 
 
@@ -4121,7 +4144,7 @@ class DemandResponseProgramListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4151,30 +4174,30 @@ class DeviceStatus(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     changedTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     onCount: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opState: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     opTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     Temperature: List[Temperature] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     TimeLink: Optional[TimeLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -4200,27 +4223,27 @@ class DrResponse(Response):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ApplianceLoadReduction: Optional[ApplianceLoadReduction] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
     AppliedTargetReduction: Optional[AppliedTargetReduction] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
     DutyCycle: Optional[DutyCycle] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     Offset: Optional[Offset] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     overrideDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     SetPoint: Optional[SetPoint] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -4231,7 +4254,7 @@ class EndDeviceControlListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4241,7 +4264,7 @@ class EndDeviceListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4258,13 +4281,13 @@ class FileList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     File: List[File] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -4275,7 +4298,7 @@ class FileListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4327,45 +4350,45 @@ class FileStatus(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     activateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     FileLink: Optional[FileLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     loadPercent: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     nextRequestAttempt: Optional[int] = field(default=None,
                                               metadata={
-                                                  "type": "Element",
-                                                  "required": True,
+                                                  'type': 'Element',
+                                                  'required': True,
                                               })
     request503Count: Optional[int] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
     requestFailCount: Optional[int] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
+                                                'type': 'Element',
+                                                'required': True,
                                             })
     status: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     statusTime: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -4409,35 +4432,35 @@ class FlowReservationRequest(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     creationTime: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     durationRequested: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     energyRequested: Optional[SignedRealEnergy] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
-                                                            "required": True,
+                                                            'type': 'Element',
+                                                            'required': True,
                                                         })
     intervalRequested: Optional[DateTimeInterval] = field(default=None,
                                                           metadata={
-                                                              "type": "Element",
-                                                              "required": True,
+                                                              'type': 'Element',
+                                                              'required': True,
                                                           })
     powerRequested: Optional[ActivePower] = field(default=None,
                                                   metadata={
-                                                      "type": "Element",
-                                                      "required": True,
+                                                      'type': 'Element',
+                                                      'required': True,
                                                   })
     RequestStatus: Optional[RequestStatus] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })
 
 
@@ -4448,7 +4471,7 @@ class FlowReservationRequestListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4458,7 +4481,7 @@ class FlowReservationResponseListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4468,7 +4491,7 @@ class FlowReservationResponseResponse(Response):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4478,7 +4501,7 @@ class FunctionSetAssignmentsListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4488,7 +4511,7 @@ class HistoricalReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4498,7 +4521,7 @@ class IPAddrListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4508,7 +4531,7 @@ class IPInterfaceListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4518,7 +4541,7 @@ class LLInterfaceListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4537,20 +4560,20 @@ class LoadShedAvailability(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     availabilityDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     DemandResponseProgramLink: Optional[DemandResponseProgramLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
+                                                                               'type': 'Element',
                                                                            })
     sheddablePercent: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     sheddablePower: Optional[ActivePower] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -4561,7 +4584,7 @@ class LoadShedAvailabilityListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4571,7 +4594,7 @@ class LogEventListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4581,7 +4604,7 @@ class MessagingProgramListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4591,7 +4614,7 @@ class MeterReadingBase(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4601,7 +4624,7 @@ class MeterReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4611,7 +4634,7 @@ class MirrorUsagePointListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4621,10 +4644,10 @@ class NeighborList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Neighbor: List[Neighbor] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -4635,7 +4658,7 @@ class NeighborListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4662,22 +4685,22 @@ class Notification(SubscriptionBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     newResourceURI: Optional[str] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     Resource: Optional[Resource] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     status: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     subscriptionURI: Optional[str] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
 
 
@@ -4688,7 +4711,7 @@ class NotificationListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4726,40 +4749,40 @@ class PowerStatus(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     batteryStatus: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
     changedTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     currentPowerSource: Optional[int] = field(default=None,
                                               metadata={
-                                                  "type": "Element",
-                                                  "required": True,
+                                                  'type': 'Element',
+                                                  'required': True,
                                               })
     estimatedChargeRemaining: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     estimatedTimeRemaining: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     PEVInfo: Optional[PEVInfo] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     sessionTimeOnBattery: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     totalTimeOnBattery: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -4770,7 +4793,7 @@ class PrepaymentListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4780,7 +4803,7 @@ class PriceResponse(Response):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4800,22 +4823,22 @@ class PriceResponseCfg(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     consumeThreshold: Optional[int] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
+                                                'type': 'Element',
+                                                'required': True,
                                             })
     maxReductionThreshold: Optional[int] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
     RateComponentLink: Optional[RateComponentLink] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
-                                                               "required": True,
+                                                               'type': 'Element',
+                                                               'required': True,
                                                            })
 
 
@@ -4826,7 +4849,7 @@ class PriceResponseCfgListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4836,7 +4859,7 @@ class ProjectionReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4846,7 +4869,7 @@ class RPLInstanceListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4856,11 +4879,11 @@ class RPLSourceRoutesList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     RPLSourceRoutes: List[RPLSourceRoutes] = field(default_factory=list,
                                                    metadata={
-                                                       "type": "Element",
+                                                       'type': 'Element',
                                                    })
 
 
@@ -4871,7 +4894,7 @@ class RPLSourceRoutesListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4881,7 +4904,7 @@ class RateComponentListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4901,16 +4924,16 @@ class Reading(ReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     localID: Optional[bytes] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "max_length": 2,
-                                         "format": "base16",
+                                         'type': 'Element',
+                                         'max_length': 2,
+                                         'format': 'base16',
                                      })
     subscribable: int = field(default=0, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -4921,7 +4944,7 @@ class ReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4937,12 +4960,12 @@ class ReadingSetBase(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     timePeriod: Optional[DateTimeInterval] = field(default=None,
                                                    metadata={
-                                                       "type": "Element",
-                                                       "required": True,
+                                                       'type': 'Element',
+                                                       'required': True,
                                                    })
 
 
@@ -4953,7 +4976,7 @@ class ReadingSetListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -4969,22 +4992,22 @@ class RespondableIdentifiedObject(RespondableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     mRID: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 16,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 16,
+                                      'format': 'base16',
                                   })
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 32,
+                                           'type': 'Element',
+                                           'max_length': 32,
                                        })
     version: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5005,25 +5028,25 @@ class RespondableSubscribableIdentifiedObject(RespondableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     mRID: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 16,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 16,
+                                      'format': 'base16',
                                   })
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 32,
+                                           'type': 'Element',
+                                           'max_length': 32,
                                        })
     version: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     subscribable: int = field(default=0, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -5034,10 +5057,10 @@ class ResponseList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Response: List[Response] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5048,7 +5071,7 @@ class ResponseListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5058,7 +5081,7 @@ class ResponseSetListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5073,22 +5096,22 @@ class ServiceSupplier(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     email: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 32,
+        'type': 'Element',
+        'max_length': 32,
     })
     phone: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 20,
+        'type': 'Element',
+        'max_length': 20,
     })
     providerID: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     web: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 42,
+        'type': 'Element',
+        'max_length': 42,
     })
 
 
@@ -5105,22 +5128,22 @@ class SubscribableIdentifiedObject(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     mRID: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 16,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 16,
+                                      'format': 'base16',
                                   })
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 32,
+                                           'type': 'Element',
+                                           'max_length': 32,
                                        })
     version: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5136,16 +5159,16 @@ class SubscribableList(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     all: Optional[int] = field(default=None, metadata={
-        "type": "Attribute",
-        "required": True,
+        'type': 'Attribute',
+        'required': True,
     })
     results: Optional[int] = field(default=None,
                                    metadata={
-                                       "type": "Attribute",
-                                       "required": True,
+                                       'type': 'Attribute',
+                                       'required': True,
                                    })
 
 
@@ -5188,29 +5211,29 @@ class Subscription(SubscriptionBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Condition: Optional[Condition] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     encoding: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     level: Optional[str] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "max_length": 16,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'max_length': 16,
                                  })
     limit: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     notificationURI: Optional[str] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "required": True,
+                                               'type': 'Element',
+                                               'required': True,
                                            })
 
 
@@ -5221,7 +5244,7 @@ class SubscriptionListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5231,11 +5254,11 @@ class SupplyInterruptionOverrideList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     SupplyInterruptionOverride: List[SupplyInterruptionOverride] = field(default_factory=list,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
 
 
@@ -5246,7 +5269,7 @@ class SupplyInterruptionOverrideListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5256,11 +5279,11 @@ class SupportedLocaleList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     SupportedLocale: List[SupportedLocale] = field(default_factory=list,
                                                    metadata={
-                                                       "type": "Element",
+                                                       'type': 'Element',
                                                    })
 
 
@@ -5271,7 +5294,7 @@ class SupportedLocaleListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5281,7 +5304,7 @@ class TargetReadingListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5291,7 +5314,7 @@ class TariffProfileListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5301,7 +5324,7 @@ class TextMessageListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5311,7 +5334,7 @@ class TextResponse(Response):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5321,7 +5344,7 @@ class TimeTariffIntervalListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5340,23 +5363,23 @@ class UsagePointBase(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     roleFlags: Optional[bytes] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
-                                           "max_length": 2,
-                                           "format": "base16",
+                                           'type': 'Element',
+                                           'required': True,
+                                           'max_length': 2,
+                                           'format': 'base16',
                                        })
     serviceCategoryKind: Optional[int] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
     status: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -5367,7 +5390,7 @@ class UsagePointListLink(ListLink):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -5397,60 +5420,60 @@ class AbstractDevice(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ConfigurationLink: Optional[ConfigurationLink] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     DERListLink: Optional[DERListLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     deviceCategory: Optional[bytes] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "max_length": 4,
-                                                "format": "base16",
+                                                'type': 'Element',
+                                                'max_length': 4,
+                                                'format': 'base16',
                                             })
     DeviceInformationLink: Optional[DeviceInformationLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     DeviceStatusLink: Optional[DeviceStatusLink] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     FileStatusLink: Optional[FileStatusLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     IPInterfaceListLink: Optional[IPInterfaceListLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
     lFDI: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "max_length": 20,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'max_length': 20,
+                                      'format': 'base16',
                                   })
     LoadShedAvailabilityListLink: Optional[LoadShedAvailabilityListLink] = field(default=None,
                                                                                  metadata={
-                                                                                     "type":
-                                                                                     "Element",
+                                                                                     'type':
+                                                                                     'Element',
                                                                                  })
     LogEventListLink: Optional[LogEventListLink] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     PowerStatusLink: Optional[PowerStatusLink] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
     sFDI: Optional[int] = field(default=None,
                                 metadata={
-                                    "type": "Element",
-                                    "required": True,
-                                    "max_inclusive": 281474976710655,
+                                    'type': 'Element',
+                                    'required': True,
+                                    'max_inclusive': 281474976710655,
                                 })
 
 
@@ -5462,15 +5485,15 @@ class BillingMeterReadingBase(MeterReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     BillingReadingSetListLink: Optional[BillingReadingSetListLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
+                                                                               'type': 'Element',
                                                                            })
     ReadingTypeLink: Optional[ReadingTypeLink] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -5481,11 +5504,11 @@ class BillingPeriodList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     BillingPeriod: List[BillingPeriod] = field(default_factory=list,
                                                metadata={
-                                                   "type": "Element",
+                                                   'type': 'Element',
                                                })
 
 
@@ -5496,11 +5519,11 @@ class BillingReadingList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     BillingReading: List[BillingReading] = field(default_factory=list,
                                                  metadata={
-                                                     "type": "Element",
+                                                     'type': 'Element',
                                                  })
 
 
@@ -5511,11 +5534,11 @@ class BillingReadingSet(ReadingSetBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     BillingReadingListLink: Optional[BillingReadingListLink] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
 
 
@@ -5540,34 +5563,34 @@ class Configuration(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     currentLocale: Optional[str] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
-                                             "max_length": 42,
+                                             'type': 'Element',
+                                             'required': True,
+                                             'max_length': 42,
                                          })
     PowerConfiguration: Optional[PowerConfiguration] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
     PriceResponseCfgListLink: Optional[PriceResponseCfgListLink] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     TimeConfiguration: Optional[TimeConfiguration] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     userDeviceName: Optional[str] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
-                                              "max_length": 32,
+                                              'type': 'Element',
+                                              'required': True,
+                                              'max_length': 32,
                                           })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -5578,11 +5601,11 @@ class CreditRegisterList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     CreditRegister: List[CreditRegister] = field(default_factory=list,
                                                  metadata={
-                                                     "type": "Element",
+                                                     'type': 'Element',
                                                  })
 
 
@@ -5609,34 +5632,34 @@ class CustomerAccount(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     currency: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     customerAccount: Optional[str] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "max_length": 42,
+                                               'type': 'Element',
+                                               'max_length': 42,
                                            })
     CustomerAgreementListLink: Optional[CustomerAgreementListLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
+                                                                               'type': 'Element',
                                                                            })
     customerName: Optional[str] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "max_length": 42,
+                                            'type': 'Element',
+                                            'max_length': 42,
                                         })
     pricePowerOfTenMultiplier: Optional[int] = field(default=None,
                                                      metadata={
-                                                         "type": "Element",
-                                                         "required": True,
+                                                         'type': 'Element',
+                                                         'required': True,
                                                      })
     ServiceSupplierLink: Optional[ServiceSupplierLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
 
 
@@ -5666,57 +5689,57 @@ class CustomerAgreement(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ActiveBillingPeriodListLink: Optional[ActiveBillingPeriodListLink] = field(default=None,
                                                                                metadata={
-                                                                                   "type":
-                                                                                   "Element",
+                                                                                   'type':
+                                                                                   'Element',
                                                                                })
     ActiveProjectionReadingListLink: Optional[ActiveProjectionReadingListLink] = field(
         default=None, metadata={
-            "type": "Element",
+            'type': 'Element',
         })
     ActiveTargetReadingListLink: Optional[ActiveTargetReadingListLink] = field(default=None,
                                                                                metadata={
-                                                                                   "type":
-                                                                                   "Element",
+                                                                                   'type':
+                                                                                   'Element',
                                                                                })
     BillingPeriodListLink: Optional[BillingPeriodListLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     HistoricalReadingListLink: Optional[HistoricalReadingListLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
+                                                                               'type': 'Element',
                                                                            })
     PrepaymentLink: Optional[PrepaymentLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ProjectionReadingListLink: Optional[ProjectionReadingListLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
+                                                                               'type': 'Element',
                                                                            })
     serviceAccount: Optional[str] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "max_length": 42,
+                                              'type': 'Element',
+                                              'max_length': 42,
                                           })
     serviceLocation: Optional[str] = field(default=None,
                                            metadata={
-                                               "type": "Element",
-                                               "max_length": 42,
+                                               'type': 'Element',
+                                               'max_length': 42,
                                            })
     TargetReadingListLink: Optional[TargetReadingListLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     TariffProfileLink: Optional[TariffProfileLink] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     UsagePointLink: Optional[UsagePointLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5727,35 +5750,35 @@ class DER(SubscribableResource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     AssociatedDERProgramListLink: Optional[AssociatedDERProgramListLink] = field(default=None,
                                                                                  metadata={
-                                                                                     "type":
-                                                                                     "Element",
+                                                                                     'type':
+                                                                                     'Element',
                                                                                  })
     AssociatedUsagePointLink: Optional[AssociatedUsagePointLink] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     CurrentDERProgramLink: Optional[CurrentDERProgramLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     DERAvailabilityLink: Optional[DERAvailabilityLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
     DERCapabilityLink: Optional[DERCapabilityLink] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     DERSettingsLink: Optional[DERSettingsLink] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
     DERStatusLink: Optional[DERStatusLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5766,10 +5789,10 @@ class DERCurveList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DERCurve: List[DERCurve] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5787,27 +5810,27 @@ class DERProgram(SubscribableIdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ActiveDERControlListLink: Optional[ActiveDERControlListLink] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     DefaultDERControlLink: Optional[DefaultDERControlLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     DERControlListLink: Optional[DERControlListLink] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
     DERCurveListLink: Optional[DERCurveListLink] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     primacy: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -5863,39 +5886,39 @@ class DefaultDERControl(SubscribableIdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DERControlBase: Optional[DERControlBase] = field(default=None,
                                                      metadata={
-                                                         "type": "Element",
-                                                         "required": True,
+                                                         'type': 'Element',
+                                                         'required': True,
                                                      })
     setESDelay: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESHighFreq: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESHighVolt: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESLowFreq: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESLowVolt: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESRampTms: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setESRandomDelay: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setGradW: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     setSoftGradW: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -5931,28 +5954,28 @@ class DemandResponseProgram(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ActiveEndDeviceControlListLink: Optional[ActiveEndDeviceControlListLink] = field(default=None,
                                                                                      metadata={
-                                                                                         "type":
-                                                                                         "Element",
+                                                                                         'type':
+                                                                                         'Element',
                                                                                      })
     availabilityUpdatePercentChangeThreshold: Optional[int] = field(default=None,
                                                                     metadata={
-                                                                        "type": "Element",
+                                                                        'type': 'Element',
                                                                     })
     availabilityUpdatePowerChangeThreshold: Optional[ActivePower] = field(default=None,
                                                                           metadata={
-                                                                              "type": "Element",
+                                                                              'type': 'Element',
                                                                           })
     EndDeviceControlListLink: Optional[EndDeviceControlListLink] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     primacy: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -5994,85 +6017,85 @@ class DeviceInformation(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DRLCCapabilities: Optional[DRLCCapabilities] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     functionsImplemented: Optional[bytes] = field(default=None,
                                                   metadata={
-                                                      "type": "Element",
-                                                      "max_length": 8,
-                                                      "format": "base16",
+                                                      'type': 'Element',
+                                                      'max_length': 8,
+                                                      'format': 'base16',
                                                   })
     gpsLocation: Optional[GPSLocationType] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     lFDI: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 20,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 20,
+                                      'format': 'base16',
                                   })
     mfDate: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     mfHwVer: Optional[str] = field(default=None,
                                    metadata={
-                                       "type": "Element",
-                                       "required": True,
-                                       "max_length": 32,
+                                       'type': 'Element',
+                                       'required': True,
+                                       'max_length': 32,
                                    })
     mfID: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     mfInfo: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 32,
+        'type': 'Element',
+        'max_length': 32,
     })
     mfModel: Optional[str] = field(default=None,
                                    metadata={
-                                       "type": "Element",
-                                       "required": True,
-                                       "max_length": 32,
+                                       'type': 'Element',
+                                       'required': True,
+                                       'max_length': 32,
                                    })
     mfSerNum: Optional[str] = field(default=None,
                                     metadata={
-                                        "type": "Element",
-                                        "required": True,
-                                        "max_length": 32,
+                                        'type': 'Element',
+                                        'required': True,
+                                        'max_length': 32,
                                     })
     primaryPower: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     secondaryPower: Optional[int] = field(default=None,
                                           metadata={
-                                              "type": "Element",
-                                              "required": True,
+                                              'type': 'Element',
+                                              'required': True,
                                           })
     SupportedLocaleListLink: Optional[SupportedLocaleListLink] = field(default=None,
                                                                        metadata={
-                                                                           "type": "Element",
+                                                                           'type': 'Element',
                                                                        })
     swActTime: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     swVer: Optional[str] = field(default=None,
                                  metadata={
-                                     "type": "Element",
-                                     "required": True,
-                                     "max_length": 32,
+                                     'type': 'Element',
+                                     'required': True,
+                                     'max_length': 32,
                                  })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6090,22 +6113,22 @@ class Event(RespondableSubscribableIdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     creationTime: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
     EventStatus: Optional[EventStatus] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
     interval: Optional[DateTimeInterval] = field(default=None,
                                                  metadata={
-                                                     "type": "Element",
-                                                     "required": True,
+                                                     'type': 'Element',
+                                                     'required': True,
                                                  })
 
 
@@ -6123,14 +6146,14 @@ class FlowReservationRequestList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     FlowReservationRequest: List[FlowReservationRequest] = field(default_factory=list,
                                                                  metadata={
-                                                                     "type": "Element",
+                                                                     'type': 'Element',
                                                                  })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6142,46 +6165,46 @@ class FunctionSetAssignmentsBase(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     CustomerAccountListLink: Optional[CustomerAccountListLink] = field(default=None,
                                                                        metadata={
-                                                                           "type": "Element",
+                                                                           'type': 'Element',
                                                                        })
     DemandResponseProgramListLink: Optional[DemandResponseProgramListLink] = field(default=None,
                                                                                    metadata={
-                                                                                       "type":
-                                                                                       "Element",
+                                                                                       'type':
+                                                                                       'Element',
                                                                                    })
     DERProgramListLink: Optional[DERProgramListLink] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
     FileListLink: Optional[FileListLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     MessagingProgramListLink: Optional[MessagingProgramListLink] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     PrepaymentListLink: Optional[PrepaymentListLink] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
     ResponseSetListLink: Optional[ResponseSetListLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
     TariffProfileListLink: Optional[TariffProfileListLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     TimeLink: Optional[TimeLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     UsagePointListLink: Optional[UsagePointListLink] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
 
 
@@ -6196,23 +6219,23 @@ class IEEE_802_15_4:
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     capabilityInfo: Optional[bytes] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
-                                                "max_length": 1,
-                                                "format": "base16",
+                                                'type': 'Element',
+                                                'required': True,
+                                                'max_length': 1,
+                                                'format': 'base16',
                                             })
     NeighborListLink: Optional[NeighborListLink] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     shortAddress: Optional[int] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
+                                            'type': 'Element',
+                                            'required': True,
                                         })
 
 
@@ -6226,18 +6249,18 @@ class IPAddr(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     address: Optional[bytes] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
-                                         "max_length": 16,
-                                         "format": "base16",
+                                         'type': 'Element',
+                                         'required': True,
+                                         'max_length': 16,
+                                         'format': 'base16',
                                      })
     RPLInstanceListLink: Optional[RPLInstanceListLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
 
 
@@ -6287,88 +6310,88 @@ class IPInterface(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ifDescr: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 192,
+        'type': 'Element',
+        'max_length': 192,
     })
     ifHighSpeed: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInBroadcastPkts: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifIndex: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInDiscards: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInErrors: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInMulticastPkts: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInOctets: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInUcastPkts: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifInUnknownProtos: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifMtu: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifName: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 16,
+        'type': 'Element',
+        'max_length': 16,
     })
     ifOperStatus: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifOutBroadcastPkts: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifOutDiscards: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifOutErrors: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifOutMulticastPkts: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifOutOctets: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifOutUcastPkts: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifPromiscuousMode: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifSpeed: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ifType: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     IPAddrListLink: Optional[IPAddrListLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     lastResetTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     lastUpdatedTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLInterfaceListLink: Optional[LLInterfaceListLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
 
 
@@ -6386,14 +6409,14 @@ class LoadShedAvailabilityList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     LoadShedAvailability: List[LoadShedAvailability] = field(default_factory=list,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6411,13 +6434,13 @@ class LogEventList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     LogEvent: List[LogEvent] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6435,25 +6458,25 @@ class MessagingProgram(SubscribableIdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ActiveTextMessageListLink: Optional[ActiveTextMessageListLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
+                                                                               'type': 'Element',
                                                                            })
     locale: Optional[str] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 42,
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 42,
                                   })
     primacy: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     TextMessageListLink: Optional[TextMessageListLink] = field(default=None,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
 
 
@@ -6464,23 +6487,23 @@ class MeterReading(MeterReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     RateComponentListLink: Optional[RateComponentListLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     ReadingLink: Optional[ReadingLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ReadingSetListLink: Optional[ReadingSetListLink] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
+                                                                 'type': 'Element',
                                                              })
     ReadingTypeLink: Optional[ReadingTypeLink] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
-                                                           "required": True,
+                                                           'type': 'Element',
+                                                           'required': True,
                                                        })
 
 
@@ -6491,10 +6514,10 @@ class MirrorReadingSet(ReadingSetBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Reading: List[Reading] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -6505,10 +6528,10 @@ class NotificationList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Notification: List[Notification] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -6519,11 +6542,11 @@ class PriceResponseCfgList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     PriceResponseCfg: List[PriceResponseCfg] = field(default_factory=list,
                                                      metadata={
-                                                         "type": "Element",
+                                                         'type': 'Element',
                                                      })
 
 
@@ -6547,51 +6570,51 @@ class RPLInstance(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DODAGid: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     DODAGroot: Optional[bool] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     flags: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     groundedFlag: Optional[bool] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
     MOP: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     PRF: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     rank: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     RPLInstanceID: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
     RPLSourceRoutesListLink: Optional[RPLSourceRoutesListLink] = field(default=None,
                                                                        metadata={
-                                                                           "type": "Element",
+                                                                           'type': 'Element',
                                                                        })
     versionNumber: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
 
 
@@ -6639,35 +6662,35 @@ class RateComponent(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ActiveTimeTariffIntervalListLink: Optional[ActiveTimeTariffIntervalListLink] = field(
         default=None, metadata={
-            "type": "Element",
+            'type': 'Element',
         })
     flowRateEndLimit: Optional[UnitValueType] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     flowRateStartLimit: Optional[UnitValueType] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     ReadingTypeLink: Optional[ReadingTypeLink] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
-                                                           "required": True,
+                                                           'type': 'Element',
+                                                           'required': True,
                                                        })
     roleFlags: Optional[bytes] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
-                                           "max_length": 2,
-                                           "format": "base16",
+                                           'type': 'Element',
+                                           'required': True,
+                                           'max_length': 2,
+                                           'format': 'base16',
                                        })
     TimeTariffIntervalListLink: Optional[TimeTariffIntervalListLink] = field(default=None,
                                                                              metadata={
-                                                                                 "type": "Element",
-                                                                                 "required": True,
+                                                                                 'type': 'Element',
+                                                                                 'required': True,
                                                                              })
 
 
@@ -6678,10 +6701,10 @@ class ReadingList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Reading: List[Reading] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -6692,11 +6715,11 @@ class ReadingSet(ReadingSetBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ReadingListLink: Optional[ReadingListLink] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -6707,11 +6730,11 @@ class ResponseSet(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ResponseListLink: Optional[ResponseListLink] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
 
 
@@ -6722,11 +6745,11 @@ class ServiceSupplierList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ServiceSupplier: List[ServiceSupplier] = field(default_factory=list,
                                                    metadata={
-                                                       "type": "Element",
+                                                       'type': 'Element',
                                                    })
 
 
@@ -6744,13 +6767,13 @@ class SubscriptionList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Subscription: List[Subscription] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6779,30 +6802,30 @@ class TariffProfile(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     currency: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pricePowerOfTenMultiplier: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     primacy: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     rateCode: Optional[str] = field(default=None, metadata={
-        "type": "Element",
-        "max_length": 20,
+        'type': 'Element',
+        'max_length': 20,
     })
     RateComponentListLink: Optional[RateComponentListLink] = field(default=None,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     serviceCategoryKind: Optional[int] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
 
 
@@ -6819,17 +6842,17 @@ class UsagePoint(UsagePointBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     deviceLFDI: Optional[bytes] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "max_length": 20,
-                                            "format": "base16",
+                                            'type': 'Element',
+                                            'max_length': 20,
+                                            'format': 'base16',
                                         })
     MeterReadingListLink: Optional[MeterReadingListLink] = field(default=None,
                                                                  metadata={
-                                                                     "type": "Element",
+                                                                     'type': 'Element',
                                                                  })
 
 
@@ -6840,11 +6863,11 @@ class BillingReadingSetList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     BillingReadingSet: List[BillingReadingSet] = field(default_factory=list,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -6862,14 +6885,14 @@ class CustomerAccountList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     CustomerAccount: List[CustomerAccount] = field(default_factory=list,
                                                    metadata={
-                                                       "type": "Element",
+                                                       'type': 'Element',
                                                    })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6880,11 +6903,11 @@ class CustomerAgreementList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     CustomerAgreement: List[CustomerAgreement] = field(default_factory=list,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -6902,13 +6925,13 @@ class DERList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DER: List[DER] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6926,13 +6949,13 @@ class DERProgramList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DERProgram: List[DERProgram] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6950,14 +6973,14 @@ class DemandResponseProgramList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DemandResponseProgram: List[DemandResponseProgram] = field(default_factory=list,
                                                                metadata={
-                                                                   "type": "Element",
+                                                                   'type': 'Element',
                                                                })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -6978,21 +7001,21 @@ class DeviceCapability(FunctionSetAssignmentsBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     EndDeviceListLink: Optional[EndDeviceListLink] = field(default=None,
                                                            metadata={
-                                                               "type": "Element",
+                                                               'type': 'Element',
                                                            })
     MirrorUsagePointListLink: Optional[MirrorUsagePointListLink] = field(default=None,
                                                                          metadata={
-                                                                             "type": "Element",
+                                                                             'type': 'Element',
                                                                          })
     SelfDeviceLink: Optional[SelfDeviceLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7022,40 +7045,40 @@ class EndDevice(AbstractDevice):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     changedTime: Optional[int] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
     enabled: Optional[bool] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     FlowReservationRequestListLink: Optional[FlowReservationRequestListLink] = field(default=None,
                                                                                      metadata={
-                                                                                         "type":
-                                                                                         "Element",
+                                                                                         'type':
+                                                                                         'Element',
                                                                                      })
     FlowReservationResponseListLink: Optional[FlowReservationResponseListLink] = field(
         default=None, metadata={
-            "type": "Element",
+            'type': 'Element',
         })
     FunctionSetAssignmentsListLink: Optional[FunctionSetAssignmentsListLink] = field(default=None,
                                                                                      metadata={
-                                                                                         "type":
-                                                                                         "Element",
+                                                                                         'type':
+                                                                                         'Element',
                                                                                      })
     postRate: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     RegistrationLink: Optional[RegistrationLink] = field(default=None,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     SubscriptionListLink: Optional[SubscriptionListLink] = field(default=None,
                                                                  metadata={
-                                                                     "type": "Element",
+                                                                     'type': 'Element',
                                                                  })
 
 
@@ -7074,24 +7097,24 @@ class FlowReservationResponse(Event):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     energyAvailable: Optional[SignedRealEnergy] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
-                                                            "required": True,
+                                                            'type': 'Element',
+                                                            'required': True,
                                                         })
     powerAvailable: Optional[ActivePower] = field(default=None,
                                                   metadata={
-                                                      "type": "Element",
-                                                      "required": True,
+                                                      'type': 'Element',
+                                                      'required': True,
                                                   })
     subject: Optional[bytes] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
-                                         "max_length": 16,
-                                         "format": "base16",
+                                         'type': 'Element',
+                                         'required': True,
+                                         'max_length': 16,
+                                         'format': 'base16',
                                      })
 
 
@@ -7113,25 +7136,25 @@ class FunctionSetAssignments(FunctionSetAssignmentsBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     mRID: Optional[bytes] = field(default=None,
                                   metadata={
-                                      "type": "Element",
-                                      "required": True,
-                                      "max_length": 16,
-                                      "format": "base16",
+                                      'type': 'Element',
+                                      'required': True,
+                                      'max_length': 16,
+                                      'format': 'base16',
                                   })
     description: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "max_length": 32,
+                                           'type': 'Element',
+                                           'max_length': 32,
                                        })
     version: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     subscribable: int = field(default=0, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7146,7 +7169,7 @@ class HistoricalReading(BillingMeterReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -7156,10 +7179,10 @@ class IPAddrList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     IPAddr: List[IPAddr] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7177,13 +7200,13 @@ class IPInterfaceList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     IPInterface: List[IPInterface] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7218,63 +7241,63 @@ class LLInterface(Resource):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     CRCerrors: Optional[int] = field(default=None,
                                      metadata={
-                                         "type": "Element",
-                                         "required": True,
+                                         'type': 'Element',
+                                         'required': True,
                                      })
     EUI64: Optional[bytes] = field(default=None,
                                    metadata={
-                                       "type": "Element",
-                                       "required": True,
-                                       "max_length": 8,
-                                       "format": "base16",
+                                       'type': 'Element',
+                                       'required': True,
+                                       'max_length': 8,
+                                       'format': 'base16',
                                    })
     IEEE_802_15_4: Optional[IEEE_802_15_4] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     linkLayerType: Optional[int] = field(default=None,
                                          metadata={
-                                             "type": "Element",
-                                             "required": True,
+                                             'type': 'Element',
+                                             'required': True,
                                          })
     LLAckNotRx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLCSMAFail: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLFramesDropRx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLFramesDropTx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLFramesRx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLFramesTx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLMediaAccessFail: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLOctetsRx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLOctetsTx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLRetryCount: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     LLSecurityErrorRx: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     loWPAN: Optional[loWPAN] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7292,14 +7315,14 @@ class MessagingProgramList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     MessagingProgram: List[MessagingProgram] = field(default_factory=list,
                                                      metadata={
-                                                         "type": "Element",
+                                                         'type': 'Element',
                                                      })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7310,10 +7333,10 @@ class MeterReadingList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     MeterReading: List[MeterReading] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7330,23 +7353,23 @@ class MirrorMeterReading(MeterReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     lastUpdateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     MirrorReadingSet: List[MirrorReadingSet] = field(default_factory=list,
                                                      metadata={
-                                                         "type": "Element",
+                                                         'type': 'Element',
                                                      })
     nextUpdateTime: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     Reading: Optional[Reading] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     ReadingType: Optional[ReadingType] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7389,60 +7412,60 @@ class Prepayment(IdentifiedObject):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     AccountBalanceLink: Optional[AccountBalanceLink] = field(default=None,
                                                              metadata={
-                                                                 "type": "Element",
-                                                                 "required": True,
+                                                                 'type': 'Element',
+                                                                 'required': True,
                                                              })
     ActiveCreditRegisterListLink: Optional[ActiveCreditRegisterListLink] = field(default=None,
                                                                                  metadata={
-                                                                                     "type":
-                                                                                     "Element",
+                                                                                     'type':
+                                                                                     'Element',
                                                                                  })
     ActiveSupplyInterruptionOverrideListLink: Optional[
         ActiveSupplyInterruptionOverrideListLink] = field(default=None,
                                                           metadata={
-                                                              "type": "Element",
+                                                              'type': 'Element',
                                                           })
     creditExpiryLevel: Optional[AccountingUnit] = field(default=None,
                                                         metadata={
-                                                            "type": "Element",
+                                                            'type': 'Element',
                                                         })
     CreditRegisterListLink: Optional[CreditRegisterListLink] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
-                                                                         "required": True,
+                                                                         'type': 'Element',
+                                                                         'required': True,
                                                                      })
     lowCreditWarningLevel: Optional[AccountingUnit] = field(default=None,
                                                             metadata={
-                                                                "type": "Element",
+                                                                'type': 'Element',
                                                             })
     lowEmergencyCreditWarningLevel: Optional[AccountingUnit] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
     prepayMode: Optional[int] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "required": True,
+                                          'type': 'Element',
+                                          'required': True,
                                       })
     PrepayOperationStatusLink: Optional[PrepayOperationStatusLink] = field(default=None,
                                                                            metadata={
-                                                                               "type": "Element",
-                                                                               "required": True,
+                                                                               'type': 'Element',
+                                                                               'required': True,
                                                                            })
     SupplyInterruptionOverrideListLink: Optional[SupplyInterruptionOverrideListLink] = field(
         default=None, metadata={
-            "type": "Element",
-            "required": True,
+            'type': 'Element',
+            'required': True,
         })
     UsagePoint: List[UsagePoint] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     UsagePointLink: Optional[UsagePointLink] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7454,7 +7477,7 @@ class ProjectionReading(BillingMeterReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -7464,10 +7487,10 @@ class RPLInstanceList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     RPLInstance: List[RPLInstance] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7491,13 +7514,13 @@ class RandomizableEvent(Event):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     randomizeDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     randomizeStart: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7508,11 +7531,11 @@ class RateComponentList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     RateComponent: List[RateComponent] = field(default_factory=list,
                                                metadata={
-                                                   "type": "Element",
+                                                   'type': 'Element',
                                                })
 
 
@@ -7523,10 +7546,10 @@ class ReadingSetList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ReadingSet: List[ReadingSet] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7544,13 +7567,13 @@ class ResponseSetList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ResponseSet: List[ResponseSet] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7568,10 +7591,10 @@ class SelfDevice(AbstractDevice):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7584,7 +7607,7 @@ class TargetReading(BillingMeterReadingBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
 
 @dataclass
@@ -7601,14 +7624,14 @@ class TariffProfileList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     TariffProfile: List[TariffProfile] = field(default_factory=list,
                                                metadata={
-                                                   "type": "Element",
+                                                   'type': 'Element',
                                                })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7638,21 +7661,21 @@ class TextMessage(Event):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     originator: Optional[str] = field(default=None,
                                       metadata={
-                                          "type": "Element",
-                                          "max_length": 20,
+                                          'type': 'Element',
+                                          'max_length': 20,
                                       })
     priority: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
     textMessage: Optional[str] = field(default=None,
                                        metadata={
-                                           "type": "Element",
-                                           "required": True,
+                                           'type': 'Element',
+                                           'required': True,
                                        })
 
 
@@ -7670,13 +7693,13 @@ class UsagePointList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     UsagePoint: List[UsagePoint] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7693,18 +7716,18 @@ class DERControl(RandomizableEvent):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DERControlBase: Optional[DERControlBase] = field(default=None,
                                                      metadata={
-                                                         "type": "Element",
-                                                         "required": True,
+                                                         'type': 'Element',
+                                                         'required': True,
                                                      })
     deviceCategory: Optional[bytes] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "max_length": 4,
-                                                "format": "base16",
+                                                'type': 'Element',
+                                                'max_length': 4,
+                                                'format': 'base16',
                                             })
 
 
@@ -7739,44 +7762,44 @@ class EndDeviceControl(RandomizableEvent):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ApplianceLoadReduction: Optional[ApplianceLoadReduction] = field(default=None,
                                                                      metadata={
-                                                                         "type": "Element",
+                                                                         'type': 'Element',
                                                                      })
     deviceCategory: Optional[bytes] = field(default=None,
                                             metadata={
-                                                "type": "Element",
-                                                "required": True,
-                                                "max_length": 4,
-                                                "format": "base16",
+                                                'type': 'Element',
+                                                'required': True,
+                                                'max_length': 4,
+                                                'format': 'base16',
                                             })
     drProgramMandatory: Optional[bool] = field(default=None,
                                                metadata={
-                                                   "type": "Element",
-                                                   "required": True,
+                                                   'type': 'Element',
+                                                   'required': True,
                                                })
     DutyCycle: Optional[DutyCycle] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     loadShiftForward: Optional[bool] = field(default=None,
                                              metadata={
-                                                 "type": "Element",
-                                                 "required": True,
+                                                 'type': 'Element',
+                                                 'required': True,
                                              })
     Offset: Optional[Offset] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     overrideDuration: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     SetPoint: Optional[SetPoint] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     TargetReduction: Optional[TargetReduction] = field(default=None,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -7794,13 +7817,13 @@ class EndDeviceList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     EndDevice: List[EndDevice] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7818,14 +7841,14 @@ class FlowReservationResponseList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     FlowReservationResponse: List[FlowReservationResponse] = field(default_factory=list,
                                                                    metadata={
-                                                                       "type": "Element",
+                                                                       'type': 'Element',
                                                                    })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7843,14 +7866,14 @@ class FunctionSetAssignmentsList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     FunctionSetAssignments: List[FunctionSetAssignments] = field(default_factory=list,
                                                                  metadata={
-                                                                     "type": "Element",
+                                                                     'type': 'Element',
                                                                  })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7861,11 +7884,11 @@ class HistoricalReadingList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     HistoricalReading: List[HistoricalReading] = field(default_factory=list,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -7876,10 +7899,10 @@ class LLInterfaceList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     LLInterface: List[LLInterface] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7890,11 +7913,11 @@ class MirrorMeterReadingList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     MirrorMeterReading: List[MirrorMeterReading] = field(default_factory=list,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
 
 
@@ -7912,21 +7935,21 @@ class MirrorUsagePoint(UsagePointBase):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     deviceLFDI: Optional[bytes] = field(default=None,
                                         metadata={
-                                            "type": "Element",
-                                            "required": True,
-                                            "max_length": 20,
-                                            "format": "base16",
+                                            'type': 'Element',
+                                            'required': True,
+                                            'max_length': 20,
+                                            'format': 'base16',
                                         })
     MirrorMeterReading: List[MirrorMeterReading] = field(default_factory=list,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
     postRate: Optional[int] = field(default=None, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -7944,13 +7967,13 @@ class PrepaymentList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     Prepayment: List[Prepayment] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -7961,11 +7984,11 @@ class ProjectionReadingList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ProjectionReading: List[ProjectionReading] = field(default_factory=list,
                                                        metadata={
-                                                           "type": "Element",
+                                                           'type': 'Element',
                                                        })
 
 
@@ -7976,11 +7999,11 @@ class TargetReadingList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     TargetReading: List[TargetReading] = field(default_factory=list,
                                                metadata={
-                                                   "type": "Element",
+                                                   'type': 'Element',
                                                })
 
 
@@ -7991,10 +8014,10 @@ class TextMessageList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     TextMessage: List[TextMessage] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -8011,15 +8034,15 @@ class TimeTariffInterval(RandomizableEvent):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     ConsumptionTariffIntervalListLink: Optional[ConsumptionTariffIntervalListLink] = field(
         default=None, metadata={
-            "type": "Element",
+            'type': 'Element',
         })
     touTier: Optional[int] = field(default=None, metadata={
-        "type": "Element",
-        "required": True,
+        'type': 'Element',
+        'required': True,
     })
 
 
@@ -8030,10 +8053,10 @@ class DERControlList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     DERControl: List[DERControl] = field(default_factory=list, metadata={
-        "type": "Element",
+        'type': 'Element',
     })
 
 
@@ -8044,11 +8067,11 @@ class EndDeviceControlList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     EndDeviceControl: List[EndDeviceControl] = field(default_factory=list,
                                                      metadata={
-                                                         "type": "Element",
+                                                         'type': 'Element',
                                                      })
 
 
@@ -8066,14 +8089,14 @@ class MirrorUsagePointList(List_type):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     MirrorUsagePoint: List[MirrorUsagePoint] = field(default_factory=list,
                                                      metadata={
-                                                         "type": "Element",
+                                                         'type': 'Element',
                                                      })
     pollRate: int = field(default=900, metadata={
-        "type": "Attribute",
+        'type': 'Attribute',
     })
 
 
@@ -8084,9 +8107,9 @@ class TimeTariffIntervalList(SubscribableList):
     """
 
     class Meta:
-        namespace = "urn:ieee:std:2030.5:ns"
+        namespace = 'urn:ieee:std:2030.5:ns'
 
     TimeTariffInterval: List[TimeTariffInterval] = field(default_factory=list,
                                                          metadata={
-                                                             "type": "Element",
+                                                             'type': 'Element',
                                                          })
