@@ -7,7 +7,7 @@ platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-## Upgrading to VOLTTRON 8.x
+## Upgrading Pre-8 to VOLTTRON 9.x
 
 VOLTTRON 8 introduces four changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 
