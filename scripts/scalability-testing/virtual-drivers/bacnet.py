@@ -1,45 +1,31 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 
-#---------------------------------------------------------------------------# 
+#---------------------------------------------------------------------------#
 # import the various server implementations
-#---------------------------------------------------------------------------# 
+#---------------------------------------------------------------------------#
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ArgumentParser
@@ -61,9 +47,9 @@ import logging
 
 from utils import createDaemon
 
-#---------------------------------------------------------------------------# 
+#---------------------------------------------------------------------------#
 # configure the service logging
-#---------------------------------------------------------------------------# 
+#---------------------------------------------------------------------------#
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
@@ -86,7 +72,7 @@ class Register:
         self.object_type = object_type
         self.instance_number = int(instance_number)
         self.point_name = point_name
-    
+
     def get_register_type(self):
         '''Get (type, read_only) tuple'''
         return self.register_type, self.read_only
@@ -97,33 +83,33 @@ class DeviceAbstraction:
         self.build_register_map()
         self.parse_config(config_file)
         self.interface = interface_str
-        
+
     def build_register_map(self):
         self.registers = {('byte',True):[],
                           ('byte',False):[],
                           ('bit',True):[],
                           ('bit',False):[]}
-        
-    def insert_register(self, register):        
+
+    def insert_register(self, register):
         register_type = register.get_register_type()
-        self.registers[register_type].append(register) 
-                
+        self.registers[register_type].append(register)
+
     def parse_config(self, config_file):
         with open(config_file, 'rb') as f:
             configDict = DictReader(f)
-            
-            for regDef in configDict:            
+
+            for regDef in configDict:
                 object_type = regDef['BACnet Object Type']
-                read_only = regDef['Writable'].lower() != 'true'  
-                index = int(regDef['Index'])    
-                property = regDef['Property']  
-                point_name = regDef['Volttron Point Name'] 
-                            
+                read_only = regDef['Writable'].lower() != 'true'
+                index = int(regDef['Index'])
+                property = regDef['Property']
+                point_name = regDef['Volttron Point Name']
+
                 register = Register(point_name, index, object_type, property, read_only)
-                    
+
                 self.insert_register(register)
-                
-    
+
+
     def get_server_application(self):
         if _debug: DeviceAbstraction._debug("    - creating application")
         # make a device object
@@ -134,7 +120,7 @@ class DeviceAbstraction:
             segmentationSupported="segmentedBoth",
             vendorIdentifier=15
             )
-    
+
         # build a bit string that knows about the bit names
         pss = ServicesSupported()
         pss['whoIs'] = 1
@@ -142,44 +128,44 @@ class DeviceAbstraction:
         pss['readProperty'] = 1
         pss['readPropertyMultiple'] = 1
         pss['writeProperty'] = 1
-    
+
         # set the property value to be just the bits
-        this_device.protocolServicesSupported = pss.value        
+        this_device.protocolServicesSupported = pss.value
 
         # make a sample application
         this_application = ReadPropertyMultipleApplication(this_device, args.interface)
-    
-       
+
+
         registers= self.registers[('byte',True)]
-        
-        #Currently we don't actually enforce read only properties.        
+
+        #Currently we don't actually enforce read only properties.
         for register in registers:
             if _debug: DeviceAbstraction._debug("    - creating object of type: %s, %i", register.object_type, register.instance_number)
             klass = get_object_class(register.object_type)
-            ravo = klass(objectIdentifier=(register.object_type, register.instance_number), 
+            ravo = klass(objectIdentifier=(register.object_type, register.instance_number),
                          objectName=register.point_name)
-            
+
             ravo.WriteProperty("presentValue", 0, direct=True)
-            
+
             this_application.add_object(ravo)
-            
-            
+
+
         registers= self.registers[('byte',False)]
-        
+
         for register in registers:
             if _debug: DeviceAbstraction._debug("    - creating object of type: %s, %i", register.object_type, register.instance_number)
             klass = get_object_class(register.object_type)
-            ravo = klass(objectIdentifier=(register.object_type, register.instance_number), 
+            ravo = klass(objectIdentifier=(register.object_type, register.instance_number),
                          objectName=register.point_name)
-            
+
             ravo.WriteProperty("presentValue", 0, direct=True)
-            
+
             this_application.add_object(ravo)
-            
+
         return this_application
 
 
-#Most of this stuff is copied from the example here: 
+#Most of this stuff is copied from the example here:
 #https://github.com/JoelBender/bacpypes/blob/master/samples/ReadPropertyMultipleServer.py
 
 
@@ -369,11 +355,11 @@ class ReadPropertyMultipleApplication(BIPSimpleApplication):
 
 try:
     abstraction = DeviceAbstraction(args.interface, args.config)
-    
+
     #Create the deamon as soon as we've loaded the device configuration.
     if not args.no_daemon:
         createDaemon()
-    
+
     application = abstraction.get_server_application()
 
     _log.debug("running")

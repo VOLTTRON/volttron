@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import logging
@@ -70,7 +56,7 @@ CREATE_STMT_API_CALLS = """CREATE TABLE API_CALLS
 CREATE_STMT_CURRENT = """CREATE TABLE {table}
                         (ID INTEGER PRIMARY KEY ASC,
                          LOCATION TEXT NOT NULL,
-                         OBSERVATION_TIME TIMESTAMP NOT NULL, 
+                         OBSERVATION_TIME TIMESTAMP NOT NULL,
                          POINTS TEXT NOT NULL);"""
 
 CREATE_STMT_FORECAST = """CREATE TABLE {table}
@@ -1430,7 +1416,7 @@ class WeatherCache:
         query = ""
 
         cursor = self._sqlite_conn.cursor()
-        query = """SELECT max(OBSERVATION_TIME), POINTS 
+        query = """SELECT max(OBSERVATION_TIME), POINTS
                    FROM {table}
                    WHERE LOCATION = ?;""".format(table=service_name)
         _log.debug(query)
@@ -1461,15 +1447,15 @@ class WeatherCache:
         # 2-8 when the request time is hour 1.
         forecast_start, forecast_end = get_forecast_start_stop(request_time, quantity, service_name)
         cursor = self._sqlite_conn.cursor()
-        query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS 
-                   FROM {table} 
-                   WHERE LOCATION = ? 
-                   AND FORECAST_TIME >= ? 
-                   AND FORECAST_TIME < ? 
-                   AND GENERATION_TIME = 
-                   (SELECT MAX(GENERATION_TIME) 
+        query = """SELECT GENERATION_TIME, FORECAST_TIME, POINTS
+                   FROM {table}
+                   WHERE LOCATION = ?
+                   AND FORECAST_TIME >= ?
+                   AND FORECAST_TIME < ?
+                   AND GENERATION_TIME =
+                   (SELECT MAX(GENERATION_TIME)
                     FROM {table}
-                    WHERE LOCATION = ?) 
+                    WHERE LOCATION = ?)
                    ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
         _log.debug(query)
         cursor.execute(query, (location, forecast_start, forecast_end,
@@ -1519,12 +1505,12 @@ class WeatherCache:
         cursor = self._sqlite_conn.cursor()
         request_type = self._api_services[service_name]["type"]
         if request_type == "forecast":
-            query = """INSERT INTO {} 
-                       (LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS) 
+            query = """INSERT INTO {}
+                       (LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS)
                        VALUES (?, ?, ?, ?)""".format(service_name)
         else:
-            query = """INSERT INTO {} 
-                       (LOCATION, OBSERVATION_TIME, POINTS) 
+            query = """INSERT INTO {}
+                       (LOCATION, OBSERVATION_TIME, POINTS)
                        VALUES (?, ?, ?)""".format(service_name)
         _log.debug(query)
 
@@ -1576,7 +1562,7 @@ class WeatherCache:
                     for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "current":
-                            query = """DELETE FROM {table} 
+                            query = """DELETE FROM {table}
                                        WHERE OBSERVATION_TIME < ?;""" \
                                 .format(table=table_name)
                             cursor.execute(query,
@@ -1585,7 +1571,7 @@ class WeatherCache:
                     for table_name, service in self._api_services.items():
                         # Remove all data that is older than update interval
                         if service["type"] == "forecast":
-                            query = """DELETE FROM {table} 
+                            query = """DELETE FROM {table}
                                        WHERE GENERATION_TIME < ?""".format(
                                 table=table_name)
                             cursor.execute(query,
@@ -1609,8 +1595,8 @@ class WeatherCache:
             # if we still don't have space in cache
             while page_count >= self._max_pages:
                 for table_name in self._api_services:
-                    query = """DELETE FROM {table} WHERE ID IN 
-                               (SELECT ID FROM {table} 
+                    query = """DELETE FROM {table} WHERE ID IN
+                               (SELECT ID FROM {table}
                                 ORDER BY ID ASC LIMIT 100)""".format(
                         table=table_name)
                     cursor.execute(query)

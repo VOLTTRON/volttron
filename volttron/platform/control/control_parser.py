@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 # Monkeypatch for gevent
@@ -66,11 +52,11 @@ from volttron.platform.control.control_connection import ControlConnection
 from volttron.platform.control.control_rmq import add_rabbitmq_parser
 from volttron.platform.control.control_rpc import add_rpc_agent_parser
 from volttron.platform.control.control_utils import (
-    _list_agents, 
-    _show_filtered_agents, 
-    _show_filtered_agents_status, 
-    filter_agent, 
-    filter_agents, 
+    _list_agents,
+    _show_filtered_agents,
+    _show_filtered_agents_status,
+    filter_agent,
+    filter_agents,
     get_filtered_agents
     )
 from volttron.platform.agent import utils
@@ -363,14 +349,14 @@ def act_on_agent(action, opts):
 
     if not opts.by_all_tagged and not opts.pattern:
         raise ValueError("Missing search pattern.")
-    
+
     if opts.by_all_tagged and not agents:
         return
 
     # when all-tagged option is used, prefilter agents that are tagged and set search pattern to *
     if opts.by_all_tagged and not opts.pattern:
         agents, pattern_to_use = [a for a in agents if a.tag is not None], '*'
-    
+
     # filter agents and update regex pattern
     for pattern, filtered_agents in filter_agents(agents, pattern_to_use, opts):
         if not filtered_agents:
@@ -654,7 +640,7 @@ def main():
 
     # ====================================================
     # install agent parser
-    # ====================================================   
+    # ====================================================
     add_install_agent_parser(add_parser, HAVE_RESTRICTED)
 
     tag = add_parser("tag", parents=[filterable],
@@ -778,7 +764,7 @@ def main():
             help=argparse.SUPPRESS,
         )
     run.set_defaults(func=run_agent)
-    
+
 
     # ====================================================
     # rpc commands

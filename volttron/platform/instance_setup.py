@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 import argparse
 import hashlib
@@ -389,7 +375,7 @@ def _create_web_certs():
     Utility to create web server certificates
     Designed to be used in conjecture with get_cert_and_key
     As such, it assumes that the program has already checked
-    for existing certs, and prompted the user to enter in 
+    for existing certs, and prompted the user to enter in
     certificates that they have generated separately.
     """
     crts = certs.Certs()
@@ -423,7 +409,7 @@ def _create_web_certs():
             copy(crts.cert_file(crts.root_ca_name), crts.cert_file(crts.trusted_ca_name))
         else:
             return 1
-    
+
     print("Creating new web server certificate.")
     crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name,
                                   fqdn=get_hostname())
@@ -481,8 +467,8 @@ def do_vip():
         while not valid_address:
             if config_opts['message-bus'] == 'rmq':
                 prompt = """
-The rmq message bus has a backward compatibility 
-layer with current zmq instances. What is the 
+The rmq message bus has a backward compatibility
+layer with current zmq instances. What is the
 zmq bus's vip address?"""
             else:
                 prompt = "What is the vip address?"
@@ -795,7 +781,7 @@ def do_vcp():
             vc_address = config_opts['bind-web-address']
         if VOLTTRON_CENTRAL in vctl_list_output:
             is_vc = True
-        
+
     except KeyError:
         vc_address = config_opts.get('volttron-central-address',
                                      config_opts.get('bind-web-address', 'https://' + get_hostname()))
@@ -1112,9 +1098,9 @@ def _exit_with_metadata_error():
     print("""
 Metadata file format:
 { "vip-id": [
- { 
+ {
      "config-name": "optional. name. defaults to config
-     "config": "json config or string config or config file name", 
+     "config": "json config or string config or config file name",
      "config-type": "optional. type of config - csv or json or raw. defaults to json"
  }, ...
  ],...
@@ -1220,13 +1206,13 @@ def main():
     # config_arg_group = config_store_parser.add_mutually_exclusive_group()
     # meta_group = config_arg_group.add_mutually_exclusive_group()
     config_store_parser.add_argument('--metadata-file', required=True, nargs='+',
-                                     help="""One or more metadata file or directory containing metadata file, 
-where each metadata file contain details of configs for one or more agent instance   
+                                     help="""One or more metadata file or directory containing metadata file,
+where each metadata file contain details of configs for one or more agent instance
 Metadata file format:
 { "vip-id": [
- { 
+ {
      "config-name": "optional. name. defaults to config
-     "config": "json config or string config or config file name", 
+     "config": "json config or string config or config file name",
      "config-type": "optional. type of config - csv or json or raw. defaults to json"
  }, ...
  ],...

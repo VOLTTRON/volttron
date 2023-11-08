@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import argparse
@@ -140,43 +126,43 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
 
     agent_uuid = _send_and_intialize_agent(opts, publickey, secretkey)
     return agent_uuid
-    
+
 
 def _send_and_intialize_agent(opts, publickey, secretkey):
-    
+
     agent_uuid = send_agent(opts.connection, opts.package, opts.vip_identity,
                             publickey, secretkey, opts.force)
 
     if not agent_uuid:
         raise ValueError(f"Agent was not installed properly.")
-    
+
     if isinstance(agent_uuid, AsyncResult):
         agent_uuid = agent_uuid.get()
-    
+
     output_dict = dict(agent_uuid=agent_uuid)
-    
+
     if opts.tag:
         _log.debug(f"Tagging agent {agent_uuid}, {opts.tag}")
         opts.connection.call('tag_agent', agent_uuid, opts.tag)
         output_dict['tag'] = opts.tag
 
-    if opts.enable or opts.priority != -1:        
+    if opts.enable or opts.priority != -1:
         output_dict['enabling'] = True
         if opts.priority == -1:
             opts.priority = '50'
         _log.debug(f"Prioritinzing agent {agent_uuid},{opts.priority}")
         output_dict['priority'] = opts.priority
-        
+
         opts.connection.call('prioritize_agent', agent_uuid, str(opts.priority))
 
-    try: 
+    try:
 
         if opts.start:
             gevent.sleep(2)
             _log.debug(f"Staring agent {agent_uuid}")
             opts.connection.call('start_agent', agent_uuid)
             output_dict['starting'] = True
-            
+
             _log.debug(f"Getting agent status {agent_uuid}")
             gevent.sleep(opts.agent_start_time)
             status = opts.connection.call('agent_status', agent_uuid)
@@ -260,7 +246,7 @@ def install_agent_local(opts, publickey=None, secretkey=None, callback=None):
     return agent_uuid
 
 
-def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: str , publickey: str, 
+def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: str , publickey: str,
     secretkey: str, force: str):
     """
     Send an agent wheel from the client to the server.
@@ -271,7 +257,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
     peer = connection.peer
     server = connection.server
     _log.debug(f"server type is {type(server)} {type(server.core)}")
-    
+
     wheel = open(path, 'rb')
     _log.debug(f"Connecting to {peer} to install {path}")
     channel = None
@@ -288,7 +274,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
 
     def send_rmq():
         nonlocal wheel, server
-        
+
         sha512 = hashlib.sha512()
         protocol_message = None
         protocol_headers = None
@@ -307,7 +293,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
             op = None
             size = None
             _log.debug(f"Subscribing to {rmq_response_topic}")
-            server.vip.pubsub.subscribe(peer="pubsub", 
+            server.vip.pubsub.subscribe(peer="pubsub",
                                         prefix=rmq_response_topic,
                                         callback=protocol_requested).get(timeout=5)
             gevent.sleep(5)
@@ -319,7 +305,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
                     with gevent.Timeout(30):
                         while not response_received:
                             gevent.sleep(0.1)
-                            
+
                     first = False
                     resp = jsonapi.loads(protocol_message)
                     _log.debug(f"Got first response {resp}")
@@ -328,7 +314,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
                         op, size = resp
                     else:
                         op = resp[0]
-                    
+
                     if op != 'fetch':
                         raise ValueError(f'First channel response must be fetch but was {op}')
                 response_received = False
@@ -359,7 +345,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
                 _log.debug(f"Response received bottom of loop {protocol_message}")
                 # wait for next response
                 resp = jsonapi.loads(protocol_message)
-                
+
                 # [fetch, size] or checksum
                 if len(resp) > 1:
                     op, size = resp
@@ -379,7 +365,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
             # Note sending and receiving through a channel all communication
             # is binary for zmq (RMQ may be different for this functionality)
             #
-            
+
             first = True
             op = None
             size = None
@@ -394,7 +380,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
                         op, size = resp
                     else:
                         op = resp[0]
-                    
+
                     if op != 'fetch':
                         raise ValueError(f'First channel response must be fetch but was {op}')
 
@@ -438,10 +424,10 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
         task = gevent.spawn(send_zmq)
         result = server.vip.rpc.call(
                 peer, 'install_agent', os.path.basename(path), channel.name, vip_identity, publickey, secretkey, force)
-        
+
     else:
         raise ValueError("Unknown messagebus detected!")
-    
+
     result.rawlink(lambda glt: task.kill(block=False))
     # Allows larger files to be sent across the message bus without
     # raising an error.
@@ -455,7 +441,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
 
 
 # def send_agent(connection, wheel_file, vip_identity, publickey, secretkey, force):
-    
+
 #     #for wheel in opts.wheel:
 #     #uuid = _send_agent(connection.server, connection.peer, wheel_file).get()
 #     result = _send_agent(connection.server, connection.peer, wheel_file,
@@ -463,14 +449,14 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
 
 #     _log.debug(f"Returning {result} from send_agent")
 #     return result
-    
+
 
 def add_install_agent_parser(add_parser_fn, has_restricted):
     install = add_parser_fn('install', help='install agent from wheel',
                             epilog='Optionally you may specify the --tag argument to tag the '
                                    'agent during install without requiring a separate call to '
                                    'the tag command. ')
-    install.add_argument("--skip-requirements", 
+    install.add_argument("--skip-requirements",
                          help="Skip installing requirements from a requirements.txt if present in the agent directory.")
     install.add_argument('install_path', help='path to agent wheel or directory for agent installation')
     install.add_argument('--tag', help='tag for the installed agent')
