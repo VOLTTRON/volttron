@@ -16,65 +16,66 @@ def print_it(thing: str, obj: object):
     try:
         pprint(asdict(obj), indent=4)
     except TypeError:
-        print(f"Type: {type(obj)} was passed and cannot be printed!")
-        
-dcap: m.DeviceCapability = get_as_device("dcap")
-print_it("DeviceCapability", dcap)
+        print(f'Type: {type(obj)} was passed and cannot be printed!')
+
+dcap: m.DeviceCapability = get_as_device('dcap')
+print_it('DeviceCapability', dcap)
 
 tm: m.Time = get_as_device(dcap.TimeLink.href)
-print_it("Time", tm)
+print_it('Time', tm)
 
-edevl: m.EndDeviceList = get_as_device("edev")
-print_it("EndDeviceList", edevl)
+edevl: m.EndDeviceList = get_as_device('edev')
+print_it('EndDeviceList', edevl)
 edev = edevl.EndDevice[0]
 print(edev.LogEventListLink.href)
 
 derl = get_as_device(edev.DERListLink.href)
-print_it("DERList", derl)
+print_it('DERList', derl)
 
 der: m.DER = derl.DER[0]
 current_program = get_as_device(der.CurrentDERProgramLink.href)
-print_it("CurrentDERProgram", current_program)
+print_it('CurrentDERProgram', current_program)
 
 config: m.Configuration = get_as_device(edev.ConfigurationLink.href)
-print_it("Configuration", config)
+print_it('Configuration', config)
 
 info: m.DeviceInformation = get_as_device(edev.DeviceInformationLink.href)
-print_it("DeviceInformation", info)
+print_it('DeviceInformation', info)
 
 status: m.DeviceStatus = get_as_device(edev.DeviceStatusLink.href)
-print_it("DeviceStatus", status)
+print_it('DeviceStatus', status)
 
 fsal: m.FunctionSetAssignmentsList = get_as_device(edev.FunctionSetAssignmentsListLink.href)
-print_it("FunctionSetAssignmentsList", fsal)
+print_it('FunctionSetAssignmentsList', fsal)
 derpl: m.DERProgramList = get_as_device(fsal.FunctionSetAssignments[0].DERProgramListLink.href)
-print_it("DERProgramList", derpl)
+print_it('DERProgramList', derpl)
 
 derp: m.DERProgram = derpl.DERProgram[0]
 derca = get_as_device(derp.ActiveDERControlListLink.href)
-print_it("ActiveDERControlList", derca)
+print_it('ActiveDERControlList', derca)
 
 
 dderc: m.DefaultDERControl = get_as_device(derp.DefaultDERControlLink.href)
-print_it("DefaultDERControl", dderc)
+print_it('DefaultDERControl', dderc)
 
 
 dercl: m.DERControlList = get_as_device(derp.DERControlListLink.href)
-print_it("DERControlList", dercl)
+print_it('DERControlList', dercl)
 
-curvel = get_as_device(derp.DERCurveListLink.href)
-print_it("DERCurveList", curvel)
+# No curves yet
+#curvel = get_as_device(derp.DERCurveListLink.href)
+#print_it("DERCurveList", curvel)
 
 mup = m.MirrorUsagePoint()
-mup.description = "Test Mirror Usage Point"
+mup.description = 'Test Mirror Usage Point'
 mup.deviceLFDI = edev.lFDI
-mup.mRID = "5509D69F8B3535950000000000009182"
+mup.mRID = '5509D69F8B3535950000000000009182'
 mup.serviceCategoryKind = 0
 mup.roleFlags = 49
 
 mmr = m.MirrorMeterReading()
-mmr.description = "Real Power(W) Set"
-mmr.mRID = "5509D69F8B3535950000000000009182"
+mmr.description = 'Real Power(W) Set'
+mmr.mRID = '5509D69F8B3535950000000000009182'
 
 mrt = m.ReadingType()
 mrt.accumulationBehaviour = 12
@@ -85,43 +86,43 @@ mrt.uom = 38
 mmr.ReadingType = mrt
 mup.MirrorMeterReading.append(mmr)
 
-# Expect 
-resp = post_as_device("mup", data=dataclass_to_xml(mup))
+# Expect
+resp = post_as_device('mup', data=dataclass_to_xml(mup))
 
-new_mup = get_as_device(resp.headers["Location"])
+new_mup = get_as_device(resp.headers['Location'])
 
-print_it("New Mirror Usage Point", new_mup)
-print("\n\n")
-input("Press Enter to continue...")
+print_it('New Mirror Usage Point', new_mup)
+print('\n\n')
+input('Press Enter to continue...')
 #while True:
 current_time = int(time.mktime(datetime.utcnow().timetuple()))
-print(f"Time is: {current_time}")
-new_ctrl = m.DERControl(mRID="b234245afff", DERControlBase=dderc.DERControlBase, description="A new control is going here")
+print(f'Time is: {current_time}')
+new_ctrl = m.DERControl(mRID='b234245afff', DERControlBase=dderc.DERControlBase, description='A new control is going here')
 new_ctrl.interval = m.DateTimeInterval(start=current_time + 5, duration=10)
 response = post_as_admin(dercl.href, data=dataclass_to_xml(new_ctrl))
 
 ctrl_evnt = get_as_device(response.headers['Location'])
-print_it("DERControl", ctrl_evnt)
+print_it('DERControl', ctrl_evnt)
 
 ctrll = get_as_device(derp.DERControlListLink.href)
-print_it("DERControl List", ctrll)
+print_it('DERControl List', ctrll)
 
 activel = get_as_device(derp.ActiveDERControlListLink.href)
-print_it("ActiveDERControl", activel)
+print_it('ActiveDERControl', activel)
 
-print("Waiting for activation of control on server...")
+print('Waiting for activation of control on server...')
 print(print(f"{'='*20} Sleeping 6 s {'='*20}"))
 time.sleep(6)
 
 activel = get_as_device(derp.ActiveDERControlListLink.href)
-print_it("ActiveDERControl", activel)
+print_it('ActiveDERControl', activel)
 
-print("Waiting for deactivation of control on server...")
+print('Waiting for deactivation of control on server...')
 print(print(f"{'='*20} Sleeping 20 s {'='*20}"))
 time.sleep(20)
 
 activel = get_as_device(derp.ActiveDERControlListLink.href)
-print_it("ActiveDERControl", activel)
+print_it('ActiveDERControl', activel)
 
 # ctrl_str = """<DERControlList xmlns="urn:ieee:std:2030.5:ns" href="/derp_0_derc" subscribable="0" all="3">
 #   <DERControl href="/derp_0_derc_0" responseRequired="00" subscribable="0">
