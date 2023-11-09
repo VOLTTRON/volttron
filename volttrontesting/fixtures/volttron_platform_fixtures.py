@@ -135,7 +135,7 @@ def volttron_instance(request, **kwargs):
     """
     address = kwargs.pop("vip_address", get_rand_vip())
     if request.param['messagebus'] == 'rmq':
-        kwargs['timeout'] = 120
+        kwargs['timeout'] = 240
 
     wrapper = build_wrapper(address,
                             messagebus=request.param.get('messagebus', 'zmq'),
