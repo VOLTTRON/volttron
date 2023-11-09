@@ -49,10 +49,8 @@ def build_wrapper(vip_address: str, should_start: bool = True, messagebus: str =
                               auth_enabled=kwargs.pop('auth_enabled', True))
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
-        if wrapper.messagebus == 'rmq':
-            gevent.sleep(5)
-        else:
-            gevent.sleep(2)
+        if not wrapper.dynamic_agent:
+            raise ValueError(f"Couldn't start platform successfully for {wrapper.messagebus}")
         assert wrapper.is_running()
     return wrapper
 
