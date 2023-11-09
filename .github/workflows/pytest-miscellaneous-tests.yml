@@ -65,7 +65,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run core agent test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v5
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -73,7 +73,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run packaging test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v5
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -81,7 +81,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run platform init test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v5
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -89,7 +89,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run sqlite3 test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v5
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
