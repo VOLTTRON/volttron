@@ -15,16 +15,19 @@ name: Testing volttron-ctl
 
 # Determine what events are going to trigger a running of the workflow
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
-
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   # The job named build
   build:
@@ -71,4 +74,3 @@ jobs:
           name: pytest-report
           # should match test-<test_output_suffix>- ...
           path: output/test-control_tests-${{matrix.os}}-${{ matrix.python-version }}-results.xml
-

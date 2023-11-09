@@ -7,15 +7,19 @@
 
 name: Testing influxdbutils
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:

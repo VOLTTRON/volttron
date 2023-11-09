@@ -15,15 +15,20 @@ name: Testing BackupDatabase
 
 # Determine what events are going to trigger a running of the workflow
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
+      - main
+      - develop
+      - releases/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:

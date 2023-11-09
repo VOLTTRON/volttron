@@ -14,16 +14,19 @@
 name: Miscellaneous platform tests
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
-  
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   # The job named build
   build:
@@ -32,10 +35,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Each entry in the os and python-version matrix will be run 
+        # Each entry in the os and python-version matrix will be run
         os: [ ubuntu-20.04 ]
         python-version: [ 3.8 ]
-    
+
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machine 20.04 available
     # - This uses the matrix os from the strategy above
@@ -60,7 +63,7 @@ jobs:
           os: ${{ matrix.os }}
           test_path: volttrontesting/platform/web/test_certs.py
           test_output_suffix: misc
-      
+
       - name: Run core agent test on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@v5
         with:
@@ -84,7 +87,7 @@ jobs:
           os: ${{ matrix.os }}
           test_path: volttrontesting/platform/test_platform_init.py
           test_output_suffix: misc
-      
+
       - name: Run sqlite3 test on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@v5
         with:
