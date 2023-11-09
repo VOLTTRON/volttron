@@ -3,7 +3,6 @@ import os
 import gevent
 
 from volttron.platform.keystore import KeyStore
-from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 
@@ -13,9 +12,11 @@ def build_agent(platform: PlatformWrapper, identity=None, agent_class=None):
     The agent identity will be set.  If the identity is set to None
     then a random identity will be created.
     """
+    from volttron.platform.vip.agent import Agent
+
     if agent_class is None:
         agent_class = Agent
-        
+
     os.environ['VOLTTRON_HOME'] = platform.volttron_home
     agent = platform.build_agent(identity, agent_class=agent_class)
     gevent.sleep(0.1) # switch context for a bit
