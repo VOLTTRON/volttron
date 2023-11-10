@@ -14,16 +14,19 @@
 name: Testing platform web
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
-
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   # The job named build
   build:
@@ -54,7 +57,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@v7
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
@@ -68,15 +71,15 @@ jobs:
         with:
           name: pytest-report
           path: output/test-web-${{matrix.os}}-${{ matrix.python-version }}-results.xml
-    
+
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5
 #         if: always()
 #         with:
 #           github_token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
 #           files: output/test-testutils*.xml
-          
-          
+
+
 #-cov=com --cov-report=xml --cov-report=html
 # pytest tests.py --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
 #    - name: Lint with flake8

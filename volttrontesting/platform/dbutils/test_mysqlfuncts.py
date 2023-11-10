@@ -103,7 +103,7 @@ def test_query_should_return_data(get_container_func, topic_ids, id_name_map, ex
                value_string TEXT NOT NULL,
                UNIQUE(topic_id, ts));
                REPLACE INTO {DATA_TABLE}
-               VALUES ('2020-06-01 12:30:59', 43, '[2,3]')                     
+               VALUES ('2020-06-01 12:30:59', 43, '[2,3]')
             """
     seed_database(container, query)
     actual_values = sqlfuncts.query(topic_ids, id_name_map)
@@ -248,7 +248,7 @@ def test_get_topic_map_should_succeed(get_container_func):
                INSERT INTO topics (topic_name)
                VALUES ('football');
                INSERT INTO topics (topic_name)
-               VALUES ('baseball');                     
+               VALUES ('baseball');
             """
     seed_database(container, query)
     expected = (
@@ -270,7 +270,7 @@ def test_get_topic_meta_map_should_succeed(get_container_func):
                    INSERT INTO topics (topic_name)
                    VALUES ('football');
                    INSERT INTO topics (topic_name, metadata)
-                   VALUES ('baseball', '{\\"metadata\\":\\"value\\"}');                     
+                   VALUES ('baseball', '{\\"metadata\\":\\"value\\"}');
                 """
         seed_database(container, query)
         expected = {1: None, 2: {"metadata": "value"}}
@@ -303,7 +303,7 @@ def test_query_topics_by_pattern_should_succeed(get_container_func):
                INSERT INTO {TOPICS_TABLE} (topic_name)
                VALUES ('foobar');
                INSERT INTO {TOPICS_TABLE} (topic_name)
-               VALUES ('xyzzzzzzzz');                     
+               VALUES ('xyzzzzzzzz');
             """
     seed_database(container, query)
     expected = {"football": 1, "foobar": 2}
@@ -333,8 +333,8 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = """
                 CREATE TABLE IF NOT EXISTS AVG_1776
-                (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, 
-                value_string TEXT NOT NULL, topics_list TEXT, 
+                (ts timestamp NOT NULL, topic_id INTEGER NOT NULL,
+                value_string TEXT NOT NULL, topics_list TEXT,
                 UNIQUE(topic_id, ts), INDEX (ts ASC))
             """
     seed_database(container, query)
@@ -435,7 +435,7 @@ def get_container_func(request):
         create_all_tables(container, historian_version)
 
         mysqlfuncts = get_mysqlfuncts(connection_port)
-        sleep(5)
+        sleep(25)
         # So that sqlfuncts class can check if metadata is in topics table and sets its variables accordingly
         mysqlfuncts.setup_historian_tables()
         yield container, mysqlfuncts, connection_port, historian_version
@@ -508,28 +508,28 @@ def create_aggregate_tables(container, historian_version):
     if historian_version == "<4.0.0":
         query = f"""
                     CREATE TABLE IF NOT EXISTS {AGG_TOPICS_TABLE}
-                    (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
-                    agg_topic_name varchar(512) NOT NULL, 
-                    agg_type varchar(512) NOT NULL, 
-                    agg_time_period varchar(512) NOT NULL, 
-                    PRIMARY KEY (agg_topic_id), 
+                    (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT,
+                    agg_topic_name varchar(512) NOT NULL,
+                    agg_type varchar(512) NOT NULL,
+                    agg_time_period varchar(512) NOT NULL,
+                    PRIMARY KEY (agg_topic_id),
                     UNIQUE(agg_topic_name, agg_type, agg_time_period));
                     CREATE TABLE IF NOT EXISTS {AGG_META_TABLE}
-                    (agg_topic_id INTEGER NOT NULL, 
+                    (agg_topic_id INTEGER NOT NULL,
                     metadata TEXT NOT NULL,
                     PRIMARY KEY(agg_topic_id));
                 """
     else:
         query = f"""
                     CREATE TABLE IF NOT EXISTS {AGG_TOPICS_TABLE}
-                    (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
-                    agg_topic_name varchar(512) NOT NULL, 
-                    agg_type varchar(20) NOT NULL, 
-                    agg_time_period varchar(20) NOT NULL, 
-                    PRIMARY KEY (agg_topic_id), 
+                    (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT,
+                    agg_topic_name varchar(512) NOT NULL,
+                    agg_type varchar(20) NOT NULL,
+                    agg_time_period varchar(20) NOT NULL,
+                    PRIMARY KEY (agg_topic_id),
                     UNIQUE(agg_topic_name, agg_type, agg_time_period));
                     CREATE TABLE IF NOT EXISTS {AGG_META_TABLE}
-                    (agg_topic_id INTEGER NOT NULL, 
+                    (agg_topic_id INTEGER NOT NULL,
                     metadata TEXT NOT NULL,
                     PRIMARY KEY(agg_topic_id));
                 """

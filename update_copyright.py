@@ -16,7 +16,7 @@ text_to_find = """# -*- coding: utf-8 -*- {{{
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+#green
 # This material was prepared as an account of work sponsored by an agency of
 # the United States Government. Neither the United States Government nor the
 # United States Department of Energy, nor Battelle, nor any of their

@@ -14,7 +14,21 @@
 name: Testing platform auth
 
 # Determine what events are going to trigger a running of the workflow
-on: [pull_request]
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - develop
+    - releases/**
+  pull_request:
+    branches:
+      - main
+      - develop
+      - releases/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # The job named build

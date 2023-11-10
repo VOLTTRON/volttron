@@ -16,6 +16,7 @@ from time import sleep
 from volttrontesting.platform.test_instance_setup import create_vcfg_vhome
 
 
+
 class QueryHelper:
     """
     Query helper allows us to mock out the Query subsystem and return default
