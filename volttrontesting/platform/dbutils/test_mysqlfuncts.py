@@ -435,7 +435,7 @@ def get_container_func(request):
         create_all_tables(container, historian_version)
 
         mysqlfuncts = get_mysqlfuncts(connection_port)
-        sleep(25)
+        sleep(5)
         # So that sqlfuncts class can check if metadata is in topics table and sets its variables accordingly
         mysqlfuncts.setup_historian_tables()
         yield container, mysqlfuncts, connection_port, historian_version

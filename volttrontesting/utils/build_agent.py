@@ -19,7 +19,7 @@ def build_agent(platform: PlatformWrapper, identity=None, agent_class=None):
 
     os.environ['VOLTTRON_HOME'] = platform.volttron_home
     agent = platform.build_agent(identity, agent_class=agent_class)
-    gevent.sleep(0.1) # switch context for a bit
+    gevent.sleep(0.1)  # switch context for a bit
     os.environ.pop('VOLTTRON_HOME')
     return agent
 

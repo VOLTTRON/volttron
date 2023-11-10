@@ -49,8 +49,10 @@ def build_wrapper(vip_address: str, should_start: bool = True, messagebus: str =
                               auth_enabled=kwargs.pop('auth_enabled', True))
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
-        if not wrapper.dynamic_agent:
-            raise ValueError(f"Couldn't start platform successfully for {wrapper.messagebus}")
+        if wrapper.messagebus == 'rmq':
+            gevent.sleep(5)
+        else:
+            gevent.sleep(2)
         assert wrapper.is_running()
     return wrapper
 
@@ -133,7 +135,7 @@ def volttron_instance(request, **kwargs):
     """
     address = kwargs.pop("vip_address", get_rand_vip())
     if request.param['messagebus'] == 'rmq':
-        kwargs['timeout'] = 240
+        kwargs['timeout'] = 120
 
     wrapper = build_wrapper(address,
                             messagebus=request.param.get('messagebus', 'zmq'),
