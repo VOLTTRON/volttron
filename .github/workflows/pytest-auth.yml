@@ -73,6 +73,12 @@ jobs:
           name: pytest-report
           path: output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
+      -   name: Archive vlog
+          uses: actions/upload-artifact@v3
+          if: always()
+          with:
+              name: volttron-log
+              path: pytest_vlog_file
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5
 #         if: always()

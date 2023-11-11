@@ -945,7 +945,7 @@ class PlatformWrapper:
             #     cmd.append('--msgdebug')
             if enable_logging:
                 cmd.append('-vv')
-            #cmd.append('-l{}'.format(self.log_path))
+            cmd.append('-l{}'.format(self.log_path))
             if setupmode:
                 cmd.append('--setup-mode')
 
@@ -959,8 +959,11 @@ class PlatformWrapper:
             # A None value means that the process is still running.
             # A negative means that the process exited with an error.
             assert self.p_process.poll() is None
-
-            utils.wait_for_volttron_startup(self.volttron_home, timeout)
+            try:
+                utils.wait_for_volttron_startup(self.volttron_home, timeout)
+            except Exception:
+                shutil.copyfile(self.log_path, "pytest_vlog_file")
+                print(os.path.abspath("pytest_vlog_file"))
 
             if self.auth_enabled:
                 self.serverkey = self.keystore.public
