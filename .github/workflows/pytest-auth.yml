@@ -63,8 +63,9 @@ jobs:
             test_path: volttrontesting/platform/auth_tests
             test_output_suffix: auth
 
-      -   name: tmate session
-          uses: mxschmitt/action-tmate@v3
+      - name: tmate session
+        uses: mxschmitt/action-tmate@v3
+
       # Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v3
