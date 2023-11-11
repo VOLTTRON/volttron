@@ -53,8 +53,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: tmate session
-        uses: mxschmitt/action-tmate@v3
+
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@test_no_rerun
@@ -64,6 +63,8 @@ jobs:
             test_path: volttrontesting/platform/auth_tests
             test_output_suffix: auth
 
+      -   name: tmate session
+          uses: mxschmitt/action-tmate@v3
       # Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v3
