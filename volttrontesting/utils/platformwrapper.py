@@ -945,7 +945,7 @@ class PlatformWrapper:
             #     cmd.append('--msgdebug')
             if enable_logging:
                 cmd.append('-vv')
-            cmd.append('-l{}'.format(self.log_path))
+            cmd.append('-l {}'.format(self.log_path))
             if setupmode:
                 cmd.append('--setup-mode')
 
