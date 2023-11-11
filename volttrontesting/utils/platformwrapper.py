@@ -728,7 +728,7 @@ class PlatformWrapper:
                          msgdebug=False,
                          setupmode=False,
                          agent_monitor_frequency=600,
-                         timeout=120,
+                         timeout=180,
                          # Allow the AuthFile to be preauthenticated with keys for service agents.
                          perform_preauth_service_agents=True):
 
@@ -944,8 +944,8 @@ class PlatformWrapper:
             # if msgdebug:
             #     cmd.append('--msgdebug')
             if enable_logging:
-                cmd.append('-v')
-            cmd.append('-l{}'.format(self.log_path))
+                cmd.append('-vv')
+            #cmd.append('-l{}'.format(self.log_path))
             if setupmode:
                 cmd.append('--setup-mode')
 
