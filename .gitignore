@@ -9,6 +9,7 @@ node_modules
 applications
 .cache
 .idea
+.vscode/
 /env/
 /Agents/*/{build,dist}/
 /Agents/*.egg
