@@ -1,0 +1,2 @@
+xsdata
+xsdata[cli]

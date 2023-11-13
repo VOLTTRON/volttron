@@ -17,12 +17,13 @@ the script input box select scripts/pycharm-launcy.py.  In the script parameters
 input box put services/core/VolttronCentral/volttroncentral/agent.py.
 """
 import argparse
-import shutil
-import string
-import sys
 import os
 import runpy
+import shutil
+import string
 import subprocess
+import sys
+
 from volttron.platform import jsonapi
 
 __author__ = 'Craig Allwardt<craig.allwardt@pnnl.gov>'
@@ -31,16 +32,23 @@ __version__ = '1.3.0'
 parser = argparse.ArgumentParser()
 
 parser.add_argument("agent", help="Path to the agent file to be executed.")
-parser.add_argument("-s", "--silence", const=True, dest="silence", nargs="?",
+parser.add_argument("-s",
+                    "--silence",
+                    const=True,
+                    dest="silence",
+                    nargs="?",
                     help="Silence the help message.")
-parser.add_argument("-n", "--no-config", action="store_true",
-                    help="Don't include the default config in the agent directory.")
+parser.add_argument(
+    "-n",
+    "--no-config",
+    action="store_true",
+    help="Don't include the default config in the agent directory.")
 parsed = parser.parse_args()
 
 mod_name = [os.path.basename(parsed.agent)]
 if not os.path.isfile(parsed.agent):
-    sys.stdout.write("Passed argument must be a python file! {}".
-                     format(parsed.agent))
+    sys.stdout.write("Passed argument must be a python file! {}".format(
+        parsed.agent))
     sys.exit()
 
 abspath = os.path.abspath(os.path.join(parsed.agent, os.pardir))
@@ -60,14 +68,12 @@ mod_name = mod_name[:-3]
 
 
 def write_required_statement(out=sys.stderr):
-    out.write(
-        """Required Environment Variables
+    out.write("""Required Environment Variables
     AGENT_VIP_IDENTITY - Required 
 Optional Environmental Variables
     AGENT_CONFIG            - Set to <agent directory>/config by default
     VOLTTRON_HOME           - Set to ~/.volttron by default
-"""
-    )
+""")
 
 
 sys.path.insert(0, abspath)
@@ -80,8 +86,9 @@ if not parsed.no_config:
                 path_found = os.path.join(abspath, cfg)
                 break
         if not path_found:
-            sys.stderr.write('AGENT_CONFIG variable not set.  Either set it or '
-                             'put a config file in the root of the agent dir.')
+            sys.stderr.write(
+                'AGENT_CONFIG variable not set.  Either set it or '
+                'put a config file in the root of the agent dir.')
             sys.exit()
         os.environ['AGENT_CONFIG'] = path_found
 
@@ -89,9 +96,7 @@ volttron_home = os.environ.get('VOLTTRON_HOME')
 
 if not volttron_home:
     os.environ['VOLTTRON_HOME'] = os.path.abspath(
-        os.path.expandvars(
-            os.path.join(
-                os.path.expanduser("~"), '.volttron')))
+        os.path.expandvars(os.path.join(os.path.expanduser("~"), '.volttron')))
     volttron_home = os.environ.get('VOLTTRON_HOME')
 
 # Now register the
@@ -116,11 +121,12 @@ if agent_identity:
         os.makedirs(new_dir)
         try:
             output = subprocess.check_output(['vctl', 'auth', 'keypair'],
-                                             env=os.environ.copy(), universal_newlines=True, stderr=subprocess.STDOUT)
+                                             env=os.environ.copy(),
+                                             universal_newlines=True,
+                                             stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             sys.stderr.write("Couldn't get key pair for identity: {}\n".format(
-                agent_identity
-            ))
+                agent_identity))
             sys.stderr.write("Call was:\n\tvctl auth keypair\n")
             sys.stderr.write("Output of command: {}".format(e.output))
             sys.stderr.write("Your environment might not be setup correctly!")
@@ -135,19 +141,22 @@ if agent_identity:
 
         pubkey = json_obj['public']
         try:
-            params = ['vctl', 'auth', 'add',
-                      '--credentials', "{}".format(pubkey), '--user_id', agent_identity,
-                      '--capabilities', "edit_config_store",
-                      '--comments', "Added from pycharm-launch.py script."
-                      ]
-            output = subprocess.check_output(params, env=os.environ.copy(), universal_newlines=True)
+            params = [
+                'vctl', 'auth', 'add', '--credentials', "{}".format(pubkey),
+                '--user_id', agent_identity, '--capabilities',
+                "edit_config_store", '--comments',
+                "Added from pycharm-launch.py script."
+            ]
+            output = subprocess.check_output(params,
+                                             env=os.environ.copy(),
+                                             universal_newlines=True)
         except subprocess.CalledProcessError as e:
             sys.stderr.write(str(e))
-            sys.stderr.write("Command returned following output: {}".format(e.output))
+            sys.stderr.write("Command returned following output: {}".format(
+                e.output))
             shutil.rmtree(new_dir)
-            sys.stderr.write("Couldn't authenticate agent id: {}\n".format(
-                agent_identity
-            ))
+            sys.stderr.write(
+                "Couldn't authenticate agent id: {}\n".format(agent_identity))
             sys.stderr.write("Call was: {}\n".format(params))
             sys.stderr.write("Your environment might not be setup correctly!")
             write_required_statement()
