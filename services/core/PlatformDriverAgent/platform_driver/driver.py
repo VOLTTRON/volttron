@@ -73,6 +73,7 @@ class DriverAgent(BasicAgent):
         self.vip = parent.vip
         self.config = config
         self.device_path = device_path
+        self.last_noresponse = datetime.datetime.now()
 
         self.update_publish_types(default_publish_depth_first_all ,
                                  default_publish_breadth_first_all,
@@ -243,6 +244,10 @@ class DriverAgent(BasicAgent):
         self.parent.scrape_starting(self.device_name)
 
         try:
+            # _log.debug(f"scraping {self.device_path=} from driver interface")
+            # if self.last_noresponse + datetime.timedelta(hours=24) > datetime.datetime.now():
+            #     _log.debug(f"Skipping scrape of {self.device_name} due to recent noresponse")
+            #     return
             results = self.interface.scrape_all()
             self.parent.point_count.labels(device=self.device_name).set(len(results))
             _log.debug(f"{len(results)=}")
@@ -255,7 +260,10 @@ class DriverAgent(BasicAgent):
             tb = traceback.format_exc()
             self.parent.error_counter.labels(device=self.device_name).inc()
             _log.error(f"Failed to scrape {self.device_name}. {exc=} traceback: {tb}")
-            self.parent.last_scraped = datetime.datetime.now()
+            # if "Device communication aborted: noResponse" in str(exc):
+            #     _log.debug(f"Adding unresponsive device: {self.device_name}")
+            #     self.last_noresponse = datetime.datetime.now()
+            # self.parent.last_scraped = datetime.datetime.now()
             return
         end_time = time.time()
         scrape_time = end_time-start_time

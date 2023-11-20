@@ -98,6 +98,7 @@ class Interface(BaseInterface):
         self.register_count_divisor = 1
         self.cov_points = []
         self.use_read_multiple = True
+        # self.unresponsive_devices = {}
 
     def configure(self, config_dict, registry_config_str):
         self.min_priority = config_dict.get("min_priority", 8)
@@ -199,11 +200,27 @@ class Interface(BaseInterface):
         )
         return result
 
+    # def add_unresponsive_device(self, address):
+    #     """
+    #     Keep list of devices that don't respond so they aren't scanned too frequently
+    #     """
+    #     self.unresponsive_devices[address] = datetime.now()
+
     def scrape_all(self):
         # TODO: support reading from an array.
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
+
+        # if self.target_address in self.unresponsive_devices:
+        #     # if device is unresponsive, don't try to read it
+        #     now = datetime.now()
+        #     if now - self.unresponsive_devices[self.target_address] > timedelta(
+        #         hours=24
+        #     ):
+        #         self.unresponsive_devices.pop(self.target_address)
+        #     else:
+        #         return {}
 
         for register in read_registers + write_registers:
             point_map[register.point_name] = [
@@ -254,9 +271,6 @@ class Interface(BaseInterface):
                     _log.info(
                         "Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false"
                     )
-                    self.use_read_multiple = False
-                    continue
-                elif self.use_read_multiple:
                     self.use_read_multiple = False
                     continue
                 else:

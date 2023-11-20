@@ -80,15 +80,23 @@ class Interface(BasicRevert, BaseInterface):
         self.api_password = config_dict["api_password"]
         self.url = config_dict["api_url"]
         self.auth_token = self.get_token()
-        self.system_id_list = self.get_online_system_id_list()
-        self.get_all_nodes(self.system_id_list)
-        for node in self.nodes:
-            value = self.get_resource(f"values/{node}")
+        # self.system_id_list = self.get_online_system_id_list()
+        # self.get_all_nodes(self.system_id_list)
+        # for node in self.nodes:
+        #     value = self.get_resource(f"values/{node}")
+        #     register = Register(
+        #         register_type=value[0]["DataType"],
+        #         read_only=True,
+        #         point_name=node,
+        #         units="",
+        #     )
+        #     self.insert_register(register)
+        for point in registry_config_str:
             register = Register(
-                register_type=value[0]["DataType"],
+                register_type=point["collect_config"]["type"],
                 read_only=True,
-                point_name=node,
-                units="",
+                point_name=point["name"],
+                units=point["units"],
             )
             self.insert_register(register)
 

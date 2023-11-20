@@ -156,5 +156,8 @@ class Interface(BasicRevert, BaseInterface):
 
     def _scrape_all(self) -> dict:
         # scrape points
+        if not self.power_meter:
+            _log.error("Could not find connected power meter")
+            return {}
         result = self.scrape_power_meter()
         return result

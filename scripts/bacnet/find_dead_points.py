@@ -67,8 +67,8 @@ class ReadPropertyApplication(BIPSimpleApplication):
 
         # get the next request
         self.property_identifier = property_list.popleft()
-        # if self.property_identifier != "presentValue":
-        #    return
+        while self.property_identifier != "presentValue":
+           self.property_identifier = property_list.popleft()
         if _debug: ReadPropertyApplication._debug("    - property_identifier: %r", self.property_identifier)
 
         # build a request
@@ -120,7 +120,7 @@ class ReadPropertyApplication(BIPSimpleApplication):
                 # if hasattr(value, 'debug_contents'):
                 #    value.debug_contents(file=sys.stdout)
                 #sys.stdout.flush()
-            except:
+            except Exception:
                 pass
 
         if iocb.ioError:
@@ -137,6 +137,8 @@ class ReadPropertyApplication(BIPSimpleApplication):
                 else:
                     print(f"WARNING: non empty value when encountering error: {point_index=}")
                     #sys.stdout.flush()
+            else:
+                print(f"WARNING: : {getattr(iocb.ioError, 'errorCode', '')} for {point_index=}")
 
         # fire off another request
         deferred(self.next_request)
@@ -208,7 +210,7 @@ def find_dead_points(points):
             print(f"found dead value for {entry}: {value}")
             unknown.append(entry)
 
-    with open('unknown_properties', 'w') as f:
+    with open('unknown_properties.json', 'w') as f:
         f.write(json.dumps(unknown, indent=4))
 
     print(len(received_points))

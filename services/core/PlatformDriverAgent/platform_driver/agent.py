@@ -58,7 +58,7 @@ from .driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '4.2.4'
+__version__ = '4.2.5'
 
 
 PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
@@ -169,6 +169,8 @@ class PlatformDriverAgent(Agent):
         self.group_counts = defaultdict(int)
         self._name_map = {}
 
+        self.unresponsive_devices = {}
+
         self.collector_registry = CollectorRegistry()
         new_buckets = (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0, 30, float("inf"))
         self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", ['device'], registry=self.collector_registry, buckets=new_buckets)
@@ -208,6 +210,7 @@ class PlatformDriverAgent(Agent):
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
         self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
+        # self.vip.pubsub.subscribe(peer="pubsub", callback=self.add_unresponsive_bacnet_device, prefix="errors/bacnet")
         
     @Core.periodic(10)
     def flush_metrics(self):
@@ -454,6 +457,23 @@ class PlatformDriverAgent(Agent):
                 _log.info("Std dev publish time: "+str(stdev))
                 sys.exit(0)
 
+    # def add_unresponsive_bacnet_device(self, peer, sender, bus, topic, headers, message):
+    #     """
+    #     Forward unresponsive devices to BACnet driver interface
+    #     """
+    #     if "noResponse" in message['exception']:
+    #         address = message['target_address']
+    #         _log.debug("Adding unresponsive device: {}".format(address))
+    #         self.unresponsive_devices[address] = datetime.now()
+
+    @RPC.export
+    def set_wh_curtailment(self, device_path, wh_state, duration):
+        """RPC method
+
+        Set curtailment
+        """
+        self.instances[device_path].set_wh_status(wh_state, duration)
+
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         """RPC method
@@ -490,6 +510,14 @@ class PlatformDriverAgent(Agent):
 
     @RPC.export
     def scrape_all(self, path):
+        # _log.debug(f"scraping from platform driver agent: {path=}")
+        # for address, last_noresponse in self.unresponsive_devices.items():
+        #     if (datetime.now() - last_noresponse > timedelta(hours=24)):
+        #         _log.debug("Removing unresponsive device: {}".format(address))
+        #         self.unresponsive_devices.pop(address)
+        #     if address in path:
+        #         _log.debug(f"skipping scan for unresponsive device: {address}")
+        #         return
         return self.instances[path].scrape_all()
 
     @RPC.export
