@@ -534,4 +534,4 @@ class CTA2045Parser:
         reserved = "00"
         payload_length = 0x02
         message = f"{BASIC_DR_APP_OP_CODES['BasicDrMessage']}{reserved}{payload_length:02X}{mode}{duration_op_code:02X}"
-        return (message)
+        return (json.dumps({"d": f"{message}"}))

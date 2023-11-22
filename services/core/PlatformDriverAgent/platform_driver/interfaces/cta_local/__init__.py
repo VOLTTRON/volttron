@@ -34,6 +34,7 @@ import logging
 import gevent
 import time
 import json
+from enum import Enum
 from paho.mqtt import client as mqtt
 
 from volttron.platform.agent import utils
@@ -42,6 +43,23 @@ from volttron.platform.vip.agent import Agent, Core, RPC, PubSub
 from .cta_resources import CTA2045Parser
 
 _log = logging.getLogger("skycentrics_local")
+
+class EventStates(str, Enum):
+    """
+    Enumeration class for DER event states
+    While this is a string enumeration, we're using it
+    as an integer enum as well, so ordering must be preserved, new states
+    must be defined at the end of the list.
+    """
+
+    NOT_STARTED = "NOT_STARTED"
+    PRE_EVENT = "PRE_EVENT"
+    CURTAILED = "CURTAILED"
+    POST_EVENT = "POST_EVENT"
+    ENDED = "ENDED"
+    CANCELLED = "CANCELLED"
+    OPTED_OUT = "OPTED_OUT"
+    IDLE = "IDLE"
 
 class Register(BaseRegister):
     """
@@ -108,11 +126,29 @@ class Interface(BasicRevert, BaseInterface):
         """
         return
 
-    def _set_points(self, points):
-        pass
+    def set_multiple_points(self, path, points_tuple: tuple, **kwargs): # pylint: disable=W0221:arguments-differ
+        """
+        Set or unset water heater curtailment mode
+        """
+        _log.debug("Setting points from set_multiple_points")
+        try:
+            points = {"wh_state": points_tuple[0],
+                      "duration": points_tuple[1]}
+        except IndexError:
+            _log.error(f"missing required points: {points_tuple=}")
+            return
+        if points['wh_state'] not in EventStates.__members__:
+            _log.error(f"invalid wh_state: {points['wh_state']=}")
+            return
+
+        _log.debug("calling set_wh_status")
+        self.set_wh_status(points["wh_state"], points["duration"])
 
     def _set_point(self, point_name, value):
-        pass
+        if point_name == "wh_state" and value == "normal":
+            self.set_multiple_points((point_name, 0))
+        else:
+            _log.error(f"trying to set to mode {point_name} with no duration")
 
     def mqtt_client_thread(self):
         self.client.connect("localhost", 1883)
@@ -181,11 +217,9 @@ class Interface(BasicRevert, BaseInterface):
         # return payload
         return {}
 
-    def set_point():
-        pass
-
     def set_wh_status(self, wh_state, duration):
         """Set curtailment"""
+        _log.debug(f"setting water heater event mode to {wh_state} for {duration} seconds")
         topic = f"devices/{self.device_mac}/ctl/shedLoad"
         message = CTA2045Parser.build_event_duration_message(wh_state, duration)
         self.client.publish(topic, message)
