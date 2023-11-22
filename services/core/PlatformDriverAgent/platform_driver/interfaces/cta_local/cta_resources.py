@@ -3,12 +3,31 @@ import logging
 import math
 import re
 import struct
+from enum import Enum
 
 _log = logging.getLogger("cta_resources")
 
 regEx = re.compile(r"080100|080200")
 camel_to_snake_re = re.compile(r"(?<!^)(?=[A-Z])")
 camel_to_snake = lambda x: camel_to_snake_re.sub("_", x).lower()
+
+class EventStates(str, Enum):
+    """
+    Enumeration class for DER event states
+    While this is a string enumeration, we're using it
+    as an integer enum as well, so ordering must be preserved, new states
+    must be defined at the end of the list.
+    """
+
+    NOT_STARTED = "NOT_STARTED"
+    PRE_EVENT = "PRE_EVENT"
+    CURTAILED = "CURTAILED"
+    POST_EVENT = "POST_EVENT"
+    ENDED = "ENDED"
+    CANCELLED = "CANCELLED"
+    OPTED_OUT = "OPTED_OUT"
+    IDLE = "IDLE"
+
 CTA_DEVICE_TYPES = {
     0x0000: "Unspecified Type",
     0x0001: "Water Heater - Gas",
@@ -203,6 +222,15 @@ BASIC_DR_APP_OP_CODES = {
     "Reboot": "1A",
 }
 
+WH_EVENT_STATE_MAP = {
+    EventStates.PRE_EVENT: "LoadUp",
+    EventStates.CURTAILED: "Shed",
+    EventStates.ENDED: "EndShed",
+    EventStates.CANCELLED: "EndShed",
+    EventStates.OPTED_OUT: "EndShed",
+    EventStates.IDLE: "EndShed",
+    EventStates.POST_EVENT: "Shed",
+}
 
 class Basic(object):
     stateDict = BASIC_OP_STATES
@@ -495,14 +523,15 @@ class CTA2045Parser:
         return data
 
     @classmethod
-    def build_event_duration_message(self, wh_mode: str, duration: int):
+    def build_event_duration_message(cls, wh_mode: str, duration: int):
         """
         Return command to send to device over MQTT
         """
         duration_op_code = int(math.sqrt((duration / 2)))
         if duration_op_code > 0xFE:
             duration_op_code = 0xFF
-        wh_mode = BASIC_DR_APP_OP_CODES[wh_mode]
-        return (
-            f"{BASIC_DR_APP_OP_CODES['BasicDrMessage']}{wh_mode}{duration_op_code:02X}"
-        )
+        mode = BASIC_DR_APP_OP_CODES[WH_EVENT_STATE_MAP[wh_mode]]
+        reserved = "00"
+        payload_length = 0x02
+        message = f"{BASIC_DR_APP_OP_CODES['BasicDrMessage']}{reserved}{payload_length:02X}{mode}{duration_op_code:02X}"
+        return (message)
