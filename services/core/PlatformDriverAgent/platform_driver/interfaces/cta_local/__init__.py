@@ -41,6 +41,7 @@ from volttron.platform.agent import utils
 from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 from volttron.platform.vip.agent import Agent, Core, RPC, PubSub
 from .cta_resources import CTA2045Parser
+from .cta_resources import WH_EVENT_STATE_MAP
 
 _log = logging.getLogger("skycentrics_local")
 
@@ -60,6 +61,8 @@ class EventStates(str, Enum):
     CANCELLED = "CANCELLED"
     OPTED_OUT = "OPTED_OUT"
     IDLE = "IDLE"
+
+WH_MQTT_PUBLISH_STATES = ["EndShed", "LoadUp", "Shed"]
 
 class Register(BaseRegister):
     """
@@ -131,6 +134,8 @@ class Interface(BasicRevert, BaseInterface):
         Set or unset water heater curtailment mode
         """
         _log.debug("Setting points from set_multiple_points")
+        self.ace_client = path.split("/")[0]
+        self.ace_site_name = path.split("/")[1]
         try:
             points = {"wh_state": points_tuple[0],
                       "duration": points_tuple[1]}
@@ -220,9 +225,16 @@ class Interface(BasicRevert, BaseInterface):
     def set_wh_status(self, wh_state, duration):
         """Set curtailment"""
         _log.debug(f"setting water heater event mode to {wh_state} for {duration} seconds")
-        topic = f"devices/{self.device_mac}/ctl/shedLoad"
-        message = CTA2045Parser.build_event_duration_message(wh_state, duration)
-        self.client.publish(topic, message)
+        mqtt_topic = f"devices/{self.device_mac}/ctl/shedLoad"
+        vtron_topic = f"devices/{self.ace_client}/{self.ace_site_name}/wh_publish_message/all"
+        mqtt_message = CTA2045Parser.build_event_duration_message(wh_state, duration)
+        vtron_message = [{
+            "wh_mqtt_published_mode": WH_MQTT_PUBLISH_STATES.index(WH_EVENT_STATE_MAP[wh_state]),
+            "wh_mqtt_published_duration": duration
+        }]
+        self.client.publish(mqtt_topic, mqtt_message)
+        _log.debug(f"publishing to {vtron_topic} with {vtron_message}")
+        self.vip.pubsub.publish("pubsub", vtron_topic, vtron_message)
         return {}
 
     def get_data(self):
