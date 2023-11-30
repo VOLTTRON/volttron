@@ -499,7 +499,6 @@ class CTA2045Parser:
         try:
             data = {}
             message = json.loads(incoming_packet.decode("utf-8"))
-            _log.debug(f"{message=}")
             try:
                 incoming_packet = message['SGD']['d']
             except KeyError:

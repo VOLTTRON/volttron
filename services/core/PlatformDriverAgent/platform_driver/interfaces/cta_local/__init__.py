@@ -133,9 +133,6 @@ class Interface(BasicRevert, BaseInterface):
         """
         Set or unset water heater curtailment mode
         """
-        _log.debug("Setting points from set_multiple_points")
-        self.ace_client = path.split("/")[0]
-        self.ace_site_name = path.split("/")[1]
         try:
             points = {"wh_state": points_tuple[0],
                       "duration": points_tuple[1]}
@@ -146,8 +143,7 @@ class Interface(BasicRevert, BaseInterface):
             _log.error(f"invalid wh_state: {points['wh_state']=}")
             return
 
-        _log.debug("calling set_wh_status")
-        self.set_wh_status(points["wh_state"], points["duration"])
+        self.set_wh_status(path, points["wh_state"], points["duration"])
 
     def _set_point(self, point_name, value):
         if point_name == "wh_state" and value == "normal":
@@ -187,8 +183,6 @@ class Interface(BasicRevert, BaseInterface):
             return {}
         for commodity in payload["GetCommodityReadReply"]["commodities"].values():
             print(f"{commodity=}")
-            # required_data[commodity['name']] = {'instantaneous_rate': commodity['instantaneous_rate'],
-            #                                      'cumulative_amount': commodity['cumulative_amount']}
             if commodity["name"] == "Electricity Consumed":
                 required_data["electricity_consumed_instantaneous_rate"] = commodity[
                     "instantaneous_rate"
@@ -217,24 +211,27 @@ class Interface(BasicRevert, BaseInterface):
                 _log.debug(f"inserting register {entry=}")
                 self.insert_register(Register(entry, "", ""))
                 self.current_registers.append(entry)
-        _log.debug(f"{required_data=}")
 
         # return payload
         return {}
 
-    def set_wh_status(self, wh_state, duration):
+    def set_wh_status(self, path, wh_state, duration):
         """Set curtailment"""
         _log.debug(f"setting water heater event mode to {wh_state} for {duration} seconds")
         mqtt_topic = f"devices/{self.device_mac}/ctl/shedLoad"
-        vtron_topic = f"devices/{self.ace_client}/{self.ace_site_name}/wh_publish_message/all"
+        # TODO: add the water heater index (wh0, wh1 etc) to the topic
+        ace_client = path.split("/")[0]
+        ace_site_name = path.split("/")[1]
+        wh_index = path.split("/")[2]
+        vtron_topic = f"devices/{ace_client}/{ace_site_name}/{wh_index}/all"
         mqtt_message = CTA2045Parser.build_event_duration_message(wh_state, duration)
         vtron_message = [{
-            "wh_mqtt_published_mode": WH_MQTT_PUBLISH_STATES.index(WH_EVENT_STATE_MAP[wh_state]),
-            "wh_mqtt_published_duration": duration
+            "requested_mode": WH_MQTT_PUBLISH_STATES.index(WH_EVENT_STATE_MAP[wh_state]),
+            "requested_duration": duration
         }]
         self.client.publish(mqtt_topic, mqtt_message)
         _log.debug(f"publishing to {vtron_topic} with {vtron_message}")
-        self.vip.pubsub.publish("pubsub", vtron_topic, vtron_message)
+        self.vip.pubsub.publish("pubsub", topic=vtron_topic, message=vtron_message)
         return {}
 
     def get_data(self):
