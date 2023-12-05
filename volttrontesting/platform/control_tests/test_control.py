@@ -7,6 +7,7 @@ from gevent import subprocess
 
 from volttron.platform import get_examples
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.control.control_utils import _calc_min_unique_uuid_length
 import sys
 
 @pytest.mark.timeout(600)
@@ -233,3 +234,30 @@ setup(
         gevent.sleep(1)
         wait_time += 1
     assert crashed and restarted
+
+
+def test__calc_min_unique_uuid_length():
+    agent_ids = ['9b171ba5-f69f-4895-a69e-b51cf4d78150',
+                 '2c7c8405-49c8-48eb-86ff-236ebe39da6e',
+                 'd73a71c8-000f-46aa-8e5f-c4436cf847c3',
+                 'da2c1f0d-6ce5-4095-843c-3abc861d5199',
+                 'f5de325c-e723-41e5-9ceb-fae722a40eb6']
+    assert _calc_min_unique_uuid_length(agent_ids) == 2
+
+    agent_ids = ['9b171ba5-f69f-4895-a69e-b51cf4d78150',
+                 'd77c8405-49c8-48eb-86ff-236ebe39da6e',
+                 'd73a71c8-000f-46aa-8e5f-c4436cf847c3',
+                 'da2c1f0d-6ce5-4095-843c-3abc861d5199',
+                 'da3c1f0d-6ce5-4095-843c-3abc861d5199',
+                 'f5de325c-e723-41e5-9ceb-fae722a40eb6']
+    assert _calc_min_unique_uuid_length(agent_ids) == 3
+
+    agent_ids = ['9b171ba5-f69f-4895-a69e-b51cf4d78150',
+                 'd77c8405-49c8-48eb-86ff-236ebe39da6e',
+                 'f5de325c-e723-41e5-9ceb-fae722a40eb6']
+    assert _calc_min_unique_uuid_length(agent_ids) == 1
+
+    agent_ids = ['9b171ba5-f69f-4895-a69e-b51cf4d78150',
+                 '9b171ba5-f69f-4895-a69e-b51cf4d78151',
+                 ]
+    assert _calc_min_unique_uuid_length(agent_ids) == 36

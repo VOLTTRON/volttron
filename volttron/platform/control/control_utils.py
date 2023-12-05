@@ -41,6 +41,7 @@ import re
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import is_secure_mode
 import os
+from typing import List
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -51,7 +52,7 @@ def _calc_min_uuid_length(agents):
     return _calc_min_unique_uuid_length(agent_ids)
 
 
-def _calc_min_unique_uuid_length(uuids: list) -> int:
+def _calc_min_unique_uuid_length(uuids: List[str]) -> int:
     """
     Helper function to calculate unique uuids with minial char numbers.
     Mechanism: start common_len at 1,
