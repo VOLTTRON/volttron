@@ -40,6 +40,7 @@ import logging
 import sys
 import datetime
 import json
+import traceback
 
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.async_ import AsyncCall
@@ -51,7 +52,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5.8'
+__version__ = '0.5.9'
 
 from collections import defaultdict
 
@@ -999,7 +1000,6 @@ class BACnetProxyAgent(Agent):
         Iteratively reads points from a device one at a time
         """
         results = {}
-
         for point, properties in point_map.items():
             if len(properties) == 3:
                 object_type, instance_number, property_name = properties
@@ -1014,7 +1014,7 @@ class BACnetProxyAgent(Agent):
             try:
                 prop = self.read_property(
                     target_address, object_type, instance_number, property_name, property_index)
-                if not prop:
+                if prop is None:
                     continue
                 if not self.is_valid_json(prop):
                     _log.debug(f"not valid JSON: {dir(prop)} on prop")
@@ -1051,7 +1051,8 @@ class BACnetProxyAgent(Agent):
         self.bacnet_application.submit_request(iocb)
         try:
             bacnet_results = iocb.ioResult.get(10)
-        except RuntimeError:
+        except RuntimeError as exc:
+            trace = traceback.format_exc()
             _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address}")
             return None
         # _log.debug(f"found {bacnet_results} for {property_name} on {object_type}-{instance_number} from device {target_address}")
@@ -1107,7 +1108,7 @@ class BACnetProxyAgent(Agent):
             bacnet_results = {}
             for entry in read_access_list:
                 for prop in entry.listOfPropertyReferences:
-                    _log.debug(f"making request: {target_address=} {entry.objectIdentifier=} {prop.propertyIdentifier=} {prop.propertyArrayIndex=}")
+                    # _log.debug(f"making request: {target_address=} {entry.objectIdentifier=} {prop.propertyIdentifier=} {prop.propertyArrayIndex=}")
                     request = ReadPropertyRequest(objectIdentifier=entry.objectIdentifier,
                                                 propertyIdentifier=prop.propertyIdentifier,
                                                 propertyArrayIndex=prop.propertyArrayIndex
