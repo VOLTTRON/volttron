@@ -33,11 +33,13 @@ on a given desigo system and collect data from it.
 import http
 import json
 import logging
-import requests
+import grequests
 import urllib3
 
 from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 from urllib3.exceptions import InsecureRequestWarning
+from collections import defaultdict
+from datetime import datetime
 
 _log = logging.getLogger("desigo_api")
 
@@ -52,9 +54,21 @@ class Register(BaseRegister):
     """
     Generic class for storing information about Desigo API points
     """
-    def __init__(self, register_type, read_only, point_name, units, description=""):
+
+    def __init__(
+        self,
+        register_type,
+        read_only,
+        point_name,
+        designation,
+        property_name,
+        units,
+        description="",
+    ):
         super().__init__("byte", read_only, point_name, units, description)
-        self.python_type = DESIGO_TYPE_MAPPING.get(register_type, "string")
+        self.python_type = DESIGO_TYPE_MAPPING.get(register_type, float)
+        self.designation = designation
+        self.property_name = property_name
 
 
 class Interface(BasicRevert, BaseInterface):
@@ -70,64 +84,128 @@ class Interface(BasicRevert, BaseInterface):
         self.url = "https://18.223.129.4/API/api"
         self.system_id_list = []
         self.nodes = {}
+        self.designation_map = defaultdict(list)
+        self.desigo_registers = []
+        self.points = []
+        self.scrape_interval = 900
         urllib3.disable_warnings(category=InsecureRequestWarning)
 
     def configure(self, config_dict, registry_config_str):
         """
         Initialize interface with necessary values
         """
-        self.api_username = config_dict["api_username"]
-        self.api_password = config_dict["api_password"]
-        self.url = config_dict["api_url"]
+        _log.debug(f"configuring desigo_api with {config_dict}")
+        self.api_username = config_dict["username"]
+        self.api_password = config_dict["password"]
+        self.url = config_dict["server_url"]
         self.auth_token = self.get_token()
-        # self.system_id_list = self.get_online_system_id_list()
-        # self.get_all_nodes(self.system_id_list)
-        # for node in self.nodes:
-        #     value = self.get_resource(f"values/{node}")
-        #     register = Register(
-        #         register_type=value[0]["DataType"],
-        #         read_only=True,
-        #         point_name=node,
-        #         units="",
-        #     )
-        #     self.insert_register(register)
+
         for point in registry_config_str:
+
             register = Register(
-                register_type=point["collect_config"]["type"],
+                register_type="desigo_p2",
                 read_only=True,
                 point_name=point["name"],
-                units=point["units"],
+                designation=point["designation"],
+                property_name=point["property"],
+                units="",
             )
             self.insert_register(register)
+            self.points.append(point)
+        self.desigo_registers = self.registers[("byte", True)]
+        for register in self.desigo_registers:
+            self.designation_map[register.designation].append(register)
+        _log.info("finished configuration for desigo API interface")
+        _log.info(f"registered {len(self.points)} points")
 
-    def get_resource(self, resource="eventcounters"):
+    def _grequests_exception_handler(self, request, exception):
         """
-        Retrieve resource from server
+        Log exceptions from grequests
         """
-        req = requests.get(
+        _log.error(f"grequests error: {exception} with {request}")
+
+    def post_to_resource(self, resource=None, post_data=None, parameters=None):
+        """
+        Post data to server
+        """
+        before_request = datetime.utcnow()
+        req = grequests.post(
             f"{self.url}/{resource}",
             headers={"authorization": f"Bearer {self.auth_token}"},
+            json=post_data,
+            params=parameters,
             verify=False,
             timeout=300,
         )
-        try:
-            req.raise_for_status()
-        except requests.HTTPError:
+        (result,) = grequests.map(
+            (req,), exception_handler=self._grequests_exception_handler
+        )
+        after_request = datetime.utcnow()
+        _log.debug(f"got data in {(after_request-before_request)}")
+        # print(result)
+        if result.status_code == http.HTTPStatus.UNAUTHORIZED:
             # Token expired, get new token and try again
-            if req.status_code == http.HTTPStatus.UNAUTHORIZED:
+            before_request = datetime.utcnow()
+            self.auth_token = self.get_token()
+            req = grequests.get(
+                f"{self.url}/{resource}",
+                headers={"authorization": f"Bearer {self.auth_token}"},
+                verify=False,
+                timeout=300,
+            )
+            (result,) = grequests.map(
+                (req,), exception_handler=self._grequests_exception_handler
+            )
+            after_request = datetime.utcnow()
+            _log.debug(f"got data in {(after_request-before_request)}")
+        return result.json()
+
+    def get_resource(self, resource="eventcounters", parameters=None):
+        """
+        Retrieve resource from server
+        """
+        before_request = datetime.utcnow()
+        try:
+            req = grequests.get(
+                f"{self.url}/{resource}",
+                headers={"authorization": f"Bearer {self.auth_token}"},
+                params=parameters,
+                verify=False,
+                timeout=300,
+            )
+            after_request = datetime.utcnow()
+            (result,) = grequests.map(
+                (req,), exception_handler=self._grequests_exception_handler
+            )
+            _log.debug(result.url)
+            _log.debug(f"got resource in {after_request-before_request}")
+            if result.status_code == http.HTTPStatus.UNAUTHORIZED:
+                # Token expired, get new token and try again
                 self.auth_token = self.get_token()
-                req = requests.get(
+                before_request = datetime.utcnow()
+                req = grequests.get(
                     f"{self.url}/{resource}",
                     headers={"authorization": f"Bearer {self.auth_token}"},
                     verify=False,
                     timeout=300,
                 )
-        try:
-            result = req.json()
-        except json.decoder.JSONDecodeError as exc:
-            _log.error(exc)
-            result = req.text
-        return result
+                after_request = datetime.utcnow()
+                _log.debug(f"got resource in {after_request-before_request}")
+                (result,) = grequests.map(
+                    (req,), exception_handler=self._grequests_exception_handler
+                )
+            # try:
+            #     result = req.json()
+            # except json.decoder.JSONDecodeError as exc:
+            #     print(exc)
+            #     result = req.text
+            # print(f"{result=}")
+            # print(result.json())
+            return result.json()
+        except ConnectionError:
+            print(
+                "Could not resolve domain name. Restart systemd-networkd to reset DNS server priority"
+            )
 
     def get_online_system_id_list(self):
         """
@@ -148,9 +226,12 @@ class Interface(BasicRevert, BaseInterface):
             "username": self.api_username,
             "password": self.api_password,
         }
-        req = requests.post(f"{self.url}/token", data=data, verify=False, timeout=300)
-        req.raise_for_status()
-        return req.json()["access_token"]
+        req = grequests.post(f"{self.url}/token", data=data, verify=False, timeout=300)
+        (result,) = grequests.map(
+            (req,), exception_handler=self._grequests_exception_handler
+        )
+        _log.info(f"acquired access_token: ...{result.json()['access_token'][-5:]}")
+        return result.json()["access_token"]
 
     def build_device_by_location(self):
         """
@@ -174,36 +255,116 @@ class Interface(BasicRevert, BaseInterface):
             }
 
 
-    # def get_register_names(self):
-    #     _log.debug(f"current nodes list is {self.nodes.keys()}")
-    #     return self.nodes.keys()
-
-    # def get_register_by_name(self, name):
-    #     return self.nodes[name]
-
     def scrape_all(self):
         """
         Scrape all collect enabled points
         """
-        self.get_all_nodes(self.system_id_list)
-        nodes = {}
-        metadata = {}
-        for node in self.nodes:
-            value = self.get_resource(f"values/{node}")
-            # _log.debug(f"scraping {node}: {value[0]=}")
-            nodes[node] = value[0]["Value"]["Value"]
-            metadata[node] = {"type": value[0].get("DataType"), "tz": "", "units": ""}
+        return self._scrape_all()
 
-        return nodes
 
     def _scrape_all(self):
-        return self.scrape_all()
+        # hit endpoint of designation
+        post_data = []
+        # _log.debug(f"scraping {self.designation_properties}")
+        for designation, registers in self.designation_map.items():
+            for register in registers:
+                post_data.append(f"{designation}.{register.property_name}")
+
+        result = self.post_to_resource(
+            "values", post_data, {"readMaxAge": self.scrape_interval * 1000}
+        )
+        values = self.ensure_no_string(result)
+        values = self.normalize_topic_names(values)
+        values = {list(x.keys())[0]: list(x.values())[0] for x in values}
+
+
+        return values
 
     def get_point(self, point_name, **kwargs):
         """
         Return point value and metadata
         """
-        return self.get_resource(f"values/{point_name}")[0]["Value"]
+        designation = point_name.get("collect_config", {}).get("designation")
+        property_name = point_name.get("collect_config", {}).get("property_name")
+        if not designation or not property_name:
+            _log.error(f"point {designation=} has incomplete collect_config")
+            return
+        value = [
+            x["Value"]["Value"]
+            for x in self.get_resource(
+                f"propertyvalues/{designation}", {"readAllProperties": True}
+            )["Properties"]
+            if x["PropertyName"] == property_name
+        ]
+        return value
 
     def _set_point(self, point_name, value):
         pass
+    def ensure_no_string(self, data):
+        """
+        Ensure there are no strings in the data
+        Data types must only be float or int
+        """
+        valid_data_types = ["BasicFloat", "BasicUint", "BasicInt", "BasicBit32"]
+        values = []
+        for entry in data:
+            if entry["DataType"] in valid_data_types:
+                values.append(
+                    {
+                        entry["OriginalObjectOrPropertyId"]: float(
+                            entry["Value"]["Value"]
+                        )
+                    }
+                )
+            elif entry["DataType"] == "BasicBool":
+                if entry["Value"]["Value"] == "True":
+                    values.append({entry["OriginalObjectOrPropertyId"]: 1})
+                elif entry["Value"]["Value"] == "False":
+                    values.append({entry["OriginalObjectOrPropertyId"]: 0})
+                else:
+                    values.append(
+                        {
+                            entry["OriginalObjectOrPropertyId"]: int(
+                                bool(entry["Value"]["Value"])
+                            )
+                        }
+                    )
+            else:
+                try:
+                    values.append(
+                        {
+                            entry["OriginalObjectOrPropertyId"]: float(
+                                entry["Value"]["Value"]
+                            )
+                        }
+                    )
+                except ValueError:
+                    _log.warning(
+                        f"could not convert {entry['Value']['Value']} to float"
+                    )
+                    continue
+
+        # perform redundancy check
+        for entry in values:
+            for _, value in entry.items():
+                if isinstance(value, str):
+                    _log.warning(f"found string {value} in {entry}")
+                    values.remove(entry)  # pylint: disable=modified-iterating-list
+
+        return values
+
+    def normalize_topic_names(self, data):
+        """
+        Ensure value name lines up with ace topic
+        """
+        normalized_data = []
+        for entry in data:
+            for key, value in entry.items():
+                normalized_data.append(
+                    {
+                        key.replace(";.", "/").replace(
+                            ".ManagementView:ManagementView.FieldNetworks.", "/"
+                        ): value
+                    }
+                )
+        return normalized_data
