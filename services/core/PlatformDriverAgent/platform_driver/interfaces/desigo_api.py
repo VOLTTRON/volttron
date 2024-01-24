@@ -84,6 +84,7 @@ class Interface(BasicRevert, BaseInterface):
         self.url = "https://18.223.129.4/API/api"
         self.system_id_list = []
         self.nodes = {}
+        self.designation = None
         self.designation_map = defaultdict(list)
         self.desigo_registers = []
         self.points = []
@@ -98,20 +99,23 @@ class Interface(BasicRevert, BaseInterface):
         self.api_username = config_dict["username"]
         self.api_password = config_dict["password"]
         self.url = config_dict["server_url"]
+        self.designation = config_dict["designation"]
         self.auth_token = self.get_token()
 
+        # for point in registry_config_str:
         for point in registry_config_str:
+            for prop in point["properties"]:
 
-            register = Register(
-                register_type="desigo_p2",
-                read_only=True,
-                point_name=point["name"],
-                designation=point["designation"],
-                property_name=point["property"],
-                units="",
-            )
-            self.insert_register(register)
-            self.points.append(point)
+                register = Register(
+                    register_type="desigo_p2",
+                    read_only=True,
+                    point_name=point["name"],
+                    designation=point["designation"],
+                    property_name=prop,
+                    units="",
+                )
+                self.insert_register(register)
+                self.points.append(point)
         self.desigo_registers = self.registers[("byte", True)]
         for register in self.desigo_registers:
             self.designation_map[register.designation].append(register)
@@ -265,15 +269,19 @@ class Interface(BasicRevert, BaseInterface):
     def _scrape_all(self):
         # hit endpoint of designation
         post_data = []
+        prop_values = {}
         # _log.debug(f"scraping {self.designation_properties}")
         for designation, registers in self.designation_map.items():
+            device_props = self.post_to_resource(f"propertyvalues/{designation}", {"readAllProperties": True})
             for register in registers:
-                post_data.append(f"{designation}.{register.property_name}")
+                # prop_values[register.property_name] = device_props["Properties"]
+                prop_values[register.property_name] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
 
-        result = self.post_to_resource(
-            "values", post_data, {"readMaxAge": self.scrape_interval * 1000}
-        )
-        values = self.ensure_no_string(result)
+
+        # result = self.post_to_resource(
+        #     "propertyvalues", post_data, {"readMaxAge": self.scrape_interval * 1000}
+        # )
+        values = self.ensure_no_string(prop_values)
         values = self.normalize_topic_names(values)
         values = {list(x.keys())[0]: list(x.values())[0] for x in values}
 
