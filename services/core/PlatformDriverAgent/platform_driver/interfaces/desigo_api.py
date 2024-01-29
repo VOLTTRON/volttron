@@ -33,7 +33,9 @@ on a given desigo system and collect data from it.
 import http
 import json
 import logging
+import gevent
 import grequests
+import traceback
 import urllib3
 
 from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
@@ -95,7 +97,7 @@ class Interface(BasicRevert, BaseInterface):
         """
         Initialize interface with necessary values
         """
-        _log.debug(f"configuring desigo_api with {config_dict}")
+        _log.debug("configuring desigo_api")
         self.api_username = config_dict["username"]
         self.api_password = config_dict["password"]
         self.url = config_dict["server_url"]
@@ -103,19 +105,22 @@ class Interface(BasicRevert, BaseInterface):
         self.auth_token = self.get_token()
 
         # for point in registry_config_str:
-        for point in registry_config_str:
-            for prop in point["properties"]:
+        _log.debug(f"{registry_config_str=}")
+        name = registry_config_str["name"]
+        designation = registry_config_str["designation"]
+        for prop in registry_config_str["properties"]:
+            _log.debug(f"registering {name}")
 
-                register = Register(
-                    register_type="desigo_p2",
-                    read_only=True,
-                    point_name=point["name"],
-                    designation=point["designation"],
-                    property_name=prop,
-                    units="",
-                )
-                self.insert_register(register)
-                self.points.append(point)
+            register = Register(
+                register_type="desigo_p2",
+                read_only=True,
+                point_name=name,
+                designation=designation,
+                property_name=prop,
+                units="",
+            )
+            self.insert_register(register)
+            self.points.append(name)
         self.desigo_registers = self.registers[("byte", True)]
         for register in self.desigo_registers:
             self.designation_map[register.designation].append(register)
@@ -126,7 +131,8 @@ class Interface(BasicRevert, BaseInterface):
         """
         Log exceptions from grequests
         """
-        _log.error(f"grequests error: {exception} with {request}")
+        trace = traceback.format_exc()
+        _log.error(f"grequests error: {exception} with {request}: {trace=}")
 
     def post_to_resource(self, resource=None, post_data=None, parameters=None):
         """
@@ -221,7 +227,7 @@ class Interface(BasicRevert, BaseInterface):
                 id_list.append(system["Id"])
         return id_list
 
-    def get_token(self):
+    def get_token(self, **kwargs):
         """
         Retrieve token from server
         """
@@ -234,8 +240,22 @@ class Interface(BasicRevert, BaseInterface):
         (result,) = grequests.map(
             (req,), exception_handler=self._grequests_exception_handler
         )
-        _log.info(f"acquired access_token: ...{result.json()['access_token'][-5:]}")
-        return result.json()["access_token"]
+
+        if result is None and kwargs.get("retry"):
+            _log.error("could not get token, trying once more in 5 seconds")
+            gevent.sleep(5)
+            self.get_token(retry=True)
+            return None
+        elif result is None and not kwargs.get("retry"):
+            _log.error("could not get token, giving up")
+            return None
+        try:
+            _log.info(f"acquired access_token: ...{result.json()['access_token'][-5:]}")
+            self.auth_token = result.json()["access_token"]
+        except KeyError:
+            _log.debug(f"could not get access_token from JSON: {result.json()=}")
+            return None
+        return self.auth_token
 
     def build_device_by_location(self):
         """
@@ -259,6 +279,26 @@ class Interface(BasicRevert, BaseInterface):
             }
 
 
+    def parse_to_forwarder(self, prop_values):
+        """
+        Parse propertyvalues JSON to send to forwarder agent
+        """
+        data = [{}, {}]
+        for designation, properties in prop_values.items():
+            # print(f"{designation=} {properties=}")
+            for prop in properties:
+                # print(f"{designation}.{prop['Value']['Value']}")
+                system_number, rest = designation.split(".", 1)
+                _, point = rest.split("FieldNetworks.")
+                # topic = f"{point.replace(';','')}/{prop['PropertyName']}".replace('.', '/', 1)
+                topic = f"{system_number}/{point.replace(';', '')}/{prop['PropertyName']}"
+                value = self.ensure_no_string(prop['Value']['Value'])
+                if value is None:
+                    continue
+                data[0][topic] = value
+                data[1][topic] = ""
+        return data[0]
+
     def scrape_all(self):
         """
         Scrape all collect enabled points
@@ -270,23 +310,30 @@ class Interface(BasicRevert, BaseInterface):
         # hit endpoint of designation
         post_data = []
         prop_values = {}
+        prop_names = []
         # _log.debug(f"scraping {self.designation_properties}")
         for designation, registers in self.designation_map.items():
-            device_props = self.post_to_resource(f"propertyvalues/{designation}", {"readAllProperties": True})
+            _log.debug(f"scraping {designation}")
+            device_props = self.get_resource(f"propertyvalues/{designation}", {"readAllProperties": True})
+            _log.debug(f"{device_props=}")
             for register in registers:
                 # prop_values[register.property_name] = device_props["Properties"]
-                prop_values[register.property_name] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
+                prop_values[f"{designation}"] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
 
+        prop_values = self.parse_to_forwarder(prop_values)
+        _log.debug(f"{prop_values=}")
 
         # result = self.post_to_resource(
         #     "propertyvalues", post_data, {"readMaxAge": self.scrape_interval * 1000}
         # )
-        values = self.ensure_no_string(prop_values)
-        values = self.normalize_topic_names(values)
-        values = {list(x.keys())[0]: list(x.values())[0] for x in values}
+
+        # values = self.ensure_no_string(prop_values)
+        # values = self.normalize_topic_names(values)
+        # values = {list(x.keys())[0]: list(x.values())[0] for x in values}
 
 
-        return values
+        # return values
+        return prop_values
 
     def get_point(self, point_name, **kwargs):
         """
@@ -308,58 +355,21 @@ class Interface(BasicRevert, BaseInterface):
 
     def _set_point(self, point_name, value):
         pass
-    def ensure_no_string(self, data):
+
+    def ensure_no_string(self, value):
         """
-        Ensure there are no strings in the data
-        Data types must only be float or int
+        Ensure strings are not returned to forwarder agent
         """
-        valid_data_types = ["BasicFloat", "BasicUint", "BasicInt", "BasicBit32"]
-        values = []
-        for entry in data:
-            if entry["DataType"] in valid_data_types:
-                values.append(
-                    {
-                        entry["OriginalObjectOrPropertyId"]: float(
-                            entry["Value"]["Value"]
-                        )
-                    }
-                )
-            elif entry["DataType"] == "BasicBool":
-                if entry["Value"]["Value"] == "True":
-                    values.append({entry["OriginalObjectOrPropertyId"]: 1})
-                elif entry["Value"]["Value"] == "False":
-                    values.append({entry["OriginalObjectOrPropertyId"]: 0})
-                else:
-                    values.append(
-                        {
-                            entry["OriginalObjectOrPropertyId"]: int(
-                                bool(entry["Value"]["Value"])
-                            )
-                        }
-                    )
+        try:
+            return float(value)
+        except ValueError:
+            if value == "True":
+                return 1
+            elif value == "False":
+                return 0
             else:
-                try:
-                    values.append(
-                        {
-                            entry["OriginalObjectOrPropertyId"]: float(
-                                entry["Value"]["Value"]
-                            )
-                        }
-                    )
-                except ValueError:
-                    _log.warning(
-                        f"could not convert {entry['Value']['Value']} to float"
-                    )
-                    continue
-
-        # perform redundancy check
-        for entry in values:
-            for _, value in entry.items():
-                if isinstance(value, str):
-                    _log.warning(f"found string {value} in {entry}")
-                    values.remove(entry)  # pylint: disable=modified-iterating-list
-
-        return values
+                print(f"cannot convert to float, int or bool: {value=}")
+                return None
 
     def normalize_topic_names(self, data):
         """

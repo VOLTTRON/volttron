@@ -58,7 +58,7 @@ from .driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '4.3.1'
+__version__ = '4.3.1b'
 
 
 PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
