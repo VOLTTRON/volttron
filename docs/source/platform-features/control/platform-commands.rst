@@ -113,12 +113,12 @@ Agent Options
   instance
 - **--agent-monitor-frequency AGENT_MONITOR_FREQUENCY** - How often should the platform check for crashed agents
   and attempt to restart. Units=seconds. Default=600
-- **--secure-agent-users SECURE_AGENT_USERS** - Require that agents run with their own users (this requires running
+- **--agent-isolation-mode AGENT_ISOLATION_MODE** - Require that agents run with their own users (this requires running
   scripts/secure_user_permissions.sh as sudo)
 
 .. warning::
 
-   Certain options alter some basic behaviors of the platform, such as `--secure-agent-users` which causes the platform
+   Certain options alter some basic behaviors of the platform, such as `--agent-isolation-mode` which causes the platform
    to run each agent using its own Unix user to spawn the process.  Please view the documentation for each feature to
    understand its implications before choosing to run the platform in that fashion.
 
@@ -338,7 +338,7 @@ vcfg Optional Arguments
 
      vcfg --rabbitmq single|federation|shovel [rabbitmq config file]
 
-- **--secure-agent-users**  Require that agents run with their own users (this requires running
+- **--agent-isolation-mode**  Require that agents run with their own users (this requires running
   scripts/secure_user_permissions.sh as sudo)
 
   .. warning::

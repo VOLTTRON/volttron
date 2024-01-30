@@ -11,6 +11,11 @@ efficient by both batching data and by sending an RPC call to a remote historian
 remote message bus.  This allows allows the Data Mover to be more robust by ensuring that the receiving historian is
 running.  If the target is unreachable, the Data Mover will cache data until it is available.
 
+.. note::
+   The Data Mover Historian is located within the **core** directory. ::
+
+      services/core/DataMover/
+
 
 Configuration
 =============

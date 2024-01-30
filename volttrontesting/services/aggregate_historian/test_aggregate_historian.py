@@ -387,8 +387,9 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
 def query_agent(request, volttron_instance):
     # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
     fake_agent = volttron_instance.build_agent()
-    capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
-    volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
+    if volttron_instance.auth_enabled:
+        capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
+        volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
     # 2: add a tear down method to stop sqlhistorian fake_agent and the fake
     # fake_agent that published to message bus
     def stop_agent():
@@ -787,7 +788,7 @@ def test_single_topic(aggregate_agent, query_agent):
 
 
 def compute_timediff_seconds(time1_str, time2_str):
-    if re.match('\+[0-9][0-9]:[0-9][0-9]', time1_str[-6:]):
+    if re.match(r'\+[0-9][0-9]:[0-9][0-9]', time1_str[-6:]):
         time1_str = time1_str[:-6]
         time2_str = time2_str[:-6]
     datetime1 = datetime.strptime(time1_str,

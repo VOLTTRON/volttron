@@ -63,12 +63,12 @@ class ZMQError(Exception):
 class Again(ZMQError):
     pass
 
-class Context(object):
+class Context:
     def instance(self):
         return Context()
 
 
-class Poller(object):
+class Poller:
     def register(self, socket, flags=POLLIN|POLLOUT):
         pass
 
@@ -76,7 +76,7 @@ class Poller(object):
         return []
 
 
-class Socket(object):
+class Socket:
     def __new__(cls, socket_type, context=None):
         return object.__new__(cls, socket_type, context=context)
 

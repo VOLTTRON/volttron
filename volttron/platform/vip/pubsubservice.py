@@ -67,7 +67,7 @@ _ROUTE_ERRORS = {
 
 _log = logging.getLogger(__name__)
 
-class PubSubService(object):
+class PubSubService:
     def __init__(self, socket, protected_topics, routing_service, *args, **kwargs):
         self._logger = logging.getLogger(__name__)
 
@@ -872,7 +872,7 @@ class PubSubService(object):
                                                     bus=bus)
 
 
-class ProtectedPubSubTopics(object):
+class ProtectedPubSubTopics:
     '''Simple class to contain protected pubsub topics'''
 
     def __init__(self):

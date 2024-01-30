@@ -77,7 +77,8 @@ from volttron.utils.prompt import prompt_response
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
            'get_fq_identity', 'execute_command', 'get_aware_utc_now',
-           'is_secure_mode', 'wait_for_volttron_shutdown']
+           'is_secure_mode', 'is_web_enabled', 'is_auth_enabled',
+           'wait_for_volttron_shutdown', 'is_volttron_running']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -149,8 +150,7 @@ def load_config(config_path):
         return {}
 
     if not os.path.exists(config_path):
-        _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
-        return {}
+        raise ValueError(f"Config file specified by AGENT_CONFIG path {config_path} does not exist.")
 
     # First attempt parsing the file with a yaml parser (allows comments natively)
     # Then if that fails we fallback to our modified json parser.
@@ -237,6 +237,14 @@ def get_messagebus():
         message_bus = config.get('message-bus', 'zmq')
     return message_bus
 
+def is_auth_enabled():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    allow_auth = os.environ.get('AUTH_ENABLED')
+    if not allow_auth:
+        config = load_platform_config()
+        allow_auth = config.get('allow-auth', 'True')
+    allow_auth = False if allow_auth == 'False' else True
+    return allow_auth
 
 def is_web_enabled():
     """Returns True if web enabled, False otherwise"""
@@ -253,12 +261,12 @@ def is_web_enabled():
 
 
 def is_secure_mode():
-    """Returns True if running in secure mode, False otherwise"""
-    string_value = os.environ.get('SECURE_AGENT_USERS')
+    """Returns True if running in agent isolation mode, False otherwise"""
+    string_value = os.environ.get('AGENT_ISOLATION_MODE')
     _log.debug("value from env {}".format(string_value))
     if not string_value:
         config = load_platform_config()
-        string_value = config.get('secure-agent-users', 'False')
+        string_value = config.get('agent-isolation-mode', 'False')
         _log.debug("value from config {}".format(string_value))
 
     if string_value == "True":
@@ -453,7 +461,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
 
-        from volttron.platform.certs import Certs
+        from volttron.platform.auth.certs import Certs
         certs = Certs()
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
@@ -773,7 +781,7 @@ def fix_sqlite3_datetime(sql=None):
     sql.register_converter("timestamp", parse)
 
 
-def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
+def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None, use_shell=False) -> str:
     """ Executes a command as a subprocess
 
     If the return code of the call is 0 then return stdout otherwise
@@ -791,7 +799,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     """
 
     results = subprocess.run(cmds, env=env, cwd=cwd,
-                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=use_shell)
     if results.returncode != 0:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = "\n{}: Below Command failed with non zero exit code.\n" \

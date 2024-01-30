@@ -3,7 +3,6 @@ services:
     agent_excludes:
         - DNP3Agent
         - MarketServiceAgent
-        - OpenADRVenAgent
         - OpenEISHistorian
         - ObixHistoryPublish
         - IEEE2030_5Agent

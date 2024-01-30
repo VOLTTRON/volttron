@@ -47,7 +47,7 @@ def Thermostat_API(url):
     ''' Call the interface'''
     return ThermostatInterface(url)
 
-class ThermostatInterface(object):
+class ThermostatInterface:
     '''Base interface to get and set values on the thermostat
     '''
     def __init__(self, url):

@@ -169,4 +169,13 @@ can be further configured to detect and restart the RabbitMQ service if it crash
 to detect when the RabbitMQ server crashes/disconnects and reconnect when it becomes available. In this deployment
 setup, a VOLTTRON platform will not start/stop the RabbitMQ server.
 
+Isolate agent process from core VOLTTRON process
+================================================
+
+It is possible to run a volttron agent process as a unique unix users and restricting the unix level permission for
+that agent user such that agent has write access only to its own agent-data folder inside the VOLTTRON_HOME. This
+prevents agents from accidentally or intentionally editing/deleting other volttron process or other agents' files or
+system files outside of VOLTTRON_HOME
+
+For more information, refer to :ref:`Agent Isolation Mode: Running Users as unique Unix user<Agent-Isolation-Mode>`.
 

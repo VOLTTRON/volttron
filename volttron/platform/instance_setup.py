@@ -51,18 +51,21 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
 
-from bootstrap import install_rabbit, default_rmq_dir
 from requirements import extras_require
-from volttron.platform import certs, is_rabbitmq_available
+from volttron.platform import is_rabbitmq_available
+from volttron.platform.auth import certs
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
     is_volttron_running, wait_for_volttron_shutdown, setup_logging
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.utils.rmq_config_params import RMQConfig
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from . import get_home, get_services_core, set_home
+
+if is_rabbitmq_available():
+    from bootstrap import install_rabbit, default_rmq_dir
+    from volttron.utils.rmq_config_params import RMQConfig
+    from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -73,6 +76,8 @@ config_opts = {}
 # Populated by the `installs` decorator.
 available_agents = {}
 
+# Determines if VOLTTRON instance can remain running with vcfg
+use_active = "N"
 
 def _load_config():
     """Loads the config file if the path exists."""
@@ -156,14 +161,25 @@ def fail_if_instance_running():
 
     if os.path.exists(home) and\
        is_volttron_running(home):
-        print("""
-The current instance is running.  In order to configure an instance it cannot
-be running.  Please execute:
+        global use_active
+        use_active = prompt_response(
+            "The VOLTTRON Instance is currently running. "
+            "Installing agents to an active instance may overwrite currently installed "
+            "and active agents on the platform, causing undesirable behavior. "
+            "Would you like to continue?",
+            valid_answers=y_or_n,
+            default='Y')
+        if use_active in y:
+            return
+        else:
+            print("""
+Please execute:
 
     volttron-ctl shutdown --platform
 
 to stop the instance.
 """)
+
         sys.exit()
 
 
@@ -178,7 +194,7 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 def _start_platform():
     vhome = get_home()
-    cmd = ['volttron', '-vv',
+    cmd = ['volttron', '-v', '-v',
            '-l', os.path.join(vhome, 'volttron.cfg.log')]
     print(cmd)
     if verbose:
@@ -217,7 +233,12 @@ def _install_agent(agent_dir, config, tag, identity):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
-    cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
+    # Allow a little extra time for VC to install, especially for RMQ
+    if tag in ['vc', 'platform_driver']:
+        cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file,
+                     "--tag", tag, "--timeout", "360", "--force"]
+    else:
+        cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
     if identity:
         cmd_array.extend(["--vip-identity", identity])
     cmd_array.append(agent_dir)
@@ -240,20 +261,33 @@ def _is_agent_installed(tag):
 def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
-
         def func(*args, **kwargs):
+            global use_active
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
             #TODO: Optimize long vcfg install times
             #TODO: (potentially only starting the platform once per vcfg)
-            _start_platform()
+
+            if use_active in n:
+                _start_platform()
+            else:
+                agent_installed = _is_agent_installed(tag)
+                if agent_installed:
+                    overwrite_agent = prompt_response(f"Agent {tag} is already installed. "
+                                                      f"Do you want to overwrite the current agent?",
+                                                      valid_answers=y_or_n,
+                                                      default='N')
+                    if overwrite_agent in n:
+                        print(tag + " was not reinstalled.")
+                        return
 
             _install_agent(agent_dir, config, tag, identity)
 
             if not _is_agent_installed(tag):
                 print(tag + ' not installed correctly!')
-                _shutdown_platform()
+                if use_active in n:
+                    _shutdown_platform()
                 return
 
             if post_install_func:
@@ -264,13 +298,14 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
                                         default='N')
             if autostart in y:
                 _cmd(['volttron-ctl', 'enable', '--tag', tag])
-
-            _shutdown_platform()
+            if use_active in n:
+                _shutdown_platform()
 
             if identity is not None:
-                # If identity was specified then we don't want the global 
-                # AGENT_VIP_IDENTITY to be set.
-                os.environ.pop('AGENT_VIP_IDENTITY', None)
+                try:
+                    os.environ.pop('AGENT_VIP_IDENTITY')
+                except KeyError:
+                    pass
 
         available_agents[tag] = func
         return func
@@ -344,7 +379,11 @@ def set_dependencies(requirement):
 
 def set_dependencies_rmq():
     install_rabbit(default_rmq_dir)
-
+    prompt = 'What OS are you running?'
+    user_os = prompt_response(prompt, default='debian')
+    prompt = 'Which distribution are you running?'
+    user_dist = prompt_response(prompt, default='bionic')
+    _cmd(["./scripts/rabbit_dependencies.sh", user_os, user_dist])
 
 def _create_web_certs():
     global config_opts
@@ -404,9 +443,10 @@ def do_message_bus():
     global config_opts
     bus_type = None
     valid_bus = False
+    current_bus = config_opts.get("message-bus", "zmq")
     while not valid_bus:
         prompt = 'What type of message bus (rmq/zmq)?'
-        new_bus = prompt_response(prompt, default='zmq')
+        new_bus = prompt_response(prompt, default=current_bus)
         valid_bus = is_valid_bus(new_bus)
         if valid_bus:
             bus_type = new_bus
@@ -416,16 +456,10 @@ def do_message_bus():
     if bus_type == 'rmq':
         if not is_rabbitmq_available():
             print("RabbitMQ has not been set up!")
-            print("Please run scripts/rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
-            sys.exit()
-            # print("Setting up now...")
-            # set_dependencies_rmq()
-            # print("Done!")
+            print("Setting up now...")
+            set_dependencies_rmq()
+            print("Done!")
 
-        # if not _check_dependencies_met('rabbitmq'):
-        #     print("Rabbitmq dependencies not installed. Installing now...")
-        #     set_dependencies("rabbitmq")
-        #     print("Done!")
         try:
             check_rmq_setup()
         except AssertionError:
@@ -865,7 +899,7 @@ def confirm_volttron_home():
 
 
 def wizard():
-    global config_opts
+    global config_opts, use_active
     """Routine for configuring an installed volttron instance.
 
     The function interactively sets up the instance for working with volttron
@@ -877,71 +911,103 @@ def wizard():
     confirm_volttron_home()
     _load_config()
     _update_config_file()
-    do_message_bus()
-    do_vip()
-    do_instance_name()
-    _update_config_file()
-
-    prompt = 'Is this instance web enabled?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        if not _check_dependencies_met('web'):
-            print("Web dependencies not installed. Installing now...")
-            set_dependencies('web')
-            print("Done!")
-        if config_opts['message-bus'] == 'rmq':
-            do_web_enabled_rmq(volttron_home)
-        elif config_opts['message-bus'] == 'zmq':
-            do_web_enabled_zmq(volttron_home)
+    if use_active in n:
+        do_message_bus()
+        do_vip()
+        do_instance_name()
         _update_config_file()
-        # TODO: Commented out so we don't prompt for installing vc or vcp until they
-        # have been figured out totally for python3
 
-        prompt = 'Is this an instance of volttron central?'
+        prompt = 'Is this instance web enabled?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
-            do_vc()
-            if _is_agent_installed('vc'):
-                print("VC admin and password are set up using the admin web interface.\n"
-                      "After starting VOLTTRON, please go to {} to complete the setup.".format(
-                        os.path.join(config_opts['bind-web-address'], "admin", "login.html")
-                        ))
+            if not _check_dependencies_met('web'):
+                print("Web dependencies not installed. Installing now...")
+                set_dependencies('web')
+                print("Done!")
+            if config_opts['message-bus'] == 'rmq':
+                do_web_enabled_rmq(volttron_home)
+            elif config_opts['message-bus'] == 'zmq':
+                do_web_enabled_zmq(volttron_home)
+            _update_config_file()
 
-    prompt = 'Will this instance be controlled by volttron central?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
-    if response in y:
-        if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
-            print("VCP dependencies not installed. Installing now...")
+            prompt = 'Is this an instance of volttron central?'
+            response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+            if response in y:
+                do_vc()
+                if _is_agent_installed('vc'):
+                    print("VC admin and password are set up using the admin web interface.\n"
+                          "After starting VOLTTRON, please go to {} to complete the setup.".format(
+                            os.path.join(config_opts['bind-web-address'], "admin", "login.html")
+                            ))
+
+        prompt = 'Will this instance be controlled by volttron central?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+        if response in y:
+            if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
+                print("VCP dependencies not installed. Installing now...")
+                if not _check_dependencies_met("drivers"):
+                    set_dependencies("drivers")
+                if not _check_dependencies_met("web"):
+                    set_dependencies("web")
+                print("Done!")
+            do_vcp()
+
+        prompt = 'Would you like to install a platform historian?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_platform_historian()
+        prompt = 'Would you like to install a platform driver?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
             if not _check_dependencies_met("drivers"):
+                print("Driver dependencies not installed. Installing now...")
                 set_dependencies("drivers")
-            if not _check_dependencies_met("web"):
-                set_dependencies("web")
-            print("Done!")
-        do_vcp()
+                print("Done!")
+            do_platform_driver()
 
-    prompt = 'Would you like to install a platform historian?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        do_platform_historian()
-    prompt = 'Would you like to install a platform driver?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        if not _check_dependencies_met("drivers"):
-            print("Driver dependencies not installed. Installing now...")
-            set_dependencies("drivers")
-            print("Done!")
-        do_platform_driver()
+        prompt = 'Would you like to install a listener agent?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_listener()
 
-    prompt = 'Would you like to install a listener agent?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        do_listener()
+        print('Finished configuration!\n')
+        print('You can now start the volttron instance.\n')
+        print('If you need to change the instance configuration you can edit')
+        print('the config file is at {}/config\n'.format(volttron_home))
 
-    print('Finished configuration!\n')
-    print('You can now start the volttron instance.\n')
-    print('If you need to change the instance configuration you can edit')
-    print('the config file is at {}/config\n'.format(volttron_home))
+    # Only allow vcp, historian, driver, and listener to be installed
+    # through the wizard if the instance is running.
+    else:
+        prompt = 'Will this instance be controlled by volttron central?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+        if response in y:
+            if not _check_dependencies_met(
+                "drivers") or not _check_dependencies_met("web"):
+                print("VCP dependencies not installed. Installing now...")
+                if not _check_dependencies_met("drivers"):
+                    set_dependencies("drivers")
+                if not _check_dependencies_met("web"):
+                    set_dependencies("web")
+                print("Done!")
+            do_vcp()
 
+        prompt = 'Would you like to install a platform historian?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_platform_historian()
+        prompt = 'Would you like to install a platform driver?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            if not _check_dependencies_met("drivers"):
+                print("Driver dependencies not installed. Installing now...")
+                set_dependencies("drivers")
+                print("Done!")
+            do_platform_driver()
+
+        prompt = 'Would you like to install a listener agent?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_listener()
 
 def process_rmq_inputs(args_dict, instance_name=None):
     #print(f"args_dict:{args_dict}, args")
@@ -949,6 +1015,11 @@ def process_rmq_inputs(args_dict, instance_name=None):
         raise RuntimeError("Rabbitmq Dependencies not installed please run python bootstrap.py --rabbitmq")
     confirm_volttron_home()
     vhome = get_home()
+
+    if args_dict['installation-type'] in ['federation', 'shovel'] and not _check_dependencies_met('web'):
+        print("Web dependencies not installed. Installing now...")
+        set_dependencies('web')
+        print("Done!")
 
     if args_dict['config'] is not None:
         if not os.path.exists(vhome):
@@ -958,6 +1029,7 @@ def process_rmq_inputs(args_dict, instance_name=None):
             if args_dict['config'] != vhome_config:
                 copy(args_dict['config'], vhome_config)
         elif args_dict['installation-type'] == 'federation':
+
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
             if os.path.exists(vhome_config):
                 prompt = f"rabbitmq_federation_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \
@@ -992,7 +1064,8 @@ def process_rmq_inputs(args_dict, instance_name=None):
 
 
 def main():
-    global verbose, prompt_vhome
+    global verbose, prompt_vhome, use_active
+    use_active = "N"
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
@@ -1020,7 +1093,7 @@ def main():
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
 
-    group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
+    group.add_argument('--agent-isolation-mode', action='store_true', dest='agent_isolation_mode',
                        help='Require that agents run with their own users (this requires running '
                             'scripts/secure_user_permissions.sh as sudo)')
 
@@ -1040,15 +1113,16 @@ def main():
     # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
     fail_if_instance_running()
     fail_if_not_in_src_root()
-    atexit.register(_cleanup_on_exit)
+    if use_active in n:
+        atexit.register(_cleanup_on_exit)
     _load_config()
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
         print("Agents available to configure:{}".format(agent_list))
 
-    elif args.secure_agent_users:
-        config_opts['secure-agent-users'] = args.secure_agent_users
+    elif args.agent_isolation_mode:
+        config_opts['agent-isolation-mode'] = args.agent_isolation_mode
         _update_config_file()
     elif args.is_rabbitmq:
         process_rmq_inputs(vars(args))

@@ -71,7 +71,7 @@ class MarketFailureError(Exception):
                                                  object_type, market_state, name, role))
 
 
-class Market(object):
+class Market:
     states = [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED, ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS, MARKET_DONE]
     transitions = [
         {'trigger': 'receive_reservation', 'source': ACCEPT_RESERVATIONS, 'dest': ACCEPT_RESERVATIONS},

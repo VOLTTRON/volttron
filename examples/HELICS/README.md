@@ -21,7 +21,7 @@ This can be done by the following steps:
     ````
 3. Install python support for HELICS
     ````
-    pip install helics
+    pip install helics==2.8.0
     ````
 
 ## HELICS Agent Configuration

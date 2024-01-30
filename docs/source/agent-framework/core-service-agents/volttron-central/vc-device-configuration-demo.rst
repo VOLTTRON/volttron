@@ -9,22 +9,22 @@ enables device detection and configuration for BACnet devices.  The following se
 with performing scans to detect physical devices and get their points, and configuring them as virtual devices installed
 on VOLTTRON instances.
 
--  `Launching Device Configuration <launching-device-configuration>`__
--  `Scanning for Devices <scanning-for-devices>`__
--  `Scanning for Points <scanning-for-points>`__
--  `Registry Configuration File <registry-configuration-file>`__
--  `Additional Attributes <additional-attributes>`__
--  `Quick Edit Features <quick-edit-features>`__
--  `Keyboard Commands <keyboard-commands>`__
--  `Registry Preview <registry-preview>`__
--  `Registry Configuration Options <registry-configuration-options>`__
--  `Reloading Device Points <reloading-device-points>`__
--  `Device Configuration Form <device-configuration-form>`__
--  `Configuring Sub-devices <configuring-sub-devices>`__
--  `Reconfiguring Devices <reconfiguring-devices>`__
--  `Exporting Registry Configuration Files <exporting-registry-configuration-files>`__
+-  `Launching Device Configuration`_
+-  `Scanning for Devices`_
+-  `Scanning for Points`_
+-  `Registry Configuration File`_
+-  `Additional Attributes`_
+-  `Quick Edit Features`_
+-  `Keyboard Commands`_
+-  `Registry Preview`_
+-  `Registry Configuration Options`_
+-  `Reloading Device Points`_
+-  `Device Configuration Form`_
+-  `Configuring Sub-devices`_
+-  `Reconfiguring Devices`_
+-  `Exporting Registry Configuration Files`_
 
-
+.. _launching-device-configuration:
 Launching Device Configuration
 ------------------------------
 
@@ -45,7 +45,7 @@ device IDs will limit the scan to return only devices with IDs in that range.  A
 specify the IP address of a device to detect as well as the ability to change the duration of the scan from the default
 of five seconds.
 
-
+.. _scanning-for-devices:
 Scanning for Devices
 --------------------
 
@@ -58,7 +58,7 @@ clicking the large cog button again.
 
 |Devices Found|
 
-
+.. _scanning-for-points:
 Scanning for Points
 -------------------
 
@@ -73,9 +73,9 @@ After the points have been retrieved once, the only way to scan the same device 
 device configuration process from the start by clicking on the small cogs button next to the platform instance in the
 panel tree.
 
-
+.. _registry-configuration-file:
 Registry Configuration File
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 The registry configuration determines which points on the physical device will be associated with the virtual device
 that uses that particular registry configuration.  The registry configuration determines which points' data will be
@@ -100,7 +100,7 @@ Type directly in a cell to change an attribute value for a point.
 
 |Edit Points|
 
-
+.. _additional-attributes:
 Additional Attributes
 ---------------------
 
@@ -118,7 +118,7 @@ In the window that opens, point attributes can be changed by typing in the field
 Checking or unchecking the `Show in Table` box for an attribute will add or remove it as a column in the registry
 configuration editor.
 
-
+.. _quick-edit-features:
 Quick Edit Features
 -------------------
 
@@ -188,7 +188,7 @@ To quickly replace the matched term in the cell with focus, type a replacement t
 To replace all the matched terms in the column, click on the `Replace All` button. Click the `Clear Search` button to
 end the search.
 
-
+.. _keyboard-commands:
 Keyboard Commands
 -----------------
 
@@ -222,7 +222,7 @@ Click on the `Keyboard Shortcuts` button to show a popup list of the available k
 
 |Keyboard Shortcuts|
 
-
+.. _registry-preview:
 Registry Preview
 ----------------
 
@@ -244,7 +244,7 @@ Provide a name for the registry configuration file, and click the `Save` button 
 
 |Registry Saved|
 
-
+.. _registry-configuration-options:
 Registry Configuration Options
 ------------------------------
 
@@ -269,7 +269,7 @@ use the file selector window to locate and load the file.
 
 |File Import Button|
 
-
+.. _reloading-device-points:
 Reloading Device Points
 -----------------------
 
@@ -278,7 +278,7 @@ configuration by clicking on the `Reload Points From Device` button at the end o
 
 |Reload Points|
 
-
+.. _device-configuration-form:
 Device Configuration Form
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -295,7 +295,7 @@ device to the platform.
 
 |Device Added|
 
-
+.. _configuring-sub-devices:
 Configuring Sub-devices
 -----------------------
 
@@ -311,18 +311,20 @@ As devices are configured, they're inserted into position in the side panel tree
 
 |Device Added to Tree|
 
-
+.. _reconfiguring-devices:
 Reconfiguring Devices 
 ^^^^^^^^^^^^^^^^^^^^^
 
 A device that's been added to a VOLTTRON instance can be reconfigured by changing its registry configuration or its
 device configuration. To launch reconfiguration, click on the wrench button next to the device in the side panel tree.
 
+.. _reconfigure-device-button:
 |Reconfigure Device Button|
 
 Reconfiguration reloads the registry configuration editor and the device configuration form for the virtual device.  The
 editor and the form work the same way in reconfiguration as during initial device configuration.
 
+.. _reconfiguring-device:
 |Reconfiguring Device|
 
 The reconfiguration view shows the name, address, and ID of the physical device that the virtual device was configured
@@ -341,7 +343,7 @@ To make changes to the device configuration form, click on the `File to Edit` se
 
 |Reconfigure Device Config|
 
-
+.. _exporting-registry-configuration-files:
 Exporting Registry Configuration Files
 --------------------------------------
 

@@ -85,7 +85,7 @@ from .platforms import Platforms, PlatformHandler
 from .sessions import SessionHandler
 
 # must be after importing of utils which imports grequest.
-import requests
+import grequests
 
 __version__ = "5.2"
 
@@ -375,7 +375,7 @@ class VolttronCentralAgent(Agent):
         """
         return jsonrpc.JsonRpcData.parse(jsonrpcstr)
 
-    def jsonrpc(self, env, data):
+    def jsonrpc(self, env: dict, data: dict):
         """ The main entry point for ^jsonrpc data
 
         This method will only accept rpcdata.  The first time this method
@@ -388,6 +388,8 @@ class VolttronCentralAgent(Agent):
         :param object data: The JSON-RPC 2.0 method to call.
         :return object: An JSON-RPC 2.0 response.
         """
+        _log.info("GOT HERE ALPHA")
+        print("GOT HERE ALPHA")
         if env['REQUEST_METHOD'].upper() != 'POST':
             return jsonrpc.json_error('NA', INVALID_REQUEST,
                                       'Invalid request method, only POST allowed')
@@ -408,9 +410,9 @@ class VolttronCentralAgent(Agent):
                 args = {'username': rpcdata.params['username'],
                         'password': rpcdata.params['password'],
                         'ip': env['REMOTE_ADDR']}
-                resp = requests.post(auth_url, json=args, verify=False)
+                resp = grequests.post(auth_url, json=args, verify=False).send().response
 
-                if resp.ok and resp.text:
+                if resp is not None and resp.ok and resp.text:
                     claims = self.vip.web.get_user_claims(jsonapi.loads(resp.text)["access_token"])
                     # Because the web-user.json has the groups under a key and the
                     # groups is just passed into the session we need to make sure
@@ -470,7 +472,7 @@ class VolttronCentralAgent(Agent):
                     rpcdata.method,
                     rpcdata.params))
         except Exception as e:
-
+            _log.error(f"Unhandled exception: {e}")
             return jsonrpc.json_error(
                 'NA', UNHANDLED_EXCEPTION, str(e)
             )

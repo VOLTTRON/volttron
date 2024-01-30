@@ -37,13 +37,13 @@
 # }}}
 
 import logging
-import os
 import weakref
 
-from volttron.platform.agent.utils import get_fq_identity
+from volttron.platform.agent.utils import (
+    format_timestamp, get_aware_utc_now, get_fq_identity)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.headers import DATE
-from volttron.platform.messaging.health import *
+from volttron.platform.messaging.health import STATUS_GOOD, Status
 from .base import SubsystemBase
 
 """

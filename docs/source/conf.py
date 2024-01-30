@@ -39,13 +39,13 @@ autodoc_mock_imports = ['loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2',
 # -- Project information -----------------------------------------------------
 
 project = 'VOLTTRON'
-copyright = '2020, The VOLTTRON Community'
+copyright = '2022, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = '8.1.3'
+version = '8.2'
 # The full version, including alpha/beta/rc tags
-release = '8.1.3'
+release = '8.2'
 
 
 # -- General configuration ---------------------------------------------------

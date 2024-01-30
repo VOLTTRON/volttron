@@ -57,7 +57,6 @@ time so that subsequent requests with the same signature can use the cached resu
 if it has not expired.  In this case, the AsyncResult is set immediately.
 
 """
-from __future__ import print_function
 import gevent
 import gevent.event
 import gevent.queue
@@ -76,7 +75,7 @@ SERVICE_WSDL_URL = "https://webservices.chargepoint.com/cp_api_5.0.wsdl"
 web_service_queue = gevent.queue.Queue()
 
 
-class CPRequest (object):
+class CPRequest:
     """ Encapsulates a method to be called asynchronously.
 
         The result is returned as AsyncResult.  The request() classmethod is used to
@@ -134,7 +133,7 @@ class CPRequest (object):
         return r.result()
 
 
-class CPResponse (object):
+class CPResponse:
     """A response to to a CPRequest invocation.
 
 
@@ -182,7 +181,7 @@ def web_call(request, client):
     web_service_queue.put(CPResponse(request.key(), response, client))
 
 
-class CacheItem (object):
+class CacheItem:
     """A cached request/response.
 
         As responses come in, they are matched to the originating request

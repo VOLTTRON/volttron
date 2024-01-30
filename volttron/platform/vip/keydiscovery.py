@@ -36,10 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function, absolute_import
-
 import logging
-import requests
 import random
 import os
 import grequests
@@ -47,6 +44,7 @@ from datetime import datetime, timedelta
 from zmq import ZMQError
 from volttron.platform import jsonapi
 from gevent.lock import Semaphore
+from requests.exceptions import HTTPError, Timeout
 
 from volttron.platform.agent import utils
 from .agent import Agent, Core, RPC
@@ -72,7 +70,7 @@ class KeyDiscoveryAgent(Agent):
     Class to get server key, instance name and vip address of external/remote platforms
     """
 
-    def __init__(self, address, serverkey, identity, external_address_config,
+    def __init__(self, address, identity, external_address_config,
                  setup_mode, bind_web_address, *args, **kwargs):
         super(KeyDiscoveryAgent, self).__init__(identity, address, **kwargs)
         self._external_address_file = external_address_config
@@ -242,11 +240,11 @@ class KeyDiscoveryAgent(Agent):
             responses[0].raise_for_status()
             r = responses[0].json()
             return r
-        except requests.exceptions.HTTPError:
+        except HTTPError:
             raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
                 )
-        except requests.exceptions.Timeout:
+        except Timeout:
             raise DiscoveryError(
                     "Timeout error from {}".format(real_url)
                 )

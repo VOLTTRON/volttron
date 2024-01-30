@@ -196,6 +196,7 @@ def test_current_fail(weather, query_agent, locations):
     [{"lat": 39.0693, "long": -94.6716}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
+    [{"station": "KLAX"}, {"station": "KBOI"}],
     []
 ])
 def test_success_forecast(cleanup_cache, weather, query_agent, locations):
@@ -210,7 +211,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     for x in range(0, len(query_data)):
         location_data = query_data[x]
         assert (location_data.get("lat") and location_data.get("long")) or \
-               (location_data.get("wfo") and location_data.get("x") and location_data.get("y"))
+               (location_data.get("wfo") and location_data.get("x") and location_data.get("y")) or \
+               (location_data.get("station"))
         results = location_data.get("weather_results")
         error = location_data.get("weather_error")
         if error and not results:
@@ -241,6 +243,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
             assert cache_location_data.get("wfo") == query_location_data.get("wfo")
             assert cache_location_data.get("x") == query_location_data.get("x")
             assert cache_location_data.get("y") == query_location_data.get("y")
+        elif cache_location_data.get("station"):
+            assert cache_location_data.get("station") == query_location_data.get("station")
         else:
             assert False
         if cache_location_data.get("weather_results"):
@@ -269,8 +273,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     ["fail"],
-    [{"station": "KLAX"}],
-    [{"station": "KLAX"}, "fail"],
+    [{"station": "KLAX12314"}],
+    [{"station": "failasdf"}, "fail"],
     [{"lat": 39.0693}],
 
 ])

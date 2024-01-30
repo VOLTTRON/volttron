@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import json
 
 import jwt
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from passlib.hash import argon2
 from watchdog_gevent import Observer
 
@@ -32,7 +32,7 @@ tplenv = Environment(
 )
 
 
-class AuthenticateEndpoints(object):
+class AuthenticateEndpoints:
 
     def __init__(self, tls_private_key=None, tls_public_key=None, web_secret_key=None):
 

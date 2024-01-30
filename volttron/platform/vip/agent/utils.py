@@ -62,11 +62,11 @@ def get_known_host_serverkey(vip_address):
 def get_server_keys():
     try:
         # attempt to read server's keys. Should be used only by multiplatform connection and tests
-        # If agents such as forwarder attempt this in secure mode this will throw access violation exception
+        # If agents such as forwarder attempt this in agent isolation mode this will throw access violation exception
         ks = KeyStore()
     except IOError as e:
         raise RuntimeError("Exception accessing server keystore. Agents must use agent's public and private key"
-                           "to build dynamic agents when running in secure mode. Exception:{}".format(e))
+                           "to build dynamic agents when running in agent isolation mode. Exception:{}".format(e))
 
     return ks.public, ks.secret
 
@@ -85,7 +85,7 @@ def build_agent(address=None, identity=None, publickey=None,
                 secretkey=None, timeout=10, serverkey=None,
                 agent_class=Agent, volttron_central_address=None,
                 volttron_central_instance_name=None, **kwargs) -> Agent:
-    """ Builds a dynamic agent connected to the specifiedd address.
+    """ Builds a dynamic agent connected to the specified address.
 
     All key parameters should have been encoded with
     :py:meth:`volttron.platform.vip.socket.encode_key`
@@ -107,7 +107,12 @@ def build_agent(address=None, identity=None, publickey=None,
     # This is a fix allows the connect to message bus to be different than
     # the one that is currently running.
     if publickey is None or secretkey is None:
-        publickey, secretkey = get_server_keys()
+        # if identity:
+        #     ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
+        #     publickey = ks.public
+        #     secretkey = ks.secret
+        # else:
+            publickey, secretkey = get_server_keys()
     try:
         message_bus = kwargs.pop('message_bus')
     except KeyError:

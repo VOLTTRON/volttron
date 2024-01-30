@@ -63,7 +63,7 @@ The example platform driver configuration file above can be found in the VOLTTRO
 `services/core/PlatformDriverAgent/platform-driver.agent`.
 
 For information on configuring the Platform Driver with devices, including creating driver configs and using the config
-store, please read ref`configuration <Platform-Driver-Configuration>` the section in the Driver Framework docs.
+store, please read the :ref:`configuration <Platform-Driver-Configuration>` section in the Driver Framework docs.
 
 
 .. toctree::

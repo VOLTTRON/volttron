@@ -49,7 +49,7 @@ from configparser import ConfigParser
 from urllib.parse import urlparse
 
 from ..utils.frozendict import FrozenDict
-__version__ = '8.1.3'
+__version__ = '8.2'
 
 _log = logging.getLogger(__name__)
 
@@ -201,15 +201,17 @@ def is_instance_running(volttron_home=None):
 
     return psutil.pid_exists(pid)
 
-
+# TODO: May want to make rmq check more robust
 def is_rabbitmq_available():
-    rabbitmq_available = True
+    if os.environ.get('RABBITMQ_AVAILABLE'):
+        return True
+    rabbitmq_available = False
     try:
         import pika
+        os.environ['RABBITMQ_AVAILABLE'] = "True"
         rabbitmq_available = True
     except ImportError:
-        os.environ['RABBITMQ_NOT_AVAILABLE'] = "True"
-        rabbitmq_available = False
+        pass
     return rabbitmq_available
 
 

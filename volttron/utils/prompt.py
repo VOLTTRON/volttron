@@ -40,9 +40,9 @@
 import getpass
 
 # Yes or no answers to questions.
-y_or_n = ('Y', 'N', 'y', 'n')
 y = ('Y', 'y')
 n = ('N', 'n')
+y_or_n = y + n
 
 
 def prompt_response(prompt, valid_answers=None, default=None, echo=True,
@@ -51,19 +51,19 @@ def prompt_response(prompt, valid_answers=None, default=None, echo=True,
     prompt += ' '
     if default is not None:
         prompt += '[{}]: '.format(default)
-    if echo:
-        while True:
-            resp = input(prompt)
-            if resp == '' and default is not None:
-                return default
-            if str.strip(resp) == '' and mandatory:
-                print('Please enter a non empty value')
-                continue
-            if valid_answers is None or resp in valid_answers:
-                return resp
-            else:
-                print('Invalid response. Proper responses are:')
-                print(valid_answers)
-    else:
+
+    if not echo:
         resp = getpass.getpass(prompt)
         return resp
+
+    while True:
+        resp = input(prompt)
+        if resp == '' and default is not None:
+            return default
+        if str.strip(resp) == '' and mandatory:
+            print('Please enter a non empty value')
+            continue
+        if valid_answers is None or resp in valid_answers:
+            return resp
+        print('Invalid response. Proper responses are:')
+        print(valid_answers)

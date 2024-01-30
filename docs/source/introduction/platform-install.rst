@@ -10,7 +10,7 @@ Installing the Platform
 VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
 the following resources are recommended:
 
--   `Python 3.6 Tutorial <https://docs.python.org/3.6/tutorial/>`_
+-   `Python 3.6 Tutorial <https://docs.python.org/3.6/tutorial>`_
 -   `Linux Tutorial <http://ryanstutorials.net/linuxtutorial>`_
 
 This guide will specify commands to use to successfully install the platform on supported Linux distributions, but a
@@ -195,22 +195,17 @@ Step 2 - Install Erlang packages
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
 
-On Debian based systems and CentOS 6/7
-""""""""""""""""""""""""""""""""""""""
+On Debian based systems and CentOS 8
+""""""""""""""""""""""""""""""""""""
 
-If you are running a Debian or CentOS system, you can install the RabbitMQ dependencies by running the
+If you are running a Debian or CentOS 8 system, you can install the RabbitMQ dependencies by running the
 "rabbit_dependencies.sh" script, passing in the OS name and appropriate distribution as parameters. The
 following are supported:
 
 *   `debian bionic` (for Ubuntu 18.04)
 
-*   `debian xenial` (for Ubuntu 16.04 or  Linux Mint 18.04)
+*   `debian focal` (for Ubuntu 20.04)
 
-*   `debian stretch` (for Debian Stretch)
-
-*   `debian buster` (for Debian Buster)
-
-*   `raspbian buster` (for Raspbian/Raspberry Pi OS Buster)
 
 Example command:
 
@@ -228,10 +223,8 @@ Also lock your version of Erlang using the `yum-plugin-versionlock <https://acce
 
 .. note::
     Currently VOLTTRON only officially supports specific versions of Erlang for each operating system:
-          * 1:22.1.8.1-1 for Debian
-          * 1:21.2.6+dfsg-1 for Raspbian
-          * Specific Erlang 21.x versions correspond to CentOS versions 6, 7, and 8, these can be found
-            `here <https://dl.bintray.com/rabbitmq-erlang/rpm/erlang>`_
+          * 1:24.1.7-1 for Debian
+          * 24.2-1.el8 for CentOS 8
 
 
 Step 3 - Configure hostname
@@ -261,8 +254,8 @@ Step 4 - Bootstrap the environment
 
 This will build the platform and create a virtual Python environment and dependencies for RabbitMQ.  It also installs
 RabbitMQ server as the current user.  If an install path is provided, that path should exist and the user should have
-write permissions.  RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`. The rest of the
-documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as `$RABBITMQ_HOME`.
+write permissions.  RabbitMQ will be installed under `<install dir>/rabbitmq_server-<rmq-version>`. The rest of the
+documentation refers to the directory `<install dir>/rabbitmq_server-<rmq-version>` as `$RABBITMQ_HOME`.
 
 .. note::
 
@@ -279,11 +272,11 @@ Thus, you can use $RABBITMQ_HOME to see if the RabbitMQ server is installed by c
 .. note::
 
     The `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so, it needs to be set to the RabbitMQ
-    installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
+    installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.9.7`)
 
 .. code-block:: bash
 
-    echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
+    echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.7'|sudo tee --append ~/.bashrc
     source ~/.bashrc
     $RABBITMQ_HOME/sbin/rabbitmqctl status
 
@@ -341,7 +334,7 @@ prompts for necessary details.
 
     Is this the volttron you are attempting to setup?  [Y]:
     Creating rmq config yml
-    RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
+    RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.7]:
     Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
     Enable SSL Authentication: [Y]:
@@ -361,7 +354,7 @@ prompts for necessary details.
     https port for the RabbitMQ management plugin: [15671]:
     INFO:rmq_setup.pyc:Starting rabbitmq server
     Warning: PID file not written; -detached was passed.
-    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -375,7 +368,7 @@ prompts for necessary details.
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:rmq_setup.pyc:**Stopped rmq server
     Warning: PID file not written; -detached was passed.
-    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
     INFO:rmq_setup.pyc:
 
     #######################

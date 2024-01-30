@@ -3,7 +3,6 @@ import pytest
 from mock import MagicMock
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.headers import DATE
-from volttron.platform.messaging.health import *
 from volttron.platform.agent.utils import parse_timestamp_string
 from volttrontesting.utils.utils import (poll_gevent_sleep,
                                          messages_contains_prefix)

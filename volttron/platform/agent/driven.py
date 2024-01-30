@@ -104,7 +104,7 @@ class AbstractDrivenAgent(object, metaclass=ABCMeta):
         return Results()
 
 
-class Results(object):
+class Results:
     def __init__(self, terminate=False):
         self.commands = OrderedDict()
         self.devices = OrderedDict()
@@ -136,7 +136,7 @@ class Results(object):
         self.table_output[table].append(row)
 
 
-class ConversionMapper(object):
+class ConversionMapper:
 
     def __init__(self, **kwargs):
         self.initialized = False

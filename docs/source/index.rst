@@ -56,6 +56,33 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    introduction/definitions
    introduction/license
 
+.. toctree::
+   :caption: Platform Features
+   :hidden:
+   :titlesonly:
+   :maxdepth: 1
+
+   platform-features/message-bus/index
+   platform-features/control/index
+   platform-features/config-store/configuration-store
+   platform-features/security/volttron-security
+   platform-features/web-api/introduction
+
+.. toctree::
+   :caption: Agent Framework
+   :hidden:
+   :titlesonly:
+   :maxdepth: 1
+
+   agent-framework/agents-overview
+   agent-framework/core-service-agents/index
+   agent-framework/operations-agents/index
+   agent-framework/driver-framework/drivers-overview
+   agent-framework/historian-agents/historian-framework
+   agent-framework/web-framework
+   agent-framework/integrating-simulations/index
+   agent-framework/platform-service-standardization
+   agent-framework/third-party-agents
 
 .. toctree::
    :caption: Developing in VOLTTRON
@@ -72,7 +99,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    developing-volttron/jupyter/jupyter-notebooks
    developing-volttron/python-for-matlab-users
 
-
 .. toctree::
    :caption: Deploying VOLTTRON
    :hidden:
@@ -88,56 +114,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/linux-system-hardening
    deploying-volttron/recipe-deployment
 
-
-.. toctree::
-   :caption: Agent Framework
-   :hidden:
-   :titlesonly:
-   :maxdepth: 1
-
-   agent-framework/agents-overview
-   agent-framework/core-service-agents/index
-   agent-framework/operations-agents/index
-   agent-framework/historian-agents/historian-framework
-   agent-framework/web-framework
-   agent-framework/integrating-simulations/index
-   agent-framework/platform-service-standardization
-   agent-framework/third-party-agents
-
-
-.. toctree::
-   :caption: Driver Framework
-   :hidden:
-   :titlesonly:
-   :maxdepth: 1
-
-   driver-framework/drivers-overview
-   driver-framework/platform-driver/platform-driver
-   driver-framework/actuator/actuator-agent
-   driver-framework/fake-driver/fake-driver
-   driver-framework/bacnet/bacnet-driver
-   driver-framework/chargepoint/chargepoint-driver
-   driver-framework/dnp3-driver/dnp3-driver
-   driver-framework/ecobee/ecobee-web-driver
-   driver-framework/ieee-2030_5/ieee-2030_5-driver
-   driver-framework/modbus/modbus-driver
-   driver-framework/modbus/modbus-tk-driver
-   driver-framework/obix/obix
-   driver-framework/ted-driver/the-energy-detective-driver
-
-
-.. toctree::
-   :caption: Platform Features
-   :hidden:
-   :titlesonly:
-   :maxdepth: 1
-
-   platform-features/message-bus/index
-   platform-features/control/index
-   platform-features/config-store/configuration-store
-   platform-features/security/volttron-security
-
-
 .. toctree::
    :caption: VOLTTRON Core Service Agents
    :hidden:
@@ -146,7 +122,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :glob:
 
    volttron-api/services/*/modules
-
 
 .. toctree::
    :caption: VOLTTRON Core Operations Agents
@@ -157,7 +132,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    volttron-api/ops/*/modules
 
-
 .. toctree::
    :caption: VOLTTRON Topics
    :hidden:
@@ -167,6 +141,14 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    Releases <volttron-topics/VOLTTRON-releases/index>
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
+   
+.. toctree::
+   :caption: Tutorials
+   :hidden:
+   :titlesonly:
+   :maxdepth: 1
+
+   tutorials/quick-start
 
 
 Indices and tables

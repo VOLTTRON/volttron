@@ -39,7 +39,7 @@ from configparser import ConfigParser
 import time
 import os
 
-import requests
+import grequests
 import gevent
 import pytest
 from mock import MagicMock
@@ -51,8 +51,8 @@ from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_addr
 
 @pytest.mark.parametrize("messagebus, ssl_auth", [
     ('zmq', False)
-    # , ('zmq', False)
-    # , ('rmq', True)
+    , ('rmq', True)
+    , ('zmq', True)
 ])
 def test_can_create(messagebus, ssl_auth):
     p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
@@ -85,7 +85,9 @@ def test_can_create_web_enabled(messagebus: str, https_enabled: bool):
         http_address = get_rand_http_address(https=https_enabled)
         p.startup_platform(vip_address=get_rand_tcp_address(), bind_web_address=http_address)
         assert p.is_running()
-        response = requests.get(http_address, verify=False)
+        result = grequests.get(http_address, verify=False).send()
+        assert result
+        response = result.response
         assert response.ok
     finally:
         if p:
@@ -165,7 +167,6 @@ def test_instance_writes_to_instances_file(volttron_instance):
     assert the_instance_entry['volttron-home'] == vi.volttron_home
 
 
-@pytest.mark.skip(reason="To test actions on github")
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance: PlatformWrapper):
     vi = volttron_instance
@@ -279,6 +280,16 @@ def test_can_stop_vip_heartbeat(volttron_instance):
 
 
 @pytest.mark.wrapper
+def test_web_wrapper(volttron_instance_web):
+    vi = volttron_instance_web
+    agent = vi.build_agent()
+    assert agent.core.identity
+    resp = agent.vip.peerlist().get(timeout=5)
+    assert isinstance(resp, list)
+    assert len(resp) > 1
+
+
+@pytest.mark.wrapper
 def test_get_peerlist(volttron_instance):
     vi = volttron_instance
     agent = vi.build_agent()
@@ -348,7 +359,6 @@ def test_can_publish(volttron_instance):
     assert messages['test/world']['message'] == 'got data'
 
 
-@pytest.mark.skip(reason="To test actions on github")
 @pytest.mark.wrapper
 def test_can_install_multiple_listeners(volttron_instance):
     assert volttron_instance.is_running()
@@ -401,4 +411,3 @@ def test_will_update_environ():
         assert os.environ.get("farthing") == "50"
 
     assert "farthing" not in os.environ
-

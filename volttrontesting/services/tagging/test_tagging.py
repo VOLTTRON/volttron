@@ -62,19 +62,6 @@ except:
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
 
-try:
-    from crate import client
-    from crate.client.exceptions import ProgrammingError
-    # Adding crate historian to the path so we have access to it's packages
-    # for removing/creating schema for testing with.
-    root = get_volttron_root()
-    crate_path = get_services_core("CrateHistorian")
-
-    sys.path.insert(0, crate_path)
-    from volttron.platform.dbutils import crateutils as crate_utils
-    HAS_CRATE_CONNECTOR = True
-except:
-    HAS_CRATE_CONNECTOR = False
 
 try:
     import mysql.connector as mysql
@@ -96,10 +83,10 @@ mongodb_config = {"source": get_services_core("MongodbTaggingService"),
                                  "params": {
                                     "host": "localhost",
                                     "port": 27017,
-                                    "database": "mongo_test",
+                                    "database": "test_historian",
                                     "user": "historian",
                                     "passwd": "historian",
-                                    "authSource": "test"
+                                    "authSource": "test_historian"
                                 }}}
 
 sqlite_historian = {
@@ -118,40 +105,13 @@ mysql_historian = {
         }
     }
 }
-mongo_historian = {
-    "source": get_services_core("MongodbHistorian"),
-    "connection": {"type": "mongodb",
-                   "params": {"host": "localhost",
-                              "port": 27017,
-                              "database": "mongo_test",
-                              "user": "historian",
-                              "passwd": "historian",
-                              "authSource": "test"}
-                   }
-}
 
-crate_historian = {
-    "source": get_services_core("CrateHistorian"),
-    "connection": {
-        "schema": "testing_historian",
-        "type": "crate",
-        "params": {
-            "host": "http://localhost:4200",
-            "debug": False
-        }
-    }
-}
 historians = [
     None,
     sqlite_historian
 ]
-if HAS_PYMONGO:
-    historians.append(mongo_historian)
 if HAS_MYSQL_CONNECTOR:
     historians.append(mysql_historian)
-if HAS_CRATE_CONNECTOR:
-    historians.append(crate_historian)
-
 
 def setup_sqlite(config):
     print("setup sqlite")

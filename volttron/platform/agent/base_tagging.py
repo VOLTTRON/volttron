@@ -823,7 +823,7 @@ def t_DQUOTE_STRING(t):
 
 
 def t_FPOINT(t):
-    '[-+]?\d+(\.(\d+)?([eE][-+]?\d+)?|[eE][-+]?\d+)'
+    r'[-+]?\d+(\.(\d+)?([eE][-+]?\d+)?|[eE][-+]?\d+)'
     try:
         t.value = float(t.value)
         pass

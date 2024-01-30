@@ -64,7 +64,7 @@ class PostgreSqlFuncts(DbDriver):
                 cursor.execute('SET TIME ZONE UTC')
             return connection
         connect.__name__ = 'psycopg2'
-        super(self.__class__, self).__init__(connect)
+        super(PostgreSqlFuncts, self).__init__(connect)
 
     @contextlib.contextmanager
     def bulk_insert(self):
@@ -141,7 +141,7 @@ class PostgreSqlFuncts(DbDriver):
 
     def rollback(self):
         try:
-            return super(self.__class__, self).rollback()
+            return super(PostgreSqlFuncts, self).rollback()
         except InterfaceError:
             return False
 

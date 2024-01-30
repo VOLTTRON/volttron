@@ -8,7 +8,8 @@ import pytest
 import requests
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL_PLATFORM)
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.keystore import KeyStore
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent

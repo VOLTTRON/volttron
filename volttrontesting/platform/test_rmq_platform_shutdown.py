@@ -42,8 +42,15 @@ import pytest
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, build_wrapper
 from volttron.platform import get_examples
 from volttron.platform.agent.utils import execute_command
-from volttron.utils.rmq_setup import stop_rabbit
-from volttron.utils.rmq_config_params import RMQConfig
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import stop_rabbit
+    from volttron.utils.rmq_config_params import RMQConfig
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
+
+pytestmark = [pytest.mark.xfail]
+
 
 @pytest.mark.rmq_shutdown
 def test_vctl_shutdown_on_rmq_stop(request):

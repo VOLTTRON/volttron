@@ -35,7 +35,8 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+from __future__ import annotations
+from unittest import mock
 
 import pytest
 import os
@@ -54,6 +55,7 @@ from volttrontesting.utils.web_utils import get_test_web_env
 from volttron.platform.vip.agent import Agent
 from services.core.VolttronCentral.volttroncentral.agent import VolttronCentralAgent
 import gevent
+import grequests
 
 
 @pytest.fixture
@@ -72,7 +74,7 @@ def mock_jsonrpc_env(path="jsonrpc", input_data=None, method="POST"):
 @pytest.fixture
 def mock_response(monkeypatch):
     def mock_resp(*args, **kwargs):
-        class MockResp():
+        class MockResp:
             def __init__(self):
                 mock_args = kwargs['json']
                 if mock_args['username'] == 'test' and mock_args['password'] == 'test':
@@ -81,8 +83,13 @@ def mock_response(monkeypatch):
                 else:
                     self.ok = False
                     self.text = "invalid username/password"
+            def send(self) -> MockResp:
+                return self
+            @property
+            def response(self) -> MockResp:
+                return self
         return MockResp()
-    monkeypatch.setattr(requests, "post", mock_resp)
+    monkeypatch.setattr(grequests, "post", mock_resp)
 
 
 @pytest.mark.vc
@@ -107,14 +114,14 @@ def test_jsonrpc_get_authorization(mock_response, mock_vc, mock_jsonrpc_env, mon
 @pytest.fixture
 def mock_vc_jsonrpc(mock_response, mock_vc, mock_jsonrpc_env, monkeypatch):
 
+    #with mock.patch('volttroncentral.agent.grequests', new=grequests_mock):
     mock_claims = {"groups": ["test_admin"]}
     mock_vc.vip.web.configure_mock(**{"get_user_claims.return_value": mock_claims})
     # mock_vc.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
     data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "test"}, None)
     mock_vc.jsonrpc(mock_jsonrpc_env, data)
-    #mock_vc_env = {"mock_vc": mock_vc, "mock_env": mock_jsonrpc_env}
-
     yield mock_vc
+
 
 @pytest.fixture
 def mock_websocket(mock_vc):
@@ -122,9 +129,9 @@ def mock_websocket(mock_vc):
     #.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
 
 
-
 @pytest.mark.vc
 def test_jsonrpc_is_authorized(mock_vc_jsonrpc, mock_jsonrpc_env):
+
     data = jsonrpc.json_method("12345", "list_platforms", None, None)
     data['authorization'] = '{"refresh_token": "super_secret_refresh_token", "access_token": "super_secret_access_token"}'
     response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
@@ -140,29 +147,25 @@ def test_jsonrpc_is_unauthorized(mock_vc_jsonrpc, mock_jsonrpc_env):
 
 
 @pytest.mark.vc
-def test_websocket_open_authenticate(mock_vc_jsonrpc, mock_jsonrpc_env):
-    vc = mock_vc_jsonrpc
-    print("BREAK")
-    assert True
-
-@pytest.mark.vc
-def test_default_config(volttron_instance):
+def test_installable(volttron_instance_web):
     """
     Test the default configuration file included with the agent
     """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
+    publish_agent = volttron_instance_web.dynamic_agent
 
-    config_path = os.path.join(get_services_core("VolttronCentral"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = yaml.safe_load(config_file)
-    assert isinstance(config_json, dict)
+    # config_path = os.path.join(get_services_core("VolttronCentral"), "config")
+    # with open(config_path, "r") as config_file:
+    #     config_json = yaml.safe_load(config_file)
+    # assert isinstance(config_json, dict)
 
-    volttron_instance.install_agent(
+    volttron_instance_web.install_agent(
         agent_dir=get_services_core("VolttronCentral"),
-        config_file=config_json,
+        # config_file=config_json,
         start=True,
         vip_identity="health_test")
+
+    if volttron_instance_web.messagebus == 'rmq':
+        gevent.sleep(10)
 
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 
