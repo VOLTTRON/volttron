@@ -291,7 +291,8 @@ class Interface(BasicRevert, BaseInterface):
                 system_number, rest = designation.split(".", 1)
                 _, point = rest.split("FieldNetworks.")
                 # topic = f"{point.replace(';','')}/{prop['PropertyName']}".replace('.', '/', 1)
-                topic = f"{system_number}/{point.replace(';', '')}/{prop['PropertyName']}"
+                # topic = f"{system_number}/{point.replace(';', '')}/{prop['PropertyName']}"
+                topic = f"{prop['PropertyName']}"
                 value = self.ensure_no_string(prop['Value']['Value'])
                 if value is None:
                     continue
