@@ -104,7 +104,6 @@ class Interface(BasicRevert, BaseInterface):
         self.designation = config_dict["designation"]
         self.auth_token = self.get_token()
 
-        # for point in registry_config_str:
         _log.debug(f"{registry_config_str=}")
         name = registry_config_str["name"]
         designation = registry_config_str["designation"]
@@ -152,7 +151,6 @@ class Interface(BasicRevert, BaseInterface):
         )
         after_request = datetime.utcnow()
         _log.debug(f"got data in {(after_request-before_request)}")
-        # print(result)
         if result.status_code == http.HTTPStatus.UNAUTHORIZED:
             # Token expired, get new token and try again
             before_request = datetime.utcnow()
@@ -204,13 +202,6 @@ class Interface(BasicRevert, BaseInterface):
                 (result,) = grequests.map(
                     (req,), exception_handler=self._grequests_exception_handler
                 )
-            # try:
-            #     result = req.json()
-            # except json.decoder.JSONDecodeError as exc:
-            #     print(exc)
-            #     result = req.text
-            # print(f"{result=}")
-            # print(result.json())
             return result.json()
         except ConnectionError:
             print(
@@ -285,13 +276,7 @@ class Interface(BasicRevert, BaseInterface):
         """
         data = [{}, {}]
         for designation, properties in prop_values.items():
-            # print(f"{designation=} {properties=}")
             for prop in properties:
-                # print(f"{designation}.{prop['Value']['Value']}")
-                system_number, rest = designation.split(".", 1)
-                _, point = rest.split("FieldNetworks.")
-                # topic = f"{point.replace(';','')}/{prop['PropertyName']}".replace('.', '/', 1)
-                # topic = f"{system_number}/{point.replace(';', '')}/{prop['PropertyName']}"
                 topic = f"{prop['PropertyName']}"
                 value = self.ensure_no_string(prop['Value']['Value'])
                 if value is None:
@@ -309,31 +294,28 @@ class Interface(BasicRevert, BaseInterface):
 
     def _scrape_all(self):
         # hit endpoint of designation
-        post_data = []
+        api_values = {}
         prop_values = {}
-        prop_names = []
-        # _log.debug(f"scraping {self.designation_properties}")
         for designation, registers in self.designation_map.items():
             _log.debug(f"scraping {designation}")
             device_props = self.get_resource(f"propertyvalues/{designation}", {"readAllProperties": True})
             _log.debug(f"{device_props=}")
             for register in registers:
-                # prop_values[register.property_name] = device_props["Properties"]
-                prop_values[f"{designation}"] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
+                api_values[register.property_name] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
+                for prop in device_props["Properties"]:
+                    if prop["PropertyName"] == register.property_name:
+                        api_values[register.property_name] = prop["Value"]["Value"]
 
-        prop_values = self.parse_to_forwarder(prop_values)
+
+        # prop_values = self.parse_to_forwarder(prop_values)
+        for prop, value in api_values.items():
+            value = self.ensure_no_string(api_values[prop])
+            if value is None or not isinstance(value, (int, float)):
+                continue
+            prop_values[prop] = value
+
         _log.debug(f"{prop_values=}")
 
-        # result = self.post_to_resource(
-        #     "propertyvalues", post_data, {"readMaxAge": self.scrape_interval * 1000}
-        # )
-
-        # values = self.ensure_no_string(prop_values)
-        # values = self.normalize_topic_names(values)
-        # values = {list(x.keys())[0]: list(x.values())[0] for x in values}
-
-
-        # return values
         return prop_values
 
     def get_point(self, point_name, **kwargs):
@@ -371,6 +353,11 @@ class Interface(BasicRevert, BaseInterface):
             else:
                 print(f"cannot convert to float, int or bool: {value=}")
                 return None
+        except TypeError:
+            if value == []: #don't debug empty lists
+                return None
+            _log.debug(f"could not convert to float: {value=}")
+            return None
 
     def normalize_topic_names(self, data):
         """
