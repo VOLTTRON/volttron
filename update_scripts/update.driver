@@ -1,0 +1,2 @@
+#!/bin/bash
+python ~/volttron/scripts/install-agent.py -s /home/vboxuser/chargepoint/volttron_chargepoint/services/core/PlatformDriverAgent -c /home/vboxuser/chargepoint/volttron_chargepoint/config/driver.config -i platform.driver -t driver --force --start --priority 60
