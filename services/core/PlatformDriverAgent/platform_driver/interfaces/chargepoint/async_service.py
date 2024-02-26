@@ -47,15 +47,16 @@ import gevent
 import gevent.event
 import gevent.queue
 import logging
-import suds
+#import suds
+import zeep
 from gevent import monkey
 from .service import CPAPIException
 from datetime import datetime, timedelta
 
 monkey.patch_all()
 _log = logging.getLogger(__name__)
-SERVICE_WSDL_URL = "https://webservices.chargepoint.com/cp_api_5.0.wsdl"
-
+#SERVICE_WSDL_URL = "https://webservices.chargepoint.com/cp_api_5.0.wsdl"
+SERVICE_WSDL_URL = "http://localhost:8080/cp_api_5.1.wsdl"
 # Queue for Web API requests and responses.  It is managed by the long running
 # web_service() greenlet.
 web_service_queue = gevent.queue.Queue()
@@ -253,7 +254,8 @@ def web_service():
                 web_cache[item_key] = cache_item
 
                 if not client_set:
-                    client_set.add(suds.client.Client(SERVICE_WSDL_URL))
+                    #client_set.add(suds.client.Client(SERVICE_WSDL_URL))
+                    client_set.add(zeep.Client(SERVICE_WSDL_URL))
                 client = client_set.pop()
                 gevent.spawn(web_call, item, client)
 

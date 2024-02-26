@@ -22,8 +22,10 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-import suds.client
-import suds.wsse
+#import suds.client
+#import suds.wsse
+import zeep
+from zeep.wsse.username import UsernameToken
 import logging
 
 logger = logging.getLogger('chargepoint')
@@ -769,18 +771,18 @@ class CPService:
         """
         self._username = username
         self._password = password
-        self._suds_client = None
+        self._zeep_client = None
 
     @property
     def _client(self):
         """Initialize the SUDS client if necessary."""
 
-        if self._suds_client is None:
-            self._suds_client = suds.client.Client(SERVICE_WSDL_URL)
+        if self._zeep_client is None:
+            self._zeep_client = zeep.Client(SERVICE_WSDL_URL)
             # Add SOAP Security tokens
             self.set_security_token()
 
-        return self._suds_client
+        return self._zeep_client
 
     @property
     def _soap_service(self):
@@ -788,13 +790,14 @@ class CPService:
 
     def set_security_token(self):
         # Add SOAP Security tokens
-        security = suds.wsse.Security()
-        token = suds.wsse.UsernameToken(self._username, self._password)
-        security.tokens.append(token)
-        self._suds_client.set_options(wsse=security)
+        #security = suds.wsse.Security()
+        #token = suds.wsse.UsernameToken(self._username, self._password)
+        #security.tokens.append(token)
+        #self._zeep_client.set_options(wsse=security)
+        self._zeep_client = zeep.Client(SERVICE_WSDL_URL, wsse=UsernameToken(self._username, self._password))
 
     def set_client(self, client):
-        self._suds_client = client
+        self._zeep_client = client
         self.set_security_token()
 
     def clearAlarms(self, **kwargs):
