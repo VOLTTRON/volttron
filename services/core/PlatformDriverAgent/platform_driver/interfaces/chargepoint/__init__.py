@@ -522,8 +522,6 @@ class Interface(BasicRevert, BaseInterface):
             return
 
         for regDef in registry_config_str:
-            print(regDef)
-            _log.debug(f'RegDef is {regDef}')
             # Skip lines that have no address yet.
             if not regDef['Attribute Name']:
                 continue
@@ -559,7 +557,7 @@ class Interface(BasicRevert, BaseInterface):
                 description=description,
                 port_number=port_num,
                 username=config_dict['username'],
-                timeout=config_dict['cacheExpiration']
+                timeout=config_dict.get('cacheExpiration',0)
             )
 
             self.insert_register(register)
