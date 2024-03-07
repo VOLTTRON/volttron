@@ -80,6 +80,15 @@ class Interface(BasicRevert, BaseInterface):
                 ):
                     _log.info(f"found active power meter {device}")
                     return device
+        if self.device_list.get('Device'):
+            device = self.device_list['Device']
+            if (
+                isinstance(device, dict)
+                and device["ModelId"] == "electric_meter"
+                and device["ConnectionStatus"] == "Connected"
+            ):
+                _log.info(f"found active power meter {device}")
+                return device
 
     def get_point(self, point_name):
         return self.get_variable(self.power_meter, point_name)
@@ -143,7 +152,7 @@ class Interface(BasicRevert, BaseInterface):
             if not d["Value"]:
                 _log.warning(f"Variable {d['Name']} has no value. skipping")
                 continue
-            values[name] = d["Value"]
+            values[name] = float(d["Value"])
 
         _log.info(f"Scraped power meter: {values=}")
         return values
