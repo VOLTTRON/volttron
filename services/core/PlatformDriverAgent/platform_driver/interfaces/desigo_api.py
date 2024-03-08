@@ -189,6 +189,7 @@ class Interface(BasicRevert, BaseInterface):
             _log.debug(f"got resource in {after_request-before_request}")
             if result.status_code == http.HTTPStatus.UNAUTHORIZED:
                 # Token expired, get new token and try again
+                _log.info("token expired, getting new token")
                 self.auth_token = self.get_token()
                 before_request = datetime.utcnow()
                 req = grequests.get(
@@ -222,30 +223,16 @@ class Interface(BasicRevert, BaseInterface):
         """
         Retrieve token from server
         """
-        data = {
-            "grant_type": "password",
-            "username": self.api_username,
-            "password": self.api_password,
-        }
-        req = grequests.post(f"{self.url}/token", data=data, verify=False, timeout=300)
-        (result,) = grequests.map(
-            (req,), exception_handler=self._grequests_exception_handler
-        )
-
-        if result is None and kwargs.get("retry"):
-            _log.error("could not get token, trying once more in 5 seconds")
-            gevent.sleep(5)
-            self.get_token(retry=True)
-            return None
-        elif result is None and not kwargs.get("retry"):
-            _log.error("could not get token, giving up")
-            return None
+        _log.debug("trying to get token via RPC")
         try:
-            _log.info(f"acquired access_token: ...{result.json()['access_token'][-5:]}")
-            self.auth_token = result.json()["access_token"]
-        except KeyError:
-            _log.debug(f"could not get access_token from JSON: {result.json()=}")
+            self.auth_token = self.vip.rpc.call("platform.desigo_credential_handler", "get_token", self.url).get(timeout=300)
+        except gevent.timeout.Timeout:
+            _log.error("timed out getting token")
             return None
+        if self.auth_token is None:
+            _log.error("could not get token")
+            return None
+        _log.debug(f"found token: ...{self.auth_token[-4:]}")
         return self.auth_token
 
     def build_device_by_location(self):
