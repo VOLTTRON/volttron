@@ -1,1 +1,1 @@
-suds-jurko==0.6
+zeep==4.2.1
