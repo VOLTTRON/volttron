@@ -416,8 +416,17 @@ class CPAPIResponse:
             if flag:
                 logger.warning("Station does not have a definition for port {0}".format(port_number))
         else:
-            logger.warning("Response does not have Ports defined")
-            return None
+            if (attribute in ['sessionID', 'startTime', 'endTime', 'Energy', 'rfidSerialNumber', 'driverAccountNumber',
+                      'driverName']) and int(data['portNumber']) == port_number:
+                try:
+                    data_attribute = data[attribute]
+                    return data_attribute
+                except:
+                    logger.warning(f'Response does not have {attribute} field')
+                    return None 
+            else:
+                logger.warning("Response does not have Ports defined")
+                return None
 
     @staticmethod
     def check_output(attribute, parent_dict):
@@ -441,6 +450,7 @@ class CPAPIResponse:
                             else CPAPIResponse.is_not_found(name_string))
             else:
                 list.append(CPAPIResponse.get_port_value(portNum, item, name_string))
+        logger.debug(f'{name_string} list for {portNum} is {list}')
         return list
 
 
@@ -632,12 +642,14 @@ class CPAPIGetStationsResponse(CPAPIResponse):
 
     def startTime(self, port=None):
         if port:
+            logger.debug(f'startTime port is {port}')
             return CPAPIResponse.get_attr_from_response('startTime', self.stations, port)
         else:
             return [self.pricing_helper('startTime', station) for station in self.stations]
 
     def endTime(self, port=None):
         if port:
+            logger.debug(f'endTime port is {port}')
             return CPAPIResponse.get_attr_from_response('endTime', self.stations, port)
         else:
             return [self.pricing_helper('endTime', station) for station in self.stations]

@@ -138,6 +138,16 @@ class ChargepointRegister(BaseRegister):
             raise IOError("Trying to write to a point configured read only: {0}".format(self.attribute_name))
         return True
 
+    def get_last_non_none_value(self,lst):
+        """
+        Depends on port number, the result could be a list with None value
+        get last non-None value as result
+        """
+        for item in reversed(lst):
+            if item is not None:
+                return item
+        return None
+
     def get_register(self, result, method, port_flag=True):
         """Gets correct register from API response.
 
@@ -150,9 +160,10 @@ class ChargepointRegister(BaseRegister):
         :return: Correct register value cast to appropriate python type. Returns None if there is an error.
         """
         try:
-            value = getattr(result, self.attribute_name)(self.port)[0] \
+            _log.debug(f'In get_register, to get {self.attribute_name}, the port_flag is {port_flag}')
+            value = self.get_last_non_none_value(getattr(result, self.attribute_name)(self.port)) \
                 if port_flag \
-                else getattr(result, self.attribute_name)(None)[0]
+                else self.get_last_non_none_value(getattr(result, self.attribute_name)(None))
             return self.sanitize_output(self.data_type, value)
         except cps.CPAPIException as exception:
             if exception._responseCode not in ['153']:
@@ -386,7 +397,8 @@ class ChargingSessionRegister(ChargepointRegister):
         result.wait()
 
         # Of Note, due to API limitations, port number is ignored for these calls
-        return self.get_register(result.value, method, False)
+        # NOTE: Change this port number for Chargingsession data. 
+        return self.get_register(result.value, method)
 
     @value.setter
     def value(self, x):
