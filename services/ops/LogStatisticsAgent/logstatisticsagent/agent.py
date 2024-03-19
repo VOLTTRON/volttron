@@ -72,10 +72,8 @@ class LogStatisticsAgent(Agent):
 
         self.last_std_dev_time = get_aware_utc_now()
 
-        volttron_home = get_home()
-
         self.default_config = {
-            "file_path": f"{volttron_home}/volttron.log",
+            "file_path": "/home/volttron/volttron.log",
             "analysis_interval_sec": 60,
             "publish_topic": "platform/log_statistics",
             "historian_topic": "analysis/log_statistics"

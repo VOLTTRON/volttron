@@ -10,7 +10,7 @@ which may be an indication of some sort of failure or breach.
 
 The Log Statistics agent has 4 configuration parameters, all of which are required:
 
-- `file_path`:  The file path to the log file. If left as `null`, defaults to `'volttron.log'` located within your VOLTTRON_HOME environment variable.
+- `file_path`:  The file path to the log file. If left as `null`, defaults to "/home/volttron/volttron.log".
 - `analysis_interval_secs`: The interval in seconds between publishes of the size delta statistic to the message bus. If left as `null`, defaults to 60 seconds.
 - `publish_topic`: Used to specify a topic to publish log statistics to which does not get captured by the
   historian framework (topics not prefixed by any of: "datalogger", "record", "analysis", "devices"). If left as `null`, defaults to `"platform/log_statistics"`.
