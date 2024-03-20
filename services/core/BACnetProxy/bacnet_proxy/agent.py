@@ -52,7 +52,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5.9'
+__version__ = '0.6.0b'
 
 from collections import defaultdict
 
@@ -72,6 +72,8 @@ from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.app import BIPSimpleApplication, BIPForeignApplication
 from bacpypes.service.device import LocalDeviceObject
 from bacpypes.object import get_datatype
+
+from bacpypes.npdu import WhoIsRouterToNetwork
 
 from bacpypes.apdu import (ReadPropertyRequest,
                            WritePropertyRequest,
@@ -142,7 +144,6 @@ class BACnetForeignApplication(BIPForeignApplication, RecurringTask):
         self.forward_cov_callback = forward_cov_callback
 
         self.request_queue = Queue()
-
         # assigning invoke identifiers
         self.nextInvokeID = 1
 
@@ -767,6 +768,7 @@ class BACnetProxyAgent(Agent):
         self.foreignbbmd = foreignbbmd
         self.foreignttl = foreignttl
         self.error_mutex = defaultdict(gevent.lock.BoundedSemaphore)
+        self.seen_networks = set()
 
         # IO callback
         class IOCB:
@@ -872,6 +874,14 @@ class BACnetProxyAgent(Agent):
         """
         Called by the BACnet application when a WhoIs is received. Publishes the IAm to the pubsub.
         """
+        if ":" in address and address.split(":")[0] not in self.seen_networks:
+            # fire off who_is_rtn
+            network = address.split(":")[0]
+            # self.bacnet_application.nse.WhoIsRouterToNetwork(address.split(":")[0])
+            request = WhoIsRouterToNetwork(network)
+            self.seen_networks.add(network)
+            iocb = self.iocb_class(request)
+            self.bacnet_application.submit_request(iocb)
         _log.debug("IAm received: Address: {} Device ID: {} Max APDU: {} Segmentation: {} Vendor: {}".format(
             address, device_id, max_apdu_len, seg_supported, vendor_id))
 
@@ -1053,7 +1063,7 @@ class BACnetProxyAgent(Agent):
             bacnet_results = iocb.ioResult.get(10)
         except RuntimeError as exc:
             trace = traceback.format_exc()
-            _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address}")
+            _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address} {exc=}")
             return None
         # _log.debug(f"found {bacnet_results} for {property_name} on {object_type}-{instance_number} from device {target_address}")
         return bacnet_results
@@ -1095,61 +1105,6 @@ class BACnetProxyAgent(Agent):
 
         return object_property_map, reverse_point_map
 
-    def find_error_object(self, read_access_list: list, target_address: str, exception: Exception):
-        """
-        Find specific point failing for device
-        """
-        # read_access_list is a list of bacpypes.apdu.ReadAccessSpecification objects
-        #   contains ObjectIdentifier and listofPropertyReferences
-        # target_address is a string, e.g. 192.168.1.97, 1003:23
-
-        with self.error_mutex[target_address]:
-
-            bacnet_results = {}
-            for entry in read_access_list:
-                for prop in entry.listOfPropertyReferences:
-                    # _log.debug(f"making request: {target_address=} {entry.objectIdentifier=} {prop.propertyIdentifier=} {prop.propertyArrayIndex=}")
-                    request = ReadPropertyRequest(objectIdentifier=entry.objectIdentifier,
-                                                propertyIdentifier=prop.propertyIdentifier,
-                                                propertyArrayIndex=prop.propertyArrayIndex
-                                                )
-                    target_address = target_address if target_address else GlobalBroadcast()
-                    request.pduDestination = Address(target_address)
-                    iocb = self.iocb_class(request)
-                    self.bacnet_application.submit_request(iocb)
-                    try:
-                        iocb_ioresult = iocb.ioResult.get(10)
-                        # _log.debug(f"{iocb_ioresult=}")
-                        bacnet_results.update(iocb.ioResult.get(10))
-                    except TypeError:
-                        bacnet_results.update(
-                            {
-                                (
-                                    entry.objectIdentifier[0],
-                                    entry.objectIdentifier[1],
-                                    prop.propertyIdentifier,
-                                    prop.propertyArrayIndex,
-                                ): iocb_ioresult
-                            }
-                        )
-                    except Exception as exc:
-                        _log.error(f"{exc} {target_address=} {request=}")
-                        if "Segmentation not supported" in str(exc) or "segmentationNotSupported" in str(exc):
-                            exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} - segmentationNotSupported"
-                        else:
-                            exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]}"
-                        _log.error(
-                            f"Point failing: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} {exc=}"
-                        )
-                        message = {"target_address": target_address,
-                                "object_type": entry.objectIdentifier[0],
-                                "instance_number": entry.objectIdentifier[1],
-                                "exception": f"{exc}"}
-                        self.vip.pubsub.publish(peer="pubsub",
-                                                topic="errors/bacnet",
-                                                message=message)
-            return bacnet_results
-
     @RPC.export
     def read_properties(self, target_address, point_map, max_per_request=None, use_read_multiple=True):
         """
@@ -1159,6 +1114,11 @@ class BACnetProxyAgent(Agent):
         if not use_read_multiple:
             props = self.read_using_single_request(target_address, point_map)
             _log.debug(f"found {len(props)} results using single requests")
+            # tuple_props = {}
+            # for key, val in props.items():
+            #     tuple_props[(key.split('/')[0], int(key.split('/')[1]), 'presentValue', None)] = val
+            # _log.debug(f"{tuple_props=}")
+            # return tuple_props
             return props
 
         # Set max_per_request really high if not set.
@@ -1198,36 +1158,13 @@ class BACnetProxyAgent(Agent):
                     bacnet_results = iocb.ioResult.get(10)
                 except RuntimeError as exc:
                     try:
-                        _log.debug(f"finding error object: {exc}")
-                        if not self.error_mutex[target_address].locked():
-                            # bacnet_results = self.find_error_object(read_access_spec_list, target_address, exc)
-                            bacnet_results = {}
-                        else:
-                            _log.debug(f"mutex locked for {target_address}")
-                            raise exc
-                    except PointErrorException as exc_e:
-                        _log.debug(exc_e.message)
-                        if not hasattr(exc, "message"):
-                            _log.warning(f"exception has no message: {exc=}")
-                            # raise exc_e from exc
-                        if "Segmentation not supported" in str(exc) or "segmentationNotSupported" in str(exc):
-                            exc_e.message = f"failed to scrape: {exc_e.address}/{exc_e.object_type}/{exc_e.instance_number} - segmentationNotSupported"
-                        else:
-                            exc_e.message = f"failed to scrape: {exc_e.address}/{exc_e.object_type}/{exc_e.instance_number}"
-                        _log.debug(exc_e.message)
-                        raise exc_e from exc
+                        _log.debug(f"error reading multiple properties for {target_address} {exc}")
+                        raise exc
                     except gevent.Timeout as exc_e:
                         _log.debug(exc_e)
                         continue
                 except Exception as exc:
-                    if not self.error_mutex[target_address].locked():
-                        # bacnet_results = self.find_error_object(read_access_spec_list, target_address, exc)
-                        bacnet_results = {}
-                    else:
-                        _log.debug(f"mutex locked for {target_address}")
-                        raise gevent.Timeout("mutex locked")
                     _log.error(f"{exc} {target_address=} {request=}")
-                    _log.debug(f"{dir(request)=}")
                     raise exc
                     
                 _log.debug("Received read response from {target} count: {count}".format(
