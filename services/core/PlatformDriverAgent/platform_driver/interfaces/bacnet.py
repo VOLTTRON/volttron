@@ -98,6 +98,8 @@ class Interface(BaseInterface):
         self.register_count_divisor = 1
         self.cov_points = []
         self.use_read_multiple = True
+        self.enable_collection = True
+        self.collection_disabled_time = None
         # self.unresponsive_devices = {}
 
     def configure(self, config_dict, registry_config_str):
@@ -212,15 +214,11 @@ class Interface(BaseInterface):
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
 
-        # if self.target_address in self.unresponsive_devices:
-        #     # if device is unresponsive, don't try to read it
-        #     now = datetime.now()
-        #     if now - self.unresponsive_devices[self.target_address] > timedelta(
-        #         hours=24
-        #     ):
-        #         self.unresponsive_devices.pop(self.target_address)
-        #     else:
-        #         return {}
+        if self.enable_collection is False:
+            if datetime.now() - self.collection_disabled_time < timedelta(hours=24):
+                return
+            else:
+                self.enable_collection = True
 
         for register in read_registers + write_registers:
             point_map[register.point_name] = [
@@ -249,6 +247,16 @@ class Interface(BaseInterface):
                 if "unknownProperty" in exc.message:
                     _log.debug(f"unknownProperty error: {exc.message}")
                     # self.vip.config.set("unknown_properties", exc.message)
+                if "noResponse" in exc.message and self.use_read_multiple:
+                    _log.warning(
+                        f"device {self.target_address} did not respond reading multiple"
+                    )
+                    self.use_read_multiple = False
+                    continue
+                elif "noResponse" in exc.message and not self.use_read_multiple:
+                    # disable device for collection
+                    self.enable_collection = False
+                    break
                 if "segmentationNotSupported" in exc.message:
                     if self.max_per_request <= 1:
                         _log.error(
@@ -363,10 +371,8 @@ class Interface(BaseInterface):
                 )
 
                 self.insert_register(register)
-            except Exception as exc: # pylint: disable=broad-except
-                _log.error(
-                    f"Error parsing register definition: {regDef=} {exc=}"
-                )
+            except Exception as exc:  # pylint: disable=broad-except
+                _log.error(f"Error parsing register definition: {regDef=} {exc=}")
 
             if is_cov:
                 self.cov_points.append(point_name)
