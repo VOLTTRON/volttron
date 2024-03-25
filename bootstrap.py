@@ -227,7 +227,7 @@ def main(argv=sys.argv):
         sys.exit(77)
 
     # Python3 for life!
-    if sys.version_info.major < 3 or sys.version_info.minor < 6:
+    if sys.version_info.major < 3 or sys.version_info.minor < 8:
         sys.stderr.write('error: Python >= 3.8 is required\n')
         sys.exit(1)
 
