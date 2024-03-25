@@ -37,7 +37,7 @@ def execute_command(cmds,
     raise a RuntimeError.  If logger is specified then write the exception
     to the logger otherwise this call will remain silent.
 
-    :param cmds:list of commands to pass to subprocess.run
+    :param cmds: list of commands to pass to subprocess.run
     :param env: environment to run the command with
     :param cwd: working directory for the command
     :param logger: a logger to use if errors occure
@@ -46,26 +46,27 @@ def execute_command(cmds,
 
     :raises RuntimeError: if the return code is not 0 from suprocess.run
     """
-
-    results = subprocess.run(cmds,
-                             env=env,
-                             cwd=cwd,
-                             stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             shell=use_shell)
-    if results.returncode != 0:
+    try:
+        results = subprocess.run(
+            cmds,
+            env=env,
+            cwd=cwd,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            shell=use_shell,
+            check=True
+        )
+        return results.stdout.decode('utf-8')
+    except subprocess.CalledProcessError as e:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
-        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
-                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
-                                                          results.args,
-                                                          results.stderr)
+        err_message = f"\n{err_prefix}: Command failed with non-zero exit code.\n" \
+                      f"Command: {e.cmd}\n" \
+                      f"Return Code: {e.returncode}\n" \
+                      f"Stdout:\n{e.stdout.decode('utf-8')}\n" \
+                      f"Stderr:\n{e.stderr.decode('utf-8')}\n"
         if logger:
             logger.exception(err_message)
-            raise RuntimeError(err_message)
-        else:
-            raise RuntimeError(err_message)
-
-    return results.stdout.decode('utf-8')
+        raise RuntimeError(err_message)
 
 
 class Mock(MagicMock):
