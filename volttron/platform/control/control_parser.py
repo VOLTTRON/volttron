@@ -24,27 +24,26 @@
 
 # Monkeypatch for gevent
 from volttron.utils import monkey_patch
+
 monkey_patch()
 
 import argparse
 import collections
 import logging
-import logging.handlers
 import logging.config
+import logging.handlers
 import os
 import sys
-
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
 import gevent
 import gevent.event
 
-# noinspection PyUnresolvedReferences
-
 from volttron.platform import aip as aipmod
-from volttron.platform import config
-from volttron.platform import get_home, get_address
-from volttron.platform import jsonapi
+from volttron.platform import config, get_address, get_home, is_rabbitmq_available, jsonapi
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import PLATFORM_HEALTH
+from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.platform.control.control_auth import add_auth_parser
 from volttron.platform.control.control_certs import add_certs_parser
 from volttron.platform.control.control_config import add_config_store_parser
@@ -52,25 +51,18 @@ from volttron.platform.control.control_connection import ControlConnection
 from volttron.platform.control.control_rmq import add_rabbitmq_parser
 from volttron.platform.control.control_rpc import add_rpc_agent_parser
 from volttron.platform.control.control_utils import (
-    _list_agents,
-    _show_filtered_agents,
-    _show_filtered_agents_status,
-    filter_agent,
-    filter_agents,
-    get_filtered_agents
-    )
-from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import PLATFORM_HEALTH
+    _list_agents, _show_filtered_agents, _show_filtered_agents_status,
+    filter_agent, filter_agents, get_filtered_agents)
+from volttron.platform.control.install_agents import InstallRuntimeError, add_install_agent_parser
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.vip.agent.errors import Unreachable, VIPError
 
-from volttron.platform.vip.agent.errors import VIPError, Unreachable
-from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
-from volttron.platform.control.install_agents import add_install_agent_parser, InstallRuntimeError
-from volttron.platform import is_rabbitmq_available
+# noinspection PyUnresolvedReferences
+
 if is_rabbitmq_available():
-    from volttron.utils.rmq_setup import check_rabbit_status
     from volttron.utils.rmq_config_params import RMQConfig
+    from volttron.utils.rmq_setup import check_rabbit_status
 
 try:
     import volttron.restricted
@@ -86,8 +78,7 @@ _stderr = sys.stderr
 
 # will be volttron.platform.main or main.py instead of __main__
 _log = logging.getLogger(
-    os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__
-)
+    os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 # Allows server side logging.
 # _log.setLevel(logging.DEBUG)
 
@@ -96,16 +87,16 @@ rmq_mgmt = None
 
 CHUNK_SIZE = 4096
 
-def log_to_file(file, level=logging.WARNING,
+
+def log_to_file(file,
+                level=logging.WARNING,
                 handler_class=logging.StreamHandler):
     """Direct log output to a file (or something like one)."""
     handler = handler_class(file)
     handler.setLevel(level)
     handler.setFormatter(
         utils.AgentFormatter(
-            "%(asctime)s %(composite_name)s %(levelname)s: %(message)s"
-        )
-    )
+            "%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
@@ -123,17 +114,17 @@ def tag_agent(opts):
             msg = "multiple agents selected"
         else:
             msg = "agent not found"
-        _stderr.write(
-            "{}: error: {}: {}\n".format(opts.command, msg, opts.agent))
+        _stderr.write("{}: error: {}: {}\n".format(opts.command, msg,
+                                                   opts.agent))
         return 10
-    (agent,) = agents
+    (agent, ) = agents
     if opts.tag:
         _stdout.write("Tagging {} {}\n".format(agent.uuid, agent.name))
         opts.aip.tag_agent(agent.uuid, opts.tag)
     elif opts.remove:
         if agent.tag is not None:
-            _stdout.write(
-                "Removing tag for {} {}\n".format(agent.uuid, agent.name))
+            _stdout.write("Removing tag for {} {}\n".format(
+                agent.uuid, agent.name))
             opts.aip.tag_agent(agent.uuid, None)
     else:
         if agent.tag is not None:
@@ -144,27 +135,25 @@ def remove_agent(opts, remove_auth=True):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command,
-                                                          pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         elif len(match) > 1 and not opts.force:
             _stderr.write(
                 "{}: error: pattern returned multiple agents: {}\n".format(
-                    opts.command, pattern
-                )
-            )
+                    opts.command, pattern))
             _stderr.write(
                 "Use -f or --force to force removal of multiple agents.\n")
             return 10
         for agent in match:
             _stdout.write("Removing {} {}\n".format(agent.uuid, agent.name))
-            opts.connection.call("remove_agent", agent.uuid,
+            opts.connection.call("remove_agent",
+                                 agent.uuid,
                                  remove_auth=remove_auth)
 
 
 # TODO: Remove AIP
 def list_agents(opts):
+
     def get_priority(agent):
         return opts.aip.agent_priority(agent.uuid) or ""
 
@@ -193,11 +182,8 @@ def update_health_cache(opts):
     do_update = True
     # Make sure we update if we don't have any health dicts, or if the cache
     # has timed out.
-    if (
-        health_cache_timeout_date is not None
-        and t_now < health_cache_timeout_date
-        and health_cache
-    ):
+    if (health_cache_timeout_date is not None
+            and t_now < health_cache_timeout_date and health_cache):
         do_update = False
 
     if do_update:
@@ -205,12 +191,10 @@ def update_health_cache(opts):
         if opts.connection.server:
             health_cache.update(
                 opts.connection.server.vip.rpc.call(
-                    PLATFORM_HEALTH, "get_platform_health"
-                ).get(timeout=4)
-            )
+                    PLATFORM_HEALTH, "get_platform_health").get(timeout=4))
             health_cache_timeout_date = datetime.now() + timedelta(
-                seconds=health_cache_timeout
-            )
+                seconds=health_cache_timeout)
+
 
 # TODO: Remove AIP
 def status_agents(opts):
@@ -229,12 +213,14 @@ def status_agents(opts):
             agent = agents[uuid]
             agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            Agent = collections.namedtuple("Agent",
-                                           "name tag uuid vip_identity "
-                                           "agent_user")
-            agents[uuid] = agent = Agent(
-                name, None, uuid, vip_identity=identity, agent_user=agent_user
-            )
+            Agent = collections.namedtuple(
+                "Agent", "name tag uuid vip_identity "
+                "agent_user")
+            agents[uuid] = agent = Agent(name,
+                                         None,
+                                         uuid,
+                                         vip_identity=identity,
+                                         agent_user=agent_user)
         status[uuid] = stat
     agents = list(agents.values())
 
@@ -268,6 +254,7 @@ def status_agents(opts):
 
     _show_filtered_agents_status(opts, get_status, get_health, agents)
 
+
 #TODO: Remove AIP
 def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
@@ -295,21 +282,17 @@ def agent_health(opts):
 def clear_status(opts):
     opts.connection.call("clear_status", opts.clear_all)
 
+
 # TODO: Remove AIP
 def enable_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command,
-                                                          pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         for agent in match:
-            _stdout.write(
-                "Enabling {} {} with priority {}\n".format(
-                    agent.uuid, agent.name, opts.priority
-                )
-            )
+            _stdout.write("Enabling {} {} with priority {}\n".format(
+                agent.uuid, agent.name, opts.priority))
             opts.aip.prioritize_agent(agent.uuid, opts.priority)
 
 
@@ -317,15 +300,13 @@ def disable_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command,
-                                                          pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         for agent in match:
             priority = opts.aip.agent_priority(agent.uuid)
             if priority is not None:
-                _stdout.write(
-                    "Disabling {} {}\n".format(agent.uuid, agent.name))
+                _stdout.write("Disabling {} {}\n".format(
+                    agent.uuid, agent.name))
                 opts.aip.prioritize_agent(agent.uuid, None)
 
 
@@ -358,12 +339,16 @@ def act_on_agent(action, opts):
         agents, pattern_to_use = [a for a in agents if a.tag is not None], '*'
 
     # filter agents and update regex pattern
-    for pattern, filtered_agents in filter_agents(agents, pattern_to_use, opts):
+    for pattern, filtered_agents in filter_agents(agents, pattern_to_use,
+                                                  opts):
         if not filtered_agents:
-            _stderr.write(f"Agents NOT found using 'vctl {opts.command}' on pattern: {pattern}\n")
+            _stderr.write(
+                f"Agents NOT found using 'vctl {opts.command}' on pattern: {pattern}\n"
+            )
         for agent in filtered_agents:
             pid, status = call("agent_status", agent.uuid)
-            _call_action_on_agent(agent, pid, status, call,  action)
+            _call_action_on_agent(agent, pid, status, call, action)
+
 
 def _call_action_on_agent(agent, pid, status, call, action):
     if action == "start_agent":
@@ -389,23 +374,17 @@ def shutdown_agents(opts):
     if "rmq" == utils.get_messagebus():
         if not check_rabbit_status():
             rmq_cfg = RMQConfig()
-            wait_period = (
-                rmq_cfg.reconnect_delay() if rmq_cfg.reconnect_delay() < 60
-                else 60
-            )
+            wait_period = (rmq_cfg.reconnect_delay()
+                           if rmq_cfg.reconnect_delay() < 60 else 60)
             _stderr.write(
                 "RabbitMQ server is not running.\n"
                 "Waiting for {} seconds for possible reconnection and to "
-                "perform normal shutdown\n".format(
-                    wait_period
-                )
-            )
+                "perform normal shutdown\n".format(wait_period))
             gevent.sleep(wait_period)
             if not check_rabbit_status():
                 _stderr.write(
                     "RabbitMQ server is still not running.\nShutting down "
-                    "the platform forcefully\n"
-                )
+                    "the platform forcefully\n")
                 opts.aip.brute_force_platform_shutdown()
                 return
     opts.connection.call("shutdown")
@@ -442,9 +421,8 @@ def _send_agent(connection, peer, path):
             wheel.close()
             channel.close(linger=0)
 
-    result = connection.vip.rpc.call(
-        peer, "install_agent", os.path.basename(path), channel.name
-    )
+    result = connection.vip.rpc.call(peer, "install_agent",
+                                     os.path.basename(path), channel.name)
     task = gevent.spawn(send)
     result.rawlink(lambda glt: task.kill(block=False))
     _log.debug(f"Result is {result}")
@@ -456,9 +434,6 @@ def send_agent(opts):
     for wheel in opts.wheel:
         uuid = _send_agent(connection.server, connection.peer, wheel).get()
         return uuid
-
-
-
 
 
 def do_stats(opts):
@@ -478,7 +453,6 @@ def do_stats(opts):
         _stdout.write("%sabled\n" % ("en" if call("stats.enabled") else "dis"))
 
 
-
 def priority(value):
     n = int(value)
     if not 0 <= n < 100:
@@ -493,17 +467,18 @@ def get_keys(opts):
     key_store = KeyStore()
     publickey = key_store.public
     secretkey = key_store.secret
-    return {"publickey": publickey, "secretkey": secretkey,
-            "serverkey": serverkey}
+    return {
+        "publickey": publickey,
+        "secretkey": secretkey,
+        "serverkey": serverkey
+    }
 
 
 def main():
     # Refuse to run as root
     if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write(
-            "%s: error: refusing to run as root to prevent "
-            "potential damage.\n" % os.path.basename(sys.argv[0])
-        )
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(sys.argv[0]))
         sys.exit(77)
 
     volttron_home = get_home()
@@ -534,8 +509,7 @@ def main():
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
     global_args.add_argument(
-        "--msgdebug", help="route all messages to an agent while debugging"
-    )
+        "--msgdebug", help="route all messages to an agent while debugging")
     global_args.add_argument(
         "--vip-address",
         metavar="ZMQADDR",
@@ -554,21 +528,24 @@ def main():
         action="store_true",
         help="filter/search by agent name",
     )
-    filterable.add_argument(
-        "--tag", dest="by_tag", action="store_true",
-        help="filter/search by tag name"
-    )
-    filterable.add_argument(
-        "--all-tagged", dest="by_all_tagged", action="store_true",
-        help="filter/search by all tagged agents"
-    )
+    filterable.add_argument("--tag",
+                            dest="by_tag",
+                            action="store_true",
+                            help="filter/search by tag name")
+    filterable.add_argument("--all-tagged",
+                            dest="by_all_tagged",
+                            action="store_true",
+                            help="filter/search by all tagged agents")
     filterable.add_argument(
         "--uuid",
         dest="by_uuid",
         action="store_true",
         help="filter/search by UUID (default)",
     )
-    filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
+    filterable.set_defaults(by_name=False,
+                            by_tag=False,
+                            by_all_tagged=False,
+                            by_uuid=False)
 
     parser = config.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
@@ -614,12 +591,13 @@ def main():
         default=logging.WARNING,
         help="set logger verboseness",
     )
-    parser.add_argument("--show-config", action="store_true",
+    parser.add_argument("--show-config",
+                        action="store_true",
                         help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--json", action="store_true", default=False,
-        help="format output to json"
-    )
+    parser.add_argument("--json",
+                        action="store_true",
+                        default=False,
+                        help="format output to json")
 
     parser.add_help_argument()
     parser.set_defaults(
@@ -627,9 +605,9 @@ def main():
         volttron_home=volttron_home,
     )
 
-    top_level_subparsers = parser.add_subparsers(
-        title="commands", metavar="", dest="command"
-    )
+    top_level_subparsers = parser.add_subparsers(title="commands",
+                                                 metavar="",
+                                                 dest="command")
 
     def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         parents = kwargs.get("parents", [])
@@ -643,28 +621,32 @@ def main():
     # ====================================================
     add_install_agent_parser(add_parser, HAVE_RESTRICTED)
 
-    tag = add_parser("tag", parents=[filterable],
+    tag = add_parser("tag",
+                     parents=[filterable],
                      help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
     group = tag.add_mutually_exclusive_group()
     group.add_argument("tag", nargs="?", const=None, help="tag to give agent")
-    group.add_argument("-r", "--remove", action="store_true",
+    group.add_argument("-r",
+                       "--remove",
+                       action="store_true",
                        help="remove tag")
     tag.set_defaults(func=tag_agent, tag=None, remove=False)
 
     remove = add_parser("remove", parents=[filterable], help="remove agent")
     remove.add_argument("pattern", nargs="+", help="UUID or name of agent")
-    remove.add_argument(
-        "-f", "--force", action="store_true",
-        help="force removal of multiple agents"
-    )
+    remove.add_argument("-f",
+                        "--force",
+                        action="store_true",
+                        help="force removal of multiple agents")
     remove.set_defaults(func=remove_agent, force=False)
 
     peers = add_parser("peerlist",
                        help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    list_ = add_parser("list", parents=[filterable],
+    list_ = add_parser("list",
+                       parents=[filterable],
                        help="list installed agent")
     list_.add_argument("pattern", nargs="*", help="UUID or name of agent")
     list_.add_argument(
@@ -676,7 +658,8 @@ def main():
     )
     list_.set_defaults(func=list_agents, min_uuid_len=1)
 
-    status = add_parser("status", parents=[filterable],
+    status = add_parser("status",
+                        parents=[filterable],
                         help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
@@ -688,9 +671,9 @@ def main():
     )
     status.set_defaults(func=status_agents, min_uuid_len=1)
 
-    health = add_parser(
-        "health", parents=[filterable], help="show agent health as JSON"
-    )
+    health = add_parser("health",
+                        parents=[filterable],
+                        help="show agent health as JSON")
     health.add_argument("pattern", nargs=1, help="UUID or name of agent")
     health.set_defaults(func=agent_health, min_uuid_len=1)
 
@@ -704,27 +687,29 @@ def main():
     )
     clear.set_defaults(func=clear_status, clear_all=False)
 
-    enable = add_parser(
-        "enable", parents=[filterable],
-        help="enable agent to start automatically"
-    )
+    enable = add_parser("enable",
+                        parents=[filterable],
+                        help="enable agent to start automatically")
     enable.add_argument("pattern", nargs="+", help="UUID or name of agent")
-    enable.add_argument(
-        "-p", "--priority", type=priority,
-        help="2-digit priority from 00 to 99"
-    )
+    enable.add_argument("-p",
+                        "--priority",
+                        type=priority,
+                        help="2-digit priority from 00 to 99")
     enable.set_defaults(func=enable_agent, priority="50")
 
-    disable = add_parser(
-        "disable", parents=[filterable],
-        help="prevent agent from start automatically"
-    )
+    disable = add_parser("disable",
+                         parents=[filterable],
+                         help="prevent agent from start automatically")
     disable.add_argument("pattern", nargs="+", help="UUID or name of agent")
     disable.set_defaults(func=disable_agent)
 
-    start = add_parser("start", parents=[filterable],
+    start = add_parser("start",
+                       parents=[filterable],
                        help="start installed agent")
-    start.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
+    start.add_argument("pattern",
+                       nargs="*",
+                       help="UUID or name of agent",
+                       default='')
     if HAVE_RESTRICTED:
         start.add_argument(
             "--verify",
@@ -741,11 +726,17 @@ def main():
     start.set_defaults(func=start_agent)
 
     stop = add_parser("stop", parents=[filterable], help="stop agent")
-    stop.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
+    stop.add_argument("pattern",
+                      nargs="*",
+                      help="UUID or name of agent",
+                      default='')
     stop.set_defaults(func=stop_agent)
 
     restart = add_parser("restart", parents=[filterable], help="restart agent")
-    restart.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
+    restart.add_argument("pattern",
+                         nargs="*",
+                         help="UUID or name of agent",
+                         default='')
     restart.set_defaults(func=restart_agent)
 
     run = add_parser("run", help="start any agent by path")
@@ -764,7 +755,6 @@ def main():
             help=argparse.SUPPRESS,
         )
     run.set_defaults(func=run_agent)
-
 
     # ====================================================
     # rpc commands
@@ -787,10 +777,9 @@ def main():
     add_config_store_parser(add_parser)
 
     shutdown = add_parser("shutdown", help="stop all agents")
-    shutdown.add_argument(
-        "--platform", action="store_true",
-        help="also stop the platform process"
-    )
+    shutdown.add_argument("--platform",
+                          action="store_true",
+                          help="also stop the platform process")
     shutdown.set_defaults(func=shutdown_agents, platform=False)
 
     send = add_parser("send", help="send agent and start on a remote platform")
@@ -800,9 +789,9 @@ def main():
     stats = add_parser("stats",
                        help="manage router message statistics tracking")
     op = stats.add_argument(
-        "op", choices=["status", "enable", "disable", "dump", "pprint"],
-        nargs="?"
-    )
+        "op",
+        choices=["status", "enable", "disable", "dump", "pprint"],
+        nargs="?")
     stats.set_defaults(func=do_stats, op="status")
 
     # ==============================================================================
@@ -820,12 +809,14 @@ def main():
             "create-cgroups",
             help="setup VOLTTRON control group for restricted execution",
         )
-        cgroup.add_argument(
-            "-u", "--user", metavar="USER", help="owning user name or ID"
-        )
-        cgroup.add_argument(
-            "-g", "--group", metavar="GROUP", help="owning group name or ID"
-        )
+        cgroup.add_argument("-u",
+                            "--user",
+                            metavar="USER",
+                            help="owning user name or ID")
+        cgroup.add_argument("-g",
+                            "--group",
+                            metavar="GROUP",
+                            help="owning group name or ID")
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
     # Parse and expand options
@@ -840,10 +831,8 @@ def main():
         if args[0] not in ("list", "tag", "auth", "rabbitmq", "certs"):
             # check pid file
             if not utils.is_volttron_running(volttron_home):
-                _stderr.write(
-                    "VOLTTRON is not running. This command "
-                    "requires VOLTTRON platform to be running\n"
-                )
+                _stderr.write("VOLTTRON is not running. This command "
+                              "requires VOLTTRON platform to be running\n")
                 return 10
 
     conf = os.path.join(volttron_home, "config")
@@ -868,12 +857,17 @@ def main():
     elif opts.log == "-":
         log_to_file(sys.stdout, level)
     elif opts.log:
-        log_to_file(opts.log, level,
+        log_to_file(opts.log,
+                    level,
                     handler_class=logging.handlers.WatchedFileHandler)
     else:
         log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
+
+    if not hasattr(opts, "func"):
+        parser.print_help()
+        sys.exit(0)
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
