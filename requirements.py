@@ -30,7 +30,7 @@
 # wheel version 0.31 has removed metadata.json file
 # https://github.com/pypa/wheel/issues/195
 # so sticking to 0.30 for now. Could upgrade to wheel 0.31 with code changes
-option_requirements = [('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
+option_requirements = [('pip==24.0', []), ('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
 
 
 install_requires = ['gevent==21.12.0',
