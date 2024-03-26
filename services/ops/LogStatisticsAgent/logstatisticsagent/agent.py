@@ -67,24 +67,27 @@ class LogStatisticsAgent(Agent):
         }
     """
 
-    def __init__(self, config: dict, **kwargs):
+    def __init__(self, config_path=None, **kwargs):
         super(LogStatisticsAgent, self).__init__(**kwargs)
 
         self.last_std_dev_time = get_aware_utc_now()
 
         self.default_config = {
-            "file_path": "/home/volttron/volttron.log",
+            "file_path": f"volttron/volttron.log",
             "analysis_interval_sec": 60,
             "publish_topic": "platform/log_statistics",
             "historian_topic": "analysis/log_statistics"
         }
+        self.vip.config.set_default("config", self.default_config)
+        self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
 
-        # Update config with defaults for any keys not present in config
-        for key, value in self.default_config.items():
-            if config.get(key) is None:
-                _log.info(f"Using default value for {key}: {value}")
-                config[key] = value
+    def configure_main(self, config_name, action, contents):
+        config = self.default_config.copy()
+        config.update(contents)
+        if action == "NEW" or "UPDATE":
+            self.reset_parameters(config)
 
+    def reset_parameters(self, config=None):
         self.analysis_interval_sec = config["analysis_interval_sec"]
         self.file_path = config["file_path"]
         self.publish_topic = config["publish_topic"]
@@ -93,6 +96,8 @@ class LogStatisticsAgent(Agent):
         self.file_start_size = None
         self.prev_file_size = None
         self._scheduled_event = None
+
+        self.publish_analysis()
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
