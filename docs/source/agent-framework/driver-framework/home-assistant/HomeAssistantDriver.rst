@@ -41,21 +41,34 @@ Examples for lights and thermostats are provided below.
 Device configuration
 ++++++++++++++++++++
 
-Device configuration file contains the connection details to you home assistant instance and driver_type as "home_assistant"
+Device configuration file contains the connection details to you home assistant instance.
+
+- **url**:
+  Replace ``[Your Home Assistant IP]`` and ``[Your Port]`` with your Home Assistant's IP address and port number, respectively, removing the brackets ``[]``. Ensure you specify the protocol (``http`` or ``https``) based on your setup. Refer to the `Home Assistant documentation <https://developers.home-assistant.io/docs/auth_api/#long-lived-access-token>`_ for finding your IP address.
+
+- **access_token**:
+  Substitute ``[Your Home Assistant Access Token]`` with your actual access token, again removing the brackets ``[]``. For instructions on obtaining your access token, visit `this guide <https://www.raycast.com/tonka3000/homeassistant>`_.
+
+- **verify_ssl**:
+  Set to true to enable SSL certificate verification or false to bypass it. Default is true. Disabling verification may pose security risks.
+
+- **ssl_cert_path**:
+  Enter the path to your SSL certificate if you are using a custom certificate for verification. Leave this field empty if you are not using a custom certificate. This field is empty by default.
 
 .. code-block:: json
 
-   {
-       "driver_config": {
-           "ip_address": "Your Home Assistant IP",
-           "access_token": "Your Home Assistant Access Token",
-           "port": "Your Port"
-       },
-       "driver_type": "home_assistant",
-       "registry_config": "config://light.example.json",
-       "interval": 30,
-       "timezone": "UTC"
-   }
+    {
+    "driver_config": {
+        "url": "http://[Your Home Assistant IP]:[Your Port]",
+        "access_token": "[Your Home Assistant Access Token]",
+        "verify_ssl": true,
+        "ssl_cert_path": ""
+    },
+    "driver_type": "home_assistant",
+    "registry_config": "config://light.example.json",
+    "interval": 30,
+    "timezone": "UTC"
+    }
 
 Registry Configuration
 +++++++++++++++++++++++
