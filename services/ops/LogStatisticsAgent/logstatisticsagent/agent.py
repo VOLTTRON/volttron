@@ -32,6 +32,7 @@ from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform import get_home
+import time
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class LogStatisticsAgent(Agent):
 
     def __init__(self, config_path=None, **kwargs):
         super(LogStatisticsAgent, self).__init__(**kwargs)
-
+        self.configured = False
         self.last_std_dev_time = get_aware_utc_now()
 
         self.default_config = {
@@ -84,6 +85,7 @@ class LogStatisticsAgent(Agent):
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
         config.update(contents)
+        self.configured = True
         if action == "NEW" or "UPDATE":
             self.reset_parameters(config)
 
@@ -96,8 +98,8 @@ class LogStatisticsAgent(Agent):
         self.file_start_size = None
         self.prev_file_size = None
         self._scheduled_event = None
-
-        self.publish_analysis()
+        if self.configured:
+            self.publish_analysis()
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
@@ -109,6 +111,9 @@ class LogStatisticsAgent(Agent):
         Publishes file's size increment in previous time interval (60 minutes) with timestamp.
         Also publishes standard deviation of file's hourly size differences every 24 hour.
         """
+        if not self.configured:
+            return
+        
         if self._scheduled_event is not None:
             self._scheduled_event.cancel()
 
