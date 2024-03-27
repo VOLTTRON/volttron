@@ -37,7 +37,7 @@ cool_pgm_fri,cool_pgm_sat,cool_pgm_sun,
 
 """
 
-from platform_driver.interfaces import BaseInterface, BaseRegister, DriverInterfaceError
+from platform_driver.interfaces import BaseInterface, BaseRegister
 from . import  thermostat_api
 
 from volttron.platform import jsonapi

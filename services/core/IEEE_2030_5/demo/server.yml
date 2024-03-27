@@ -1,0 +1,102 @@
+---
+server: 127.0.0.1
+port: 8443
+
+
+tls_repository: "~/tls"
+openssl_cnf: "openssl.cnf"
+
+server_mode: enddevices_create_on_start
+
+# lfdi_mode: Determines what piece of information is used to calculate the lfdi
+#
+# Options:
+#   lfdi_mode_from_file             - sha256 hash of certificate file's content.
+#   lfdi_mode_from_cert_fingerprint - sha256 hash of the certificates fingerprint.
+#
+# default: lfdi_mode_from_cert_fingerprint
+#lfdi_mode: lfdi_mode_from_file
+lfdi_mode: lfdi_mode_from_cert_fingerprint
+
+# Create an administrator certificate that can be used from
+# browser/api to connect to the platform.
+#
+# this is important for the demo
+generate_admin_cert: True
+
+log_event_list_poll_rate: 60
+device_capability_poll_rate: 60
+mirror_usage_point_post_rate: 15
+
+# Reset storage so no memory when server restarts.
+cleanse_storage: true
+
+# Directory containing data files for the platform.
+# This directory will be created if it does not exist.
+storage_path: data_store
+
+# End Device
+devices:
+  # SolarEdge SE6000H HD-Wave SetApp Enabled Inverter
+  - id: dev1
+    # DeviceCategoryType from ieee_2030_5.models.DeviceCategoryType
+    device_categories:
+      - OTHER_STORAGE_SYSTEMS
+      - OTHER_GENERATION_SYSTEMS
+    pin: 111115
+    fsas:
+      - fsa1
+      - fsa2
+    ders:
+      - description: DER 1
+
+  - id: dev2
+    device_categories:
+      - OTHER_STORAGE_SYSTEMS
+      - OTHER_GENERATION_SYSTEMS
+    pin: 111111
+    fsas:
+      - fsa2
+    ders:
+      - description: DER 2
+
+
+fsas:
+  - description: fsa1
+    programs:
+    - Program 1
+  - description: fsa2
+    programs:
+    - Program 1
+
+
+
+programs:
+  - description: Program 1
+    primacy: 0
+    DefaultDERControl:
+      setESDelay: 30
+      setGradW: 1000
+
+      DERControlBase:
+        opModConnect: true
+        opModEnergize: true
+
+curves:
+  - description: Curve 1
+    curveType: 11
+    CurveData:
+      - xvalue: 99
+        yvalue: 50
+      - xvalue: 103
+        yvalue: -50
+      - xvalue: 101
+        yvalue: -50
+      - xvalue: 97
+        yvalue: 50
+    rampDecTms: 600
+    rampIncTms: 600
+    rampPT1Tms: 10
+    xMultiplier: 0
+    yMultiplier: 0
+    yRefType: 3

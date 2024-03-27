@@ -12,18 +12,10 @@ Contributing back to the project, which is encouraged but not required, enhances
 To learn more, check out :ref:`Contributing <Contributing-Code>` and :ref:`Documentation <Contributing-Documentation>`.
 
 
-Slack Channel
-=============
-
-volttron-community.slack.com is where the |VOLTTRON| community at large can ask questions and meet with others
-using |VOLTTRON|.  To be added to Slack please email the VOLTTRON team at
-`volttron@pnnl.gov <mailto:volttron@pnnl.gov?subject=Subscribe%20To%20List>`__.
-
-
 Mailing List
 ============
 
-Join the mailing list by emailing `volttron@pnnl.gov <mailto:volttron@pnnl.gov?subject=Subscribe%20To%20List>`__.
+Join the mailing list at Eclipse: https://projects.eclipse.org/projects/iot.volttron/contact
 
 
 Stack Overflow
@@ -39,8 +31,8 @@ Office Hours
 PNNL hosts office hours every other week on Fridays at 11 AM (PST). These meetings are designed to be very informal
 where VOLTTRON developers can answer specific questions about the inner workings of VOLTTRON. These meetings are also
 available for topical discussions of different aspects of the VOLTTRON platform. Currently the office hours are
-available through a Zoom meeting. To be invited to the link meeting, contact the volttron team via email:
-`<volttron@pnnl.gov>`__
+available through a Zoom meeting. All members of the mailing list will receive invites to the meetings.  Join the
+mailing list https://projects.eclipse.org/projects/iot.volttron/contact.
 
 Meetings are recorded and can be reviewed `here <https://volttron.org/office-hours>`__.
 

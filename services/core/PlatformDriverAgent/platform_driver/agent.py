@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import logging
@@ -75,7 +61,7 @@ def platform_driver_agent(config_path, **kwargs):
 
     # Increase open files resource limit to max or 8192 if unlimited
     system_socket_limit = None
-    
+
     try:
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     except OSError:
@@ -99,7 +85,7 @@ def platform_driver_agent(config_path, **kwargs):
     max_concurrent_publishes = get_config('max_concurrent_publishes', 10000)
 
     driver_config_list = get_config('driver_config_list')
-    
+
     scalability_test = get_config('scalability_test', False)
     scalability_test_iterations = get_config('scalability_test_iterations', 3)
 
@@ -193,7 +179,7 @@ class PlatformDriverAgent(Agent):
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
         self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
-        
+
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
         config.update(contents)
@@ -391,16 +377,16 @@ class PlatformDriverAgent(Agent):
     #     _log.debug("Driver hooked up for "+topic)
     #     topic = topic.strip('/')
     #     self.instances[topic] = driver
-        
+
     def scrape_starting(self, topic):
         if not self.scalability_test:
             return
-        
+
         if not self.waiting_to_finish:
             # Start a new measurement
             self.current_test_start = datetime.now()
             self.waiting_to_finish = set(self.instances.keys())
-            
+
         if topic not in self.waiting_to_finish:
             _log.warning(
                 f"{topic} started twice before test finished, increase the length of scrape interval and rerun test")
@@ -408,7 +394,7 @@ class PlatformDriverAgent(Agent):
     def scrape_ending(self, topic):
         if not self.scalability_test:
             return
-        
+
         try:
             self.waiting_to_finish.remove(topic)
         except KeyError:
@@ -420,15 +406,15 @@ class PlatformDriverAgent(Agent):
             delta = end - self.current_test_start
             delta = delta.total_seconds()
             self.test_results.append(delta)
-            
+
             self.test_iterations += 1
-            
+
             _log.info("publish {} took {} seconds".format(self.test_iterations, delta))
-            
+
             if self.test_iterations >= self.scalability_test_iterations:
                 # Test is now over. Button it up and shutdown.
-                mean = math_utils.mean(self.test_results) 
-                stdev = math_utils.stdev(self.test_results) 
+                mean = math_utils.mean(self.test_results)
+                stdev = math_utils.stdev(self.test_results)
                 _log.info("Mean total publish time: "+str(mean))
                 _log.info("Std dev publish time: "+str(stdev))
                 sys.exit(0)
@@ -492,7 +478,7 @@ class PlatformDriverAgent(Agent):
                 "Cannot set point on device {} since global override is set".format(path))
         else:
             return self.instances[path].set_multiple_points(point_names_values, **kwargs)
-    
+
     @RPC.export
     def heart_beat(self):
         """RPC method
@@ -502,7 +488,7 @@ class PlatformDriverAgent(Agent):
         _log.debug("sending heartbeat")
         for device in self.instances.values():
             device.heart_beat()
-            
+
     @RPC.export
     def revert_point(self, path, point_name, **kwargs):
         """RPC method

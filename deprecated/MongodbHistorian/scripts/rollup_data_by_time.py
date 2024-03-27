@@ -236,7 +236,7 @@ def execute_batch(table_type, bulk, count, topic_id, topic_name):
                 "bulk execute of {} data for {}:{}.\nnumber of op sent to "
                 "bulk execute ({}) does not match nModified count".format(
                     table_type, topic_id, topic_name, count))
-            print ("bulk execute result {}".format(result))
+            print("bulk execute result {}".format(result))
             errors = True
     except BulkWriteError as ex:
         print(str(ex.details))
@@ -338,7 +338,7 @@ def init_hourly_data(db, data_collection, start_dt, end_dt):
 if __name__ == '__main__':
     start = datetime.utcnow()
 
-    print ("Starting rollup of data from {} to {}. current time: {}".format(
+    print("Starting rollup of data from {} to {}. current time: {}".format(
         start_date, end_date, start))
 
     pool = Pool(size=10)
@@ -370,13 +370,13 @@ if __name__ == '__main__':
                 source_db = connect_mongodb(local_source_params)
                 s_dt = datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f')
                 e_dt = datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f')
-                print ("Starting init of tables")
+                print("Starting init of tables")
                 init_start = datetime.utcnow()
                 init_daily_data(source_db,
                                 source_tables['data_table'],
                                 s_dt,
                                 e_dt)
-                print ("Total time for init of daily data "
+                print("Total time for init of daily data "
                        "between {} and {} : {} "
                        "".format(start_date, end_date,
                                  datetime.utcnow() - init_start))
@@ -385,7 +385,7 @@ if __name__ == '__main__':
                                  source_tables['data_table'],
                                  s_dt,
                                  e_dt)
-                print ("Total time for init of hourly data "
+                print("Total time for init of hourly data "
                        "between {} and {} : {} "
                        "".format(start_date, end_date,
                                  datetime.utcnow() - init_start))
@@ -419,7 +419,7 @@ if __name__ == '__main__':
         print("Exception processing data: {}".format(e.args))
     finally:
         pool.kill()
-        print ("Total time for roll up of data : {}".format(
+        print("Total time for roll up of data : {}".format(
             datetime.utcnow() - start))
         if log:
             log.close()

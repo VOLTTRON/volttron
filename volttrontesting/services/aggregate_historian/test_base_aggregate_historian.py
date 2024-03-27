@@ -124,7 +124,7 @@ def test_time_slice_calculation_realtime():
     # month aggregation period
     start, end = AggregateHistorian.compute_aggregation_time_slice(
         utc_collection_start_time, '2M', False)
-    print (start, end)
+    print(start, end)
     assert end == utc_collection_start_time
     assert start == utc_collection_start_time - timedelta(days=60)
     try:

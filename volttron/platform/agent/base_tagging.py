@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 """
@@ -84,7 +70,7 @@ _log = logging.getLogger(__name__)
 
 class BaseTaggingService(Agent):
     """This is the base class for tagging service implementations. There can
-    be different implementations based on backend/data store used to persist 
+    be different implementations based on backend/data store used to persist
     the tag details
     """
 
@@ -129,7 +115,7 @@ class BaseTaggingService(Agent):
     def setup(self):
         """
         Called on start of agent
-        Method to establish database connection, do any initial 
+        Method to establish database connection, do any initial
         bootstrap necessary. Example - load master list of tags, units,
         categories etc. into data store/memory
         """
@@ -207,26 +193,26 @@ class BaseTaggingService(Agent):
                              include_description=False, skip=0, count=None,
                              order="FIRST_TO_LAST"):
         """
-        Get the list of tags for a given category name. category can have 
+        Get the list of tags for a given category name. category can have
         multiple tags and tags could belong to multiple categories
-        
-        :param category: name of the category for which associated tags 
+
+        :param category: name of the category for which associated tags
          should be returned
-        :param include_kind: indicate if result should include the 
+        :param include_kind: indicate if result should include the
          kind/datatype for tags returned
-        :param include_description: indicate if result should include 
+        :param include_description: indicate if result should include
          available description for tags returned
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or "LAST_TO_FIRST"
         :return: Will return one of the following
-        
-          - list of tag names  
-          - list of (tags, its data type/kind) if include_kind is True 
+
+          - list of tag names
+          - list of (tags, its data type/kind) if include_kind is True
           - list of (tags, description) if include_description is True
           - list of (tags, its data type/kind, description) if include_kind
             is True and include_description is true
-          
+
         :type category: str
         :type include_kind: bool
         :type include_description: bool
@@ -282,17 +268,17 @@ class BaseTaggingService(Agent):
         """
         Get the list of tags for a given topic prefix or name.
 
-        :param topic_prefix: topic_prefix for which associated tags should 
+        :param topic_prefix: topic_prefix for which associated tags should
          be returned
-        :param include_kind: indicate if result should include the 
+        :param include_kind: indicate if result should include the
          kind/datatype for tags returned
-        :param include_description: indicate if result should include 
+        :param include_description: indicate if result should include
          available description for tags returned
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or  "LAST_TO_FIRST"
         :return: Will return one of the following
-        
+
           - list of (tag name, value)
           - list of (tag name, value, data type/kind) if include_kind is True
           - list of (tag name, value, description) if include_description is True
@@ -403,14 +389,14 @@ class BaseTaggingService(Agent):
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
                       "LAST_TO_FIRST"
-        
+
         :type and_condition: dict or list
         :type or_condition: dict or list
         :type condition: str
         :type skip: int
         :type count: int
         :type order: str
-        :return: list of topics/topic_prefix that match the given query 
+        :return: list of topics/topic_prefix that match the given query
          conditions
         :rtype: list
         """
@@ -500,9 +486,9 @@ class BaseTaggingService(Agent):
         matching any given input topic pattern or specific topic prefix.
 
         :param topic_prefix: topic name or topic name prefix
-        :param tags: dictionary of tag and value in the format 
+        :param tags: dictionary of tag and value in the format
          {<valid tag>:value, <valid_tag>: value,... }
-        :param update_version: True/False. Default to False. 
+        :param update_version: True/False. Default to False.
          If set to True and if any of the tags update an existing tag
          value the older value would be preserved as part of tag version history
         :type topic_prefix: str
@@ -521,7 +507,7 @@ class BaseTaggingService(Agent):
         :py:meth:`BaseTaggingService.get_matching_topic_prefixes` to get the
         list of topic prefix or topic names for a given topic pattern.
 
-        :param tags: dictionary object or file containing the topic and the 
+        :param tags: dictionary object or file containing the topic and the
          tag details. Dictionary object or the file content should be of the
          format
          <topic_name or prefix or topic_name pattern>: {<valid tag>:<value>,
@@ -1054,7 +1040,3 @@ if __name__ == "__main__":
     print("SQLITE QUERY:")
     print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast,
                                                    tag_refs))
-
-
-
-

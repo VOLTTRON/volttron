@@ -2,7 +2,7 @@ import configparser as configparser
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 import uuid
 from urllib.parse import urlencode
 
@@ -170,7 +170,8 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=bind_address,
                              volttron_central_address=volttron_central_address,
-                             volttron_central_serverkey=volttron_central_serverkey)
+                             volttron_central_serverkey=volttron_central_serverkey,
+                             timeout=100)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = grequests.get(discovery).send().response
@@ -305,9 +306,6 @@ class PlatformWrapper:
         # with older 2.0 agents.
         self.opts = None
 
-        keystorefile = os.path.join(self.volttron_home, 'keystore')
-        self.keystore = KeyStore(keystorefile)
-        self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
         # Regardless of what is passed in if using rmq we need auth and ssl.
         if self.messagebus == 'rmq':
@@ -330,9 +328,12 @@ class PlatformWrapper:
 
             # Writes the main volttron config file for this instance.
             store_message_bus_config(self.messagebus, self.instance_name)
-
-            # Update volttron config file with non-auth setting if auth_enabled is False
-            if not self.auth_enabled:
+            if self.auth_enabled:
+                keystorefile = os.path.join(self.volttron_home, 'keystore')
+                self.keystore = KeyStore(keystorefile)
+                self.keystore.generate()
+            else:
+                # Update volttron config file with non-auth setting if auth_enabled is False
                 config_path = os.path.join(self.volttron_home, "config")
                 if os.path.exists(config_path):
                     config = configparser.ConfigParser()
@@ -358,7 +359,6 @@ class PlatformWrapper:
             if not self.debug_mode:
                 self.debug_mode = self.env.get('DEBUG', False)
             self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
-
             self._web_admin_api = None
 
     @property
@@ -419,10 +419,11 @@ class PlatformWrapper:
             self.logit(
                 'Default address was None so setting to current instances')
             address = self.vip_address
+
         if self.auth_enabled:
-            if address is None:
-                serverkey = self.serverkey
             if serverkey is None:
+                serverkey = self.serverkey
+            if serverkey is None and address is not None:
                 self.logit("serverkey wasn't set but the address was.")
                 raise Exception("Invalid state.")
             if publickey is None or secretkey is None:
@@ -479,31 +480,32 @@ class PlatformWrapper:
         print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         if serverkey is None:
             serverkey = self.serverkey
-        if publickey is None:
-            self.logit(f'generating new public secret key pair {KeyStore.get_agent_keystore_path(identity=identity)}')
-            ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
-            publickey = ks.public
-            secretkey = ks.secret
 
         if address is None:
             self.logit('Using vip-address {address}'.format(
                 address=self.vip_address))
             address = self.vip_address
-
-        if publickey and not serverkey:
-            self.logit('using instance serverkey: {}'.format(publickey))
-            serverkey = publickey
-        self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
-        if self.bind_web_address:
-            kwargs['enable_web'] = True
-
-        if 'enable_store' not in kwargs:
-            kwargs['enable_store'] = False
-
-        if capabilities is None:
-            capabilities = dict(edit_config_store=dict(identity=identity))
-        print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         if self.auth_enabled:
+            if publickey is None:
+                self.logit(
+                    f'generating new public secret key pair {KeyStore.get_agent_keystore_path(identity=identity)}')
+                ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
+                publickey = ks.public
+                secretkey = ks.secret
+            if publickey and not serverkey:
+                self.logit('using instance serverkey: {}'.format(publickey))
+                serverkey = publickey
+            self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
+            if self.bind_web_address:
+                kwargs['enable_web'] = True
+
+            if 'enable_store' not in kwargs:
+                kwargs['enable_store'] = False
+
+            if capabilities is None:
+                capabilities = dict(edit_config_store=dict(identity=identity))
+            print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
+
             entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                               capabilities=capabilities,
                               comments="Added by platform wrapper")
@@ -529,6 +531,9 @@ class PlatformWrapper:
             event.wait(timeout=4)
             has_control = False
             times = 0
+            if self.messagebus == 'rmq':
+                # agent seem to need a extra second for agent to establish connection
+                gevent.sleep(1)
             while not has_control and times < 10:
                 times += 1
                 try:
@@ -599,6 +604,9 @@ class PlatformWrapper:
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
+        if not self.auth_enabled:
+            self.logit("Auth is not enabled, so ignore and return False")
+            return False
         with with_os_environ(self.env):
             if isinstance(capabilities, str) or isinstance(capabilities, dict):
                 capabilities = [capabilities]
@@ -619,17 +627,52 @@ class PlatformWrapper:
             # when invoked in quick succession. add_capabilities updates auth.json, gets the peerlist and calls all peers'
             # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
             gevent.sleep(2)
+            return True
 
-    @staticmethod
-    def add_capability(entry, capabilites):
+    file_types = Union[Literal["raw"], Literal["json"], Literal["csv"]]
+
+    def config_store_get(self, vip_identity: str, name: str, file_type: Optional[Literal["raw"]] = None) -> str:
+        with with_os_environ(self.env):
+            self.__wait_for_control_connection_to_exit__()
+            env = self.env.copy()
+            file_type = None if file_type is None else "--raw"
+
+            cmd = ['volttron-ctl', '--json', 'config', 'get', vip_identity, name]
+
+            if file_type:
+                cmd.append(file_type)
+
+            res = execute_command(cmd, env=env, logger=_log)
+
+            print(res)
+            return res
+
+    def config_store_store(self, identity: str, name: str,  infile: Path, file_type: file_types = "json"):
+        with with_os_environ(self.env):
+            self.__wait_for_control_connection_to_exit__()
+            env = self.env.copy()
+            file_type = "--" + file_type
+
+            cmd = ['volttron-ctl', '--json', 'config', 'store', identity, name, infile.absolute().as_posix(), file_type]
+
+            res = execute_command(cmd, env=env, logger=_log)
+
+            print(res)
+
+
+    def add_capability(self, entry, capabilities):
+        if not self.auth_enabled:
+            self.logit("Auth is not enabled, so ignore and return False")
+            return False
         if isinstance(entry, str):
-            if entry not in capabilites:
-                capabilites[entry] = None
+            if entry not in capabilities:
+                capabilities[entry] = None
         elif isinstance(entry, dict):
-            capabilites.update(entry)
+            capabilities.update(entry)
         else:
             raise ValueError("Invalid capability {}. Capability should be string or dictionary or list of string"
                              "and dictionary.")
+        return True
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
@@ -845,12 +888,13 @@ class PlatformWrapper:
             pconfig = os.path.join(self.volttron_home, 'config')
             config = {}
 
-            # Add platform's public key to known hosts file
-            publickey = self.keystore.public
-            known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
-            known_hosts = KnownHostsStore(known_hosts_file)
-            known_hosts.add(self.opts['vip_local_address'], publickey)
-            known_hosts.add(self.opts['vip_address'], publickey)
+            if self.auth_enabled:
+                # Add platform's public key to known hosts file
+                publickey = self.keystore.public
+                known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
+                known_hosts = KnownHostsStore(known_hosts_file)
+                known_hosts.add(self.opts['vip_local_address'], publickey)
+                known_hosts.add(self.opts['vip_address'], publickey)
 
             # Set up the configuration file based upon the passed parameters.
             parser = configparser.ConfigParser()
@@ -900,7 +944,7 @@ class PlatformWrapper:
             # if msgdebug:
             #     cmd.append('--msgdebug')
             if enable_logging:
-                cmd.append('-vv')
+                cmd.append('-v')
             cmd.append('-l{}'.format(self.log_path))
             if setupmode:
                 cmd.append('--setup-mode')
@@ -918,8 +962,9 @@ class PlatformWrapper:
 
             utils.wait_for_volttron_startup(self.volttron_home, timeout)
 
-            self.serverkey = self.keystore.public
-            assert self.serverkey
+            if self.auth_enabled:
+                self.serverkey = self.keystore.public
+                assert self.serverkey
 
             # Use dynamic_agent so we can look and see the agent with peerlist.
             if not setupmode:
@@ -1223,7 +1268,12 @@ class PlatformWrapper:
             disconnected = False
             timer_start = time.time()
             while not disconnected:
-                peers = self.dynamic_agent.vip.peerlist().get(timeout=20)
+                try:
+                    peers = self.dynamic_agent.vip.peerlist().get(timeout=10)
+                except gevent.Timeout:
+                    self.logit("peerlist call timed out. Exiting loop. "
+                               "Not waiting for control connection to exit.")
+                    break
                 disconnected = CONTROL_CONNECTION not in peers
                 if disconnected:
                     break
@@ -1602,10 +1652,9 @@ def mergetree(src, dst, symlinks=False, ignore=None):
         d = os.path.join(dst, item)
         if os.path.isdir(s):
             mergetree(s, d, symlinks, ignore)
-        else:
-            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
+        elif not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
                     dst).st_mtime > 1:
-                shutil.copy2(s, d)
+            shutil.copy2(s, d)
 
 
 class WebAdminApi:

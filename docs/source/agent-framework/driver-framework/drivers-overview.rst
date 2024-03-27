@@ -175,3 +175,4 @@ To view data being published from the fake driver on the message bus, one can
    modbus/modbus-tk-driver
    obix/obix
    ted-driver/the-energy-detective-driver
+   home-assistant/HomeAssistantDriver

@@ -1,0 +1,8 @@
+Point Name,Description,Multiplier,MRID,Writeable,Parameter Type,Notes
+INV_REAL_PWR,Inverter Real Power,,,,ActivePower,2030.5 is in Watts
+INV_REAC_PWR,Inverter Reactive Power,,,,ReactivePower,2030.5 is in vars
+BESS_SETOP_REQ,Energy Storage Set Point,,,True,,
+INV_OPER_STATE,Inverter Operating State,,,True,DERControlBase::opModFixedW,
+INV_REAL_PWR_REQ,Power Request Topic,,,,ActivePower,
+BAT_SOC,,,,True,DERStatus::stateOfChargeStatus,
+target_p,Target Real Power,,,True,DERControlBase::opModTargetW,

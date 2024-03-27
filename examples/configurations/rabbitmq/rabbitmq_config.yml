@@ -48,8 +48,8 @@ ssl: true
 
 #use-existing-certs: True
 
-# defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.7
-rmq-home: ~/rabbitmq_server/rabbitmq_server-3.9.7
+# defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.29
+rmq-home: ~/rabbitmq_server/rabbitmq_server-3.9.29
 
 # RabbitMQ reconnect retry delay (in seconds)
 reconnect-delay: 30

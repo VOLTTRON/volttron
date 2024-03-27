@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import sys
@@ -61,7 +47,7 @@ def vav_agent(config_path, **kwargs):
     :type config_path: str
     :returns: Market Service Agent
     :rtype: MarketServiceAgent
-    """   
+    """
     try:
         config = utils.load_config(config_path)
     except Exception:
@@ -80,15 +66,15 @@ def vav_agent(config_path, **kwargs):
     c1= config.get('c1', 0)
     c2= config.get('c2', 0)
     c3= config.get('c3', 0)
-    c4= config.get('c4', 0)	
+    c4= config.get('c4', 0)
     tMinAdj= config.get('tMin', 0)
     tMaxAdj= config.get('tMax', 0)
     mDotMin= config.get('mDotMin', 0)
     mDotMax= config.get('mDotMax', 0)
     tIn= config.get('tIn', 0)
-    nonResponsive= config.get('nonResponsive', False)	
+    nonResponsive= config.get('nonResponsive', False)
     agent_name= config.get('agent_name')
-    subscribing_topic= config.get('subscribing_topic')	
+    subscribing_topic= config.get('subscribing_topic')
     verbose_logging= config.get('verbose_logging', True)
     return VAVAgent(market_name,agent_name,x0,x1,x2,x3,x4,c0,c1,c2,c3,c4,tMinAdj,tMaxAdj,mDotMin,mDotMax,tIn,nonResponsive,verbose_logging,subscribing_topic, **kwargs)
 
@@ -101,7 +87,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
     def __init__(self, market_name,agent_name,x0,x1,x2,x3,x4,c0,c1,c2,c3,c4,tMinAdj,tMaxAdj,mDotMin,mDotMax,tIn,nonResponsive,verbose_logging,subscribing_topic, **kwargs):
         super(VAVAgent, self).__init__(verbose_logging, **kwargs)
         self.market_name = market_name
-        self.agent_name = agent_name		
+        self.agent_name = agent_name
         self.x0 = x0
         self.x1 = x1
         self.x2 = x2
@@ -122,19 +108,19 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         self.iniState()
         self.subscribing_topic=subscribing_topic
         self.join_market(self.market_name, BUYER, None, self.offer_callback, None, self.price_callback, self.error_callback)
-		
+
     @Core.receiver('onstart')
     def setup(self, sender, **kwargs):
         _log.debug('Subscribing to '+self.subscribing_topic)
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=self.subscribing_topic,
                                   callback=self.updateState)
-		
+
     def offer_callback(self, timestamp, market_name, buyer_seller):
         self.make_offer(market_name, buyer_seller, self.create_demand_curve())
 
     def create_demand_curve(self):
-        self.demand_curve = PolyLine()		
+        self.demand_curve = PolyLine()
         pMin = 10
         pMax = 100
         qMin = abs(self.getQMin())
@@ -157,13 +143,13 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         self.occupied = 0
         self.tSet=22
         self.tDel=0.5
-        self.tEase=0.25	
-        self.qHvacSens = self.mDot*1006.*(self.tSup-self.tNomAdj)		
+        self.tEase=0.25
+        self.qHvacSens = self.mDot*1006.*(self.tSup-self.tNomAdj)
         self.qMin = min(0, self.mDotMin*1006.*(self.tSupHvac-self.tNomAdj))
         self.qMax = min(0, self.mDotMax*1006.*(self.tSupHvac-self.tNomAdj))
         self.pClear = None
-        
-		
+
+
     def updateState(self, peer, sender, bus, topic, headers, message):
 	    '''Subscribe to device data from message bus
 	    '''
@@ -175,7 +161,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
 	    self.mDot = info['VAV'+self.agent_name+'_ZoneAirFlow']
 	    self.tSup = info['VAV'+self.agent_name+'_ZoneDischargeAirTemperature']
 	    self.tIn = info['VAV'+self.agent_name+'_ZoneTemperature']
-	    self.qHvacSens = self.mDot*1006.*(self.tSup-self.tIn)		
+	    self.qHvacSens = self.mDot*1006.*(self.tSup-self.tIn)
 	    self.qMin = min(0, self.mDotMin*1006.*(self.tSupHvac-self.tIn))
 	    self.qMax = min(0, self.mDotMax*1006.*(self.tSupHvac-self.tIn))
 
@@ -189,7 +175,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         if self.qClear is None:
             self.qClear = 0.
 
-		
+
     def getQMin(self):
         t = self.clamp(self.tSet+self.tDel, self.tMinAdj, self.tMaxAdj)
         q = self.clamp(self.getQ(t), self.qMax, self.qMin)
@@ -204,8 +190,8 @@ class VAVAgent(MarketAgent, FirstOrderZone):
     def clamp(self, value, x1, x2):
         minValue = min(x1, x2)
         maxValue = max(x1, x2)
-        return min(max(value, minValue), maxValue)		
-						
+        return min(max(value, minValue), maxValue)
+
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         _log.debug("the price is {}".format(price))
         self.pClear=price
@@ -213,19 +199,19 @@ class VAVAgent(MarketAgent, FirstOrderZone):
         _log.debug("the new set point is {}".format(self.tSet))
         _log.debug("the set point is {}".format(self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint'))
         self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint',self.tSet).get(timeout=5)
-		
+
     def error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message, aux):
         if error_code == NO_INTERSECT:
 		      self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic.replace('all','')+'VAV'+self.agent_name+'/ZoneCoolingTemperatureSetPoint',self.tNomAdj).get(timeout=5)
-		
-		
-		
+
+
+
 
     def ease(self, target, current, limit):
-        return current - np.sign(current-target)*min(abs(current-target), abs(limit))		
-		
-		
-		
+        return current - np.sign(current-target)*min(abs(current-target), abs(limit))
+
+
+
 
 def main():
     """Main method called to start the agent."""

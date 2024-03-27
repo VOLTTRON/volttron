@@ -247,6 +247,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
         assert message == [{'point': 'value'}]
 
 
+@pytest.mark.timeout(600)
 @pytest.mark.multiplatform
 def test_multiplatform_2_publishers(request, five_platform_connection):
     subscription_results2 = {}
@@ -544,14 +545,14 @@ def test_multiplatform_configstore_rpc(request, get_volttron_instances):
     test_agent = p2.build_agent()
     kwargs = {"external_platform": p1.instance_name}
     test_agent.vip.rpc.call(CONFIGURATION_STORE,
-                            'manage_store',
+                            'set_config',
                             'platform.thresholddetection',
                             'config',
                             jsonapi.dumps(updated_config),
                             'json',
                             **kwargs).get(timeout=10)
     config = test_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                     'manage_get',
+                                     'get_config',
                                      'platform.thresholddetection',
                                      'config',
                                      raw=True,

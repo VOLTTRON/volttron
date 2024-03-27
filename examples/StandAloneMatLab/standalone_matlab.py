@@ -1,10 +1,10 @@
 from scriptwrapper import script_runner
 
+import gevent
+import json
+import logging
 import os
 import sys
-import json
-import gevent
-import logging
 
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils

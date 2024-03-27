@@ -312,36 +312,66 @@ Platform RPC Methods
 --------------------
 
 
-Methods for Agents
-^^^^^^^^^^^^^^^^^^
+**set_config(identity, config_name, contents, config_type="raw", trigger_callback=True, send_update=True)** -
+Change/create a configuration on the platform for an agent with the specified identity. Requires the
+authorization capability 'edit_config_store'. By default agents have access to edit only their own config store entries.
 
-Agent methods that change configurations do not trigger any callbacks unless trigger_callback is True.
+**manage_store(identity, config_name, contents, config_type="raw", trigger_callback=True, send_update=True)** -
+Deprecated method. Please use set_config instead. Will be removed in VOLTTRON version 10.
+Change/create a configuration on the platform for an agent with the specified identity. Requires the
+authorization capability 'edit_config_store'. By default agents have access to edit only their own config store entries.
 
-**set_config(config_name, contents, trigger_callback=False)** - Change/create a configuration file on the platform.
+**delete_config(identity, config_name, trigger_callback=True, send_update=True)** - Delete a configuration for an
+agent with the specified identity. Requires the authorization capability 'edit_config_store'. By default agents have
+access to edit only their own config store entries.
 
-**get_configs()** - Get all of the configurations for an Agent.
+**manage_delete_config(identity, config_name, trigger_callback=True, send_update=True)** -
+Deprecated method. Please use delete_config instead. Will be removed in VOLTTRON version 10.
+Delete a configuration for an agent with the specified identity. Requires the authorization capability
+'edit_config_store'. By default agents have access to edit only their own config store entries.
 
-**delete_config(config_name, trigger_callback=False)** - Delete a configuration.
-
-
-Methods for Management
-^^^^^^^^^^^^^^^^^^^^^^
-
-**manage_store_config(identity, config_name, contents, config_type="raw")** - Change/create a configuration on the
-platform for an agent with the specified identity
-
-**manage_delete_config(identity, config_name)** - Delete a configuration for an agent with the specified identity.
+**delete_store(identity)** - Delete all configurations for an agent with the specified identity. Requires the
+authorization capability 'edit_config_store'. By default agents have access to edit only their own config store entries.
 Calls the agent's update_config with the action `DELETE_ALL` and no configuration name.
 
-**manage_delete_store(identity)** - Delete all configurations for a :term:`VIP Identity`.
+**manage_delete_store(identity)** -
+Deprecated method. Please use delete_store instead. Will be removed in VOLTTRON version 10.
+Delete all configurations for an agent with the specified identity. Requires the
+authorization capability 'edit_config_store'. By default agents have access to edit only their own config store entries.
+Calls the agent's update_config with the action `DELETE_ALL` and no configuration name.
 
-**manage_list_config(identity)** - Get a list of configurations for an agent with the specified identity.
+**list_configs(identity)** - Get a list of configurations for an agent with the specified identity.
 
-**manage_get_config(identity, config_name, raw=True)** - Get the contents of a configuration file.  If raw is set to
+**manage_list_configs(identity)** -
+Deprecated method. Please use list_configs instead. Will be removed in VOLTTRON version 10.
+Get a list of configurations for an agent with the specified identity.
+
+**list_stores()** - Get a list of all the agents with configurations.
+
+**manage_list_stores()** -
+Deprecated method. Please use list_stores instead. Will be removed in VOLTTRON version 10.
+Get a list of all the agents with configurations.
+
+
+**get_config(identity, config_name, raw=True)** - Get the contents of a configuration file.  If raw is set to
 `True` this function will return the original file, otherwise it will return the parsed representation of the file.
 
-**manage_list_stores()** - Get a list of all the agents with configurations.
+**manage_get_config(identity, config_name, raw=True)** -
+Deprecated method. Please use get_config instead. Will be removed in VOLTTRON version 10.
+Get the contents of a configuration file.  If raw is set to `True` this function will return the original file,
+otherwise it will return the parsed representation of the file.
 
+**initialize_configs(identity)** - Called by an Agent at startup to trigger initial configuration state push.
+Requires the authorization capability 'edit_config_store'. By default agents have access to edit only their own
+config store entries.
+
+**get_metadata(identity, config_name)** - Get the metadata of configuration named *config_name* of agent
+identified by *identity*. Returns the type(json, csv, raw) of the configuration, modified date and actual content
+
+**manage_get_metadata(identity, config_name)** -
+Deprecated method. Please use get_metadata instead. Will be removed in VOLTTRON version 10.
+Get the metadata of configuration named *config_name* of agent
+identified by *identity*. Returns the type(json, csv, raw) of the configuration, modified date and actual content
 
 Direct Call Methods
 ^^^^^^^^^^^^^^^^^^^

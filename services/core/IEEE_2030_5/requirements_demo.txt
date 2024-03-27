@@ -1,0 +1,4 @@
+nicegui
+requests
+xsdata>=23.8
+blinker

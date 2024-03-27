@@ -16,37 +16,83 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import os
 import subprocess
 import sys
-import os
 from glob import glob
-from mock import Mock as MagicMock
-import yaml
 
-from volttron.platform.agent.utils import execute_command
+import yaml
+from mock import Mock as MagicMock
+
+
+# Copied from volttron.platform.agent.util because it is not required
+# that volttron be installed to utilize this script.
+def execute_command(cmds,
+                    env=None,
+                    cwd=None,
+                    logger=None,
+                    err_prefix=None,
+                    use_shell=False) -> str:
+    """ Executes a command as a subprocess
+
+    If the return code of the call is 0 then return stdout otherwise
+    raise a RuntimeError.  If logger is specified then write the exception
+    to the logger otherwise this call will remain silent.
+
+    :param cmds:list of commands to pass to subprocess.run
+    :param env: environment to run the command with
+    :param cwd: working directory for the command
+    :param logger: a logger to use if errors occure
+    :param err_prefix: an error prefix to allow better tracing through the error message
+    :return: stdout string if successful
+
+    :raises RuntimeError: if the return code is not 0 from suprocess.run
+    """
+
+    results = subprocess.run(cmds,
+                             env=env,
+                             cwd=cwd,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             shell=use_shell)
+    if results.returncode != 0:
+        err_prefix = err_prefix if err_prefix is not None else "Error executing command"
+        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
+                                                          results.args,
+                                                          results.stderr)
+        if logger:
+            logger.exception(err_message)
+            raise RuntimeError(err_message)
+        else:
+            raise RuntimeError(err_message)
+
+    return results.stdout.decode('utf-8')
 
 
 class Mock(MagicMock):
+
     @classmethod
     def __getattr__(cls, name):
-            return Mock()
+        return Mock()
 
 
-autodoc_mock_imports = ['loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2', 'pyodbc', 'lxml', 'pytest',
-                        'pint', 'pandas', 'suds', 'paho', 'pymongo', 'bson', 'subprocess32', 'heaters', 'meters',
-                        'hvac', 'blinds', 'vehicles']
+autodoc_mock_imports = [
+    'loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2', 'pyodbc', 'lxml',
+    'pytest', 'pint', 'pandas', 'suds', 'paho', 'pymongo', 'bson',
+    'subprocess32', 'heaters', 'meters', 'hvac', 'blinds', 'vehicles'
+]
 
 # -- Project information -----------------------------------------------------
 
 project = 'VOLTTRON'
-copyright = '2022, The VOLTTRON Community'
+copyright = '2023, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = '8.2'
+version = '9.0'
 # The full version, including alpha/beta/rc tags
-release = '8.2'
-
+release = '9.0'
 
 # -- General configuration ---------------------------------------------------
 
@@ -71,7 +117,8 @@ extensions = [
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
-    'm2r2'
+    'm2r2',
+    'sphinxcontrib.mermaid'
 ]
 
 # prefix sections with the document so that we can cross link
@@ -108,7 +155,6 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -137,12 +183,10 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
-
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'VOLTTRONdoc'
-
 
 # -- Options for LaTeX output ------------------------------------------------
 
@@ -172,16 +216,11 @@ latex_documents = [
      'The VOLTTRON Community', 'manual'),
 ]
 
-
 # -- Options for manual page output ------------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (main_doc, 'volttron', 'VOLTTRON Documentation',
-     [author], 1)
-]
-
+man_pages = [(main_doc, 'volttron', 'VOLTTRON Documentation', [author], 1)]
 
 # -- Options for Texinfo output ----------------------------------------------
 
@@ -189,20 +228,22 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (main_doc, 'VOLTTRON', 'VOLTTRON Documentation',
-     author, 'VOLTTRON', 'One line description of project.',
-     'Miscellaneous'),
+    (main_doc, 'VOLTTRON', 'VOLTTRON Documentation', author, 'VOLTTRON',
+     'One line description of project.', 'Miscellaneous'),
 ]
-
 
 # -- Extension configuration -------------------------------------------------
 
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3.6': None,
-                       'volttron-ansible': ('https://volttron.readthedocs.io/projects/volttron-ansible/en/main/',
-                                            None)}
+intersphinx_mapping = {
+    'https://docs.python.org/3.6':
+    None,
+    'volttron-ansible':
+    ('https://volttron.readthedocs.io/projects/volttron-ansible/en/main/',
+     None)
+}
 
 # -- Options for todo extension ----------------------------------------------
 
@@ -247,11 +288,15 @@ def generate_apidoc(app):
     # generate api-docs for each api docs directory
     for docs_subdir in config.keys():
         docs_subdir_path = os.path.join(apidocs_base_dir, docs_subdir)
-        agent_dirs = glob(os.path.join(volttron_root, config[docs_subdir]["path"], "*/"))
+        agent_dirs = glob(
+            os.path.join(volttron_root, config[docs_subdir]["path"], "*/"))
         file_excludes = []
         if config[docs_subdir].get("file_excludes"):
-            for exclude_pattern in config[docs_subdir].get("file_excludes", []):
-                file_excludes.append(os.path.join(volttron_root, config[docs_subdir]["path"], exclude_pattern))
+            for exclude_pattern in config[docs_subdir].get(
+                    "file_excludes", []):
+                file_excludes.append(
+                    os.path.join(volttron_root, config[docs_subdir]["path"],
+                                 exclude_pattern))
         print("after file excludes. calling apidoc")
         agent_excludes = \
             config[docs_subdir].get("agent_excludes") if config[docs_subdir].get("agent_excludes", []) else []
@@ -268,19 +313,24 @@ def run_apidoc(docs_dir, agent_dirs, agent_excludes, exclude_pattern):
     :param agent_excludes: agent directories to be skipped
     :param exclude_pattern: file name patterns to be excluded. This passed on to sphinx-apidoc command for exclude
     """
-    print(f"In run apidoc params {docs_dir}, {agent_dirs}, {agent_excludes}, {exclude_pattern}")
+    print(
+        f"In run apidoc params {docs_dir}, {agent_dirs}, {agent_excludes}, {exclude_pattern}"
+    )
     for agent_src_dir in agent_dirs:
         agent_src_dir = os.path.abspath(agent_src_dir)
-        agent_src_dir = agent_src_dir[:-1] if agent_src_dir.endswith("/") else agent_src_dir
+        agent_src_dir = agent_src_dir[:-1] if agent_src_dir.endswith(
+            "/") else agent_src_dir
         name = os.path.basename(agent_src_dir)
         agent_doc_dir = os.path.join(docs_dir, name)
         if name not in agent_excludes:
             sys.path.insert(0, agent_src_dir)
-            cmd = ["sphinx-apidoc", '-e', '-a', '-M', '-d 4',
-                   '-t', os.path.join(script_dir, 'apidocs-templates'),
-                   '--force', '-o', agent_doc_dir, agent_src_dir,
-                   os.path.join(agent_src_dir, "setup.py"), os.path.join(agent_src_dir, "conftest.py")
-                   ]
+            cmd = [
+                "sphinx-apidoc", '-e', '-a', '-M', '-d 4', '-t',
+                os.path.join(script_dir, 'apidocs-templates'), '--force', '-o',
+                agent_doc_dir, agent_src_dir,
+                os.path.join(agent_src_dir, "setup.py"),
+                os.path.join(agent_src_dir, "conftest.py")
+            ]
 
             cmd.extend(exclude_pattern)
             subprocess.check_call(cmd)
@@ -320,5 +370,6 @@ def clean_api_rst(app, exception):
     global apidocs_base_dir
     import shutil
     if os.path.exists(apidocs_base_dir):
-        print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
+        print(
+            "Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
         shutil.rmtree(apidocs_base_dir)

@@ -2,7 +2,6 @@ from datetime import datetime
 import os
 import sys
 
-
 import gevent
 
 from volttron.platform.messaging import headers as headers_mod

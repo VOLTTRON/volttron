@@ -45,6 +45,7 @@ For method details please refer to base class
 """
 class PostgreSqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
+        self.db_name = connect_params.get('dbname')
         if table_names:
             self.data_table = table_names['data_table']
             self.topics_table = table_names['topics_table']
@@ -147,7 +148,7 @@ class PostgreSqlFuncts(DbDriver):
 
     def setup_historian_tables(self):
         rows = self.select(f"""SELECT table_name FROM information_schema.tables
-                            WHERE table_catalog = 'test_historian' and table_schema = 'public' 
+                            WHERE table_catalog = '{self.db_name}' and table_schema = 'public' 
                             AND table_name = '{self.data_table}'""")
         if rows:
             _log.debug("Found table {}. Historian table exists".format(
@@ -350,7 +351,17 @@ class PostgreSqlFuncts(DbDriver):
             'SELECT topic_id, metadata '
             'FROM {}').format(Identifier(self.meta_table))
         rows = self.select(query)
-        meta_map = {tid: jsonapi.loads(meta) if meta else None for tid, meta in rows}
+
+        meta_map = {}
+        for tid, meta in rows:
+            if meta:
+                if isinstance(meta, dict):
+                    meta_map[tid] = meta
+                else:
+                    meta_map[tid] = jsonapi.loads(meta)
+            else:
+                meta_map[tid] = None
+            
         return meta_map
 
     def get_agg_topics(self):

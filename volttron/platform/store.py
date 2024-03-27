@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 
@@ -44,8 +30,8 @@ import os.path
 import errno
 from csv import DictReader
 from io import StringIO
-
 import gevent
+from deprecated import deprecated
 
 from volttron.platform import jsonapi
 from gevent.lock import Semaphore
@@ -54,7 +40,7 @@ from volttron.utils.persistance import PersistentDict
 from volttron.platform.agent.utils import parse_json_config
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
-from volttron.platform.agent.utils import parse_timestamp_string, format_timestamp, get_aware_utc_now
+from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
 from volttron.platform.storeutils import check_for_recursion, strip_config_name, store_ext
 from .vip.agent import Agent, Core, RPC
 
@@ -162,19 +148,50 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     @RPC.allow('edit_config_store')
-    def manage_store(self, identity, config_name, raw_contents, config_type="raw"):
+    @deprecated(reason="Use set_config")
+    def manage_store(self, identity, config_name, raw_contents, config_type="raw", trigger_callback=True,
+                     send_update=True):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use set_config instead
+        """
         contents = process_raw_config(raw_contents, config_type)
         self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
-                                  trigger_callback=True)
+                                  trigger_callback=trigger_callback, send_update=send_update)
 
     @RPC.export
     @RPC.allow('edit_config_store')
-    def manage_delete_config(self, identity, config_name):
-        self.delete(identity, config_name, trigger_callback=True)
+    def set_config(self, identity, config_name, raw_contents, config_type="raw", trigger_callback=True,
+                   send_update=True):
+        contents = process_raw_config(raw_contents, config_type)
+        self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
+                                  trigger_callback=trigger_callback, send_update=send_update)
 
     @RPC.export
     @RPC.allow('edit_config_store')
+    @deprecated(reason="Use delete_config")
+    def manage_delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use delete_config instead
+        """
+        self.delete(identity, config_name, trigger_callback=trigger_callback, send_update=send_update)
+
+    @RPC.export
+    @RPC.allow('edit_config_store')
+    def delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
+        self.delete(identity, config_name, trigger_callback=trigger_callback, send_update=send_update)
+
+    @RPC.export
+    @RPC.allow('edit_config_store')
+    @deprecated(reason="Use delete_store")
     def manage_delete_store(self, identity):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use delete_store instead
+        """
+        self.delete_store(identity)
+
+    @RPC.export
+    @RPC.allow('edit_config_store')
+    def delete_store(self, identity):
         agent_store = self.store.get(identity)
         if agent_store is None:
             return
@@ -211,19 +228,43 @@ class ConfigStoreService(Agent):
             self.store.pop(identity, None)
 
     @RPC.export
+    @deprecated(reason="Use list_configs")
     def manage_list_configs(self, identity):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Use list_configs instead
+        """
+        return self.list_configs(identity)
+
+    @RPC.export
+    def list_configs(self, identity):
         result = list(self.store.get(identity, {}).get("store", {}).keys())
         result.sort()
         return result
 
     @RPC.export
+    @deprecated(reason="Use list_stores")
     def manage_list_stores(self):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Use list_stores instead
+        """
+        return self.list_stores()
+
+    @RPC.export
+    def list_stores(self):
         result = list(self.store.keys())
         result.sort()
         return result
 
     @RPC.export
+    @deprecated(reason="Use get_config")
     def manage_get(self, identity, config_name, raw=True):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Use get_config instead
+        """
+        return self.get_config(identity, config_name, raw)
+
+    @RPC.export
+    def get_config(self, identity, config_name, raw=True):
         agent_store = self.store.get(identity)
         if agent_store is None:
             raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
@@ -246,7 +287,15 @@ class ConfigStoreService(Agent):
         return agent_configs[real_config_name]
 
     @RPC.export
+    @deprecated(reason="Use get_metadata")
     def manage_get_metadata(self, identity, config_name):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use get_metadata instead
+        """
+        return self.get_metadata(identity, config_name)
+
+    @RPC.export
+    def get_metadata(self, identity, config_name):
         agent_store = self.store.get(identity)
         if agent_store is None:
             raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
@@ -264,27 +313,21 @@ class ConfigStoreService(Agent):
 
         real_config =  agent_disk_store[real_config_name]
 
-        #Set modified to none if we predate the modified flag.
+        # Set modified to none if we predate the modified flag.
         if real_config.get("modified") is None:
             real_config["modified"] = None
 
         return real_config
 
+    @RPC.allow('edit_config_store')
     @RPC.export
-    def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
-        identity = self.vip.rpc.context.vip_message.peer
-        self.store_config(identity, config_name, contents, trigger_callback=trigger_callback, send_update=send_update)
-
-
-    @RPC.export
-    def get_configs(self):
+    def initialize_configs(self, identity):
         """
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-        identity = self.vip.rpc.context.vip_message.peer
 
-        #We need to create store and lock if it doesn't exist in case someone
+        # We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
         agent_store = self.store.get(identity)
 
@@ -320,13 +363,6 @@ class ConfigStoreService(Agent):
         # were informing the agent) then remove it from the global store.
         if not agent_disk_store:
             self.store.pop(identity, None)
-
-    @RPC.export
-    def delete_config(self, config_name, trigger_callback=False, send_update=True):
-        """Called by an Agent to delete a configuration."""
-        identity = self.vip.rpc.context.vip_message.peer
-        self.delete(identity, config_name, trigger_callback=trigger_callback,
-                    send_update=send_update)
 
     # Helper method to allow the local services to delete configs before message
     # bus in online.

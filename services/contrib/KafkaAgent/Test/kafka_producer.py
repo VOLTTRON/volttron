@@ -2,7 +2,6 @@ import time
 
 
 from kafka import KafkaProducer
-from kafka.errors import KafkaError
 
 from volttron.platform import jsonapi
 

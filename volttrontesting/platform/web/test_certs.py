@@ -60,8 +60,8 @@ mgmt-port-ssl: '15671'
 # defaults to true
 ssl: 'true'
 
-# defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.7
-rmq-home: "~/rabbitmq_server/rabbitmq_server-3.9.7"
+# defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.29
+rmq-home: "~/rabbitmq_server/rabbitmq_server-3.9.29"
 """
 
 

@@ -112,8 +112,6 @@ def test_topic_forwarding(setup_instances, topic_root, topic, replace, headers):
     pub_listener.core.stop()
 
 
-
-
 def test_target_shutdown(setup_instances):
 
     inst_forward, inst_target = setup_instances
@@ -160,17 +158,18 @@ def test_target_shutdown(setup_instances):
 
     inst_target.restart_platform()
     assert inst_target.is_running()
-
+    gevent.sleep(3)
     pub_listener = inst_target.build_agent()
     pub_listener.vip.pubsub.subscribe(peer="pubsub",
                                       prefix="devices",
                                       callback=_device_capture)
 
-    gevent.sleep(0.1)
+    gevent.sleep(3)
 
     all_topic = 'devices/campus/building/all'
     headers, message = publish_device_messages(inst_forward,
                                                all_topic=all_topic)
+    gevent.sleep(3)
     validate_published_device_data(headers, message,
                                    pubsub_retrieved[0][1],
                                    pubsub_retrieved[0][2])

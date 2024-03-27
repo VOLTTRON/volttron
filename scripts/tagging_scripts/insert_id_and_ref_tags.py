@@ -164,7 +164,7 @@ def mongo_insert(tags, execute_now=False):
         try:
             result = mongo_bulk.execute()
             if result['nInserted'] != mongo_batch_size:
-                print ("bulk execute result {}".format(result))
+                print("bulk execute result {}".format(result))
                 errors = True
         except BulkWriteError as ex:
             print(str(ex.details))

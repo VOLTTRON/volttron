@@ -151,17 +151,17 @@ class DeviceTree(TopicTree):
     def from_store(cls, platform, rpc_caller):
         # TODO: Duplicate logic for external_platform check from VUIEndpoints to remove reference to it from here.
         kwargs = {'external_platform': platform} if 'VUIEndpoints' in rpc_caller.__repr__() else {}
-        devices = rpc_caller(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', **kwargs)
+        devices = rpc_caller(CONFIGURATION_STORE, 'list_configs', 'platform.driver', **kwargs)
         devices = devices if kwargs else devices.get(timeout=5)
         devices = [d for d in devices if re.match('^devices/.*', d)]
         device_tree = cls(devices)
         for d in devices:
-            dev_config = rpc_caller(CONFIGURATION_STORE, 'manage_get', 'platform.driver', d, raw=False, **kwargs)
+            dev_config = rpc_caller(CONFIGURATION_STORE, 'get_config', 'platform.driver', d, raw=False, **kwargs)
             # TODO: If not AsyncResponse instead of if kwargs
             dev_config = dev_config if kwargs else dev_config.get(timeout=5)
             reg_cfg_name = dev_config.pop('registry_config')[len('config://'):]
             device_tree.update_node(d, data=dev_config, segment_type='DEVICE')
-            registry_config = rpc_caller('config.store', 'manage_get', 'platform.driver',
+            registry_config = rpc_caller('config.store', 'get_config', 'platform.driver',
                                          f'{reg_cfg_name}', raw=False, **kwargs)
             registry_config = registry_config if kwargs else registry_config.get(timeout=5)
             for pnt in registry_config:

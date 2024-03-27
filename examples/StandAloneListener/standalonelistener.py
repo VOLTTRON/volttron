@@ -1,9 +1,9 @@
 from datetime import datetime
+import logging
 import os
 import sys
 
 import gevent
-import logging
 
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core

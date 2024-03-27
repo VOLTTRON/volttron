@@ -1,0 +1,5 @@
+python scripts/install-agent.py -s services/core/DNP3OutstationAgent/ \
+ -c services/core/DNP3OutstationAgent/config \
+ -t dnp3-outstation-agent \
+ -i dnp3-outstation-agent \
+ -f

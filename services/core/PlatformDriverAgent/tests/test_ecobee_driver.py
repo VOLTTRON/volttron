@@ -578,14 +578,14 @@ def test_scrape_all_trigger_refresh(mock_ecobee):
 #     }
 #     ecobee_driver_config = jsonapi.load(get_examples("configurations/drivers/ecobee.config"))
 #     ecobee_driver_config["interval"] = 3
-#     query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store", PLATFORM_DRIVER,
+#     query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config", PLATFORM_DRIVER,
 #                              "devices/campus/building/test_ecobee", driver_config)
 #
 #     with open("configurations/drivers/ecobee.csv") as registry_file:
 #         registry_string = registry_file.read()
 #     registry_path = re.search("(?!config:\/\/)[a-zA-z]+\.csv", ecobee_driver_config.get("registry_config"))
 #
-#     query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store", PLATFORM_DRIVER, registry_path, registry_string,
+#     query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config", PLATFORM_DRIVER, registry_path, registry_string,
 #                              config_type="csv")
 #
 #     ecobee_driver_config.update(driver_config)

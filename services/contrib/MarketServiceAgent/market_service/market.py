@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 ACCEPT_RESERVATIONS = 'market_accept_resevations'
@@ -147,7 +133,7 @@ class Market:
             _log.debug("Make offer Market: {} {} entered in state {}".format(self.market_name,
                                                                              participant.buyer_seller,
                                                                              self.state))
-        if (participant.buyer_seller == SELLER):
+        if participant.buyer_seller == SELLER:
             self.receive_sell_offer()
         else:
             self.receive_buy_offer()
@@ -163,7 +149,7 @@ class Market:
                        participant.buyer_seller, offer_count, curve.tuppleize()))
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
-            if (participant.buyer_seller == SELLER):
+            if participant.buyer_seller == SELLER:
                 self.last_sell_offer()
             else:
                 self.last_buy_offer()
@@ -199,25 +185,24 @@ class Market:
         error_code = None
         error_message = None
         aux = {}
-        if (self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
+        if self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
             error_code = SHORT_OFFERS
             error_message = 'The market {} failed to receive all the expected offers. ' \
                             'The state is {}.'.format(self.market_name, self.state)
-        elif (self.state != MARKET_DONE):
+        elif self.state != MARKET_DONE:
             error_code = BAD_STATE
             error_message = 'Programming error in Market class. State of {} and clear market signal arrived. ' \
                             'This represents a logic error.'.format(self.state)
+        elif not self.has_market_formed():
+            error_code = NOT_FORMED
+            error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
         else:
-            if not self.has_market_formed():
-                error_code = NOT_FORMED
-                error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
-            else:
-                quantity, price, aux = self.offers.settle()
-                _log.info("Clearing mixmarket: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
-                aux = {}
-                if price is None or quantity is None:
-                    error_code = NO_INTERSECT
-                    error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
+            quantity, price, aux = self.offers.settle()
+            _log.info("Clearing mixmarket: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
+            aux = {}
+            if price is None or quantity is None:
+                error_code = NO_INTERSECT
+                error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
         _log.info("Clearing price for Market: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
         timestamp = self._get_time()
         timestamp_string = utils.format_timestamp(timestamp)
@@ -241,13 +226,12 @@ class Market:
 
     def all_satisfied(self, buyer_seller):
         are_satisfied = False
-        if (buyer_seller == BUYER):
+        if buyer_seller == BUYER:
             are_satisfied = self.reservations.buyer_count() == self.offers.buyer_count()
-        if (buyer_seller == SELLER):
+        if buyer_seller == SELLER:
             are_satisfied = self.reservations.seller_count() == self.offers.seller_count()
         return are_satisfied
 
     def _get_time(self):
         now = utils.get_aware_utc_now()
         return now
-

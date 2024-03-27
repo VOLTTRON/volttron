@@ -21,11 +21,11 @@
 
 """
 from datetime import datetime
+import logging
 import os
 import sys
 
 import gevent
-import logging
 from gevent.core import callback
 
 from volttron.platform.vip.agent import Agent, Core, RPC

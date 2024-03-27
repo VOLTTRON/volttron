@@ -30,6 +30,7 @@ def test_needs_connection():
     except AssertionError:
         assert not stderr.decode("utf-8")
 
+@pytest.mark.timeout(600)
 @pytest.mark.control
 def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
     # Verify peerlist command works when instance is running
@@ -592,4 +593,3 @@ def test_vctl_start_stop_restart_should_not_fail_on_when_no_agents_are_installed
     with with_os_environ(volttron_instance.env):            
         execute_command(["vctl", subcommand, valid_option], volttron_instance.env)
         assert not jsonapi.loads(execute_command(["vctl", "--json", "status"], volttron_instance.env))
-        

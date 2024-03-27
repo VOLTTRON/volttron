@@ -46,7 +46,7 @@ def fncs_example(config_path, **kwargs):
     stop_agent_when_sim_complete = config.get("stop_agent_when_sim_complete", False)
     subscription_topic = config.get("subscription_topic", None)
     return FncsExample(topic_mapping=topic_mapping, federate_name=federate, broker_location=broker_location,
-                       time_delta=time_delta,subscription_topic=subscription_topic, sim_length=sim_length,
+                       time_delta=time_delta, subscription_topic=subscription_topic, sim_length=sim_length,
                        stop_agent_when_sim_complete=stop_agent_when_sim_complete, **kwargs)
 
 
@@ -56,7 +56,7 @@ class FncsExample(Agent):
     """
 
     def __init__(self, topic_mapping, federate_name=None, broker_location="tcp://localhost:5570",
-                 time_delta="1s",subscription_topic=None, simulation_start_time=None, sim_length="10s", 
+                 time_delta="1s", subscription_topic=None, simulation_start_time=None, sim_length="10s", 
                  stop_agent_when_sim_complete=False, **kwargs):
         super(FncsExample, self).__init__(enable_fncs=True, enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)

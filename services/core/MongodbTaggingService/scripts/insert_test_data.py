@@ -145,7 +145,7 @@ def mongo_insert(tags, execute_now=False):
         try:
             result = mongo_bulk.execute()
             if result['nInserted'] != mongo_batch_size:
-                print ("bulk execute result {}".format(result))
+                print("bulk execute result {}".format(result))
                 errors = True
         except BulkWriteError as ex:
             print(str(ex.details))
@@ -205,7 +205,7 @@ def test_mongo_tags():
          "equip_tag 7": {"$gt": 2}}, {"topic_prefix": 1})
     topics = [record['_id'] for record in tags_cursor]
     print("example query result: {}".format(topics))
-    print ("Time taken by mongo for result: {}".format(
+    print("Time taken by mongo for result: {}".format(
         datetime.datetime.now() - start))
 
 
@@ -230,8 +230,8 @@ def test_sqlite_tags():
         ' INTERSECT '
         'select topic_prefix from test_tags where tag = "equip_tag 7" and '
         'value > 2')
-    print ("topics :{}".format(tags_cursor.fetchall()))
-    print ("Time taken by sqlite for result: {}".format(
+    print("topics :{}".format(tags_cursor.fetchall()))
+    print("Time taken by sqlite for result: {}".format(
         datetime.datetime.now() - start))
 
 

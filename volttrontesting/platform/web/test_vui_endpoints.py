@@ -277,16 +277,16 @@ def _mock_agents_rpc(peer, meth, *args, external_platform=None, **kwargs):
                                                                'config2': {'setting1': 3, 'setting2': 4}}},
                               {'identity': 'run2', 'configs': {'config1': {'setting1': 5, 'setting2': 6},
                                                                'config2': {'setting1': 7, 'setting2': 8}}}]
-    if peer == 'config.store' and meth == 'manage_get':
+    if peer == 'config.store' and meth == 'get_config':
         config_list = [a['configs'].get(args[1]) for a in config_definition_list if a['identity'] == args[0]]
         if not config_list or config_list == [None]:
             raise RemoteError(f'''builtins.KeyError('No configuration file \"{args[1]}\" for VIP IDENTIY {args[0]}')''',
                               exc_info={"exc_type": '', "exc_args": []})
         return config_list[0] if config_list else []
-    elif peer == 'config.store' and meth == 'manage_list_configs':
+    elif peer == 'config.store' and meth == 'list_configs':
         config_list = [a['configs'].keys() for a in config_definition_list if a['identity'] == args[0]]
         return config_list[0] if config_list else []
-    elif peer == 'config.store' and meth == 'manage_list_stores':
+    elif peer == 'config.store' and meth == 'list_stores':
         return [a['identity'] for a in config_definition_list]
     elif peer == 'control' and meth == 'list_agents':
         return list_of_agents
@@ -458,7 +458,7 @@ def test_handle_platforms_agents_configs_config_put_response(mock_platform_web_s
     config_type = re.search(r'([^\/]+$)', config_type).group() if config_type in ['application/json',
                                                                                   'text/csv'] else 'raw'
     if status == '204':
-        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'manage_store', vip_identity, config_name,
+        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'set_config', vip_identity, config_name,
                                                        data_passed, config_type, external_platform='my_instance_name')])
     elif status == '400':
         assert json.loads(response.response[0]) == \
@@ -488,7 +488,7 @@ def test_handle_platforms_agents_configs_post_response(mock_platform_web_service
     response = vui_endpoints.handle_platforms_agents_configs(env, data_given)
     check_response_codes(response, status)
     if status == '204':
-        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'manage_store', vip_identity, config_name,
+        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'set_config', vip_identity, config_name,
                                                        data_passed, config_type, external_platform='my_instance_name')])
     elif status == '400':
         assert json.loads(response.response[0]) == \
@@ -510,7 +510,7 @@ def test_handle_platforms_agents_configs_delete_response(mock_platform_web_servi
     response = vui_endpoints.handle_platforms_agents_configs(env, {})
     check_response_codes(response, status)
     if status == '204':
-        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'manage_delete_store', vip_identity_passed,
+        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'delete_store', vip_identity_passed,
                                                        external_platform='my_instance_name')])
 
 
@@ -526,7 +526,7 @@ def test_handle_platforms_agents_configs_config_delete_response(mock_platform_we
     response = vui_endpoints.handle_platforms_agents_configs(env, {})
     check_response_codes(response, status)
     if status == '204':
-        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'manage_delete_config', vip_identity,
+        vui_endpoints._rpc.assert_has_calls([mock.call('config.store', 'delete_config', vip_identity,
                                                        config_name_passed, external_platform='my_instance_name')])
 
 

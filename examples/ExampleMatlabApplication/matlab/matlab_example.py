@@ -21,11 +21,11 @@ if event > 0 and config_socket.recv_string() == "config":
         print("Sending config_params")
         config_params = {"zone_temperature_list": ["ZoneTemperature1", "ZoneTemperature2"],
                         "zone_setpoint_list": ["ZoneTemperatureSP1", "ZoneTemperatureSP2"]}
-        config_socket.send_json(config_params,zmq.NOBLOCK)
+        config_socket.send_json(config_params, zmq.NOBLOCK)
         
         print("Sending data")
         data = {"zone_temperature_list": ["72.3", "78.5"]}
-        data_socket.send_json(data,zmq.NOBLOCK)
+        data_socket.send_json(data, zmq.NOBLOCK)
         
     except ZMQError:
         print("No Matlab process running to send message")

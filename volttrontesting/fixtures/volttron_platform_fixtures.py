@@ -49,10 +49,8 @@ def build_wrapper(vip_address: str, should_start: bool = True, messagebus: str =
                               auth_enabled=kwargs.pop('auth_enabled', True))
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
-        if wrapper.messagebus == 'rmq':
-            gevent.sleep(5)
-        else:
-            gevent.sleep(2)
+        if not wrapper.dynamic_agent:
+            raise ValueError(f"Couldn't start platform successfully for {wrapper.messagebus}")
         assert wrapper.is_running()
     return wrapper
 
@@ -62,14 +60,22 @@ def cleanup_wrapper(wrapper):
     # if wrapper.is_running():
     #     wrapper.remove_all_agents()
     # Shutdown handles case where the platform hasn't started.
+    if not wrapper.is_running():
+        return
+    wrapper_pid = wrapper.p_process.pid
     wrapper.shutdown_platform()
     if wrapper.p_process is not None:
-        if psutil.pid_exists(wrapper.p_process.pid):
-            proc = psutil.Process(wrapper.p_process.pid)
+        if psutil.pid_exists(wrapper_pid):
+            proc = psutil.Process(wrapper_pid)
             proc.terminate()
     if not wrapper.debug_mode:
         assert not Path(wrapper.volttron_home).parent.exists(), \
             f"{str(Path(wrapper.volttron_home).parent)} wasn't cleaned!"
+    if not wrapper.debug_mode:
+        assert not Path(wrapper.volttron_home).exists()
+    # Final way to kill off the platform wrapper for the tests.
+    if psutil.pid_exists(wrapper_pid):
+        psutil.Process(wrapper_pid).kill()
 
 
 def cleanup_wrappers(platforms):
@@ -117,7 +123,7 @@ def volttron_instance_module_web(request):
                 params=[
                     dict(messagebus='zmq'),
                     pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
-                    dict(messagebus='zmq', auth_enabled=False),
+                    dict(messagebus='zmq', auth_enabled=False)
                 ])
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
@@ -126,12 +132,14 @@ def volttron_instance(request, **kwargs):
     @return: volttron platform instance
     """
     address = kwargs.pop("vip_address", get_rand_vip())
+    if request.param['messagebus'] == 'rmq':
+        kwargs['timeout'] = 240
+
     wrapper = build_wrapper(address,
-                            messagebus=request.param.pop('messagebus', 'zmq'),
-                            ssl_auth=request.param.pop('ssl_auth', False),
-                            auth_enabled=request.param.pop('auth_enabled', True),
+                            messagebus=request.param.get('messagebus', 'zmq'),
+                            ssl_auth=request.param.get('ssl_auth', False),
+                            auth_enabled=request.param.get('auth_enabled', True),
                             **kwargs)
-    wrapper_pid = wrapper.p_process.pid
 
     try:
         yield wrapper
@@ -139,11 +147,6 @@ def volttron_instance(request, **kwargs):
         print(ex.args)
     finally:
         cleanup_wrapper(wrapper)
-        if not wrapper.debug_mode:
-            assert not Path(wrapper.volttron_home).exists()
-        # Final way to kill off the platform wrapper for the tests.
-        if psutil.pid_exists(wrapper_pid):
-            psutil.Process(wrapper_pid).kill()
 
 
 # Use this fixture to get more than 1 volttron instance for test.
@@ -182,8 +185,9 @@ def get_volttron_instances(request):
             address = kwargs.pop("vip_address", get_rand_vip())
 
             wrapper = build_wrapper(address, should_start=should_start,
-                                    messagebus=request.param.pop('messagebus', 'zmq'),
-                                    ssl_auth=request.param.pop('ssl_auth', False),
+                                    messagebus=request.param.get('messagebus', 'zmq'),
+                                    ssl_auth=request.param.get('ssl_auth', False),
+                                    auth_enabled=request.param.get('auth_enabled', True),
                                     **kwargs)
             instances.append(wrapper)
         if should_start:
@@ -196,17 +200,10 @@ def get_volttron_instances(request):
 
     def cleanup():
         nonlocal instances
-        print(f"My instances: {get_n_volttron_instances.count}")
-        if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
+        for i in range(0, len(instances)):
             print('Shutting down instance: {}'.format(
-                get_n_volttron_instances.instances))
-            cleanup_wrapper(get_n_volttron_instances.instances)
-            return
-
-        for i in range(0, get_n_volttron_instances.count):
-            print('Shutting down instance: {}'.format(
-                get_n_volttron_instances.instances[i].volttron_home))
-            cleanup_wrapper(get_n_volttron_instances.instances[i])
+                instances[i].volttron_home))
+            cleanup_wrapper(instances[i])
 
     try:
         yield get_n_volttron_instances
@@ -216,20 +213,31 @@ def get_volttron_instances(request):
 
 # Use this fixture when you want a single instance of volttron platform for zmq message bus
 # test
-@pytest.fixture(scope="module")
-def volttron_instance_zmq():
+@pytest.fixture(scope="module",
+                params=[
+                    dict(messagebus='zmq'),
+                    dict(messagebus='zmq', auth_enabled=False)
+                ])
+def volttron_instance_zmq(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
 
     @param request: pytest request object
     @return: volttron platform instance
     """
-    address = get_rand_vip()
+    address = kwargs.pop("vip_address", get_rand_vip())
 
-    wrapper = build_wrapper(address)
+    wrapper = build_wrapper(address,
+                            messagebus=request.param.get('messagebus', 'zmq'),
+                            ssl_auth=request.param.get('ssl_auth', False),
+                            auth_enabled=request.param.get('auth_enabled', True),
+                            **kwargs)
 
-    yield wrapper
-
-    cleanup_wrapper(wrapper)
+    try:
+        yield wrapper
+    except Exception as ex:
+        print(ex.args)
+    finally:
+        cleanup_wrapper(wrapper)
 
 
 # Use this fixture when you want a single instance of volttron platform for rmq message bus

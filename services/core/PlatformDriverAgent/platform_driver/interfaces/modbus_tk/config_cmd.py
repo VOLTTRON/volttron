@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 
@@ -79,7 +65,7 @@ class ConfigCmd (cmd.Cmd):
         yaml_file = "{0}/{1}".format(self._directories['map_dir'], file_name)
         if file_name and os.stat(yaml_file).st_size:
             with open("{0}/maps.yaml".format(self._directories['map_dir'])) as yaml_file:
-                device_type_maps = yaml.load(yaml_file)
+                device_type_maps = yaml.safe_load(yaml_file)
         return device_type_maps
 
     def _sh(self, shell_command):
@@ -165,7 +151,7 @@ class ConfigCmd (cmd.Cmd):
             if file_dir:
                 while True:
                     if not os.path.exists("{0}/{1}".format(file_dir, file_name)):
-                        print ("'{0}' file '{1}' does not exist in the directory '{2}'".format(file_type,
+                        print("'{0}' file '{1}' does not exist in the directory '{2}'".format(file_type,
                                                                                                file_name,
                                                                                                file_dir))
                         if file_name == 'maps.yaml':
@@ -268,20 +254,19 @@ class ConfigCmd (cmd.Cmd):
                     print("No change made to '{0}'".format(dir_key))
                 else:
                     self._directories[dir_key] = dir
+        elif line not in self._directories:
+            print("Directory type '{0}' does not exist".format(line))
+            print("Please select another directory type from: {0}".format([k for k in self._directories.keys()]))
+            print("Enter a directory type. Press <Enter> if edit all: ", end='')
+            self.do_edit_directories(input().lower())
         else:
-            if line not in self._directories:
-                print("Directory type '{0}' does not exist".format(line))
-                print("Please select another directory type from: {0}".format([k for k in self._directories.keys()]))
-                print("Enter a directory type. Press <Enter> if edit all: ", end='')
-                self.do_edit_directories(input().lower())
+            print("Enter the directory path for {0}. Press <Enter> if no change needed: ".format(line), end='')
+            dir_path = input()
+            dir = self.get_existed_directory(dir_path, line) if dir_path else None
+            if not dir or dir == self._directories[line]:
+                print("No change made to {0}".format(line))
             else:
-                print("Enter the directory path for {0}. Press <Enter> if no change needed: ".format(line), end='')
-                dir_path = input()
-                dir = self.get_existed_directory(dir_path, line) if dir_path else None
-                if not dir or dir == self._directories[line]:
-                    print("No change made to {0}".format(line))
-                else:
-                    self._directories[line] = dir
+                self._directories[line] = dir
 
         self.do_list_directories('')
 
@@ -818,7 +803,7 @@ class ConfigCmd (cmd.Cmd):
             print("DRIVER NAME".ljust(16) + "| VOLTTRON PATH")
             for d in drivers.keys():
                 print("{0:15} | {1}".format(d, drivers[d]))
-            print ("\nEnter driver name to delete: ", end='')
+            print("\nEnter driver name to delete: ", end='')
             driver_name = input()
 
         if driver_name not in drivers:

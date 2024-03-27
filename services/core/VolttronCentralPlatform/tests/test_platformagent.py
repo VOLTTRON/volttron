@@ -3,7 +3,6 @@ import os
 import tempfile
 import uuid
 
-import gevent
 import pytest
 import requests
 from volttron.platform.agent.known_identities import (
@@ -13,7 +12,6 @@ from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.keystore import KeyStore
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent
-from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.web import DiscoveryInfo
 from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform

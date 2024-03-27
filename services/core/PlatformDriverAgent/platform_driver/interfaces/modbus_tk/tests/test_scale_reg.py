@@ -58,12 +58,12 @@ def agent(request, volttron_instance):
     # Clean out platform driver configurations
     # wait for it to return before adding new config
     md_agent.vip.rpc.call('config.store',
-                          'manage_delete_store',
+                          'delete_store',
                           PLATFORM_DRIVER).get()
 
     # Add driver configurations
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           PLATFORM_DRIVER,
                           'devices/modbus_tk',
                           DRIVER_CONFIG_STRING,
@@ -71,22 +71,22 @@ def agent(request, volttron_instance):
 
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           PLATFORM_DRIVER,
                           'modbus_tk.csv',
                           REGISTRY_CONFIG_STRING,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           PLATFORM_DRIVER,
                           'modbus_tk_map.csv',
                           REGISTER_MAP,
                           config_type='csv')
 
     platform_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
-                                                   config_file={},
-                                                   start=True)
+                                                    config_file={},
+                                                    start=True)
 
     gevent.sleep(10)  # wait for the agent to start and start the devices
 

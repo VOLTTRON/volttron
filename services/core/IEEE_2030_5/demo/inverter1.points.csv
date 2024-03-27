@@ -1,0 +1,23 @@
+Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
+Heartbeat,Heartbeat,On/Off,On/Off,TRUE,0,boolean,Point for heartbeat toggle
+EKG1,BAT_SOC,waveform,waveform,TRUE,sin,float,Sine wave for baseline output
+EKG2,INV_REAL_PWR,waveform,waveform,TRUE,cos,float,Sine wave
+EKG3,INV_REACT_PWR,waveform,waveform,TRUE,tan,float,Cosine wave
+SampleBool3,energized,On / Off,on/off,FALSE,TRUE,boolean,Status indidcator of cooling stage 1
+SampleWritableBool3,connected,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
+SampleLong3,INV_OP_STATUS_MODE,Enumeration,1-4,FALSE,3,int,Mode of Inverter
+ctrl_freq_max,ctrl_freq_max,,,TRUE,,int,
+ctrl_volt_max,ctrl_volt_max,,,TRUE,,int,
+ctrl_freq_min,ctrl_freq_min,,,TRUE,,int,
+ctrl_volt_min,ctrl_volt_min,,,TRUE,,int,
+ctrl_ramp_tms,ctrl_ramp_tms,,,TRUE,,int,
+ctrl_rand_delay,ctrl_rand_delay,,,TRUE,,int,
+ctrl_grad_w,ctrl_grad_w,,,TRUE,,int,
+ctrl_soft_grad_w,ctrl_soft_grad_w,,,TRUE,,int,
+ctrl_connected,ctrl_connected,,,TRUE,,boolean,
+ctrl_energized,ctrl_energized,,,TRUE,,boolean,
+ctrl_fixed_pf_absorb_w,ctrl_fixed_pf_absorb_w,,,TRUE,,int,
+ctrl_fixed_pf_ingect_w,ctrl_fixed_pf_ingect_w,,,TRUE,,int,
+ctrl_fixed_var,ctrl_fixed_var,,,TRUE,,int,
+ctrl_fixed_w,ctrl_fixed_w,,,TRUE,,int,
+ctrl_es_delay,ctrl_es_delay,,,TRUE,,int,

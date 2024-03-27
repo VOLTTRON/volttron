@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 import gevent
 import random
@@ -61,7 +47,7 @@ def light_agent(config_path, **kwargs):
     :type config_path: str
     :returns: Market Service Agent
     :rtype: MarketServiceAgent
-    """   
+    """
     try:
         config = utils.load_config(config_path)
     except Exception:
@@ -73,8 +59,8 @@ def light_agent(config_path, **kwargs):
     market_name = config.get('market_name')
     k= config.get('k', 0)
     qmax= float(config.get('Pmax', 0))
-    Pabsnom= float(config.get('Pabsnom', 0))        
-    nonResponsive= config.get('nonResponsive', False)    
+    Pabsnom= float(config.get('Pabsnom', 0))
+    nonResponsive= config.get('nonResponsive', False)
     agent_name= config.get('agent_name')
     subscribing_topic= config.get('subscribing_topic', '')
     verbose_logging= config.get('verbose_logging', True)
@@ -89,10 +75,10 @@ class LightAgent(MarketAgent, FirstOrderZone):
     def __init__(self, market_name,agent_name,k,qmax,Pabsnom,nonResponsive,verbose_logging,subscribing_topic, **kwargs):
         super(LightAgent, self).__init__(verbose_logging, **kwargs)
         self.market_name = market_name
-        self.agent_name = agent_name        
+        self.agent_name = agent_name
         self.k = k
         self.qmax = qmax
-        self.Pabsnom=Pabsnom        
+        self.Pabsnom=Pabsnom
         self.nonResponsive = nonResponsive
         self.iniState()
         self.subscribing_topic=subscribing_topic
@@ -133,7 +119,7 @@ class LightAgent(MarketAgent, FirstOrderZone):
         self.qMax = self.qmax
         self.qNorm=self.qMax
         self.qClear=self.qNorm
- 
+
 
     def updateState(self, peer, sender, bus, topic, headers, message):
         '''Subscribe to device data from message bus
@@ -142,7 +128,7 @@ class LightAgent(MarketAgent, FirstOrderZone):
         info = message[0].copy()
         self.hvacAvail = info['SupplyFanStatus']
         if (self.hvacAvail > 0):
-              self.qNorm=self.qMax  
+              self.qNorm=self.qMax
         else:
               self.qNorm=0
 
@@ -158,12 +144,12 @@ class LightAgent(MarketAgent, FirstOrderZone):
     def clamp(self, value, x1, x2):
         minValue = min(x1, x2)
         maxValue = max(x1, x2)
-        return min(max(value, minValue), maxValue)        
-                        
+        return min(max(value, minValue), maxValue)
+
     def price_callback(self, timestamp, market_name, buyer_seller, price, quantity):
         _log.debug("the price is {}".format(price))
         self.pClear=price
-        if self.pClear is not None: 
+        if self.pClear is not None:
             self.updateSet()
             _log.debug("the new lightingt is {}".format(self.qClear))
             gevent.sleep(random.random())
@@ -173,10 +159,10 @@ class LightAgent(MarketAgent, FirstOrderZone):
     def error_callback(self, timestamp, market_name, buyer_seller,  error_code, error_message, aux):
         _log.debug("the new lightingt is {}".format(self.qNorm))
         self.vip.rpc.call('platform.actuator','set_point', self.agent_name,self.subscribing_topic+'/'+self.agent_name,round(self.qNorm,2)).get(timeout=5)
-        
+
 
     def ease(self, target, current, limit):
-        return current - np.sign(current-target)*min(abs(current-target), abs(limit))        
+        return current - np.sign(current-target)*min(abs(current-target), abs(limit))
 
 
 def main():
