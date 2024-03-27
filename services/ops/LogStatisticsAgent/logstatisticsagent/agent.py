@@ -31,13 +31,15 @@ import statistics
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import get_aware_utc_now
+from volttron.platform import get_home
+import time
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
 
 
-def log_statistics(config_path, **kwargs):
+def log_statistics(config_path: str, **kwargs):
     """
     Load the LogStatisticsAgent agent configuration and returns and instance
     of the agent created using that configuration.
@@ -66,8 +68,28 @@ class LogStatisticsAgent(Agent):
         }
     """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, config_path=None, **kwargs):
         super(LogStatisticsAgent, self).__init__(**kwargs)
+        self.configured = False
+        self.last_std_dev_time = get_aware_utc_now()
+
+        self.default_config = {
+            "file_path": f"volttron/volttron.log",
+            "analysis_interval_sec": 60,
+            "publish_topic": "platform/log_statistics",
+            "historian_topic": "analysis/log_statistics"
+        }
+        self.vip.config.set_default("config", self.default_config)
+        self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
+
+    def configure_main(self, config_name, action, contents):
+        config = self.default_config.copy()
+        config.update(contents)
+        self.configured = True
+        if action == "NEW" or "UPDATE":
+            self.reset_parameters(config)
+
+    def reset_parameters(self, config=None):
         self.analysis_interval_sec = config["analysis_interval_sec"]
         self.file_path = config["file_path"]
         self.publish_topic = config["publish_topic"]
@@ -76,6 +98,8 @@ class LogStatisticsAgent(Agent):
         self.file_start_size = None
         self.prev_file_size = None
         self._scheduled_event = None
+        if self.configured:
+            self.publish_analysis()
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
@@ -87,6 +111,9 @@ class LogStatisticsAgent(Agent):
         Publishes file's size increment in previous time interval (60 minutes) with timestamp.
         Also publishes standard deviation of file's hourly size differences every 24 hour.
         """
+        if not self.configured:
+            return
+        
         if self._scheduled_event is not None:
             self._scheduled_event.cancel()
 
@@ -105,23 +132,53 @@ class LogStatisticsAgent(Agent):
 
             headers = {'Date': datetime.datetime.utcnow().isoformat() + 'Z'}
 
-            publish_message = {'timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
-                               'log_size_delta': size_delta}
-            historian_message = [{"log_size_delta ": size_delta},
-                                 {"log_size_delta ": {'units': 'bytes', 'tz': 'UTC', 'type': 'float'}}]
+            publish_message = {'timestamp': datetime.datetime.utcnow().isoformat() + 'Z', 'log_size_delta': size_delta}
+            historian_message = [{
+                "log_size_delta ": size_delta
+            }, {
+                "log_size_delta ": {
+                    'units': 'bytes',
+                    'tz': 'UTC',
+                    'type': 'float'
+                }
+            }]
 
-            if len(self.size_delta_list) == 24:
-                standard_deviation = statistics.stdev(self.size_delta_list)
-                publish_message['log_std_dev'] = standard_deviation
-                historian_message[0]['log_std_dev'] = standard_deviation
-                historian_message[1]['log_std_dev'] = {'units': 'bytes', 'tz': 'UTC', 'type': 'float'}
+            now = get_aware_utc_now()
+            hours_since_last_std_dev = (now - self.last_std_dev_time).total_seconds() / 3600
 
-                _log.debug('publishing message {} with header {} on historian topic {}'
-                           .format(historian_message, headers, self.historian_topic))
-                self.vip.pubsub.publish(peer="pubsub", topic=self.historian_topic, headers=headers,
-                                        message=historian_message)
+            if hours_since_last_std_dev >= 24:
+                if self.size_delta_list:    # make sure it has something in it
+                    if len(self.size_delta_list) >= 2:    # make sure it has more than two items
+                        mean = statistics.mean(self.size_delta_list)
+                        standard_deviation = statistics.stdev(self.size_delta_list)
+
+                        publish_message['log_mean'] = mean
+                        print(f"Calculated mean: {mean}")
+                        publish_message['log_std_dev'] = standard_deviation
+
+                        historian_message[0]['log_mean'] = mean
+                        historian_message[0]['log_std_dev'] = standard_deviation
+
+                        historian_message[1]['log_mean'] = {'units': 'bytes', 'tz': 'UTC', 'type': 'float'}
+                        historian_message[1]['log_std_dev'] = {'units': 'bytes', 'tz': 'UTC', 'type': 'float'}
+
+                    else:
+                        _log.info("Not enough data points to calculate standard deviation")
+
+                else:
+                    _log.info("Not enough data points to calculate mean and standard deviation")
+
+                # Reset time
+                self.last_std_dev_time = now
 
                 self.size_delta_list = []
+
+                _log.debug('publishing message {} with header {} on historian topic {}'.format(
+                    historian_message, headers, self.historian_topic))
+                self.vip.pubsub.publish(peer="pubsub",
+                                        topic=self.historian_topic,
+                                        headers=headers,
+                                        message=historian_message)
 
             _log.debug('publishing message {} on topic {}'.format(publish_message, self.publish_topic))
             self.vip.pubsub.publish(peer="pubsub", topic=self.publish_topic, message=publish_message)
@@ -143,7 +200,7 @@ def main(argv=sys.argv):
     """
     Main method called by the platform.
     """
-    utils.vip_main(log_statistics, identity='platform.logstatisticsagent')
+    utils.vip_main(log_statistics, identity='platform.log_statistics')
 
 
 if __name__ == '__main__':
