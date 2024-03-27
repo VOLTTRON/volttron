@@ -23,16 +23,16 @@
 # }}}
 
 
-import random
-from math import pi
 import json
-import sys
-from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
-from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Agent
 import logging
 import requests
 from requests import get
+import urllib3
+
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from volttron.platform.agent import utils
+from volttron.platform.vip.agent import Agent
+
 
 _log = logging.getLogger(__name__)
 type_mapping = {"string": str, "int": int, "integer": int, "float": float, "bool": bool, "boolean": bool}
@@ -100,7 +100,6 @@ class Interface(BasicRevert, BaseInterface):
             raise ValueError("Access token is required.")
 
         if not self.verify_ssl:
-            import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         if self.ssl_cert_path:
