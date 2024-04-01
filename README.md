@@ -1,13 +1,23 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
 
+# VOLTTRON
+
+This repository is for the current production VOLTTRON. We are working on VOLTTRON 10 (modular) which is available under 
+github at https://github.com/eclipse-volttron/.  The modular version of VOLTTRON will help ease deployment and support 
+flexible deployment where in only required agents/applications can be installed, thereby simplifying setup and upgrade 
+steps for the end user. The VOLTTRON team are currently working on porting agents from monolithic VOLTTRON to the 
+modular version of VOLTTRON. To know more about modular VOLTTRON, please visit our new documentation site available 
+at https://eclipse-volttron.readthedocs.io/en/latest/. We would love for you to try it out and give us early 
+feedback. Also, until our work on modular VOLTTRON is completed, please continue cloning and using this 
+repository for your production systems.
 
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-## Upgrading to VOLTTRON 8.x
+## Upgrading Pre-8 to VOLTTRON 9.x
 
 VOLTTRON 8 introduces four changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 

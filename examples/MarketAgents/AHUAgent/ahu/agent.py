@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import sys
@@ -61,7 +47,7 @@ def ahu_agent(config_path, **kwargs):
     :type config_path: str
     :returns: Market Service Agent
     :rtype: MarketServiceAgent
-    """   
+    """
     try:
         config = utils.load_config(config_path)
     except Exception:
@@ -77,7 +63,7 @@ def ahu_agent(config_path, **kwargs):
     c1= config.get('c1')
     c2= config.get('c2')
     c3= config.get('c3')
-    COP= config.get('COP')	
+    COP= config.get('COP')
     verbose_logging= config.get('verbose_logging', True)
     return AHUAgent(air_market_name, electric_market_name, agent_name,
         subscribing_topic, c0, c1, c2, c3, COP, verbose_logging, **kwargs)
@@ -110,14 +96,14 @@ class AHUAgent(MarketAgent, AhuChiller):
         self.iniState()
         self.old_price = None
         self.old_quantity = None
-		
+
     @Core.receiver('onstart')
     def setup(self, sender, **kwargs):
         _log.debug('Subscribing to '+self.subscribing_topic)
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=self.subscribing_topic,
                                   callback=self.updateState)
-								  
+
     def air_aggregate_callback(self, timestamp, market_name, buyer_seller, aggregate_air_demand):
         if buyer_seller == BUYER:
             electric_demand = self.create_electric_demand_curve(aggregate_air_demand)
@@ -162,7 +148,7 @@ class AHUAgent(MarketAgent, AhuChiller):
         quantity = 0 # negative quantities are not real -1*10000
         supply_curve.add(Point(price=price, quantity=quantity))
         return supply_curve
-		
+
     def create_electric_demand_curve(self, aggregate_air_demand):
         curve = PolyLine()
         for point in aggregate_air_demand.points:
@@ -186,7 +172,7 @@ class AHUAgent(MarketAgent, AhuChiller):
         tAirMixed= info['MixedAirTemperature']
         tAirReturn= info['ReturnAirTemperature']
         tAirSupply= info['DischargeAirTemperature']
-        mDotAir= info['DischargeAirFlow']		
+        mDotAir= info['DischargeAirFlow']
 
 
 

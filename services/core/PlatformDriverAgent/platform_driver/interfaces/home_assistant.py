@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 
@@ -42,7 +28,7 @@ from math import pi
 import json
 import sys
 from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
-from volttron.platform.agent import utils  # added this to pull from config store
+from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
 import logging
 import requests
@@ -93,12 +79,12 @@ class Interface(BasicRevert, BaseInterface):
         self.access_token = None
         self.port = None
         self.units = None
-  
-    def configure(self, config_dict, registry_config_str):  # grabbing from config
+
+    def configure(self, config_dict, registry_config_str):
         self.ip_address = config_dict.get("ip_address", None)
         self.access_token = config_dict.get("access_token", None)
         self.port = config_dict.get("port", None)
-        
+
         # Check for None values
         if self.ip_address is None:
             _log.error("IP address is not set.")
@@ -109,9 +95,9 @@ class Interface(BasicRevert, BaseInterface):
         if self.port is None:
             _log.error("Port is not set.")
             raise ValueError("Port is required.")
-        
-        self.parse_config(registry_config_str) 
-        
+
+        self.parse_config(registry_config_str)
+
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
 
@@ -130,7 +116,7 @@ class Interface(BasicRevert, BaseInterface):
                 "Trying to write to a point configured read only: " + point_name)
         register.value = register.reg_type(value)  # setting the value
         entity_point = register.entity_point
-        # Changing lights values in home assistant based off of register value. 
+        # Changing lights values in home assistant based off of register value.
         if "light." in register.entity_id:
             if entity_point == "state":
                 if isinstance(register.value, int) and register.value in [0, 1]:
@@ -142,7 +128,7 @@ class Interface(BasicRevert, BaseInterface):
                     error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
                     _log.info(error_msg)
                     raise ValueError(error_msg)
-            
+
             elif entity_point == "brightness":
                 if isinstance(register.value, int) and 0 <= register.value <= 255:  # Make sure its int and within range
                     self.change_brightness(register.entity_id, register.value)
@@ -154,8 +140,22 @@ class Interface(BasicRevert, BaseInterface):
                 error_msg = f"Unexpected point_name {point_name} for register {register.entity_id}"
                 _log.error(error_msg)
                 raise ValueError(error_msg)
-                
-        # Changing thermostat values. 
+
+        elif "input_boolean." in register.entity_id:
+            if entity_point == "state":
+                if isinstance(register.value, int) and register.value in [0, 1]:
+                    if register.value == 1:
+                        self.set_input_boolean(register.entity_id, "on")
+                    elif register.value == 0:
+                        self.set_input_boolean(register.entity_id, "off")
+                else:
+                    error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
+                    _log.info(error_msg)
+                    raise ValueError(error_msg)
+            else:
+                _log.info(f"Currently, input_booleans only support state")
+
+        # Changing thermostat values.
         elif "climate." in register.entity_id:
             if entity_point == "state":
                 if isinstance(register.value, int) and register.value in [0, 2, 3, 4]:
@@ -184,7 +184,7 @@ class Interface(BasicRevert, BaseInterface):
             _log.error(error_msg)
             raise ValueError(error_msg)
         return register.value
-    
+
     def get_entity_data(self, point_name):
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -200,7 +200,7 @@ class Interface(BasicRevert, BaseInterface):
                         f"response: {response.text}"
             _log.error(error_msg)
             raise Exception(error_msg)
-        
+
     def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
@@ -214,7 +214,6 @@ class Interface(BasicRevert, BaseInterface):
                 if "climate." in entity_id:  # handling thermostats.
                     if entity_point == "state":
                         state = entity_data.get("state", None)
-
                         # Giving thermostat states an equivalent number.
                         if state == "off":
                             register.value = 0
@@ -238,10 +237,10 @@ class Interface(BasicRevert, BaseInterface):
                         register.value = attribute
                         result[register.point_name] = attribute
                 # handling light states
-                elif "light." in entity_id:
+                elif "light." or "input_boolean." in entity_id: # Checks for lights or input bools since they have the same states.
                     if entity_point == "state":
                         state = entity_data.get("state", None)
-                        # Converting light states to numbers. 
+                        # Converting light states to numbers.
                         if state == "on":
                             register.value = 1
                             result[register.point_name] = 1
@@ -254,7 +253,7 @@ class Interface(BasicRevert, BaseInterface):
                         result[register.point_name] = attribute
                 else:  # handling all devices that are not thermostats or light states
                     if entity_point == "state":
-                        
+
                         state = entity_data.get("state", None)
                         register.value = state
                         result[register.point_name] = state
@@ -283,10 +282,7 @@ class Interface(BasicRevert, BaseInterface):
             self.point_name = regDef['Volttron Point Name']
             self.units = regDef['Units']
             description = regDef.get('Notes', '')
-            
-            default_value = str(regDef.get("Starting Value", 'sin')).strip()
-            if not default_value:
-                default_value = None
+            default_value = ("Starting Value")
             type_name = regDef.get("Type", 'string')
             reg_type = type_mapping.get(type_name, str)
             attributes = regDef.get('Attributes', {})
@@ -361,7 +357,7 @@ class Interface(BasicRevert, BaseInterface):
             "Authorization": f"Bearer {self.access_token}",
             "content-type": "application/json",
         }
-        
+
         if self.units == "C":
             converted_temp = round((temperature - 32) * 5/9, 1)
             _log.info(f"Converted temperature {converted_temp}")
@@ -389,3 +385,23 @@ class Interface(BasicRevert, BaseInterface):
         }
 
         _post_method(url, headers, payload, f"set brightness of {entity_id} to {value}")
+
+    def set_input_boolean(self, entity_id, state):
+        service = 'turn_on' if state == 'on' else 'turn_off'
+        url = f"http://{self.ip_address}:{self.port}/api/services/input_boolean/{service}"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "entity_id": entity_id
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+
+        # Optionally check for a successful response
+        if response.status_code == 200:
+            print(f"Successfully set {entity_id} to {state}")
+        else:
+            print(f"Failed to set {entity_id} to {state}: {response.text}")

@@ -628,37 +628,37 @@ class PlatformWrapper:
             # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
             gevent.sleep(2)
             return True
-        
+
     file_types = Union[Literal["raw"], Literal["json"], Literal["csv"]]
-        
+
     def config_store_get(self, vip_identity: str, name: str, file_type: Optional[Literal["raw"]] = None) -> str:
         with with_os_environ(self.env):
             self.__wait_for_control_connection_to_exit__()
             env = self.env.copy()
             file_type = None if file_type is None else "--raw"
-            
+
             cmd = ['volttron-ctl', '--json', 'config', 'get', vip_identity, name]
-            
+
             if file_type:
                 cmd.append(file_type)
-            
+
             res = execute_command(cmd, env=env, logger=_log)
-            
+
             print(res)
             return res
-        
+
     def config_store_store(self, identity: str, name: str,  infile: Path, file_type: file_types = "json"):
         with with_os_environ(self.env):
             self.__wait_for_control_connection_to_exit__()
             env = self.env.copy()
             file_type = "--" + file_type
-            
+
             cmd = ['volttron-ctl', '--json', 'config', 'store', identity, name, infile.absolute().as_posix(), file_type]
-            
+
             res = execute_command(cmd, env=env, logger=_log)
-            
+
             print(res)
-        
+
 
     def add_capability(self, entry, capabilities):
         if not self.auth_enabled:
@@ -944,7 +944,7 @@ class PlatformWrapper:
             # if msgdebug:
             #     cmd.append('--msgdebug')
             if enable_logging:
-                cmd.append('-vv')
+                cmd.append('-v')
             cmd.append('-l{}'.format(self.log_path))
             if setupmode:
                 cmd.append('--setup-mode')

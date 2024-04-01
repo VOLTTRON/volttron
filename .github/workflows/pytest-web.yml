@@ -14,16 +14,19 @@
 name: Testing platform web
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
-
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   # The job named build
   build:
@@ -48,13 +51,13 @@ jobs:
 
       # setup the python environment for the operating system
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v5
+        uses: volttron/volttron-build-action@v6
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
@@ -63,20 +66,20 @@ jobs:
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pytest-report
           path: output/test-web-${{matrix.os}}-${{ matrix.python-version }}-results.xml
-    
+
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5
 #         if: always()
 #         with:
 #           github_token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
 #           files: output/test-testutils*.xml
-          
-          
+
+
 #-cov=com --cov-report=xml --cov-report=html
 # pytest tests.py --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
 #    - name: Lint with flake8
