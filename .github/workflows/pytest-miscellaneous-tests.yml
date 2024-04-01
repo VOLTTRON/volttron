@@ -14,16 +14,19 @@
 name: Miscellaneous platform tests
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
-  
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   # The job named build
   build:
@@ -32,10 +35,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Each entry in the os and python-version matrix will be run 
+        # Each entry in the os and python-version matrix will be run
         os: [ ubuntu-20.04 ]
         python-version: [ 3.8 ]
-    
+
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machine 20.04 available
     # - This uses the matrix os from the strategy above
@@ -44,25 +47,25 @@ jobs:
     # Each step will be run in order of listing.
     steps:
       # Checkout the volttron repository and set current direectory to it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # Setup the python environment for the operating system
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis
       - name: Run certs test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
           test_path: volttrontesting/platform/web/test_certs.py
           test_output_suffix: misc
-      
+
       - name: Run core agent test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -70,7 +73,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run packaging test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -78,15 +81,15 @@ jobs:
           test_output_suffix: misc
 
       - name: Run platform init test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
           test_path: volttrontesting/platform/test_platform_init.py
           test_output_suffix: misc
-      
+
       - name: Run sqlite3 test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@v6
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -95,7 +98,7 @@ jobs:
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pytest-report

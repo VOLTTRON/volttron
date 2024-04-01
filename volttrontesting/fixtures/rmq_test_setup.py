@@ -34,7 +34,7 @@ class RabbitTestConfig:
             # This is overwritten in the class below during
             # the create_rmq_volttron_setup function, but is
             # left here for completeness of the configuration.
-            'rmq-home': '~/rabbitmq_server-3.9.7',
+            'rmq-home': '~/rabbitmq_server-3.9.29',
             'reconnect-delay': 5
         }
 

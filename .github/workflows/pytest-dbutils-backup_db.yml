@@ -15,15 +15,20 @@ name: Testing BackupDatabase
 
 # Determine what events are going to trigger a running of the workflow
 on:
+  workflow_dispatch:
   push:
     branches:
     - develop
     - releases/**
   pull_request:
     branches:
-    - main
-    - develop
-    - releases/**
+      - main
+      - develop
+      - releases/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -46,11 +51,11 @@ jobs:
 
     steps:
       # checkout the volttron repository and set current directory to it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # setup the python environment for the operating system
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -60,7 +65,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@v6
         timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}
@@ -70,7 +75,7 @@ jobs:
 
 #       Archive the results from the pytest to storage.
       - name: Archive test results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pytest-report

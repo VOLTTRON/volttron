@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 
@@ -71,35 +57,35 @@ def schedule_example(config_path, **kwargs):
     agent_id = config['agentid']
 
     class SchedulerExample(Agent):
-        '''This agent can be used to demonstrate scheduling and 
+        '''This agent can be used to demonstrate scheduling and
         acutation of devices. It reserves a non-existent device, then
-        acts when its time comes up. Since there is no device, this 
+        acts when its time comes up. Since there is no device, this
         will cause an error.
         '''
-    
-    
+
+
         def __init__(self, **kwargs):
             super(SchedulerExample, self).__init__(**kwargs)
-    
+
         @Core.receiver('onsetup')
         def setup(self, sender, **kwargs):
             self._agent_id = config['agentid']
 
-        @Core.receiver('onstart')            
+        @Core.receiver('onstart')
         def startup(self, sender, **kwargs):
 #             self.publish_schedule()
             self.use_rpc()
-    
-    
-    
+
+
+
         @PubSub.subscribe('pubsub', topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='campus',
                                              building='building',unit='unit'))
         def actuate(self, peer, sender, bus,  topic, headers, message):
-            print ("response:",topic,headers,message)
+            print("response:", topic, headers, message)
             if headers[headers_mod.REQUESTER_ID] != agent_id:
                 return
             '''Match the announce for our fake device with our ID
-            Then take an action. Note, this command will fail since there is no 
+            Then take an action. Note, this command will fail since there is no
             actual device'''
             headers = {
                         'requesterID': agent_id,
@@ -109,8 +95,8 @@ def schedule_example(config_path, **kwargs):
                                              building='building',unit='unit',
                                              point='point'),
                                      headers, str(0.0))
-    
-        
+
+
         def publish_schedule(self):
             '''Periodically publish a schedule request'''
             headers = {
@@ -119,12 +105,12 @@ def schedule_example(config_path, **kwargs):
                         'requesterID': agent_id, #The name of the requesting agent.
                         'taskID': agent_id + "-ExampleTask", #The desired task ID for this task. It must be unique among all other scheduled tasks.
                         'priority': 'LOW', #The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
-                    } 
-            
+                    }
+
             start = str(datetime.datetime.now())
             end = str(datetime.datetime.now() + datetime.timedelta(minutes=1))
-    
-    
+
+
             msg = [
                    ['campus/building/unit', start, end],
                     ["campus/building/device1", #First time slot.
@@ -139,20 +125,20 @@ def schedule_example(config_path, **kwargs):
                 ]
             self.vip.pubsub.publish(
             'pubsub', topics.ACTUATOR_SCHEDULE_REQUEST, headers, msg)
-            
-            
+
+
         def use_rpc(self):
-            try: 
+            try:
                 start = str(datetime.datetime.now())
                 end = str(datetime.datetime.now() + datetime.timedelta(minutes=1))
-    
+
                 msg = [
                    ['campus/building/unit3',start,end]
                    ]
                 result = self.vip.rpc.call(
-                                           'platform.actuator', 
+                                           'platform.actuator',
                                            'request_new_schedule',
-                                           agent_id, 
+                                           agent_id,
                                            "some task",
                                            'LOW',
                                            msg).get(timeout=10)
@@ -161,13 +147,13 @@ def schedule_example(config_path, **kwargs):
                 print("Could not contact actuator. Is it running?")
                 print(e)
                 return
-            
+
             try:
                 if result['result'] == 'SUCCESS':
                     result = self.vip.rpc.call(
-                                           'platform.actuator', 
+                                           'platform.actuator',
                                            'set_point',
-                                           agent_id, 
+                                           agent_id,
                                            'campus/building/unit3/some_point',
                                            '0.0').get(timeout=10)
                     print("Set result", result)
@@ -185,13 +171,13 @@ def schedule_example(config_path, **kwargs):
                     print("Set_multiple_points result", result)
             except Exception as e:
                 print("Expected to fail since there is no real device to set")
-                print(e)    
+                print(e)
 
     Agent.__name__ = 'ScheduleExampleAgent'
     return SchedulerExample(**kwargs)
-            
-    
-    
+
+
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:

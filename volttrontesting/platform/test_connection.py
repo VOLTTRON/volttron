@@ -8,12 +8,12 @@ import os
 
 
 @pytest.fixture(scope="module")
-def setup_control_connection(request, get_volttron_instances):
+def setup_control_connection(request, volttron_instance):
     """ Creates a single instance of VOLTTRON for testing purposes
     """
     global wrapper, control_connection
 
-    wrapper = get_volttron_instances(1)
+    wrapper = volttron_instance
 
     request.addfinalizer(wrapper.shutdown_platform)
 
@@ -27,14 +27,14 @@ def setup_control_connection(request, get_volttron_instances):
     ks = KeyStore()
     ks.generate()
 
-    control_connection = build_connection(identity="foo",
-                                          address=wrapper.vip_address,
-                                          peer=CONTROL,
-                                          serverkey=wrapper.serverkey,
-                                          publickey=ks.public,
-                                          secretkey=ks.secret,
-                                          instance_name=wrapper.instance_name,
-                                          message_bus=wrapper.messagebus)
+    control_connection = wrapper.build_connection(identity="foo",
+                                                  address=wrapper.vip_address,
+                                                  peer=CONTROL,
+                                                  serverkey=wrapper.serverkey,
+                                                  publickey=ks.public,
+                                                  secretkey=ks.secret,
+                                                  instance_name=wrapper.instance_name,
+                                                  message_bus=wrapper.messagebus)
 
     # Sleep a couple seconds to wait for things to startup
     gevent.sleep(2)
@@ -49,11 +49,12 @@ def test_can_connect_to_control(setup_control_connection):
 
 
 @pytest.mark.control
-def test_can_get_peers(setup_control_connection):
+def test_can_get_peers(setup_control_connection, volttron_instance):
     wrapper, connection = setup_control_connection
     peers = connection.peers()
     assert CONTROL in peers
-    assert AUTH in peers
+    if volttron_instance.auth_enabled:
+        assert AUTH in peers
     assert CONFIGURATION_STORE in peers
 
 

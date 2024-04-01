@@ -241,17 +241,17 @@ def test_devices(nid, expected):
 
 
 def _mock_rpc_caller(peer, method, agent, file_name=None, raw=False, external_platform=None):
-    if method == 'manage_list_configs':
+    if method == 'list_configs':
         return ['config', 'devices/Campus/Building1/Fake1', 'devices/Campus/Building2/Fake1',
                 'devices/Campus/Building3/Fake1', 'registry_configs/fake.csv']
-    elif method == 'manage_get' and '.csv' in file_name:
+    elif method == 'get_config' and '.csv' in file_name:
         return [{'Point Name': 'SampleBool1',  'Volttron Point Name': 'SampleBool1',  'Units': 'On / Off',
                  'Units Details': 'on/off',  'Writable': 'FALSE',  'Starting Value': 'TRUE',  'Type': 'boolean',
                  'Notes': 'Status indidcator of cooling stage 1'},
                 {'Point Name': 'SampleWritableFloat1', 'Volttron Point Name': 'SampleWritableFloat1',  'Units': 'PPM',
                  'Units Details': '1000.00 (default)',  'Writable': 'TRUE',  'Starting Value': '10',  'Type': 'float',
                  'Notes': 'Setpoint to enable demand control ventilation'}]
-    elif method == 'manage_get' and '.csv' not in file_name:
+    elif method == 'get_config' and '.csv' not in file_name:
         return {'driver_config': {},  'registry_config': 'config://registry_configs/fake.csv', 'interval': 60,
                 'timezone': 'US/Pacific', 'driver_type': 'fakedriver', 'publish_breadth_first_all': False,
                 'publish_depth_first': False, 'publish_breadth_first': False, 'campus': 'campus',

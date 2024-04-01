@@ -9,7 +9,7 @@ from volttron.platform import get_examples
 from volttron.platform.jsonrpc import RemoteError
 import sys
 
-
+@pytest.mark.timeout(600)
 @pytest.mark.control
 def test_agent_versions(volttron_instance):
     auuid = volttron_instance.install_agent(
@@ -111,13 +111,14 @@ def test_prioritize_agent_valid_input(volttron_instance):
     assert cn.vip.rpc.call('control', 'prioritize_agent', auuid, '99').get(timeout=2) is None
 
 
-@pytest.mark.xfail(reason="bytes() calls (control.py:390|398) raise: TypeError('string argument without an encoding').")
 @pytest.mark.parametrize('uuid, priority, expected', [
-    (34, '50', "expected a string for 'uuid'"),
+    pytest.param(34, '50', "expected a string for 'uuid'",
+                 marks=pytest.mark.xfail(reason="bytes() calls raise: TypeError(string argument without an encoding)")),
     ('34/7', '50', 'invalid agent'),
     ('.', '50', 'invalid agent'),
     ('..', '50', 'invalid agent'),
-    ('foo', 2, "expected a string or null for 'priority'"),
+    pytest.param('foo', 2, "expected a string or null for 'priority'",
+                 marks=pytest.mark.xfail(reason="bytes() calls raise: TypeError(string argument without an encoding)")),
     ('foo', '-1', 'Priority must be an integer from 0 - 99.'),
     ('foo', '4.5', 'Priority must be an integer from 0 - 99.'),
     ('foo', '100', 'Priority must be an integer from 0 - 99.'),
@@ -130,15 +131,16 @@ def test_prioritize_agent_invalid_input(volttron_instance, uuid, priority, expec
     assert expected in e.value.message
 
 
+@pytest.mark.timeout(600)
 @pytest.mark.control
-def test_recover_from_crash(get_volttron_instances):
+def test_recover_from_crash(volttron_instance):
     """
     Test if control agent periodically monitors and restarts any crashed agents
     :param volttron_instance:
     :return:
     """
-
-    volttron_instance = get_volttron_instances(1, True, agent_monitor_frequency=10)
+    volttron_instance.stop_platform()
+    volttron_instance.startup_platform(volttron_instance.vip_address, agent_monitor_frequency=20)
     tmpdir = tempfile.mkdtemp()
 
     os.chdir(tmpdir)
@@ -158,9 +160,9 @@ class CrashTestAgent(Agent):
         super(CrashTestAgent, self).__init__(**kwargs)
 
     @Core.receiver('onstart')
-    def crash_after_five_seconds(self, sender, **kwargs):
+    def crash_after_test_seconds(self, sender, **kwargs):
         print("crash test agent on start")
-        gevent.sleep(5)
+        gevent.sleep(15)
         print("crash test agent quitting")
         sys.exit(5)
 
@@ -204,8 +206,10 @@ setup(
 
     wheel = os.path.join(tmpdir, "dist", "crashtest-0.1-py3-none-any.whl")
     assert os.path.exists(wheel)
-    agent_uuid = volttron_instance.install_agent(agent_wheel=wheel, start=True)
+    agent_uuid = volttron_instance.install_agent(agent_wheel=wheel)
     assert agent_uuid
+    gevent.sleep(1)
+    volttron_instance.start_agent(agent_uuid)
     query_agent = volttron_instance.dynamic_agent
     status = query_agent.vip.rpc.call("control", "agent_status", agent_uuid).get(
         timeout=2
@@ -216,9 +220,9 @@ setup(
     wait_time = 0
     # wait till it has not crashed and once crashed
     # wait till we detect a restart or 20 seconds.
-    # have to do this since the test agent is hardcoded to crash 5
+    # have to do this since the test agent is hardcoded to crash 15
     # seconds after start
-    while not crashed or (not restarted and wait_time < 30):
+    while not crashed or (not restarted and wait_time < 50):
         status = query_agent.vip.rpc.call("control", "agent_status", agent_uuid).get(
             timeout=2
         )

@@ -1,10 +1,9 @@
 from datetime import datetime
+import logging
 import os
 import sys
 
-
 import gevent
-import logging
 from gevent.core import callback
 from gevent import Timeout
 

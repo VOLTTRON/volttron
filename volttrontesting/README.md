@@ -13,20 +13,20 @@ the VOLTTRON repository.
 
 ```
 # Execute all tests throughout the repository
-py.test
+pytest
 
 # Execute a specific directory of tests recursively from the
 # specified directory.
-py.test examples/ListenerAgent
+pytest examples/ListenerAgent
 
 # Execute only tests that are marked as slow
-py.test -m slow
+pytest -m slow
 
 # Execute tests that are not marked as slow
-py.test -m "not slow"
+pytest -m "not slow"
 
 # Execute only zmq tests
-py.test -m zmq
+pytest -m zmq
 ```
 
 ## Notes

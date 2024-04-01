@@ -1,0 +1,95 @@
+# This file is a template, and might need editing before it works on your project.
+# You can copy and paste this template into a new `.gitlab-ci.yml` file.
+# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
+#
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Bash.gitlab-ci.yml
+
+# See https://docs.gitlab.com/ee/ci/yaml/index.html for all available options
+
+# you can delete this line if you're not using Docker
+# image: busybox:latest
+
+stages:
+    - build
+    - test
+
+.parallel-tests:
+    parallel:
+        matrix:
+            - TEST:
+                - services/core/ActuatorAgent/tests
+                - services/core/DataMover/tests/
+                - services/core/DNP3OutstationAgent/tests
+                - services/core/OpenADRVenAgent/tests
+                - services/core/PlatformDriverAgent/tests
+                - services/core/SQLHistorian/tests
+                - services/core/VolttronCentral/tests
+                - services/core/VolttronCentralPlatform/tests
+                - services/core/WeatherDotGov/tests
+                - services/ops
+                - volttrontesting/gevent/yield_test.py
+                - volttrontesting/platform/auth_tests
+                - volttrontesting/platform/control_tests
+                - volttrontesting/platform/dbutils
+                - volttrontesting/platform/web
+                - volttrontesting/platform/test_basehistorian.py
+                - volttrontesting/platform/test_connection.py
+                - volttrontesting/platform/test_core_agent.py
+                - volttrontesting/platform/test_instance_setup.py
+                - volttrontesting/platform/test_keystore.py
+                - volttrontesting/platform/test_packaging.py
+                - volttrontesting/platform/test_platform_init.py
+                - volttrontesting/platform/test_platform_rmq.py
+                - volttrontesting/platform/test_platform_web.py
+                - volttrontesting/platform/test_rmq_platform_shutdown.py
+                - volttrontesting/platform/test_sqlite3_fix.py
+                - volttrontesting/services/historian
+                - volttrontesting/services/aggregate_historian
+                - volttrontesting/services/tagging
+                - volttrontesting/services/weather
+                - volttrontesting/services/test_pubsub_service.py
+                - volttrontesting/subsystems
+                - volttrontesting/testutils
+                - volttrontesting/zmq
+
+build 20.04:
+    stage: build
+    tags:
+        - ubuntu2004
+
+    before_script:
+        #- killall -9 volttron beam.smp python
+        - rm -rf dist ~/.volttron ~/.volttron_instances
+        - rm -rf /tmp/tmp*
+        - rm -rf ~/rabbitmq_server
+
+    script:
+        - python3 bootstrap.py --all
+        - source env/bin/activate
+        - python3 bootstrap.py --rabbitmq
+        - echo "BUILD_DIR_20_04=`pwd`" >> build.env
+        - echo "$BUILD_DIR_20_04"
+        - echo `pwd`
+
+    artifacts:
+        reports:
+            dotenv: build.env
+
+test 20.04:
+    stage: test
+    needs: [build 20.04]
+    variables:
+            GIT_CHECKOUT: "false"
+    tags:
+        - ubuntu2004
+    extends: .parallel-tests
+    script:
+            - cd $BUILD_DIR_20_04
+            - echo `pwd`
+            - source env/bin/activate
+            - pytest $TEST
+
+
