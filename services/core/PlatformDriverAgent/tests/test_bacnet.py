@@ -77,7 +77,15 @@ def test_get_point_should_succeed(bacnet_test_agent):
 
 @pytest.fixture(scope="module")
 def bacnet_proxy_agent(volttron_instance):
-    device_address = socket.gethostbyname(socket.gethostname() + ".local")
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        s.connect(('8.8.8.8', 1))
+        device_address = s.getsockname()[0]
+    except Exception:
+        device_address = '127.0.0.1'
+    finally:
+        s.close()
     print(f"Device address for proxy agent for testing: {device_address}")
     bacnet_proxy_agent_config = {
         "device_address": device_address,

@@ -39,7 +39,6 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
 
-from requirements import extras_require
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.auth import certs
 from volttron.platform import jsonapi
@@ -336,12 +335,7 @@ def _get_dependencies():
     return dependencies
 
 
-def _check_dependencies_met(requirement):
-    try:
-        dependencies_needed = extras_require[requirement]
-    except KeyError:
-        print(f"ERROR: Requirement {requirement} was not found in requirements.py")
-        return False
+def _check_dependencies_met(dependencies_needed):
     current_dependencies = _get_dependencies()
     for dependency in dependencies_needed:
         if "==" in dependency:
@@ -358,15 +352,21 @@ def _check_dependencies_met(requirement):
 
 def set_dependencies(requirement):
     try:
+        # go up two level above env/bin
+        sys.path.append(os.path.dirname(os.path.dirname(sys.path[0])))
+        from requirements import extras_require
         dependencies_needed = extras_require[requirement]
     except KeyError:
-        print("ERROR: Incorrect requirement chosen")
+        print(f"ERROR: Incorrect requirement chosen: {requirement}")
         return
-    cmds = [sys.executable, "-m", "pip", "install"]
-    for dependency in dependencies_needed:
-        cmds.append(dependency)
-    subprocess.check_call(cmds)
-    return
+
+    if not _check_dependencies_met(dependencies_needed):
+        print(f"Installing {requirement} dependencies...")
+        cmds = [sys.executable, "-m", "pip", "install"]
+        for dependency in dependencies_needed:
+            cmds.append(dependency)
+        subprocess.check_call(cmds)
+        return
 
 
 def _create_web_certs():
@@ -893,10 +893,7 @@ def wizard():
         prompt = 'Is this instance web enabled?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
-            if not _check_dependencies_met('web'):
-                print("Web dependencies not installed. Installing now...")
-                set_dependencies('web')
-                print("Done!")
+            set_dependencies('web')
             if config_opts['message-bus'] == 'rmq':
                 do_web_enabled_rmq(volttron_home)
             elif config_opts['message-bus'] == 'zmq':
@@ -916,13 +913,9 @@ def wizard():
         prompt = 'Will this instance be controlled by volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
         if response in y:
-            if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
-                print("VCP dependencies not installed. Installing now...")
-                if not _check_dependencies_met("drivers"):
-                    set_dependencies("drivers")
-                if not _check_dependencies_met("web"):
-                    set_dependencies("web")
-                print("Done!")
+            print("Checking for VCP dependencies.....")
+            set_dependencies("drivers")
+            set_dependencies("web")
             do_vcp()
 
         prompt = 'Would you like to install a platform historian?'
@@ -932,10 +925,8 @@ def wizard():
         prompt = 'Would you like to install a platform driver?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
-            if not _check_dependencies_met("drivers"):
-                print("Driver dependencies not installed. Installing now...")
-                set_dependencies("drivers")
-                print("Done!")
+            print("Checking Driver dependencies...")
+            set_dependencies("drivers")
             do_platform_driver()
 
         prompt = 'Would you like to install a listener agent?'
@@ -954,13 +945,9 @@ def wizard():
         prompt = 'Will this instance be controlled by volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
         if response in y:
-            if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
-                print("VCP dependencies not installed. Installing now...")
-                if not _check_dependencies_met("drivers"):
-                    set_dependencies("drivers")
-                if not _check_dependencies_met("web"):
-                    set_dependencies("web")
-                print("Done!")
+            print("Checking VCP dependencies...")
+            set_dependencies("drivers")
+            set_dependencies("web")
             do_vcp()
 
         prompt = 'Would you like to install a platform historian?'
@@ -970,10 +957,8 @@ def wizard():
         prompt = 'Would you like to install a platform driver?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
-            if not _check_dependencies_met("drivers"):
-                print("Driver dependencies not installed. Installing now...")
-                set_dependencies("drivers")
-                print("Done!")
+            print("Checking Driver dependencies...")
+            set_dependencies("drivers")
             do_platform_driver()
 
         prompt = 'Would you like to install a listener agent?'
@@ -1114,10 +1099,9 @@ def process_rmq_inputs(args_dict, instance_name=None):
 
     vhome = get_home()
 
-    if args_dict['installation-type'] in ['federation', 'shovel'] and not _check_dependencies_met('web'):
-        print("Web dependencies not installed. Installing now...")
+    if args_dict['installation-type'] in ['federation', 'shovel']:
+        print("Checking Web dependencies...")
         set_dependencies('web')
-        print("Done!")
 
     if args_dict['config'] is not None:
         if not os.path.exists(vhome):
