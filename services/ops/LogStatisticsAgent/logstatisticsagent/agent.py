@@ -38,20 +38,6 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
 
-
-def log_statistics(config_path: str, **kwargs):
-    """
-    Load the LogStatisticsAgent agent configuration and returns and instance
-    of the agent created using that configuration.
-    :param config_path: Path to a configuration file.
-    :type config_path: str
-    :returns: LogStatisticsAgent agent instance
-    :rtype: LogStatisticsAgent agent
-    """
-    config = utils.load_config(config_path)
-    return LogStatisticsAgent(config, **kwargs)
-
-
 class LogStatisticsAgent(Agent):
     """
     LogStatisticsAgent reads volttron.log file size every hour, compute the size delta from previous hour and publish
@@ -79,6 +65,8 @@ class LogStatisticsAgent(Agent):
             "publish_topic": "platform/log_statistics",
             "historian_topic": "analysis/log_statistics"
         }
+        if config_path:
+            self.default_config.update(utils.load_config(config_path))
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
 
@@ -200,7 +188,7 @@ def main(argv=sys.argv):
     """
     Main method called by the platform.
     """
-    utils.vip_main(log_statistics, identity='platform.log_statistics')
+    utils.vip_main(LogStatisticsAgent, identity='platform.log_statistics')
 
 
 if __name__ == '__main__':
