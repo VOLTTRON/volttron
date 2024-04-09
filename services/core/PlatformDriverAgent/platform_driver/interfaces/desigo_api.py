@@ -196,7 +196,7 @@ class Interface(BasicRevert, BaseInterface):
                     f"{self.url}/{resource}",
                     headers={"authorization": f"Bearer {self.auth_token}"},
                     verify=False,
-                    timeout=300,
+                    timeout=800,
                 )
                 after_request = datetime.utcnow()
                 _log.debug(f"got resource in {after_request-before_request}")
@@ -285,13 +285,27 @@ class Interface(BasicRevert, BaseInterface):
         prop_values = {}
         for designation, registers in self.designation_map.items():
             _log.debug(f"scraping {designation}")
-            device_props = self.get_resource(f"propertyvalues/{designation}", {"readAllProperties": True})
-            _log.debug(f"{device_props=}")
-            for register in registers:
-                api_values[register.property_name] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
-                for prop in device_props["Properties"]:
-                    if prop["PropertyName"] == register.property_name:
-                        api_values[register.property_name] = prop["Value"]["Value"]
+            # check if point has property in designation
+            if self.has_property_in_designation(designation):
+                # read just the one property
+                for register in registers:
+                    properties_response = self.get_resource(
+                        f"propertyvalues/{designation}", {"readAllProperties": True}
+                    )
+                    try:
+                        value = properties_response.get('Properties', [{}])[0].get('Value', {})['Value']
+                    except IndexError:
+                        _log.warning(f"could not scrape value property {designation}")
+                        continue
+                    api_values[register.property_name] = value
+                
+            else:
+                device_props = self.get_resource(f"propertyvalues/{designation}", {"readAllProperties": True})
+                for register in registers:
+                    api_values[register.property_name] = [x for x in device_props["Properties"] if x["PropertyName"] == register.property_name]
+                    for prop in device_props["Properties"]:
+                        if prop["PropertyName"] == register.property_name:
+                            api_values[register.property_name] = prop["Value"]["Value"]
 
 
         # prop_values = self.parse_to_forwarder(prop_values)
@@ -361,3 +375,10 @@ class Interface(BasicRevert, BaseInterface):
                     }
                 )
         return normalized_data
+
+    def has_property_in_designation(self, designation):
+        props = designation.split(".")
+        if props[5] == "Points":
+            return True
+        else:
+            return False
