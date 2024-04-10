@@ -411,7 +411,10 @@ class ScheduleManager:
 
         self.save_state(now)
 
-        return RequestResult(True, preempted_tasks, '')
+        if preempted_tasks:
+            return RequestResult(True, list(preempted_tasks), 'TASK_WERE_PREEMPTED')
+        else:
+            return RequestResult(True, {}, '')
 
     def cancel_task(self, agent_id, task_id, now):
         if task_id not in self.tasks:
