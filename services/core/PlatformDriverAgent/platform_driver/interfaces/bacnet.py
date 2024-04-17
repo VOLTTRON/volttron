@@ -22,7 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-
+import gevent
 import logging
 from datetime import datetime, timedelta
 
@@ -98,9 +98,8 @@ class Interface(BaseInterface):
             pinged = True
         except errors.Unreachable:
             _log.warning("Unable to reach BACnet proxy.")
-
-        except errors.VIPError:
-            _log.warning("Error trying to ping device.")
+        except (Exception, gevent.Timeout) as e:
+            _log.warning(f"Error trying to ping device: {e}")
 
         self.scheduled_ping = None
 
