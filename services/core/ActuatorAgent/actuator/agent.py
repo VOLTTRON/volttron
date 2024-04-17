@@ -1382,11 +1382,8 @@ class ActuatorAgent(Agent):
                                             'data': {'agentID': sender,
                                                      'taskID': task_id}})
 
-        # If we are successful we do something else with the real result data
-        data = result.data if not result.success else {}
-
         results = {'result': success,
-                   'data': data,
+                   'data': result.data,
                    'info': result.info_string}
 
         if publish_result:
