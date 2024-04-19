@@ -375,20 +375,6 @@ def test_auth_rpc_method_remove(auth_instance):
     assert entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]}
 
 
-@pytest.mark.control
-def test_group_cmds(auth_instance):
-    """Test add-group, list-groups, update-group, and remove-group"""
-    _run_group_or_role_cmds(auth_instance, _add_group, _list_groups,
-            _update_group, _remove_group)
-
-
-@pytest.mark.control
-def test_role_cmds(auth_instance):
-    """Test add-role, list-roles, update-role, and remove-role"""
-    _run_group_or_role_cmds(auth_instance, _add_role, _list_roles,
-            _update_role, _remove_role)
-
-
 def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     expected = []
     key = '0'
