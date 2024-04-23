@@ -788,7 +788,7 @@ class AIPplatform:
         tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
         with ignore_enoent, open(tag_file, 'r') as file:
             tag = file.readline(64)
-            cached_tag[agent_uuid] = tag
+            self.agent_uuid_tag_map[agent_uuid] = tag
             return tag
 
     def agent_version(self, agent_uuid):
