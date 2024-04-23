@@ -263,6 +263,9 @@ class AIPplatform:
             self.rmq_mgmt = RabbitMQMgmt()
         self.instance_name = get_platform_instance_name()
         self.agent_uuid_name_map = {}
+        self.agent_uuid_tag_map = {}
+        self.agent_uuid_id_map = {}
+        self.agent_uuid_priority_map = {}
 
 
     def add_agent_user_group(self):
@@ -767,18 +770,26 @@ class AIPplatform:
         @param agent_uuid:
         @return:
         """
+        if cached_identity := self.agent_uuid_id_map.get(agent_uuid):
+            return cached_identity
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
             raise ValueError('invalid agent')
         identity_file = os.path.join(self.install_dir, agent_uuid, 'IDENTITY')
         with ignore_enoent, open(identity_file, 'rt') as file:
-            return file.readline(64)
+            identity = file.readline(64)
+            self.agent_uuid_id_map[agent_uuid] = identity
+            return identity
 
     def agent_tag(self, agent_uuid):
+        if cached_tag := self.agent_uuid_tag_map.get(agent_uuid):
+            return cached_tag
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
             raise ValueError('invalid agent')
         tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
         with ignore_enoent, open(tag_file, 'r') as file:
-            return file.readline(64)
+            tag = file.readline(64)
+            cached_tag[agent_uuid] = tag
+            return tag
 
     def agent_version(self, agent_uuid):
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
@@ -805,9 +816,13 @@ class AIPplatform:
         return agents
 
     def _agent_priority(self, agent_uuid):
+        if cached_priority := self.agent_uuid_priority_map.get(agent_uuid):
+            return cached_priority
         autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
         with ignore_enoent, open(autostart) as file:
-            return file.readline(100).strip()
+            priority = file.readline(100).strip()
+            self.agent_uuid_priority_map[agent_uuid] = priority
+            return priority
 
     def agent_priority(self, agent_uuid):
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
