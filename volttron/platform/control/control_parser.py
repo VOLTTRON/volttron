@@ -898,7 +898,11 @@ def main():
 
     try:
         with gevent.Timeout(opts.timeout):
-            return opts.func(opts)
+            if hasattr(opts, 'func'):
+                return opts.func(opts)
+            else:
+                _stderr.write("No command provided")
+                parser.print_help()
     except gevent.Timeout:
         _stderr.write("{}: operation timed out\n".format(opts.command))
         return 75
