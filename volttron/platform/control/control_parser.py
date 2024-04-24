@@ -901,7 +901,7 @@ def main():
             if hasattr(opts, 'func'):
                 return opts.func(opts)
             else:
-                _stderr.write("No command provided")
+                _stderr.write("No command provided\n")
                 parser.print_help()
                 return
     except gevent.Timeout:
