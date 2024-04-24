@@ -903,6 +903,7 @@ def main():
             else:
                 _stderr.write("No command provided")
                 parser.print_help()
+                return
     except gevent.Timeout:
         _stderr.write("{}: operation timed out\n".format(opts.command))
         return 75
