@@ -101,6 +101,8 @@ class AdminEndpoints:
                     self._userdict = jsonapi.loads(fp.read())
                 except json.decoder.JSONDecodeError:
                     self._userdict = {}
+                    # Keep same behavior as with PersistentDict
+                    raise ValueError("File not in a supported format")
 
     def get_routes(self):
         """
