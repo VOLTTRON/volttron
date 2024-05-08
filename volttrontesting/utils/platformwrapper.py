@@ -1564,17 +1564,20 @@ class PlatformWrapper:
                 return
 
             running_pids = []
-            if self.dynamic_agent:  # because we are not creating dynamic agent in setupmode
-                for agnt in self.list_agents():
-                    pid = self.agent_pid(agnt['uuid'])
-                    if pid is not None and int(pid) > 0:
-                        running_pids.append(int(pid))
-                if not self.skip_cleanup:
-                    self.remove_all_agents()
-                # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
-                self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
-                self.dynamic_agent.core.stop()
-                self.dynamic_agent = None
+            if self.dynamic_agent: 
+                try:# because we are not creating dynamic agent in setupmode
+                    for agnt in self.list_agents():
+                        pid = self.agent_pid(agnt['uuid'])
+                        if pid is not None and int(pid) > 0:
+                            running_pids.append(int(pid))
+                    if not self.skip_cleanup:
+                        self.remove_all_agents()
+                    # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+                    self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
+                    self.dynamic_agent.core.stop()
+                    self.dynamic_agent = None
+                except BaseException as e:
+                    self.logit(f"Exception while shutting down. {e}")
 
             if self.p_process is not None:
                 try:
