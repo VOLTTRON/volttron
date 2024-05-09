@@ -1,44 +1,30 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 """bootstrap - Prepare a VOLTTRON virtual environment.
 
-Bootstrapping is broken into two stages. The first stage should only be
+Bootstrapping is done in two stages. The first stage should only be
 invoked once per virtual environment. It downloads virtualenv and
 creates a virtual Python environment in the virtual environment
 directory (defaults to a subdirectory named env in the same directory as
@@ -72,20 +58,22 @@ may be used. Look here for more information on configuring pip:
 import argparse
 import errno
 import logging
+import os
+import shutil
 import subprocess
 import sys
+import traceback
 from urllib.request import urlopen
 
-import os
-import traceback
-
 from requirements import extras_require, option_requirements
+
 
 _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
 default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
-rabbitmq_server = 'rabbitmq_server-3.7.7'
+rmq_version = "3.9.29"
+rabbitmq_server = f"rabbitmq_server-{rmq_version}"
 
 
 def shescape(args):
@@ -95,7 +83,6 @@ def shescape(args):
 
 
 def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
-    import shutil
     args = [sys.executable, "-m", "venv", dest, "--prompt", prompt]
 
     complete = subprocess.run(args, stdout=subprocess.PIPE)
@@ -107,12 +94,12 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     return os.path.join(dest, "bin/python")
 
 
-def pip(operation, args, verbose=None, upgrade=False, offline=False):
+def pip(operation, args, verbose=None, offline=False):
     """Call pip in the virtual environment to perform operation."""
     cmd = ['pip', operation]
     if verbose is not None:
         cmd.append('--verbose' if verbose else '--quiet')
-    if upgrade and operation == 'install':
+    if operation == 'install':
         cmd.append('--upgrade')
     if offline:
         cmd.extend(['--retries', '0', '--timeout', '1'])
@@ -122,7 +109,7 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[], rabbitmq_path=None):
+def update(operation, verbose=None, offline=False, optional_requirements=[], rabbitmq_path=None):
     """Install dependencies in setup.py and requirements.txt."""
     print("UPDATE: {}".format(optional_requirements))
     assert operation in ['install', 'wheel']
@@ -136,14 +123,14 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
     # option_requirements contains wheel as first entry
 
     # Build option_requirements separately to pass install options
-    build_option = '--build-option' if wheeling else '--install-option'
+    build_option = '--build-option' if wheeling else '--config-settings'
 
     for requirement, options in option_requirements:
         args = []
         for opt in options:
             args.extend([build_option, opt])
         args.extend(['--no-deps', requirement])
-        pip(operation, args, verbose, upgrade, offline)
+        pip(operation, args, verbose, offline)
 
     # Install local packages and remaining dependencies
     args = []
@@ -159,7 +146,7 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
         target += '[' + ','.join(optional_requirements) + ']'
     args.extend(['--editable', target])
     print(f"Target: {target}")
-    pip(operation, args, verbose, upgrade, offline)
+    pip(operation, args, verbose, offline)
 
     try:
         # Install rmq server if needed
@@ -171,7 +158,7 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
 def install_rabbit(rmq_install_dir):
     # Install gevent friendly pika
-    pip('install', ['gevent-pika==0.3'], False, True, offline=False)
+    pip('install', ['pika==1.2.0'], False, offline=False)
     # try:
     process = subprocess.Popen(["which", "erl"], stderr=subprocess.PIPE,  stdout=subprocess.PIPE)
     (output, error) = process.communicate()
@@ -202,7 +189,7 @@ def install_rabbit(rmq_install_dir):
               "Skipping rabbitmq server install".format(
             rmq_install_dir, rabbitmq_server))
     else:
-        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz"
+        url = f"https://github.com/rabbitmq/rabbitmq-server/releases/download/v{rmq_version}/rabbitmq-server-generic-unix-{rmq_version}.tar.xz"
         f = urlopen(url)
         data = f.read()
         filename = "rabbitmq-server.download.tar.xz"
@@ -240,8 +227,8 @@ def main(argv=sys.argv):
         sys.exit(77)
 
     # Python3 for life!
-    if sys.version_info.major < 3 or sys.version_info.minor < 6:
-        sys.stderr.write('error: Python >= 3.6 is required\n')
+    if sys.version_info.major < 3 or sys.version_info.minor < 8:
+        sys.stderr.write('error: Python >= 3.8 is required\n')
         sys.exit(1)
 
     # Build the parser
@@ -337,9 +324,6 @@ def main(argv=sys.argv):
         help='install from cache without downloading')
     ex = up.add_mutually_exclusive_group()
     ex.add_argument(
-        '-u', '--upgrade', action='store_true', default=False,
-        help='upgrade installed packages')
-    ex.add_argument(
         '-w', '--wheel', action='store_const', const='wheel', dest='operation',
         help='build wheels in the pip wheelhouse')
     path = os.path.dirname(__file__) or os.getcwd()
@@ -361,8 +345,7 @@ def main(argv=sys.argv):
     # Main script logic to perform bootstrapping or updating
     if sys.base_prefix != sys.prefix:
         # The script was called from a virtual environment Python, so update
-        update(options.operation, options.verbose,
-               options.upgrade, options.offline, options.optional_args, options.rabbitmq)
+        update(options.operation, options.verbose, options.offline, options.optional_args, options.rabbitmq)
     else:
         # The script was called from the system Python, so bootstrap
         try:

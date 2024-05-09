@@ -1,41 +1,28 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
-
+from __future__ import annotations
+from unittest import mock
 
 import pytest
 import os
@@ -54,6 +41,7 @@ from volttrontesting.utils.web_utils import get_test_web_env
 from volttron.platform.vip.agent import Agent
 from services.core.VolttronCentral.volttroncentral.agent import VolttronCentralAgent
 import gevent
+import grequests
 
 
 @pytest.fixture
@@ -72,7 +60,7 @@ def mock_jsonrpc_env(path="jsonrpc", input_data=None, method="POST"):
 @pytest.fixture
 def mock_response(monkeypatch):
     def mock_resp(*args, **kwargs):
-        class MockResp():
+        class MockResp:
             def __init__(self):
                 mock_args = kwargs['json']
                 if mock_args['username'] == 'test' and mock_args['password'] == 'test':
@@ -81,8 +69,13 @@ def mock_response(monkeypatch):
                 else:
                     self.ok = False
                     self.text = "invalid username/password"
+            def send(self) -> MockResp:
+                return self
+            @property
+            def response(self) -> MockResp:
+                return self
         return MockResp()
-    monkeypatch.setattr(requests, "post", mock_resp)
+    monkeypatch.setattr(grequests, "post", mock_resp)
 
 
 @pytest.mark.vc
@@ -107,14 +100,14 @@ def test_jsonrpc_get_authorization(mock_response, mock_vc, mock_jsonrpc_env, mon
 @pytest.fixture
 def mock_vc_jsonrpc(mock_response, mock_vc, mock_jsonrpc_env, monkeypatch):
 
+    #with mock.patch('volttroncentral.agent.grequests', new=grequests_mock):
     mock_claims = {"groups": ["test_admin"]}
     mock_vc.vip.web.configure_mock(**{"get_user_claims.return_value": mock_claims})
     # mock_vc.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
     data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "test"}, None)
     mock_vc.jsonrpc(mock_jsonrpc_env, data)
-    #mock_vc_env = {"mock_vc": mock_vc, "mock_env": mock_jsonrpc_env}
-
     yield mock_vc
+
 
 @pytest.fixture
 def mock_websocket(mock_vc):
@@ -122,9 +115,9 @@ def mock_websocket(mock_vc):
     #.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
 
 
-
 @pytest.mark.vc
 def test_jsonrpc_is_authorized(mock_vc_jsonrpc, mock_jsonrpc_env):
+
     data = jsonrpc.json_method("12345", "list_platforms", None, None)
     data['authorization'] = '{"refresh_token": "super_secret_refresh_token", "access_token": "super_secret_access_token"}'
     response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
@@ -140,29 +133,25 @@ def test_jsonrpc_is_unauthorized(mock_vc_jsonrpc, mock_jsonrpc_env):
 
 
 @pytest.mark.vc
-def test_websocket_open_authenticate(mock_vc_jsonrpc, mock_jsonrpc_env):
-    vc = mock_vc_jsonrpc
-    print("BREAK")
-    assert True
-
-@pytest.mark.vc
-def test_default_config(volttron_instance):
+def test_installable(volttron_instance_web):
     """
     Test the default configuration file included with the agent
     """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
+    publish_agent = volttron_instance_web.dynamic_agent
 
-    config_path = os.path.join(get_services_core("VolttronCentral"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = yaml.safe_load(config_file)
-    assert isinstance(config_json, dict)
+    # config_path = os.path.join(get_services_core("VolttronCentral"), "config")
+    # with open(config_path, "r") as config_file:
+    #     config_json = yaml.safe_load(config_file)
+    # assert isinstance(config_json, dict)
 
-    volttron_instance.install_agent(
+    volttron_instance_web.install_agent(
         agent_dir=get_services_core("VolttronCentral"),
-        config_file=config_json,
+        # config_file=config_json,
         start=True,
         vip_identity="health_test")
+
+    if volttron_instance_web.messagebus == 'rmq':
+        gevent.sleep(10)
 
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 

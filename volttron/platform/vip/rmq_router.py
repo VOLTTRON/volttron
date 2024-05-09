@@ -1,43 +1,26 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
-
-
-from __future__ import absolute_import
 
 import errno
 import logging
@@ -48,22 +31,23 @@ from typing import Optional
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from .rmq_connection import RMQRouterConnection
-from .router import BaseRouter
-from .servicepeer import ServicePeerNotifier
-from .socket import Message, Address
-from ..keystore import KeyStore
-from ..main import __version__
+from volttron.platform.vip.rmq_connection import RMQRouterConnection
+from volttron.platform.vip.router import BaseRouter
+from volttron.platform.vip.servicepeer import ServicePeerNotifier
+from volttron.platform.vip.socket import Message, Address
+from volttron.platform.keystore import KeyStore
+from volttron.platform.main import __version__
 
 if is_rabbitmq_available():
     import pika
+    from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 
 __all__ = ['RMQRouter']
 
 _log = logging.getLogger(__name__)
 
 
-class RMQRouter(object):
+class RMQRouter:
     """
     Concrete VIP Router for RabbitMQ message bus. It handles router specific
     messages and unrouteable messages.
@@ -74,6 +58,7 @@ class RMQRouter(object):
                  volttron_central_address=None,
                  volttron_central_serverkey=None,
                  bind_web_address=None,
+                 enable_auth=True,
                  service_notifier=Optional[ServicePeerNotifier]
                  ):
         """
@@ -96,6 +81,7 @@ class RMQRouter(object):
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         self._service_notifier = service_notifier
+        self.enable_auth = enable_auth
         param = self._build_connection_parameters()
         self.connection = RMQRouterConnection(param,
                                               identity,
@@ -108,8 +94,12 @@ class RMQRouter(object):
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            param = self.rmq_mgmt.build_router_connection(self._identity,
-                                                          self._instance_name)
+            if self.enable_auth:
+                param = RMQConnectionAPI().build_router_connection(self._identity, self._instance_name)
+            else:
+                # if auth is disabled then connection to rmq router will not use ssl. All connection to rmq will be
+                # through rmq admin user and password
+                param = RMQConnectionAPI(ssl_auth=False).build_router_connection(self._identity, self._instance_name)
         return param
 
     def start(self):
@@ -249,7 +239,8 @@ class RMQRouter(object):
         elif subsystem == 'quit':
             if sender == 'control':
                 self.stop()
-                raise KeyboardInterrupt()
+                return False
+                #raise KeyboardInterrupt()
         elif subsystem == 'agentstop':
             _log.debug("ROUTER received agent stop {}".format(sender))
             try:

@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 __docformat__ = 'reStructuredText'
@@ -43,7 +29,7 @@ import re
 import sys
 import grequests
 import datetime
-import pkg_resources
+from importlib.resources import files as get_resource_files
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
@@ -52,7 +38,6 @@ from volttron.platform import jsonapi
 
 # requests should be imported after grequests
 # as grequests monkey patches ssl and requests imports ssl
-# TODO do we need the requests at all.. TODO test with RMQ
 import requests
 
 __version__ = "2.0.0"
@@ -63,7 +48,7 @@ _log = logging.getLogger(__name__)
 SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 
 LAT_LONG_REGEX = re.compile(
-    "^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
+    r"^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 WFO_REGEX = re.compile("^[A-Z]{3}$")
 
@@ -121,7 +106,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         """
         # returning resource file instead of stream, as csv.DictReader require file path or file like object opened in
         # text mode.
-        return pkg_resources.get_resource_filename(__name__, "data/name_mapping.csv")
+        return str(get_resource_files("weatherdotgov").joinpath("data/name_mapping.csv"))
 
     def get_location_string(self, location):
         """
@@ -151,10 +136,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         :return: string describing the function of the api endpoint, along with
         rpc call usage for the weather agent.
         """
-        if service_name is "get_current_weather":
+        if service_name == "get_current_weather":
             return "Provides current weather observations by station via RPC " \
                    "(Requires {'station': <station id>}"
-        elif service_name is "get_hourly_forecast":
+        elif service_name == "get_hourly_forecast":
             return "Provides <hours> (optional) hours of forecast " \
                    "predictions by lat/long or gridpoint location " \
                    "via RPC (Requires {'wfo': <wfo string>, 'x': <x " \
@@ -214,7 +199,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if service_name == "get_current_weather":
             return self.validate_location_formats(("station",), location)
         else:
-            return self.validate_location_formats(("gridpoints", "lat/long"),
+            return self.validate_location_formats(("gridpoints", "lat/long", "station"),
                                                   location)
 
     def validate_location_formats(self, accepted_formats, location):
@@ -299,12 +284,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
-        grequest = [grequests.get(url, verify=requests.certs.where(),
-                                  headers=self.headers, timeout=5)]
-        gresponse = grequests.map(grequest)[0]
-        if gresponse is None:
-            raise RuntimeError("get request did not return any "
-                               "response")
+        gresponse = self.make_web_request(url)
         try:
             response = jsonapi.loads(gresponse.content)
             properties = response["properties"]
@@ -343,10 +323,26 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         :return: time of forecast prediction as a timestamp string,
         and a list of
         """
-        if location.get('lat') and location.get('long'):
-            formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/points/{}/forecast/hourly".format(
-                formatted_location)
+
+        # TODO: cache mapping between station id - lat/long - wfo,x,y to improve performance
+        if location.get('station'):
+            # Two step process.
+            # 1. get lat,long for station id
+            url = "https://api.weather.gov/stations/{}".format(
+                location.get('station').strip())
+            _log.info(f"STATIONS url:{url}")
+            gresponse = self.make_web_request(url)
+            try:
+                _log.info(f"{gresponse.content}")
+                response = jsonapi.loads(gresponse.content)
+                long_lat_list = response["geometry"]["coordinates"]
+                # . get the url to query hourly forecast data -i.e. get wfo,x, y based on  lat, long
+                url = self.get_forecast_url({"lat": long_lat_list[1], 'long': long_lat_list[0]})
+            except ValueError:
+                self.generate_response_error(url, gresponse.status_code)
+        elif location.get('lat') and location.get('long'):
+            #  get the url to query hourly forecast data -i.e. get wfo,x, y for give lat, long
+            url = self.get_forecast_url(location)
         elif location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
             url = "https://api.weather.gov/" \
@@ -354,12 +350,30 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))
-        grequest = [grequests.get(url, verify=requests.certs.where(),
-                                  headers=self.headers, timeout=3)]
-        gresponse = grequests.map(grequest)[0]
-        if gresponse is None:
+        gresponse = self.make_web_request(url)
+        return self.extract_forecast_data(url, gresponse)
+
+    def get_forecast_url(self, location):
+        formatted_location = self.get_location_string(location)
+        url = "https://api.weather.gov/points/{}".format(
+            formatted_location)
+        gresponse = self.make_web_request(url)
+        try:
+            _log.info(f" after get forecast url for lat lon: response is{gresponse.content}")
+            response = jsonapi.loads(gresponse.content)
+            url = response["properties"]["forecastHourly"]
+        except ValueError:
+            self.generate_response_error(url, gresponse.status_code)
+        return url
+
+    def make_web_request(self, url):
+        response = requests.get(url, headers=self.headers, verify=requests.certs.where())
+        if response is None:
             raise RuntimeError("get request did not return any "
                                "response")
+        return response
+
+    def extract_forecast_data(self, url, gresponse):
         try:
             response = jsonapi.loads(gresponse.content)
             data = []
@@ -373,7 +387,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return generation_time, data
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
-
 
     def query_hourly_historical(self, location, start_date, end_date):
         """

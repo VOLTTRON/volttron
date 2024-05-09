@@ -5,12 +5,12 @@ import weakref
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.platform.agent.web import Response
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 
 _log = logging.getLogger(__name__)
 
 
-class CSREndpoints(object):
+class CSREndpoints:
 
     def __init__(self, core):
         self._core = weakref.ref(core)

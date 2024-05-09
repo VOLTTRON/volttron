@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import os
@@ -196,6 +182,7 @@ def test_current_fail(weather, query_agent, locations):
     [{"lat": 39.0693, "long": -94.6716}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}],
     [{"wfo": 'BOU', 'x': 54, 'y': 62}, {"lat": 39.7555, "long": -105.2211}],
+    [{"station": "KLAX"}, {"station": "KBOI"}],
     []
 ])
 def test_success_forecast(cleanup_cache, weather, query_agent, locations):
@@ -210,7 +197,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     for x in range(0, len(query_data)):
         location_data = query_data[x]
         assert (location_data.get("lat") and location_data.get("long")) or \
-               (location_data.get("wfo") and location_data.get("x") and location_data.get("y"))
+               (location_data.get("wfo") and location_data.get("x") and location_data.get("y")) or \
+               (location_data.get("station"))
         results = location_data.get("weather_results")
         error = location_data.get("weather_error")
         if error and not results:
@@ -241,6 +229,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
             assert cache_location_data.get("wfo") == query_location_data.get("wfo")
             assert cache_location_data.get("x") == query_location_data.get("x")
             assert cache_location_data.get("y") == query_location_data.get("y")
+        elif cache_location_data.get("station"):
+            assert cache_location_data.get("station") == query_location_data.get("station")
         else:
             assert False
         if cache_location_data.get("weather_results"):
@@ -269,8 +259,8 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
 @pytest.mark.weather2
 @pytest.mark.parametrize("locations", [
     ["fail"],
-    [{"station": "KLAX"}],
-    [{"station": "KLAX"}, "fail"],
+    [{"station": "KLAX12314"}],
+    [{"station": "failasdf"}, "fail"],
     [{"lat": 39.0693}],
 
 ])

@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
 
-if [ -z $VOLTTRON_HOME ]
+if [ -z "$VOLTTRON_HOME" ]
 then
     vhome="$HOME/.volttron"
 else
     vhome="$VOLTTRON_HOME"
-
 fi
 
 FILE="$vhome/VOLTTRON_PID"
-if [ -f $FILE ]; then
-   pid=`cat $FILE`
-   if ps -p $pid > /dev/null 2>&1
+if [ -f "$FILE" ]; then
+   pid=$(cat "$FILE")
+   if ps -p "$pid" > /dev/null 2>&1
    then
        echo "VOLTTRON with process id $pid is already running"
        exit 1
    else
        echo "PID file exists but process is not running. Removing old
        VOLTTRON_PID file"
-       rm $FILE
+       rm "$FILE"
    fi
 fi
 
@@ -52,13 +51,13 @@ fi
 
 echo "Waiting for VOLTTRON to startup.."
 count=0
-while [ ! -f $FILE ] && [ $count -lt 60 ]
+while [ ! -f "$FILE" ] && [ $count -lt 60 ]
 do
   sleep 1
   ((++count))
 done
 
-if [ -f $FILE ]; then
+if [ -f "$FILE" ]; then
  echo "VOLTTRON startup complete"
  exit 0
 else

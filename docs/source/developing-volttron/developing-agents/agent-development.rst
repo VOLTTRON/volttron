@@ -918,7 +918,7 @@ VOLTTRON uses *pytest* as a framework for executing tests.  All unit tests shoul
 For instructions on writing unit and integration tests with *pytest*, refer to the
 :ref:`Writing Agent Tests <Writing-Agent-Tests>` documentation.
 
-*pytest* is not installed with the distribution by default. To install py.test and it's dependencies execute the
+*pytest* is not installed with the distribution by default. To install pytest and it's dependencies execute the
 following:
 
 .. code-block:: bash
@@ -1008,3 +1008,4 @@ environment.  An example of setting `VOLTTRON_HOME` to `/tmp/v1home` is as follo
    developing-market-agents
    example-agents/index
    specifications/index
+   using-asyncio-in-agents

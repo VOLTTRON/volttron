@@ -227,7 +227,7 @@ class SecurityAgent(Agent):
                 else:
                     if os.access(file_path, os.R_OK):
                         return "Agent user has read access to file {}" \
-                            "Should have read access only to {}".format(file_path, paths)
+                            "\nShould have read access only to {}".format(file_path, paths)
 
                 if os.access(file_path, os.W_OK):
                         return "Agent user has write access to file {}".format(file_path)
@@ -244,7 +244,7 @@ class SecurityAgent(Agent):
         """
         error = None
         try:
-            self.vip.rpc.call('config.store', 'manage_store', "security_agent", 'config',
+            self.vip.rpc.call('config.store', 'set_config', "security_agent", 'config',
                               json.dumps({"name": "value"}), config_type='json').get(timeout=2)
         except Exception as e:
             error = str(e)
@@ -253,12 +253,12 @@ class SecurityAgent(Agent):
             return error
 
         try:
-            self.vip.rpc.call('config.store', 'manage_store', agent2_identity, 'config',
+            self.vip.rpc.call('config.store', 'set_config', agent2_identity, 'config',
                               json.dumps({"test": "value"}), config_type='json').get(timeout=10)
             error = "Security agent is able to edit  config store entry of security_agent2"
         except Exception as e:
             error = e.message
-            if error == "User can call method manage_store only with identity=security_agent " \
+            if error == "User can call method set_config only with identity=security_agent " \
                         "but called with identity={}".format(agent2_identity):
                error = None
 

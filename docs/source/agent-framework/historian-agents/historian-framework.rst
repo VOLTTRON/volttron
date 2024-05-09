@@ -15,6 +15,13 @@ captured and stored in some sort of data store.  Historians exist for the follow
 - :ref:`MQTT Historian <MQTT-Historian>` Forwards data to an MQTT broker
 - :ref:`InfluxDB Historian <Influxdb-Historian>`
 
+.. attention::
+   Historians are split into the directories of **core**, **contributed** and **unsupported**. ::
+
+      services/contrib/
+      services/core/
+      services/unsupported/
+
 Other implementations of Historians can be created by following the
 :ref:`Developing Historian Agents <Developing-Historian-Agents>` guide.
 

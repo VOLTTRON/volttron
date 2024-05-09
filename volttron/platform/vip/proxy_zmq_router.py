@@ -1,42 +1,26 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
-
-from __future__ import print_function, absolute_import
 
 import logging
 
@@ -97,57 +81,57 @@ class ZMQProxyRouter(Agent):
         # ----------------------------------------------------------------------------------
         # Create a queue to receive messages from local platform
         # (for example, response for RPC request etc)
-        result = channel.queue_declare(queue=self._rpc_handler_queue,
+        result = channel.queue_declare(self._rpc_handler_queue,
                                        durable=False,
                                        exclusive=True,
                                        auto_delete=True,
                                        callback=None)
-        channel.queue_bind(exchange=connection.exchange,
-                           queue=self._rpc_handler_queue,
+        channel.queue_bind(self._rpc_handler_queue,
+                           connection.exchange,
                            routing_key=self.core.instance_name + '.proxy.router.zmq.outbound.subsystem',
                            callback=None)
-        channel.basic_consume(self.rpc_message_handler,
-                              queue=self._rpc_handler_queue,
-                              no_ack=True)
+        channel.basic_consume(self._rpc_handler_queue,
+                              self.rpc_message_handler
+                              )
         # --------------------------------------------------------------------------------------
 
         # Create a queue to receive messages from local platform
         # (for example, response for RPC request etc)
-        result = channel.queue_declare(queue=self._outbound_response_queue,
+        result = channel.queue_declare(self._outbound_response_queue,
                                        durable=False,
                                        exclusive=True,
                                        auto_delete=True,
                                        callback=None)
-        channel.queue_bind(exchange=connection.exchange,
-                           queue=self._outbound_response_queue,
+        channel.queue_bind(self._outbound_response_queue,
+                           exchange=connection.exchange,
                            routing_key=self.core.instance_name + '.proxy.router.subsystems',
                            callback=None)
-        channel.basic_consume(self.outbound_response_handler,
-                              queue=self._outbound_response_queue,
-                              no_ack=True)
+        channel.basic_consume(self._outbound_response_queue,
+                              self.outbound_response_handler
+                              )
 
         # Create a queue to receive messages from local platform.
         # For example, external platform pubsub/RPC subscribe/unsubscribe
         # requests from internal agents
-        channel.queue_declare(queue=self._outbound_request_queue,
+        channel.queue_declare(self._outbound_request_queue,
                               durable=False,
                               exclusive=True,
                               auto_delete=True,
                               callback=None)
         # Binding for external platform pubsub message requests
-        channel.queue_bind(exchange=connection.exchange,
-                           queue=self._outbound_request_queue,
+        channel.queue_bind(self._outbound_request_queue,
+                           connection.exchange,
                            routing_key=self.core.instance_name + '.proxy.router.pubsub',
                            callback=None)
 
         # Binding for external platform RPC message requests
-        channel.queue_bind(exchange=connection.exchange,
-                           queue=self._outbound_request_queue,
+        channel.queue_bind(self._outbound_request_queue,
+                           connection.exchange,
                            routing_key=self.core.instance_name + '.proxy.router.external_rpc',
                            callback=None)
-        channel.basic_consume(self.outbound_request_handler,
-                              queue=self._outbound_request_queue,
-                              no_ack=True)
+        channel.basic_consume(self._outbound_request_queue,
+                              self.outbound_request_handler,
+                              )
 
     @Core.receiver('onstop')
     def on_stop(self, sender, **kwargs):
@@ -171,6 +155,8 @@ class ZMQProxyRouter(Agent):
         :param body: message
         :return:
         """
+        self.core.connection.channel.basic_ack(method.delivery_tag)
+
         # Strip sender's identity from binding key
         routing_key = str(method.routing_key)
         platform, to_identity = routing_key.split(".", 1)
@@ -213,7 +199,7 @@ class ZMQProxyRouter(Agent):
         :param body:
         :return:
         """
-
+        self.core.connection.channel.basic_ack(method.delivery_tag)
         frames = serialize_frames(jsonapi.loads(body))
 
         try:
@@ -232,6 +218,7 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         _log.debug("Proxy ZMQ Router {}".format(body))
+        self.core.connection.channel.basic_ack(method.delivery_tag)
         frames = jsonapi.loads(body.decode('utf-8'))
         if len(frames) > 6:
             if frames[5] == 'pubsub':
@@ -313,8 +300,8 @@ class ZMQProxyRouter(Agent):
         # routed back to the caller. Queue binding is modified for that purpose.
         # outbound_response_handler() gets called (based on the binding) to reformat response
         # message and send over zmq bus
-        connection.channel.queue_bind(exchange=connection.exchange,
-                                      queue=self._outbound_response_queue,
+        connection.channel.queue_bind(self._outbound_response_queue,
+                                      connection.exchange,
                                       routing_key=app_id,
                                       callback=None)
 
@@ -340,4 +327,4 @@ class ZMQProxyRouter(Agent):
         connection.channel.basic_publish(connection.exchange,
                                          destination_routing_key,
                                          jsonapi.dumps(args, ensure_ascii=False),
-                                         properties)
+                                         properties=properties)

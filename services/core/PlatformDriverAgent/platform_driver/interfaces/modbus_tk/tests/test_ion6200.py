@@ -88,12 +88,12 @@ def ion_driver_agent(request, volttron_instance):
     # Clean out platform driver configurations
     # wait for it to return before adding new config
     md_agent.vip.rpc.call('config.store',
-                          'manage_delete_store',
+                          'delete_store',
                           PLATFORM_DRIVER).get()
 
     # Add driver configurations
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           PLATFORM_DRIVER,
                           'devices/ion6200',
                           ION6200_DRIVER_CONFIG,
@@ -101,14 +101,14 @@ def ion_driver_agent(request, volttron_instance):
 
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           PLATFORM_DRIVER,
                           'ion6200.csv',
                           ION6200_CSV_CONFIG,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           PLATFORM_DRIVER,
                           'ion6200_map.csv',
                           ION6200_CSV_MAP,

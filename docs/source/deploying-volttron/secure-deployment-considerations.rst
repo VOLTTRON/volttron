@@ -169,4 +169,33 @@ can be further configured to detect and restart the RabbitMQ service if it crash
 to detect when the RabbitMQ server crashes/disconnects and reconnect when it becomes available. In this deployment
 setup, a VOLTTRON platform will not start/stop the RabbitMQ server.
 
+Isolate agent process from core VOLTTRON process
+================================================
 
+It is possible to run a volttron agent process as a unique unix users and restricting the unix level permission for
+that agent user such that agent has write access only to its own agent-data folder inside the VOLTTRON_HOME. This
+prevents agents from accidentally or intentionally editing/deleting other volttron process or other agents' files or
+system files outside of VOLTTRON_HOME
+
+For more information, refer to :ref:`Agent Isolation Mode: Running Users as unique Unix user<Agent-Isolation-Mode>`.
+
+Non-Auth Implementation
+=======================
+
+There may be some use-cases, such as simulating deployments or agent development, where security is not a consideration.
+In these cases, it is possible to disable VOLTTRON's authentication and authorization, stripping away the security layer from the 
+VIP messagebus and simplifying agent connection and RPC communication. Since this is not ideal for any deployment, this can only
+be done by manually modifying the volttron configuration file.
+
+Within the config file located within VOLTTRON_HOME, the allow-auth option must be added and set to False.
+
+.. code-block:: console
+
+  [volttron]
+  message-bus = zmq
+  vip-address = tcp://127.0.0.1:22916
+  instance-name = volttron1
+  allow-auth = False
+
+In simulation environments where multiple volttron instances are used, it is important to ensure that auth settings are 
+the same across all instances.

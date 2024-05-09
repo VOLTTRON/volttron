@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 """
@@ -43,13 +29,13 @@ The Actuator Agent is used to manage write access to devices. Other agents
 may request scheduled times, called Tasks, to interact with one or more
 devices.
 
-Agents may interact with the ActuatorAgent via either PUB/SUB or RPC, 
+Agents may interact with the ActuatorAgent via either PUB/SUB or RPC,
 but it is recommended agents use RPC to interact with the ActuatorAgent.
 
-The PUB/SUB interface remains primarily for VOLTTRON 2.0 agents. 
+The PUB/SUB interface remains primarily for VOLTTRON 2.0 agents.
 
-The Actuator Agent also triggers the heart beat on devices whose 
-drivers are configured to do so. 
+The Actuator Agent also triggers the heart beat on devices whose
+drivers are configured to do so.
 
 ActuatorAgent Configuration
 ===========================
@@ -67,7 +53,7 @@ ActuatorAgent Configuration
     "heartbeat_interval"
         How often to send a heartbeat signal to all devices in seconds.
         Defaults to 60.
-        
+
 
 Sample configuration file
 -------------------------
@@ -93,8 +79,8 @@ called a Task.
 Scheduling a New Task
 =====================
 
-:py:meth:`RPC interface <ActuatorAgent.request_new_schedule>` 
-:py:meth:`PUB/SUB interface <ActuatorAgent.handle_schedule_request>` 
+:py:meth:`RPC interface <ActuatorAgent.request_new_schedule>`
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_schedule_request>`
 
 Creating a Task requires four things:
 
@@ -110,20 +96,20 @@ Task Priority
 There are three valid prioirity levels:
 
     "HIGH"
-        This Task cannot be preempted under any circumstance. 
+        This Task cannot be preempted under any circumstance.
         This Task may preempt other conflicting preemptable Tasks.
     "LOW"
-        This Task cannot be preempted **once it has started**. 
-        A Task is considered started once the earliest time slot on any 
+        This Task cannot be preempted **once it has started**.
+        A Task is considered started once the earliest time slot on any
         device has been reached. This Task may not preempt other Tasks.
     "LOW_PREEMPT"
-        This Task may be preempted at any time. 
-        If the Task is preempted once it has begun running any current 
-        time slots will be given a grace period (configurable in the 
-        ActuatorAgent configuration file, defaults to 60 seconds) before 
+        This Task may be preempted at any time.
+        If the Task is preempted once it has begun running any current
+        time slots will be given a grace period (configurable in the
+        ActuatorAgent configuration file, defaults to 60 seconds) before
         being revoked. This Task may not preempt other Tasks.
-        
-Whenever a Task is preempted the Actuator Agent will publish a message to 
+
+Whenever a Task is preempted the Actuator Agent will publish a message to
 ``devices/actuators/schedule/result`` indicating that the Task has
 been cancelled due to being preempted. See `Preemption Publishes`_
 
@@ -153,11 +139,11 @@ format:
          "2013-12-06 16:20:00"],    #End of time slot.
         #etc...
     ]
-    
-.. note:: 
+
+.. note::
 
     Points on Task Scheduling
-    
+
     -  Task id and requester id (agentid) should be a non empty value of
        type string
     -  A Task schedule must have at least one time slot.
@@ -174,7 +160,7 @@ format:
        conflict. For example, time\_slot1(device0, time1, **time2**) and
        time\_slot2(device0,\ **time2**, time3) are not considered a conflict
     -  A request must not conflict with itself.
-    
+
 New Task Response
 -----------------
 
@@ -188,7 +174,7 @@ in the following format:
         'info': <Failure reason string, if any>,
         'data': <Data about the failure or cancellation, if any>
     }
-    
+
 The PUB/SUB interface will respond to requests on the
 ``devices/actuators/schedule/result`` topic.
 
@@ -201,12 +187,12 @@ The PUB/SUB interface responses will have the following header:
         'requesterID': <VIP Identity of requesting agent>,
         'taskID': <Task ID from the request>
     }
-    
+
 Failure Reasons
 ***************
 
 In many cases the ActuatorAgent will try to give good feedback as to why
-a request failed. The type of failure will populate "info" item as a 
+a request failed. The type of failure will populate "info" item as a
 string.
 
 
@@ -244,18 +230,18 @@ Task Schedule Failures
     the conflicts in this form:
 
     .. code-block:: python
-    
+
         {
-            '<agentID1>': 
+            '<agentID1>':
             {
                 '<taskID1>':
                 [
-                    ["campus/building/device1", 
-                     "2013-12-06 16:00:00",     
+                    ["campus/building/device1",
+                     "2013-12-06 16:00:00",
                      "2013-12-06 16:20:00"],
-                    ["campus/building/device1", 
-                     "2013-12-06 18:00:00",     
-                     "2013-12-06 18:20:00"]     
+                    ["campus/building/device1",
+                     "2013-12-06 18:00:00",
+                     "2013-12-06 18:20:00"]
                 ]
                 '<taskID2>':[...]
             }
@@ -268,40 +254,40 @@ Device Interaction
 Getting values
 --------------
 
-:py:meth:`RPC interface <ActuatorAgent.get_point>` 
-:py:meth:`PUB/SUB interface <ActuatorAgent.handle_get>` 
+:py:meth:`RPC interface <ActuatorAgent.get_point>`
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_get>`
 
-While a device driver for a device will periodically broadcast 
-the state of a device you may want an up to the moment value for 
+While a device driver for a device will periodically broadcast
+the state of a device you may want an up to the moment value for
 point on a device.
 
-As of VOLTTRON 3.5 it is no longer required to have the device 
+As of VOLTTRON 3.5 it is no longer required to have the device
 scheduled before you can use this interface.
 
 Setting Values
 --------------
 
-:py:meth:`RPC interface <ActuatorAgent.set_point>` 
-:py:meth:`PUB/SUB interface <ActuatorAgent.handle_set>` 
+:py:meth:`RPC interface <ActuatorAgent.set_point>`
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_set>`
 
 Failure to schedule the device first will result in an error.
 
 Errors Setting Values
 *********************
 
-If there is an error the RPC interface will raise an exception 
-and the PUB/SUB interface will publish to 
+If there is an error the RPC interface will raise an exception
+and the PUB/SUB interface will publish to
 
     ``devices/actuators/error/<full device path>/<actuation point>``
 
-The headder of the publish will take this form: 
+The headder of the publish will take this form:
 
 .. code-block:: python
 
     {
         'requesterID': <VIP Identity of requesting agent>
     }
-    
+
 and a message body in this form:
 
 .. code-block:: python
@@ -310,7 +296,7 @@ and a message body in this form:
         'type': <Class name of the exception raised by the request>
         'value': <Specific info about the error>
     }
-    
+
 Common Error Types
 ******************
 
@@ -319,16 +305,16 @@ Common Error Types
         use a device. (Forgot to schedule, preempted and we did not handle 
         the preemption message correctly, ran out of time in time slot, etc...)
     ``ValueError``
-        Message missing (PUB/SUB only) or is the wrong data type. 
+        Message missing (PUB/SUB only) or is the wrong data type.
 
 Most other error types involve problems with communication between the
-VOLTTRON device drivers and the device itself.   
+VOLTTRON device drivers and the device itself.
 
 Reverting Values and Devices to a Default State
 -----------------------------------------------
 
 As of VOLTTRON 3.5 device drivers are now required to support
-reverting to a default state. The exact mechanism used to 
+reverting to a default state. The exact mechanism used to
 accomplish this is driver specific.
 
 Failure to schedule the device first will result in a ``LockError``.
@@ -338,12 +324,12 @@ Failure to schedule the device first will result in a ``LockError``.
 
 :py:meth:`RPC revert device interface <ActuatorAgent.revert_device>`
 :py:meth:`PUB/SUB revert device interface <ActuatorAgent.handle_revert_device>`
-        
+
 Canceling a Task
 ================
 
-:py:meth:`RPC interface <ActuatorAgent.request_cancel_schedule>` 
-:py:meth:`PUB/SUB interface <ActuatorAgent.handle_schedule_request>` 
+:py:meth:`RPC interface <ActuatorAgent.request_cancel_schedule>`
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_schedule_request>`
 
 Cancelling a Task requires two things:
 
@@ -356,7 +342,7 @@ Cancel Task Response
 
 Both the RPC and PUB/SUB interface respond to requests with the result
 in the following format:
-            
+
 .. code-block:: python
 
     {
@@ -365,14 +351,14 @@ in the following format:
         'data': {}
     }
 
-.. note:: 
+.. note::
     There are some things to be aware of when canceling a schedule:
-    
+
         - The taskID must match the original value from the
         original request header.
         - After a Tasks time has passed there is no need to cancel it. Doing
         so will result in a "TASK_ID_DOES_NOT_EXIST" error.
-        
+
 
 If an attempt cancel a schedule fails than the "info" item will have any of the
 following values:
@@ -383,11 +369,11 @@ following values:
     "AGENT_ID_TASK_ID_MISMATCH"
         A different agent ID is being used when trying to cancel a Task.
 
-    
+
 Preemption Publishes
 ====================
 
-If a Task is preempted it will publish the following to the 
+If a Task is preempted it will publish the following to the
 ``devices/actuators/schedule/result`` topic:
 
 .. code-block:: python
@@ -400,7 +386,7 @@ If a Task is preempted it will publish the following to the
                     'taskID': <Task ID of preempting task>
                 }
     }
-    
+
 Along with the following header:
 
 .. code-block:: python
@@ -410,13 +396,13 @@ Along with the following header:
         'requesterID': <VIP id associated with the preempted Task>,
         'taskID': <Task ID of the preempted Task>
     }
-    
+
 .. note::
 
-    Remember that if your "LOW_PREEMPT" Task has already started and 
+    Remember that if your "LOW_PREEMPT" Task has already started and
     is preempted you have a grace period to do any clean up before
     losing access to the device.
- 
+
 Schedule State Publishes
 ========================
 
@@ -490,11 +476,11 @@ class LockError(Exception):
 
 
 def actuator_agent(config_path, **kwargs):
-    """Parses the Actuator Agent configuration and returns an instance of 
+    """Parses the Actuator Agent configuration and returns an instance of
     the agent created using that configuation.
-    
-    :param config_path: Path to a configuation file. 
-    
+
+    :param config_path: Path to a configuation file.
+
     :type config_path: str
     :returns: Actuator Agent
     :rtype: ActuatorAgent
@@ -528,18 +514,18 @@ class ActuatorAgent(Agent):
     The Actuator Agent regulates control of devices by other agents. Agents
     request a schedule and then issue commands to the device through
     this agent.
-    
+
     The Actuator Agent also sends out the signal to drivers to trigger
     a device heartbeat.
-    
-    :param heartbeat_interval: Interval in seonds to send out a heartbeat 
-        to devices. 
+
+    :param heartbeat_interval: Interval in seonds to send out a heartbeat
+        to devices.
     :param schedule_publish_interval: Interval in seonds to publish the
-        currently active schedules. 
+        currently active schedules.
     :param schedule_state_file: Name of the file to save the current schedule
-        state to. This file is updated every time a schedule changes. 
+        state to. This file is updated every time a schedule changes.
     :param preempt_grace_time: Time in seconds after a schedule is preemted
-        before it is actually cancelled. 
+        before it is actually cancelled.
     :param driver_vip_identity: VIP identity of the Platform Driver Agent.
 
     :type heartbeat_interval: float
@@ -786,26 +772,26 @@ class ActuatorAgent(Agent):
     def handle_get(self, peer, sender, bus, topic, headers, message):
         """
         Requests up to date value of a point.
-        
+
         To request a value publish a message to the following topic:
 
         ``devices/actuators/get/<device path>/<actuation point>``
-        
+
         with the fallowing header:
-        
+
         .. code-block:: python
-        
+
             {
                 'requesterID': <Ignored, VIP Identity used internally>
             }
-        
-        The ActuatorAgent will reply on the **value** topic 
+
+        The ActuatorAgent will reply on the **value** topic
         for the actuator:
 
         ``devices/actuators/value/<full device path>/<actuation point>``
-        
+
         with the message set to the value the point.
-        
+
         """
         point = topic.replace(topics.ACTUATOR_GET() + '/', '', 1)
         requester = sender
@@ -822,32 +808,32 @@ class ActuatorAgent(Agent):
     def handle_set(self, peer, sender, bus, topic, headers, message):
         """
         Set the value of a point.
-        
+
         To set a value publish a message to the following topic:
 
         ``devices/actuators/set/<device path>/<actuation point>``
-        
+
         with the fallowing header:
-        
+
         .. code-block:: python
-        
+
             {
                 'requesterID': <Ignored, VIP Identity used internally>
             }
-        
-        The ActuatorAgent will reply on the **value** topic 
+
+        The ActuatorAgent will reply on the **value** topic
         for the actuator:
 
         ``devices/actuators/value/<full device path>/<actuation point>``
-        
+
         with the message set to the value the point.
-        
-        Errors will be published on 
-        
+
+        Errors will be published on
+
         ``devices/actuators/error/<full device path>/<actuation point>``
-        
+
         with the same header as the request.
-        
+
         """
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
@@ -873,11 +859,11 @@ class ActuatorAgent(Agent):
     def get_point(self, topic, point=None, **kwargs):
         """
         RPC method
-        
-        Gets up to date value of a specific point on a device. 
-        Does not require the device be scheduled. 
-        
-        :param topic: The topic of the point to grab in the 
+
+        Gets up to date value of a specific point on a device.
+        Does not require the device be scheduled.
+
+        :param topic: The topic of the point to grab in the
                       format <device topic>/<point name>
 
                       Only the <device topic> if point is specified.
@@ -900,12 +886,12 @@ class ActuatorAgent(Agent):
     @RPC.export
     def set_point(self, requester_id, topic, value, point=None, **kwargs):
         """RPC method
-        
-        Sets the value of a specific point on a device. 
+
+        Sets the value of a specific point on a device.
         Requires the device be scheduled by the calling agent.
-        
+
         :param requester_id: Ignored, VIP Identity used internally
-        :param topic: The topic of the point to set in the 
+        :param topic: The topic of the point to set in the
                       format <device topic>/<point name>
                       Only the <device topic> if point is specified.
         :param value: Value to set point to.
@@ -915,12 +901,12 @@ class ActuatorAgent(Agent):
         :type requester_id: str
         :type value: any basic python type
         :type point: str
-        :returns: value point was actually set to. Usually invalid values 
+        :returns: value point was actually set to. Usually invalid values
                 cause an error but some drivers (MODBUS) will return a
                 different
                 value with what the value was actually set to.
         :rtype: any base python type
-        
+
         .. warning:: Calling without previously scheduling a device and not
         within
                      the time allotted will raise a LockError"""
@@ -1062,34 +1048,34 @@ class ActuatorAgent(Agent):
             results.update(r)
 
         return results
-    
+
     def handle_revert_point(self, peer, sender, bus, topic, headers, message):
         """
         Revert the value of a point.
-        
+
         To revert a value publish a message to the following topic:
 
         ``actuators/revert/point/<device path>/<actuation point>``
-        
+
         with the fallowing header:
-        
+
         .. code-block:: python
-        
+
             {
                 'requesterID': <Ignored, VIP Identity used internally>
             }
-        
+
         The ActuatorAgent will reply on
 
         ``devices/actuators/reverted/point/<full device path>/<actuation
         point>``
-        
+
         This is to indicate that a point was reverted.
-        
-        Errors will be published on 
-        
+
+        Errors will be published on
+
         ``devices/actuators/error/<full device path>/<actuation point>``
-        
+
         with the same header as the request.
         """
         point = topic.replace(topics.ACTUATOR_REVERT_POINT() + '/', '', 1)
@@ -1106,30 +1092,30 @@ class ActuatorAgent(Agent):
     def handle_revert_device(self, peer, sender, bus, topic, headers, message):
         """
         Revert all the writable values on a device.
-        
+
         To revert a device publish a message to the following topic:
 
         ``devices/actuators/revert/device/<device path>``
-        
+
         with the fallowing header:
-        
+
         .. code-block:: python
-        
+
             {
                 'requesterID': <Ignored, VIP Identity used internally>
             }
-        
-        The ActuatorAgent will reply on the **value** topic 
+
+        The ActuatorAgent will reply on the **value** topic
         for the actuator:
 
         ``devices/actuators/reverted/device/<full device path>``
-        
+
         to indicate that a point was reverted.
-        
-        Errors will be published on 
-        
+
+        Errors will be published on
+
         ``devices/actuators/error/<full device path>/<actuation point>``
-        
+
         with the same header as the request.
         """
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE() + '/', '', 1)
@@ -1147,17 +1133,17 @@ class ActuatorAgent(Agent):
     def revert_point(self, requester_id, topic, point=None, **kwargs):
         """
         RPC method
-        
-        Reverts the value of a specific point on a device to a default state. 
+
+        Reverts the value of a specific point on a device to a default state.
         Requires the device be scheduled by the calling agent.
-        
+
         :param requester_id: Ignored, VIP Identity used internally
-        :param topic: The topic of the point to revert in the 
+        :param topic: The topic of the point to revert in the
                       format <device topic>/<point name>
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
-        
+
         .. warning:: Calling without previously scheduling a device and not
         within
                      the time allotted will raise a LockError"""
@@ -1189,16 +1175,16 @@ class ActuatorAgent(Agent):
     def revert_device(self, requester_id, topic, **kwargs):
         """
         RPC method
-        
-        Reverts all points on a device to a default state. 
+
+        Reverts all points on a device to a default state.
         Requires the device be scheduled by the calling agent.
-        
+
         :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the device to revert
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
-        
+
         .. warning:: Calling without previously scheduling a device and not
         within
                      the time allotted will raise a LockError"""
@@ -1234,14 +1220,14 @@ class ActuatorAgent(Agent):
 
     def handle_schedule_request(self, peer, sender, bus, topic, headers,
                                 message):
-        """        
+        """
         Schedule request pub/sub handler
-        
+
         An agent can request a task schedule by publishing to the
         ``devices/actuators/schedule/request`` topic with the following header:
-        
+
         .. code-block:: python
-        
+
             {
                 'type': 'NEW_SCHEDULE',
                 'requesterID': <Ignored, VIP Identity used internally>,
@@ -1250,21 +1236,21 @@ class ActuatorAgent(Agent):
                 'priority': <task priority>, #The desired task priority,
                 must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
             }
-            
+
         The message must describe the blocks of time using the format
         described in `Device Schedule`_.
-            
+
         A task may be canceled by publishing to the
         ``devices/actuators/schedule/request`` topic with the following header:
-        
+
         .. code-block:: python
-        
+
             {
                 'type': 'CANCEL_SCHEDULE',
                 'requesterID': <Ignored, VIP Identity used internally>,
                 'taskID': <unique task ID>, #The task ID for the canceled Task.
             }
-            
+
         requesterID
             The name of the requesting agent. Automatically replaced with VIP id.
         taskID
@@ -1272,9 +1258,9 @@ class ActuatorAgent(Agent):
             other scheduled tasks.
         priority
             The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
-            
+
         No message is requires to cancel a schedule.
-            
+
         """
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
@@ -1319,24 +1305,24 @@ class ActuatorAgent(Agent):
     def request_new_schedule(self, requester_id, task_id, priority, requests):
         """
         RPC method
-        
+
         Requests one or more blocks on time on one or more device.
-        
+
         :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
         :param priority: Priority of the task. Must be either "HIGH", "LOW",
         or "LOW_PREEMPT"
         :param requests: A list of time slot requests in the format
         described in `Device Schedule`_.
-        
+
         :type requester_id: str
         :type task_id: str
         :type priority: str
         :returns: Request result
-        :rtype: dict       
-        
+        :rtype: dict
+
         :Return Values:
-        
+
             The return values are described in `New Task Response`_.
         """
         rpc_peer = self.vip.rpc.context.vip_message.peer
@@ -1426,21 +1412,21 @@ class ActuatorAgent(Agent):
     @RPC.export
     def request_cancel_schedule(self, requester_id, task_id):
         """RPC method
-        
+
         Requests the cancellation of the specified task id.
-        
+
         :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
-        
+
         :type requester_id: str
         :type task_id: str
         :returns: Request result
         :rtype: dict
-        
-        :Return Values: 
+
+        :Return Values:
 
         The return values are described in `Cancel Task Response`_.
-        
+
         """
         rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._request_cancel_schedule(rpc_peer, task_id, publish_result=False)

@@ -192,7 +192,7 @@ connection_type = None
 
 
 def setup_mysql(connection_params, table_names):
-    print ("setup mysql")
+    print("setup mysql")
     db_connection = mysql.connect(**connection_params)
     # clean up any rows from older runs
     cleanup_mysql(db_connection, None, drop_tables=True)
@@ -200,11 +200,11 @@ def setup_mysql(connection_params, table_names):
 
 
 def setup_sqlite(connection_params, table_names):
-    print ("setup sqlite")
+    print("setup sqlite")
     database_path = connection_params['database']
-    print ("connecting to sqlite path " + database_path)
+    print("connecting to sqlite path " + database_path)
     db_connection = sqlite3.connect(database_path)
-    print ("successfully connected to sqlite")
+    print("successfully connected to sqlite")
     cleanup_sqlite(db_connection, None, drop_tables=True)
     db_connection.commit()
     return db_connection
@@ -328,9 +328,9 @@ def get_table_names(config):
 def publish_test_data(publish_agent, start_time, start_reading, count):
     reading = start_reading
     time = start_time
-    print ("publishing test data starttime is {} utcnow is {}".format(
+    print("publishing test data starttime is {} utcnow is {}".format(
         start_time, datetime.utcnow()))
-    print ("publishing test data value string {} at {}".format(reading,
+    print("publishing test data value string {} at {}".format(reading,
                                                                datetime.now()))
 
     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
@@ -387,8 +387,9 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
 def query_agent(request, volttron_instance):
     # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
     fake_agent = volttron_instance.build_agent()
-    capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
-    volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
+    if volttron_instance.auth_enabled:
+        capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
+        volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
     # 2: add a tear down method to stop sqlhistorian fake_agent and the fake
     # fake_agent that published to message bus
     def stop_agent():
@@ -425,7 +426,7 @@ def aggregate_agent(request, volttron_instance):
     # Set this hear so that we can create these table after connecting to db
     table_names = get_table_names(request.param)
 
-    print ("request.param -- {}".format(request.param))
+    print("request.param -- {}".format(request.param))
 
     # 2: Open db connection that can be used for row deletes after
     # each test method. Clean up old tables if any
@@ -489,7 +490,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
     :param query_agent: fake agent used to query historian
     :return:
     """
-    query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+    query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                              AGG_AGENT_VIP, "config",
                              aggregate_agent).get()
     gevent.sleep(1)
@@ -501,7 +502,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
         'get_supported_aggregations').get(timeout=10)
 
     assert result
-    print (result)
+    print(result)
     conn = aggregate_agent.get("connection")
     if conn:
         if conn.get("type") == "mysql":
@@ -564,7 +565,7 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
              ]
              }
         ]
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(1)
@@ -667,7 +668,7 @@ def test_single_topic(aggregate_agent, query_agent):
                 ]
             }
         ]
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(3 * 60)  # sleep till we see two rows in aggregate table
@@ -787,7 +788,7 @@ def test_single_topic(aggregate_agent, query_agent):
 
 
 def compute_timediff_seconds(time1_str, time2_str):
-    if re.match('\+[0-9][0-9]:[0-9][0-9]', time1_str[-6:]):
+    if re.match(r'\+[0-9][0-9]:[0-9][0-9]', time1_str[-6:]):
         time1_str = time1_str[:-6]
         time2_str = time2_str[:-6]
     datetime1 = datetime.strptime(time1_str,
@@ -840,7 +841,7 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(1)
@@ -913,7 +914,7 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(1)
@@ -990,7 +991,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(2)
@@ -1036,11 +1037,11 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
 
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
 
-        print ("After configure\n\n")
+        print("After configure\n\n")
         gevent.sleep(3)
 
         result1 = query_agent.vip.rpc.call(

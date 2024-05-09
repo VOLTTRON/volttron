@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 """
 pytest test cases for tagging service
@@ -62,19 +48,6 @@ except:
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
 
-try:
-    from crate import client
-    from crate.client.exceptions import ProgrammingError
-    # Adding crate historian to the path so we have access to it's packages
-    # for removing/creating schema for testing with.
-    root = get_volttron_root()
-    crate_path = get_services_core("CrateHistorian")
-
-    sys.path.insert(0, crate_path)
-    from volttron.platform.dbutils import crateutils as crate_utils
-    HAS_CRATE_CONNECTOR = True
-except:
-    HAS_CRATE_CONNECTOR = False
 
 try:
     import mysql.connector as mysql
@@ -96,10 +69,10 @@ mongodb_config = {"source": get_services_core("MongodbTaggingService"),
                                  "params": {
                                     "host": "localhost",
                                     "port": 27017,
-                                    "database": "mongo_test",
+                                    "database": "test_historian",
                                     "user": "historian",
                                     "passwd": "historian",
-                                    "authSource": "test"
+                                    "authSource": "test_historian"
                                 }}}
 
 sqlite_historian = {
@@ -118,40 +91,13 @@ mysql_historian = {
         }
     }
 }
-mongo_historian = {
-    "source": get_services_core("MongodbHistorian"),
-    "connection": {"type": "mongodb",
-                   "params": {"host": "localhost",
-                              "port": 27017,
-                              "database": "mongo_test",
-                              "user": "historian",
-                              "passwd": "historian",
-                              "authSource": "test"}
-                   }
-}
 
-crate_historian = {
-    "source": get_services_core("CrateHistorian"),
-    "connection": {
-        "schema": "testing_historian",
-        "type": "crate",
-        "params": {
-            "host": "http://localhost:4200",
-            "debug": False
-        }
-    }
-}
 historians = [
     None,
     sqlite_historian
 ]
-if HAS_PYMONGO:
-    historians.append(mongo_historian)
 if HAS_MYSQL_CONNECTOR:
     historians.append(mysql_historian)
-if HAS_CRATE_CONNECTOR:
-    historians.append(crate_historian)
-
 
 def setup_sqlite(config):
     print("setup sqlite")
@@ -201,7 +147,7 @@ def cleanup_mysql(db_connection, truncate_tables):
 
 def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
-        db_connection[collection].remove()
+        db_connection[collection].drop()
     print("Finished removing {}".format(truncate_tables))
 
 
@@ -285,7 +231,7 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
                                          callback=query_agent.callback).get()
         new_config = copy.copy(tagging_service)
         new_config['connection'] = {"params":
-                                        {"host": "localhost",
+                                        {"host": "localhost2",
                                          "port": 27017,
                                          "database": "mongo_test",
                                          "user": "invalid_user",
@@ -299,8 +245,8 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
             volttron_instance.start_agent(agent_id)
         except:
             pass
-        gevent.sleep(1)
-        print ("Call back count {}".format(query_agent.callback.call_count))
+        gevent.sleep(3)
+        print("Call back count {}".format(query_agent.callback.call_count))
         assert query_agent.callback.call_count == 1
         print("Call args {}".format(query_agent.callback.call_args))
         assert query_agent.callback.call_args[0][1] == 'test.tagging.init'

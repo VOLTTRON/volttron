@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 
@@ -62,11 +48,11 @@ def get_known_host_serverkey(vip_address):
 def get_server_keys():
     try:
         # attempt to read server's keys. Should be used only by multiplatform connection and tests
-        # If agents such as forwarder attempt this in secure mode this will throw access violation exception
+        # If agents such as forwarder attempt this in agent isolation mode this will throw access violation exception
         ks = KeyStore()
     except IOError as e:
         raise RuntimeError("Exception accessing server keystore. Agents must use agent's public and private key"
-                           "to build dynamic agents when running in secure mode. Exception:{}".format(e))
+                           "to build dynamic agents when running in agent isolation mode. Exception:{}".format(e))
 
     return ks.public, ks.secret
 
@@ -85,7 +71,7 @@ def build_agent(address=None, identity=None, publickey=None,
                 secretkey=None, timeout=10, serverkey=None,
                 agent_class=Agent, volttron_central_address=None,
                 volttron_central_instance_name=None, **kwargs) -> Agent:
-    """ Builds a dynamic agent connected to the specifiedd address.
+    """ Builds a dynamic agent connected to the specified address.
 
     All key parameters should have been encoded with
     :py:meth:`volttron.platform.vip.socket.encode_key`
@@ -107,7 +93,12 @@ def build_agent(address=None, identity=None, publickey=None,
     # This is a fix allows the connect to message bus to be different than
     # the one that is currently running.
     if publickey is None or secretkey is None:
-        publickey, secretkey = get_server_keys()
+        # if identity:
+        #     ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
+        #     publickey = ks.public
+        #     secretkey = ks.secret
+        # else:
+            publickey, secretkey = get_server_keys()
     try:
         message_bus = kwargs.pop('message_bus')
     except KeyError:

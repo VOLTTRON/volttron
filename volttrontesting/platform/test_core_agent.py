@@ -174,7 +174,9 @@ class ChannelReceiver(Agent):
         channel.close(linger=0)
         del channel
 
-
+# marking the first test with extra time out as starting RMQ instance for the first time takes longer and
+# pytest.timeout applies not just for the test run alone but include fixture and clean up time
+@pytest.mark.timeout(600)
 @pytest.mark.agent
 def test_channel_send_data(volttron_instance: PlatformWrapper):
 

@@ -347,7 +347,7 @@ def test_get_topic_meta_map_should_return_maps(get_container_func):
                    INSERT INTO topics (topic_name)
                    VALUES ('football');
                    INSERT INTO topics (topic_name, metadata)
-                   VALUES ('baseball', '{"meta":"value"}');
+                   VALUES ('baseball', '{\\"meta\\":\\"value\\"}');
                 """
         seed_database(container, query)
         expected = {1: None, 2: {"meta": "value"}}

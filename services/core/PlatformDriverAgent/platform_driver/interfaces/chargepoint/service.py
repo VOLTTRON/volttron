@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import suds.client
@@ -68,7 +54,7 @@ class CPAPIException(Exception):
         return '{0} : {1}'.format(self._responseCode, self._responseText)
 
 
-class CPOrganization(object):
+class CPOrganization:
     """Represents an organization within the ChargePoint network.
 
     :param cpn_id: Chargepoint Network ID.
@@ -89,7 +75,7 @@ class CPOrganization(object):
         return '{0}:{1}'.format(self._cpn_id, self._organization_id)
 
 
-class CPGroupManager(object):
+class CPGroupManager:
     """Manger for a Chargepoint group and its stations.
 
     :param cps: Chargepoint Service object.
@@ -112,7 +98,7 @@ class CPGroupManager(object):
                     station._data['stationLoadData'] = data
 
 
-class CPStationGroup(object):
+class CPStationGroup:
     """Wrapper around the getStationGroups() return by Chargepoint API.
 
     :param cps: Chargepoint Service object.
@@ -166,7 +152,7 @@ class CPStationGroup(object):
         return [s.stationID for s in self._groupsdata.stationData]
 
 
-class CPStation(object):
+class CPStation:
     """Wrapper around the getStations() return by Chargepoint API.
 
     Data surrounding a Chargepoint Station can generally be categorized as static or dynamic.  Chargepoint API has two
@@ -346,7 +332,7 @@ class CPStation(object):
         self._data['stationDataExtended'] = self._cps.getStation(stationID=self.id)[0]
 
 
-class CPPort(object):
+class CPPort:
     def __init__(self, data=None):
         self._data = data
 
@@ -375,7 +361,7 @@ class CPPort(object):
         return self._data.Power
 
 
-class CPAPIResponse(object):
+class CPAPIResponse:
     """Response object describing a chargepoint API call
 
     :param response: SOAP object containing the API response
@@ -768,7 +754,7 @@ class CPAPIGetLoadResponse(CPAPIResponse):
         return CPAPIResponse.get_attr_from_response('shedState', self.station_data, port)
 
 
-class CPService(object):
+class CPService:
     """
         Python wrapper around the Chargepoint WebServices API.
 

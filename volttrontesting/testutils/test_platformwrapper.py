@@ -1,45 +1,31 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 from configparser import ConfigParser
 import time
 import os
 
-import requests
+import grequests
 import gevent
 import pytest
 from mock import MagicMock
@@ -51,8 +37,8 @@ from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_addr
 
 @pytest.mark.parametrize("messagebus, ssl_auth", [
     ('zmq', False)
-    # , ('zmq', False)
-    # , ('rmq', True)
+    , ('rmq', True)
+    , ('zmq', True)
 ])
 def test_can_create(messagebus, ssl_auth):
     p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
@@ -85,7 +71,9 @@ def test_can_create_web_enabled(messagebus: str, https_enabled: bool):
         http_address = get_rand_http_address(https=https_enabled)
         p.startup_platform(vip_address=get_rand_tcp_address(), bind_web_address=http_address)
         assert p.is_running()
-        response = requests.get(http_address, verify=False)
+        result = grequests.get(http_address, verify=False).send()
+        assert result
+        response = result.response
         assert response.ok
     finally:
         if p:
@@ -165,7 +153,6 @@ def test_instance_writes_to_instances_file(volttron_instance):
     assert the_instance_entry['volttron-home'] == vi.volttron_home
 
 
-@pytest.mark.skip(reason="To test actions on github")
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance: PlatformWrapper):
     vi = volttron_instance
@@ -279,6 +266,16 @@ def test_can_stop_vip_heartbeat(volttron_instance):
 
 
 @pytest.mark.wrapper
+def test_web_wrapper(volttron_instance_web):
+    vi = volttron_instance_web
+    agent = vi.build_agent()
+    assert agent.core.identity
+    resp = agent.vip.peerlist().get(timeout=5)
+    assert isinstance(resp, list)
+    assert len(resp) > 1
+
+
+@pytest.mark.wrapper
 def test_get_peerlist(volttron_instance):
     vi = volttron_instance
     agent = vi.build_agent()
@@ -348,7 +345,6 @@ def test_can_publish(volttron_instance):
     assert messages['test/world']['message'] == 'got data'
 
 
-@pytest.mark.skip(reason="To test actions on github")
 @pytest.mark.wrapper
 def test_can_install_multiple_listeners(volttron_instance):
     assert volttron_instance.is_running()
@@ -401,4 +397,3 @@ def test_will_update_environ():
         assert os.environ.get("farthing") == "50"
 
     assert "farthing" not in os.environ
-

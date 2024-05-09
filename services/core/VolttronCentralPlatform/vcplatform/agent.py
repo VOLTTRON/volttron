@@ -1,47 +1,30 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
-
-
 
 
 import base64
 import datetime
-import hashlib
 import logging
 import os
 import re
@@ -58,7 +41,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
-from volttron.platform.install_agents import install_agent_local
+from volttron.platform.control.install_agents import install_agent_local
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -71,7 +54,7 @@ from volttron.platform.agent.known_identities import (
 from volttron.platform.agent.utils import (get_aware_utc_now)
 from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
                                            format_timestamp, normalize_identity)
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import GOOD_STATUS
@@ -384,7 +367,7 @@ class VolttronCentralPlatform(Agent):
         while not self._vc_connection:
 
             if self._vc_address is None:
-                _log.warning("Invalid volttron-central-address specified.  Please add to the platform.agent config "
+                _log.warning("No volttron-central-address specified.  Please add to the platform.agent config "
                              "store or to the main instance configuration")
                 return
 
@@ -394,7 +377,7 @@ class VolttronCentralPlatform(Agent):
 
             try:
 
-                self._vc_connection = self.vip.auth.connect_remote_platform(
+                self._vc_connection = self.core.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
                     agent_class=VCConnection
@@ -815,21 +798,21 @@ class VolttronCentralPlatform(Agent):
     def store_agent_config(self, agent_identity, config_name, raw_contents,
                            config_type='raw'):
         _log.debug("Storeing configuration file: {}".format(config_name))
-        self.vip.rpc.call(CONFIGURATION_STORE, "manage_store", agent_identity,
+        self.vip.rpc.call(CONFIGURATION_STORE, "set_config", agent_identity,
                           config_name, raw_contents, config_type)
 
     def list_agent_configs(self, agent_identity):
-        return self.vip.rpc.call(CONFIGURATION_STORE, "manage_list_configs",
+        return self.vip.rpc.call(CONFIGURATION_STORE, "list_configs",
                                  agent_identity).get(timeout=5)
 
     def get_agent_config(self, agent_identity, config_name, raw=True):
-        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_get",
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "get_config",
                                  agent_identity, config_name, raw).get(
             timeout=5)
         return data or ""
 
     def delete_agent_config(self, agent_identity, config_name):
-        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_config",
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "delete_config",
                                  agent_identity, config_name).get(
             timeout=5)
         return data or ""
@@ -910,8 +893,8 @@ class VolttronCentralPlatform(Agent):
     def get_renamed_topic(self, input_topic):
         """
         replace topic name based on configured topic replace list, is any
-        :param input_topic: 
-        :return: 
+        :param input_topic:
+        :return:
         """
         output_topic = input_topic
         _log.debug(
@@ -980,7 +963,7 @@ class VolttronCentralPlatform(Agent):
         devices = defaultdict(dict)
         for platform_driver_id in self._platform_driver_ids:
             config_list = self.vip.rpc.call(CONFIGURATION_STORE,
-                                            'manage_list_configs',
+                                            'list_configs',
                                             platform_driver_id).get(timeout=5)
             _log.debug('Config list is: {}'.format(config_list))
 
@@ -990,7 +973,7 @@ class VolttronCentralPlatform(Agent):
                     continue
 
                 device_config = self.vip.rpc.call(CONFIGURATION_STORE,
-                                                  'manage_get',
+                                                  'get_config',
                                                   platform_driver_id,
                                                   cfg_name,
                                                   raw=False).get(timeout=5)
@@ -1002,7 +985,7 @@ class VolttronCentralPlatform(Agent):
                     reg_cfg_name
                 ))
                 registry_config = self.vip.rpc.call(CONFIGURATION_STORE,
-                                                    'manage_get',
+                                                    'get_config',
                                                     platform_driver_id,
                                                     reg_cfg_name,
                                                     raw=False).get(timeout=5)

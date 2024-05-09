@@ -1,4 +1,4 @@
-import requests
+import grequests
 import sys
 from volttron.platform import jsonapi
 authentication=None
@@ -22,7 +22,7 @@ def do_rpc(method, params=None ):
 
     data = jsonapi.dumps(json_package)
 
-    return requests.post(url_root, data=data)
+    return grequests.post(url_root, data=data).send().response
 
 def main(platform_uri, agent_id):
     response = do_rpc("get_authorization", {'username': 'admin',

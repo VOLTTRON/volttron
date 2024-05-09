@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import errno
@@ -49,13 +35,15 @@ from volttron.utils.frame_serialization import deserialize_frames
 
 if is_rabbitmq_available():
     import pika
-
+    from pika.adapters.gevent_connection import GeventConnection
+    from pika.adapters.select_connection import SelectConnection
 
 _log = logging.getLogger(__name__)
 # reduce pika log level
 logging.getLogger("pika").setLevel(logging.WARNING)
 RMQ_RESOURCE_LOCKED = 405
 CONNECTION_FORCED = 320
+NORMAL_SHUTDOWN = 200
 
 
 class RMQConnection(BaseConnection):
@@ -117,7 +105,7 @@ class RMQConnection(BaseConnection):
         Open a gevent adapter connection.
         :return:
         """
-        self._connection = pika.GeventConnection(self._connection_param,
+        self._connection = GeventConnection(self._connection_param,
                                                  on_open_callback=self.on_connection_open,
                                                  on_open_error_callback=self.on_open_error,
                                                  on_close_callback=self.on_connection_closed
@@ -132,7 +120,7 @@ class RMQConnection(BaseConnection):
         if self._connection is None:
             self._connection = unused_connection
         # Open a channel
-        self._connection.channel(self.on_channel_open)
+        self._connection.channel(on_open_callback=self.on_channel_open)
 
     def on_open_error(self, _connection_unused, error_message=None):
         """
@@ -145,21 +133,20 @@ class RMQConnection(BaseConnection):
         if self._connect_error_callback:
             self._connect_error_callback()
 
-    def on_connection_closed(self, connection, reply_code, reply_text):
+    def on_connection_closed(self, _unused_connection, reason):
         """
         Try to reconnect to the broker after few seconds
-        :param connection: connection object
-        :param reply_code: Connection Code
-        :param reply_text: Connection reply message
+        :param _unused_connection: connection object
+        :param reason: Connection closed reason
         :return:
         """
         if self._explicitly_closed:
             self._connection.ioloop.stop()
             return
 
-        _log.error("Connection closed unexpectedly, reopening in {timeout} seconds. {identity}"
-                   .format(timeout=self._reconnect_delay, identity=self._identity))
-        self._connection.add_timeout(self._reconnect_delay, self._reconnect)
+        _log.error(f"Connection closed reason is {reason}, reopening in {self._reconnect_delay} seconds. {self._identity}")
+        #self._connection.add_timeout(self._reconnect_delay, self._reconnect)
+        self._connection.ioloop.call_later(self._reconnect_delay, self._reconnect)
 
     def add_on_channel_close_callback(self):
         """
@@ -169,7 +156,7 @@ class RMQConnection(BaseConnection):
         """
         self.channel.add_on_close_callback(self.on_channel_closed)
 
-    def on_channel_closed(self, channel, reply_code, reply_text):
+    def on_channel_closed(self, channel, reason):
         """
         Invoked by pika when RabbitMQ unexpectedly closes the channel.
         Channels are usually closed if you attempt to do something that
@@ -178,13 +165,14 @@ class RMQConnection(BaseConnection):
         to shutdown the object.
 
         :param pika.channel.Channel: The closed channel
-        :param int reply_code: The numeric reason the channel was closed
-        :param str reply_text: The text reason the channel was closed
+        :param Exception reason: why the channel was closed
 
         """
-        #_log.error("Channel Closed Unexpectedly. {0}, {1}".format(reply_code, reply_text))
-        if reply_code == RMQ_RESOURCE_LOCKED:
-            _log.error("Channel Closed Unexpectedly. Attempting to run Agent/platform again".format(self._identity))
+        #_log.debug(f"Channel Closed Unexpectedly. Reason: {reason}")
+        if reason.reply_code in [0, NORMAL_SHUTDOWN]:
+            self._explicitly_closed = True
+        if reason == RMQ_RESOURCE_LOCKED:
+            _log.error(f"Channel Closed Unexpectedly. Attempting to run Agent: {self._identity}")
             self._connection.close()
             self._explicitly_closed = True
 
@@ -209,7 +197,6 @@ class RMQConnection(BaseConnection):
         """
         self.channel = channel
         self.add_on_channel_close_callback()
-
         # Check if VIP queue exists, if so delete the stale queue first
         self.channel.queue_declare(queue=self._vip_queue_name,
                                     durable=self._queue_properties['durable'],
@@ -235,12 +222,10 @@ class RMQConnection(BaseConnection):
         :param method_frame: The Queue.DeclareOk frame
         :return:
         """
-        _log.debug('Binding {0} to {1} with {2}'.format(self.exchange,
-                                                                self._vip_queue_name,
-                                                                self.routing_key))
-        self.channel.queue_bind(self.on_bind_ok,
-                                exchange=self.exchange,
-                                queue=self._vip_queue_name,
+        _log.debug(f'Binding {self.exchange} to {self._vip_queue_name} with {self.routing_key}')
+        self.channel.queue_bind(self._vip_queue_name,
+                                self.exchange,
+                                callback=self.on_bind_ok,
                                 routing_key=self.routing_key)
 
     def on_bind_ok(self, unused_frame):
@@ -250,8 +235,8 @@ class RMQConnection(BaseConnection):
         :param unused_frame: The Queue.BindOk response frame
         :return:
         """
-        self._consumer_tag = self.channel.basic_consume(self.rmq_message_handler,
-                                                        queue=self._vip_queue_name)
+        self._consumer_tag = self.channel.basic_consume(self._vip_queue_name,
+                                                        self.rmq_message_handler)
         if self._connect_callback:
             self._connect_callback()
 
@@ -302,6 +287,7 @@ class RMQConnection(BaseConnection):
         msg.args = jsonapi.loads(body)
         if self._vip_handler:
             self._vip_handler(msg)
+        self.channel.basic_ack(method.delivery_tag)
 
     def send_vip_object(self, message, flags=0, copy=True, track=False):
         """
@@ -373,7 +359,7 @@ class RMQConnection(BaseConnection):
         }
         properties = pika.BasicProperties(**dct)
         msg = args  # ARGS
-        # _log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key,
+        #_log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key,
         #                                                              msg,
         #                                                              properties,
         #                                                              self.routing_key))
@@ -441,12 +427,12 @@ class RMQConnection(BaseConnection):
         """
         try:
             if self.channel and self.channel.is_open:
-                self.channel.basic_cancel(self.on_cancel_ok, self._consumer_tag)
+                self.channel.basic_cancel(self._consumer_tag, self.on_cancel_ok)
         except (pika.exceptions.ConnectionClosed, pika.exceptions.ChannelClosed) as exc:
             _log.error("Connection to RabbitMQ broker or Channel is already closed.")
             self._connection.ioloop.stop()
 
-    def on_cancel_ok(self):
+    def on_cancel_ok(self, unused_frame):
         """
         Callback method invoked by Pika when RabbitMQ acknowledges the cancellation of a consumer.
         Next step is to close the channel.
@@ -484,12 +470,11 @@ class RMQRouterConnection(RMQConnection):
         Open asynchronous connection for router/platform
         :return:
         """
-        self._connection = pika.SelectConnection(self._connection_param,
-                                                 on_open_callback=self.on_connection_open,
-                                                 on_close_callback=self.on_connection_closed,
-                                                 on_open_error_callback=self.on_open_error,
-                                                 stop_ioloop_on_close=False
-                                                 )
+        self._connection = SelectConnection(self._connection_param,
+                                            on_open_callback=self.on_connection_open,
+                                            on_close_callback=self.on_connection_closed,
+                                            on_open_error_callback=self.on_open_error
+                                            )
 
     def on_channel_open(self, channel):
         """
@@ -519,9 +504,9 @@ class RMQRouterConnection(RMQConnection):
         :param method_frame: The Queue.DeclareOk frame
         :return:
         """
-        self.channel.queue_bind(self.on_alternate_queue_bind_ok,
-                                exchange=self._alternate_exchange,
-                                queue=self._alternate_queue,
+        self.channel.queue_bind(self._alternate_queue,
+                                self._alternate_exchange,
+                                callback=self.on_alternate_queue_bind_ok,
                                 routing_key=self._instance_name)
 
     def on_alternate_queue_bind_ok(self, unused_frame):
@@ -531,8 +516,8 @@ class RMQRouterConnection(RMQConnection):
         :param unused_frame: The Queue.BindOk response frame
         :return:
         """
-        self._error_tag = self.channel.basic_consume(self._handle_error,
-                                                     queue=self._alternate_queue)
+        self._error_tag = self.channel.basic_consume(self._alternate_queue,
+                                                     self._handle_error)
 
     def on_open_error(self, _connection_unused, error_message=None):
         """
@@ -557,6 +542,7 @@ class RMQRouterConnection(RMQConnection):
         :param body: message body
         :return:
         """
+        self.channel.basic_ack(method.delivery_tag)
         # Ignore if message type is 'pubsub'
         if props.type == 'pubsub':
             return
@@ -583,7 +569,7 @@ class RMQRouterConnection(RMQConnection):
 
         # The below try/except protects the platform from someone who is not communicating
         # via vip protocol.  If sender is not a string then the channel publish will throw
-        # an AssertionError and it will kill the platform.  
+        # an AssertionError and it will kill the platform.
         try:
             self.channel.basic_publish(self.exchange,
                                        sender,
@@ -591,7 +577,7 @@ class RMQRouterConnection(RMQConnection):
                                        props)
         except AssertionError:
             pass
-        
+
     def loop(self):
         """
         Connect to RabbiMQ broker and run infinite loop to listen to incoming messages

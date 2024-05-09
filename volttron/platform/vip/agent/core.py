@@ -1,41 +1,26 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
-
 
 import heapq
 import inspect
@@ -45,34 +30,40 @@ import platform as python_platform
 import signal
 import threading
 import time
+import typing
 import urllib.parse
 import uuid
 import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
-from urllib.parse import urlsplit, parse_qs, urlunsplit
 
 import gevent.event
+import grequests
 from gevent.queue import Queue
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK
+from zmq.green import EAGAIN, ENOTSOCK, ZMQError
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.platform import get_address
-from volttron.platform import is_rabbitmq_available
+from volttron.platform import get_address, get_home, is_rabbitmq_available, jsonapi
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
-from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.agent.utils import (get_fq_identity,
+                                           get_platform_instance_name,
+                                           is_auth_enabled,
+                                           load_platform_config)
+from volttron.platform.keystore import KnownHostsStore
+from volttron.platform.messaging.health import STATUS_BAD
+from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from .decorators import annotate, annotations, dualmethod
-from .dispatch import Signal
-from .errors import VIPError
+
+from .... import platform
 from .. import router
 from ..rmq_connection import RMQConnection
 from ..socket import Message
 from ..zmq_connection import ZMQConnection
-from .... import platform
+from .decorators import annotate, annotations, dualmethod
+from .dispatch import Signal
+from .errors import VIPError
 
 if is_rabbitmq_available():
     import pika
@@ -82,7 +73,7 @@ __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 _log = logging.getLogger(__name__)
 
 
-class Periodic(object):  # pylint: disable=invalid-name
+class Periodic:  # pylint: disable=invalid-name
     ''' Decorator to set a method up as a periodic callback.
 
     The decorated method will be called with the given arguments every
@@ -130,7 +121,7 @@ class Periodic(object):  # pylint: disable=invalid-name
         return gevent.Greenlet(self._loop, method)
 
 
-class ScheduledEvent(object):
+class ScheduledEvent:
     '''Class returned from Core.schedule.'''
 
     def __init__(self, function, args=None, kwargs=None):
@@ -158,11 +149,11 @@ def findsignal(obj, owner, name):
         signal = owner
         for part in parts:
             signal = getattr(signal, part)
-    assert isinstance(signal, Signal), 'bad signal name %r' % (name,)
+    assert isinstance(signal, Signal), 'bad signal name %r' % (name, )
     return signal
 
 
-class BasicCore(object):
+class BasicCore:
     delay_onstart_signal = False
     delay_running_event_set = False
 
@@ -188,8 +179,8 @@ class BasicCore(object):
             prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
             # To avoid a child agent handler overwriting the parent agent handler
             if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
-                self.oninterrupt = gevent.signal.signal(signal.SIGINT,
-                                                        self._on_sigint_handler)
+                self.oninterrupt = gevent.signal.signal(
+                    signal.SIGINT, self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):
@@ -204,9 +195,10 @@ class BasicCore(object):
 
         def setup(member):  # pylint: disable=redefined-outer-name
             periodics.extend(
-                periodic.get(member) for periodic in annotations(
-                    member, list, 'core.periodics'))
-            for deadline, args, kwargs in annotations(member, list, 'core.schedule'):
+                periodic.get(member)
+                for periodic in annotations(member, list, 'core.periodics'))
+            for deadline, args, kwargs in annotations(member, list,
+                                                      'core.schedule'):
                 self.schedule(deadline, member, *args, **kwargs)
             for name in annotations(member, set, 'core.signals'):
                 findsignal(self, owner, name).connect(member, owner)
@@ -395,8 +387,7 @@ class BasicCore(object):
         warnings.warn(
             'Use of the periodic() method is deprecated in favor of the '
             'schedule() method with the periodic() generator. This '
-            'method will be removed in a future version.',
-            DeprecationWarning)
+            'method will be removed in a future version.', DeprecationWarning)
         greenlet = Periodic(period, args, kwargs, wait).get(func)
         self.spawned_greenlets.add(greenlet)
         greenlet.start()
@@ -413,6 +404,7 @@ class BasicCore(object):
 
     @classmethod
     def receiver(cls, signal):
+
         def decorate(method):
             annotate(method, set, 'core.signals', signal)
             return method
@@ -436,11 +428,13 @@ class BasicCore(object):
 
     def _schedule_callback(self, deadline, callback):
         deadline = utils.get_utc_seconds_from_epoch(deadline)
-        heapq.heappush(self._schedule, (deadline, self.get_tie_breaker(), callback))
+        heapq.heappush(self._schedule,
+                       (deadline, self.get_tie_breaker(), callback))
         if self._schedule_event:
             self._schedule_event.set()
 
     def _schedule_iter(self, it, event):
+
         def wrapper():
             if event.canceled:
                 event.finished = True
@@ -483,11 +477,20 @@ class Core(BasicCore):
     # to false to keep from blocking. AuthService does this.
     delay_running_event_set = True
 
-    def __init__(self, owner, address=None, identity=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None,
+    def __init__(self,
+                 owner,
+                 address=None,
+                 identity=None,
+                 context=None,
+                 publickey=None,
+                 secretkey=None,
+                 serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, reconnect_interval=None,
-                 version='0.1', instance_name=None, messagebus=None):
+                 agent_uuid=None,
+                 reconnect_interval=None,
+                 version='0.1',
+                 instance_name=None,
+                 messagebus=None):
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -498,7 +501,8 @@ class Core(BasicCore):
         self.configuration = Signal()
         super(Core, self).__init__(owner)
         self.address = address if address is not None else get_address()
-        self.identity = str(identity) if identity is not None else str(uuid.uuid4())
+        self.identity = str(identity) if identity is not None else str(
+            uuid.uuid4())
         self.agent_uuid = agent_uuid
         self.publickey = publickey
         self.secretkey = secretkey
@@ -528,8 +532,7 @@ class Core(BasicCore):
         self.__connected = value
 
     connected = property(fget=lambda self: self.get_connected(),
-                         fset=lambda self, v: self.set_connected(v)
-                         )
+                         fset=lambda self, v: self.set_connected(v))
 
     def stop(self, timeout=None, platform_shutdown=False):
         # Send message to router that this agent is stopping
@@ -542,25 +545,26 @@ class Core(BasicCore):
     # when we are attempting to connect to a zmq bus from a rmq bus this will be used
     # to create the public and secret key for that connection or use it if it was already
     # created.
-    def _get_keys_from_keystore(self):
-        '''Returns agent's public and secret key from keystore'''
-        if self.agent_uuid:
-            # this is an installed agent, put keystore in its dist-info
-            current_directory = os.path.abspath(os.curdir)
-            keystore_dir = os.path.join(current_directory,
-                                        "{}.dist-info".format(os.path.basename(current_directory)))
-        elif self.identity is None:
-            raise ValueError("Agent's VIP identity is not set")
-        else:
-            if not self.volttron_home:
-                raise ValueError('VOLTTRON_HOME must be specified.')
-            keystore_dir = os.path.join(
-                self.volttron_home, 'keystores',
-                self.identity)
+    # TODO: Remove from here. Handled by ZMQAuthorization
+    # def _get_keys_from_keystore(self):
+    #     '''Returns agent's public and secret key from keystore'''
+    #     if self.agent_uuid:
+    #         # this is an installed agent, put keystore in its dist-info
+    #         current_directory = os.path.abspath(os.curdir)
+    #         keystore_dir = os.path.join(current_directory,
+    #                                     "{}.dist-info".format(os.path.basename(current_directory)))
+    #     elif self.identity is None:
+    #         raise ValueError("Agent's VIP identity is not set")
+    #     else:
+    #         if not self.volttron_home:
+    #             raise ValueError('VOLTTRON_HOME must be specified.')
+    #         keystore_dir = os.path.join(
+    #             self.volttron_home, 'keystores',
+    #             self.identity)
 
-        keystore_path = os.path.join(keystore_dir, 'keystore.json')
-        keystore = KeyStore(keystore_path)
-        return keystore.public, keystore.secret
+    #     keystore_path = os.path.join(keystore_dir, 'keystore.json')
+    #     keystore = KeyStore(keystore_path)
+    #     return keystore.public, keystore.secret
 
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
@@ -581,7 +585,9 @@ class Core(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
-    def create_event_handlers(self, state, hello_response_event, running_event):
+    def create_event_handlers(self, state, hello_response_event,
+                              running_event):
+
         def connection_failed_check():
             # If we don't have a verified connection after 10.0 seconds
             # shut down.
@@ -589,13 +595,13 @@ class Core(BasicCore):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("Type of message bus used {}".format(self.messagebus))
-            _log.error("A common reason for this is a conflicting VIP IDENTITY.")
+            _log.error(
+                "A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Another common reason is not having an auth entry on"
                        "the target instance.")
             _log.error("Shutting down agent.")
             _log.error("Possible conflicting identity is: {}".format(
-                self.identity
-            ))
+                self.identity))
 
             self.stop(timeout=10.0)
 
@@ -605,15 +611,16 @@ class Core(BasicCore):
             state.ident = ident = 'connect.hello.%d' % state.count
             state.count += 1
             self.spawn(connection_failed_check)
-            message = Message(peer='', subsystem='hello',
-                              id=ident, args=['hello'])
+            message = Message(peer='',
+                              subsystem='hello',
+                              id=ident,
+                              args=['hello'])
             self.connection.send_vip_object(message)
 
-        def hello_response(sender, version='',
-                           router='', identity=''):
+        def hello_response(sender, version='', router='', identity=''):
             _log.info("Connected to platform: "
                       "router: {} version: {} identity: {}".format(
-                router, version, identity))
+                          router, version, identity))
             _log.debug("Running onstart methods.")
             hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
@@ -629,22 +636,53 @@ class ZMQCore(Core):
     Concrete Core class for ZeroMQ message bus
     """
 
-    def __init__(self, owner, address=None, identity=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None,
+    def __init__(self,
+                 owner,
+                 address=None,
+                 identity=None,
+                 context=None,
+                 publickey=None,
+                 secretkey=None,
+                 serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, reconnect_interval=None,
-                 version='0.1', enable_fncs=False,
-                 instance_name=None, messagebus='zmq'):
-        super(ZMQCore, self).__init__(owner, address=address, identity=identity,
-                                      context=context, publickey=publickey, secretkey=secretkey,
-                                      serverkey=serverkey, volttron_home=volttron_home,
-                                      agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
+                 agent_uuid=None,
+                 reconnect_interval=None,
+                 version='0.1',
+                 enable_fncs=False,
+                 instance_name=None,
+                 messagebus='zmq',
+                 enable_auth=True):
+        super(ZMQCore, self).__init__(owner,
+                                      address=address,
+                                      identity=identity,
+                                      context=context,
+                                      publickey=publickey,
+                                      secretkey=secretkey,
+                                      serverkey=serverkey,
+                                      volttron_home=volttron_home,
+                                      agent_uuid=agent_uuid,
+                                      reconnect_interval=reconnect_interval,
                                       version=version,
-                                      instance_name=instance_name, messagebus=messagebus)
+                                      instance_name=instance_name,
+                                      messagebus=messagebus)
         self.context = context or zmq.Context.instance()
         self._fncs_enabled = enable_fncs
         self.messagebus = messagebus
-        self._set_keys()
+        self.enable_auth = enable_auth
+        zmq_auth = None
+        if self.enable_auth:
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
+            zmq_auth = ZMQClientAuthentication(
+                ZMQClientParameters(address=self.address,
+                                    identity=self.identity,
+                                    agent_uuid=self.agent_uuid,
+                                    publickey=self.publickey,
+                                    secretkey=self.secretkey,
+                                    serverkey=self.serverkey,
+                                    volttron_home=self.volttron_home))
+            self.address = zmq_auth.create_authentication_parameters()
+            self.publickey = zmq_auth.publickey
+            self.secretkey = zmq_auth.secretkey
 
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
@@ -658,73 +696,11 @@ class ZMQCore(Core):
 
     connected = property(get_connected, set_connected)
 
-    def _set_keys(self):
-        """Implements logic for setting encryption keys and putting
-        those keys in the parameters of the VIP address
-        """
-        self._set_server_key()
-        self._set_public_and_secret_keys()
-
-        if self.publickey and self.secretkey and self.serverkey:
-            self._add_keys_to_addr()
-
-    def _add_keys_to_addr(self):
-        '''Adds public, secret, and server keys to query in VIP address if
-        they are not already present'''
-
-        def add_param(query_str, key, value):
-            query_dict = parse_qs(query_str)
-            if not value or key in query_dict:
-                return ''
-            # urlparse automatically adds '?', but we need to add the '&'s
-            return '{}{}={}'.format('&' if query_str else '', key, value)
-
-        url = list(urlsplit(self.address))
-        if url[0] in ['tcp', 'ipc']:
-            url[3] += add_param(url[3], 'publickey', self.publickey)
-            url[3] += add_param(url[3], 'secretkey', self.secretkey)
-            url[3] += add_param(url[3], 'serverkey', self.serverkey)
-            self.address = str(urlunsplit(url))
-
-    def _set_public_and_secret_keys(self):
-        if self.publickey is None or self.secretkey is None:
-            self.publickey, self.secretkey, _ = self._get_keys_from_addr()
-        if self.publickey is None or self.secretkey is None:
-            self.publickey, self.secretkey = self._get_keys_from_keystore()
-
-    def _set_server_key(self):
-        if self.serverkey is None:
-            self.serverkey = self._get_keys_from_addr()[2]
-        known_serverkey = self._get_serverkey_from_known_hosts()
-
-        if (self.serverkey is not None and known_serverkey is not None
-                and self.serverkey != known_serverkey):
-            raise Exception("Provided server key ({}) for {} does "
-                            "not match known serverkey ({}).".format(
-                self.serverkey, self.address, known_serverkey))
-
-        # Until we have containers for agents we should not require all
-        # platforms that connect to be in the known host file.
-        # See issue https://github.com/VOLTTRON/volttron/issues/1117
-        if known_serverkey is not None:
-            self.serverkey = known_serverkey
-
-    def _get_serverkey_from_known_hosts(self):
-        known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
-        known_hosts = KnownHostsStore(known_hosts_file)
-        return known_hosts.serverkey(self.address)
-
-    def _get_keys_from_addr(self):
-        url = list(urlsplit(self.address))
-        query = parse_qs(url[3])
-        publickey = query.get('publickey', [None])[0]
-        secretkey = query.get('secretkey', [None])[0]
-        serverkey = query.get('serverkey', [None])[0]
-        return publickey, secretkey, serverkey
-
     def loop(self, running_event):
         # pre-setup
         # self.context.set(zmq.MAX_SOCKETS, 30690)
+        _log.info(
+            f"Identity: {self.identity} connecting to address:{self.address}")
         self.connection = ZMQConnection(self.address,
                                         self.identity,
                                         self.instance_name,
@@ -756,7 +732,7 @@ class ZMQCore(Core):
             # get_monitor_socket() so we can use green sockets with
             # regular contexts (get_monitor_socket() uses
             # self.context.socket()).
-            addr = 'inproc://monitor.v-%d' % (id(self.socket),)
+            addr = 'inproc://monitor.v-%d' % (id(self.socket), )
             sock = None
             if self.socket is not None:
                 try:
@@ -798,7 +774,8 @@ class ZMQCore(Core):
                         if self.socket is not None:
                             self.socket.monitor(None, 0)
                     except Exception as exc:
-                        _log.debug("Error in closing the socket: {}".format(exc))
+                        _log.debug(
+                            "Error in closing the socket: {}".format(exc))
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(close_socket)
@@ -832,14 +809,15 @@ class ZMQCore(Core):
                 #     subsystem, message.id, len(message.args), message.args[0]))
 
                 # Handle hellos sent by CONNECTED event
-                if (str(subsystem) == 'hello' and
-                        message.id == state.ident and
-                        len(message.args) > 3 and
-                        message.args[0] == 'welcome'):
+                if (str(subsystem) == 'hello' and message.id == state.ident
+                        and len(message.args) > 3
+                        and message.args[0] == 'welcome'):
                     version, server, identity = message.args[1:4]
                     self.connected = True
-                    self.onconnected.send(self, version=version,
-                                          router=server, identity=identity)
+                    self.onconnected.send(self,
+                                          version=version,
+                                          router=server,
+                                          identity=identity)
                     continue
 
                 try:
@@ -872,6 +850,134 @@ class ZMQCore(Core):
             self.socket = None
         yield
 
+    def connect_remote_platform(self,
+                                address: str,
+                                serverkey: typing.Optional[str] = None,
+                                agent_class=None):
+        """
+        Agent attempts to connect to a remote platform to exchange data.
+
+        address must start with http, https, tcp, ampq, or ampqs or a
+        ValueError will be
+        raised
+
+        If this function is successful it will return an instance of the
+        `agent_class`
+        parameter if not then this function will return None.
+
+        If the address parameter begins with http or https
+        TODO: use the known host functionality here
+        the agent will attempt to use Discovery to find the values
+        associated with it.
+
+        Discovery should return either an rmq-address or a vip-address or
+        both.  In
+        that situation the connection will be made using zmq.  In the event
+        that
+        fails then rmq will be tried.  If both fail then None is returned
+        from this
+        function.
+
+        """
+        from volttron.platform.vip.agent import Agent
+        from volttron.platform.vip.agent.utils import build_agent
+        if agent_class is None:
+            agent_class = Agent
+
+        parsed_address = urllib.parse.urlparse(address)
+        _log.debug("Begining core.connect_remote_platform: {}".format(address))
+
+        value = None
+        if parsed_address.scheme == "tcp":
+            # ZMQ connection
+            destination_serverkey = None
+            if self.enable_auth:
+                hosts = KnownHostsStore()
+                temp_serverkey = hosts.serverkey(address)
+                if not temp_serverkey:
+                    _log.info(
+                        "Destination serverkey not found in known hosts file, "
+                        "using config")
+                    destination_serverkey = serverkey
+                elif not serverkey:
+                    destination_serverkey = temp_serverkey
+                else:
+                    if temp_serverkey != serverkey:
+                        raise ValueError(
+                            "server_key passed and known hosts serverkey do not "
+                            ""
+                            "match!")
+                    destination_serverkey = serverkey
+
+            _log.debug("Connecting using: %s", get_fq_identity(self.identity))
+
+            value = build_agent(
+                agent_class=agent_class,
+                identity=get_fq_identity(self.identity),
+                serverkey=destination_serverkey,
+                publickey=self.publickey,
+                secretkey=self.secretkey,
+                message_bus="zmq",
+                address=address,
+            )
+        elif parsed_address.scheme in ("https", "http"):
+            from volttron.platform.web import DiscoveryError, DiscoveryInfo
+
+            try:
+                # TODO: Use known host instead of looking up for discovery
+                #  info if possible.
+
+                # We need to discover which type of bus is at the other end.
+                info = DiscoveryInfo.request_discovery_info(address)
+                remote_identity = "{}.{}.{}".format(
+                    info.instance_name,
+                    get_platform_instance_name(),
+                    self.identity,
+                )
+                # if the current message bus is zmq then we need
+                # to connect a zmq on the remote, whether that be the
+                # rmq router or proxy.  Also note that we are using the
+                # fully qualified
+                # version of the identity because there will be conflicts if
+                # volttron central has more than one platform.agent connecting
+                if not info.vip_address:
+                    err = ("Discovery from {} did not return vip_address".
+                           format(address))
+                    raise ValueError(err)
+                if self.enable_auth and not info.serverkey:
+                    err = ("Discovery from {} did not return serverkey".format(
+                        address))
+                    raise ValueError(err)
+                _log.debug(
+                    "Connecting using: %s",
+                    get_fq_identity(self.identity),
+                )
+
+                # use fully qualified identity
+                value = build_agent(
+                    identity=get_fq_identity(self.identity),
+                    address=info.vip_address,
+                    serverkey=info.serverkey,
+                    secretkey=self.secretkey,
+                    publickey=self.publickey,
+                    agent_class=agent_class,
+                )
+
+            except DiscoveryError:
+                _log.error(
+                    "Couldn't connect to %s or incorrect response returned "
+                    "response was %s",
+                    address,
+                    value,
+                )
+
+        else:
+            raise ValueError(
+                "Invalid configuration found the address: {} has an invalid "
+                "scheme".format(address))
+
+        return value
+
 
 @contextmanager
 def killing(greenlet, *args, **kwargs):
@@ -894,20 +1000,39 @@ class RMQCore(Core):
     Concrete Core class for RabbitMQ message bus
     """
 
-    def __init__(self, owner, address=None, identity=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None,
+    def __init__(self,
+                 owner,
+                 address=None,
+                 identity=None,
+                 context=None,
+                 publickey=None,
+                 secretkey=None,
+                 serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, reconnect_interval=None,
-                 version='0.1', instance_name=None, messagebus='rmq',
+                 agent_uuid=None,
+                 reconnect_interval=None,
+                 version='0.1',
+                 instance_name=None,
+                 messagebus='rmq',
                  volttron_central_address=None,
-                 volttron_central_instance_name=None):
-        super(RMQCore, self).__init__(owner, address=address, identity=identity,
-                                      context=context, publickey=publickey, secretkey=secretkey,
-                                      serverkey=serverkey, volttron_home=volttron_home,
-                                      agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
-                                      version=version, instance_name=instance_name, messagebus=messagebus)
+                 volttron_central_instance_name=None,
+                 enable_auth=True):
+        super(RMQCore, self).__init__(owner,
+                                      address=address,
+                                      identity=identity,
+                                      context=context,
+                                      publickey=publickey,
+                                      secretkey=secretkey,
+                                      serverkey=serverkey,
+                                      volttron_home=volttron_home,
+                                      agent_uuid=agent_uuid,
+                                      reconnect_interval=reconnect_interval,
+                                      version=version,
+                                      instance_name=instance_name,
+                                      messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
-
+        self.enable_auth = enable_auth
+        self.remote_certs_dir = None
         # TODO Look at this and see if we really need this here.
         # if instance_name is specified as a parameter in this calls it will be because it is
         # a remote connection. So we load it from the platform configuration file
@@ -930,10 +1055,23 @@ class RMQCore(Core):
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
+
         # added so that it is available to auth subsytem when connecting
         # to remote instance
-        if self.publickey is None or self.secretkey is None:
-            self.publickey, self.secretkey = self._get_keys_from_keystore()
+        if self.publickey is None or self.secretkey is None and self.enable_auth:
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
+            zmq_auth = ZMQClientAuthentication(
+                ZMQClientParameters(address=self.address,
+                                    identity=self.identity,
+                                    agent_uuid=self.agent_uuid,
+                                    publickey=self.publickey,
+                                    secretkey=self.secretkey,
+                                    serverkey=self.serverkey,
+                                    volttron_home=self.volttron_home))
+
+            zmq_auth._set_public_and_secret_keys()
+            self.publickey = zmq_auth.publickey
+            self.secretkey = zmq_auth.secretkey
 
     def _get_keys_from_addr(self):
         return None, None, None
@@ -946,22 +1084,28 @@ class RMQCore(Core):
 
     connected = property(get_connected, set_connected)
 
+    # Replace with RMQConnectionParam (wraps around pika.Connection)
+    # Passed into RMQClientConnection()
     def _build_connection_parameters(self):
         param = None
 
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
+            connection_api = RMQConnectionAPI(rmq_user=self.rmq_user,
+                                              ssl_auth=self.enable_auth)
+
             try:
                 if self.instance_name == get_platform_instance_name():
-                    param = self.rmq_mgmt.build_agent_connection(self.identity,
-                                                                 self.instance_name)
+                    param = connection_api.build_agent_connection(
+                        self.identity, self.instance_name)
                 else:
-                    param = self.rmq_mgmt.build_remote_connection_param(self.rmq_user,
-                                                                        self.rmq_address,
-                                                                        True)
+                    param = connection_api.build_remote_connection_param()
             except AttributeError:
-                _log.error("RabbitMQ broker may not be running. Restart the broker first")
+                _log.error(
+                    "RabbitMQ broker may not be running. Restart the broker first"
+                )
                 param = None
 
         return param
@@ -970,11 +1114,12 @@ class RMQCore(Core):
         if not isinstance(self.rmq_address, pika.ConnectionParameters):
             self.rmq_address = self._build_connection_parameters()
         # pre-setup
-        self.connection = RMQConnection(self.rmq_address,
-                                        self.identity,
-                                        self.instance_name,
-                                        reconnect_delay=self.rmq_mgmt.rmq_config.reconnect_delay(),
-                                        vc_url=self.volttron_central_address)
+        self.connection = RMQConnection(
+            self.rmq_address,
+            self.identity,
+            self.instance_name,
+            reconnect_delay=self.rmq_mgmt.rmq_config.reconnect_delay(),
+            vc_url=self.volttron_central_address)
         yield
 
         # pre-start
@@ -1000,22 +1145,24 @@ class RMQCore(Core):
                 bindings = self.rmq_mgmt.get_bindings('volttron')
             except AttributeError:
                 bindings = None
-            router_user = router_key = "{inst}.{ident}".format(inst=self.instance_name,
-                                                               ident='router')
+            router_user = router_key = "{inst}.{ident}".format(
+                inst=self.instance_name, ident='router')
             if bindings:
                 for binding in bindings:
                     if binding['destination'] == router_user and \
                             binding['routing_key'] == router_key:
                         router_connected = True
                         break
+            router_connected = True
             # Connection retry attempt issue #1702.
             # If the agent detects that RabbitMQ broker is reconnected before the router, wait
             # for the router to connect before sending hello()
             if router_connected:
                 hello()
             else:
-                _log.debug("Router not bound to RabbitMQ yet, waiting for 2 seconds before sending hello {}".
-                           format(self.identity))
+                _log.debug(
+                    "Router not bound to RabbitMQ yet, waiting for 2 seconds before sending hello {}"
+                    .format(self.identity))
                 self.spawn_later(2, hello)
 
         # Connect to RMQ broker. Register a callback to get notified when
@@ -1042,21 +1189,23 @@ class RMQCore(Core):
                         subsystem = message.subsystem
 
                         if subsystem == 'hello':
-                            if (subsystem == 'hello' and
-                                    message.id == state.ident and
-                                    len(message.args) > 3 and
-                                    message.args[0] == 'welcome'):
+                            if (subsystem == 'hello'
+                                    and message.id == state.ident
+                                    and len(message.args) > 3
+                                    and message.args[0] == 'welcome'):
                                 version, server, identity = message.args[1:4]
                                 self.connected = True
-                                self.onconnected.send(self, version=version,
+                                self.onconnected.send(self,
+                                                      version=version,
                                                       router=server,
                                                       identity=identity)
                                 continue
                         try:
                             handle = self.subsystems[subsystem]
                         except KeyError:
-                            _log.error('peer %r requested unknown subsystem %r',
-                                       message.peer, subsystem)
+                            _log.error(
+                                'peer %r requested unknown subsystem %r',
+                                message.peer, subsystem)
                             message.user = ''
                             message.args = list(router._INVALID_SUBSYSTEM)
                             message.args.append(message.subsystem)
@@ -1076,3 +1225,289 @@ class RMQCore(Core):
     def vip_message_handler(self, message):
         # _log.debug("RMQ VIP Core {}".format(message))
         self._event_queue.put(message)
+
+    def connect_remote_platform(self,
+                                address,
+                                serverkey=None,
+                                agent_class=None):
+        """
+        Agent attempts to connect to a remote platform to exchange data.
+
+        address must start with http, https, tcp, ampq, or ampqs or a
+        ValueError will be
+        raised
+
+        If this function is successful it will return an instance of the
+        `agent_class`
+        parameter if not then this function will return None.
+
+        If the address parameter begins with http or https
+        TODO: use the known host functionality here
+        the agent will attempt to use Discovery to find the values
+        associated with it.
+
+        Discovery should return either an rmq-address or a vip-address or
+        both.  In
+        that situation the connection will be made using zmq.  In the event
+        that
+        fails then rmq will be tried.  If both fail then None is returned
+        from this
+        function.
+
+        """
+        from volttron.platform.vip.agent import Agent
+        from volttron.platform.vip.agent.utils import build_agent
+
+        if agent_class is None:
+            agent_class = Agent
+
+        parsed_address = urllib.parse.urlparse(address)
+        _log.info("Begining core.connect_remote_platform: {}".format(address))
+        value = None
+        if parsed_address.scheme == "tcp":
+            # ZMQ connection
+            destination_serverkey = None
+            _log.debug(
+                f"parsed address scheme is tcp. auth enabled = {self.enable_auth}"
+            )
+            if self.enable_auth:
+                hosts = KnownHostsStore()
+                temp_serverkey = hosts.serverkey(address)
+                if not temp_serverkey:
+                    _log.info(
+                        "Destination serverkey not found in known hosts file, "
+                        "using config")
+                    destination_serverkey = serverkey
+                elif not serverkey:
+                    destination_serverkey = temp_serverkey
+                else:
+                    if temp_serverkey != serverkey:
+                        raise ValueError(
+                            "server_key passed and known hosts serverkey do not "
+                            ""
+                            "match!")
+                    destination_serverkey = serverkey
+
+            _log.debug("Connecting using: %s", get_fq_identity(self.identity))
+
+            value = build_agent(
+                agent_class=agent_class,
+                identity=get_fq_identity(self.identity),
+                serverkey=destination_serverkey,
+                publickey=self.publickey,
+                secretkey=self.secretkey,
+                message_bus="zmq",
+                address=address,
+            )
+        elif parsed_address.scheme in ("https", "http"):
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
+            from volttron.platform.web import DiscoveryError, DiscoveryInfo
+
+            try:
+                # TODO: Use known host instead of looking up for discovery
+                # info if possible.
+
+                # We need to discover which type of bus is at the other end.
+                info = DiscoveryInfo.request_discovery_info(address)
+                remote_identity = "{}.{}.{}".format(
+                    info.instance_name,
+                    get_platform_instance_name(),
+                    self.identity,
+                )
+
+                _log.debug("Both remote and local are rmq messagebus.")
+                fqid_local = get_fq_identity(self.identity)
+
+                # Check if we already have the cert, if so use it
+                # instead of requesting cert again
+                remote_certs_dir = self.get_remote_certs_dir()
+                remote_cert_name = "{}.{}".format(info.instance_name,
+                                                  fqid_local)
+                certfile = os.path.join(remote_certs_dir,
+                                        remote_cert_name + ".crt")
+                if os.path.exists(certfile):
+                    response = certfile
+                else:
+                    response = self.request_cert(address, fqid_local, info)
+
+                if response is None:
+                    _log.error("there was no response from the server")
+                    value = None
+                elif isinstance(response, tuple):
+                    if response[0] == "PENDING":
+                        _log.info("Waiting for administrator to accept a "
+                                  "CSR request.")
+                    value = None
+                # elif isinstance(response, dict):
+                #     response
+                elif os.path.exists(response):
+                    # info = DiscoveryInfo.request_discovery_info(
+                    # address)
+                    # From the remote platforms perspective the
+                    # remote user name is
+                    #   remoteinstance.localinstance.identity,
+                    #   this is what we must
+                    #   pass to the build_remote_connection_params
+                    #   for a successful
+
+                    remote_rmq_user = get_fq_identity(fqid_local,
+                                                      info.instance_name)
+                    _log.debug("REMOTE RMQ USER IS: %s", remote_rmq_user)
+                    connection_api = RMQConnectionAPI(
+                        rmq_user=remote_rmq_user,
+                        url_address=info.rmq_address,
+                        ssl_auth=True)
+                    remote_rmq_address = connection_api.build_remote_connection_param(
+                        cert_dir=self.get_remote_certs_dir())
+
+                    value = build_agent(
+                        identity=fqid_local,
+                        address=remote_rmq_address,
+                        instance_name=info.instance_name,
+                        publickey=self.publickey,
+                        secretkey=self.secretkey,
+                        message_bus="rmq",
+                        enable_store=False,
+                        agent_class=agent_class,
+                    )
+                else:
+                    raise ValueError("Unknown path through discovery process!")
+
+            except DiscoveryError:
+                _log.error(
+                    "Couldn't connect to %s or incorrect response returned "
+                    "response was %s",
+                    address,
+                    value,
+                )
+
+        else:
+            raise ValueError(
+                "Invalid configuration found the address: {} has an invalid "
+                "scheme".format(address))
+
+        return value
+
+    def request_cert(self, csr_server, fully_qualified_local_identity,
+                     discovery_info):
+        """
+        Get a signed csr from the csr_server endpoint
+
+        This method will create a csr request that is going to be sent to the
+        signing server.
+
+        :param csr_server: the http(s) location of the server to connect to.
+        :return:
+        """
+        # from volttron.platform.web import DiscoveryInfo
+        config = RMQConfig()
+
+        if not config.is_ssl:
+            raise ValueError(
+                "Only can create csr for rabbitmq based platform in ssl mode.")
+
+        # info = discovery_info
+        # if info is None:
+        #     info = DiscoveryInfo.request_discovery_info(csr_server)
+
+        csr_request = self.rmq_mgmt.certs.create_csr(
+            fully_qualified_local_identity, discovery_info.instance_name)
+        # The csr request requires the fully qualified identity that is
+        # going to be connected to the external instance.
+        #
+        # The remote instance id is the instance name of the remote platform
+        # concatenated with the identity of the local fully quallified
+        # identity.
+        remote_cert_name = "{}.{}".format(discovery_info.instance_name,
+                                          fully_qualified_local_identity)
+        remote_ca_name = discovery_info.instance_name + "_ca"
+
+        # if certs.cert_exists(remote_cert_name, True):
+        #     return certs.cert(remote_cert_name, True)
+
+        json_request = dict(
+            csr=csr_request.decode("utf-8"),
+            identity=remote_cert_name,
+            # get_platform_instance_name()+"."+self._core().identity,
+            hostname=config.hostname,
+        )
+        request = grequests.post(
+            csr_server + "/csr/request_new",
+            json=jsonapi.dumps(json_request),
+            verify=False,
+        )
+        response = grequests.map([request])
+
+        if response and isinstance(response, list):
+            response[0].raise_for_status()
+        response = response[0]
+        # response = requests.post(csr_server + "/csr/request_new",
+        #                          json=jsonapi.dumps(json_request),
+        #                          verify=False)
+
+        _log.debug("The response: %s", response)
+
+        j = response.json()
+        status = j.get("status")
+        cert = j.get("cert")
+        message = j.get("message", "")
+        remote_certs_dir = self.get_remote_certs_dir()
+        if status == "SUCCESSFUL" or status == "APPROVED":
+            self.rmq_mgmt.certs.save_agent_remote_info(
+                remote_certs_dir,
+                fully_qualified_local_identity,
+                remote_cert_name,
+                cert.encode("utf-8"),
+                remote_ca_name,
+                discovery_info.rmq_ca_cert.encode("utf-8"),
+            )
+            os.environ["REQUESTS_CA_BUNDLE"] = os.path.join(
+                remote_certs_dir, "requests_ca_bundle")
+            _log.debug(
+                "Set os.environ requests ca bundle to %s",
+                os.environ["REQUESTS_CA_BUNDLE"],
+            )
+        elif status == "PENDING":
+            _log.debug("Pending CSR request for {}".format(remote_cert_name))
+        elif status == "DENIED":
+            _log.error("Denied from remote machine.  Shutting down agent.")
+            from volttron.platform.vip.agent.subsystems.health import Status
+            status = Status.build(
+                STATUS_BAD,
+                context="Administrator denied remote "
+                "connection.  "
+                "Shutting down",
+            )
+            self._owner.vip.health.set_status(status.status, status.context)
+            self._owner.vip.health.send_alert(self.identity + "_DENIED",
+                                              status)
+            self.stop()
+            return None
+        elif status == "ERROR":
+            err = "Error retrieving certificate from {}\n".format(
+                config.hostname)
+            err += "{}".format(message)
+            raise ValueError(err)
+        else:  # No resposne
+            return None
+
+        certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
+        if os.path.exists(certfile):
+            return certfile
+        else:
+            return status, message
+
+    def get_remote_certs_dir(self):
+        if not self.remote_certs_dir:
+            install_dir = os.path.join(get_home(), "agents", self.agent_uuid)
+            files = os.listdir(install_dir)
+            for f in files:
+                agent_dir = os.path.join(install_dir, f)
+                if os.path.isdir(agent_dir):
+                    break  # found
+            sub_dirs = os.listdir(agent_dir)
+            for d in sub_dirs:
+                d_path = os.path.join(agent_dir, d)
+                if os.path.isdir(d_path) and d.endswith("agent-data"):
+                    self.remote_certs_dir = d_path
+        return self.remote_certs_dir

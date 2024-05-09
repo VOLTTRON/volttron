@@ -1,44 +1,30 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 from platform_driver.interfaces.modbus_tk.client import Field, Client
 from platform_driver.interfaces.modbus_tk import helpers
-from collections import Mapping
+from collections.abc import Mapping
 
 import csv
 import re
@@ -82,7 +68,7 @@ table_map = dict(
 )
 
 
-class CSVRegister(object):
+class CSVRegister:
     """
         Parses a row from the csv representing a modbus register.
     """
@@ -113,7 +99,7 @@ class CSVRegister(object):
 
         # string[length] format: "string[4]"
         if csv_type.startswith('string'):
-            match = re.match('string\[(\d+)\]', csv_type)
+            match = re.match(r'string\[(\d+)\]', csv_type)
             if match:
                 try:
                     length = int(match.group(1))
@@ -124,7 +110,7 @@ class CSVRegister(object):
 
         # array(type, length) format: "array(int16, 4)"
         if csv_type.startswith('array'):
-            match = re.match("array\((\w+)\, (\d+)\)", csv_type)
+            match = re.match(r"array\((\w+)\, (\d+)\)", csv_type)
             try:
                 type = data_type_map[match.group(1)]
             except KeyError:
@@ -169,7 +155,7 @@ class CSVRegister(object):
 
         try:
             if csv_transform:
-                match = re.match('(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
+                match = re.match(r'(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
                 func = match.group(1)
                 arg = match.group(2)
 
@@ -197,11 +183,10 @@ class CSVRegister(object):
                 return table_map[table]
             except KeyError:
                 raise Exception("Invalid modbus table '{0}' for register '{1}'".format(table, self._name))
+        elif self._datatype == helpers.BOOL:
+            return helpers.COIL_READ_WRITE if self._writable else helpers.COIL_READ_ONLY
         else:
-            if self._datatype == helpers.BOOL:
-                return helpers.COIL_READ_WRITE if self._writable else helpers.COIL_READ_ONLY
-            else:
-                return helpers.REGISTER_READ_WRITE if self._writable else helpers.REGISTER_READ_ONLY
+            return helpers.REGISTER_READ_WRITE if self._writable else helpers.REGISTER_READ_ONLY
 
     @property
     def _op_mode(self):
@@ -237,7 +222,7 @@ class CSVRegister(object):
                      self._mixed)
 
 
-class Map(object):
+class Map:
     """A Modbus register map read from CSV.
 
        The Map knows how to generate a subclass of modbus.Client with
@@ -330,7 +315,7 @@ class Catalog(Mapping):
                 yaml_path = os.path.dirname(__file__) + '/' + yaml_path
 
             with open(yaml_path, 'rb') as yaml_file:
-                for map in yaml.load(yaml_file):
+                for map in yaml.safe_load(yaml_file):
                     map = dict((k.lower(), v) for k, v in map.items())
                     Catalog._data[map['name']] = Map(file=map.get('file', ''),
                                                      map_dir=os.path.dirname(__file__),

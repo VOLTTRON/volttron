@@ -10,6 +10,11 @@ The SQL Historian has been programmed to handle for inconsistent network connect
 based databases).  All additions to the historian are batched and wrapped within a transaction with commit and rollback
 functions.  This allows the maximum throughput of data with the most protection.
 
+.. note::
+   The SQL Historian is located within the **core** directory. ::
+
+      services/core/SQLHistorian/
+
 
 Configuration
 =============
@@ -71,11 +76,16 @@ or
 Sqlite3 Specifics
 -----------------
 
-An Sqlite Historian provides a convenient solution for under powered systems. The database is a parameter to a location on the file system; 'database' should be a non-empty string.
-By default, the location is relative to the agent's installation directory, however it will respect a rooted or relative path to the database.
+An Sqlite Historian provides a convenient solution for under powered systems. The database is a parameter to a location
+on the file system; 'database' should be a non-empty string.
+By default, the location is relative to the agent's installation directory, however it will respect a rooted or
+relative path to the database.
 
-If 'database' does not have a rooted or relative path, the location of the database depends on whether the volttron platform is in secure mode. For more information on secure mode, see :ref:`Running-Agents-as-Unix-User`.
-In secure mode, the location will be under <install_dir>/<agent name>.agent-data directory because this will be the only directory in which the agent will have write-access.
+If 'database' does not have a rooted or relative path, the location of the database depends on whether the volttron
+platform is in agent isolation mode. For more information on agent isolation mode,
+see :ref:`Running-Agents-as-Unix-User`.
+In agent isolation mode, the location will be under <install_dir>/<agent name>.agent-data directory because this
+will be the only directory in which the agent will have write-access.
 In regular mode, the location will be under <install_dir>/data for backward compatibility.
 
 The following is a minimal configuration file that uses a relative path to the database.

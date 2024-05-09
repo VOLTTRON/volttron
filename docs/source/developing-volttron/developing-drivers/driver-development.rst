@@ -170,19 +170,19 @@ Name" specifying the name of the register, and "Point Value", the current value 
                     "boolean": bool}
 
     class Interface(BasicRevert, BaseInterface):
-    def __init__(self, **kwargs):
-        super(Interface, self).__init__(**kwargs)
-        self.csv_path = None
+        def __init__(self, **kwargs):
+            super(Interface, self).__init__(**kwargs)
+            self.csv_path = None
 
-    def configure(self, config_dict, registry_config_str):
-        self.csv_path = config_dict.get("csv_path", "csv_device.csv")
-        if not os.path.isfile(self.csv_path):
-            _log.info("Creating csv 'device'")
-            with open(self.csv_path, "w+") as csv_device:
-                writer = DictWriter(csv_device, fieldnames=CSV_FIELDNAMES)
-                writer.writeheader()
-                writer.writerows(CSV_DEFAULT)
-        self.parse_config(registry_config_str)
+        def configure(self, config_dict, registry_config_str):
+            self.csv_path = config_dict.get("csv_path", "csv_device.csv")
+            if not os.path.isfile(self.csv_path):
+                _log.info("Creating csv 'device'")
+                with open(self.csv_path, "w+") as csv_device:
+                    writer = DictWriter(csv_device, fieldnames=CSV_FIELDNAMES)
+                    writer.writeheader()
+                    writer.writerows(CSV_DEFAULT)
+            self.parse_config(registry_config_str)
 
 At the end of the configuration method, the Driver parses the registry configuration.  The registry configuration is
 a csv which is used to tell the Driver which register the user wishes to communicate with and includes a few meta-data

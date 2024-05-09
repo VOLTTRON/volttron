@@ -1,0 +1,66 @@
+Point Name,Description,Multiplier,MRID,Offset,Parameter Type,Notes
+,,,,,DERCapability::rtgMaxW,DERCapabilities are not generally writable but the corresponding setting is.
+,,,,,DERCapability::rtgOverExcitedW,
+,,,,,DERCapability::rtgOverExcitedPF,
+,,,,,DERCapability::rtgUnderExcitedW,
+,,,,,DERCapability::rtgUnderExcitedPF,
+,,,,,DERCapability::rtgMaxVA,
+,,,,,DERCapability::rtgNormalCategory,
+,,,,,DERCapability::rtgAbnormalCategory,
+,,,,,DERCapability::rtgMaxVar,
+,,,,,DERCapability::rtgMaxVarNeg,
+,,,,,DERCapability::rtgMaxChargeRateW,
+,,,,,DERCapability::rtgMaxChargeRateVA,
+,,,,,DERCapability::rtgVNom,
+,,,,,DERCapability::rtgMaxV,
+,,,,,DERCapability::rtgMinV,
+,,,,,DERCapability::modesSupported,
+,,,,,DERCapability::rtgReactiveSusceptance,
+,,,,,DERStatus::alarmStatus,"Bitmap Position (0 = over current, 1 over voltage, 2 under voltage, 3 over frequency, 4 under frequency, 5 voltage imbalance, 6 current imbalance, 7 emergency local, 8 emergency remote, 9 low power input, 10 phase rotation)"
+,,,,,DERStatus::genConnectStatus,"DER Generator Status (0 = Connected, 1 = Available, 2 = Operating, 3 = Test, 4 = Fault/Error)"
+,,,,,DERStatus::inverterStatus,"DER Inverter Status (0 = Connected, 1 = Available, 2 = Operating, 3 = Test, 4 = Fault/Error)"
+,,,,,DERStatus::localControlModeStatus,0 = local control 1 = remote control
+,,,,,DERStatus::manufacturerStatus,A manufacturer status code string
+,,,,,DERStatus::operationalModeStatus,"DER OperationalModeStatus (0 = Not applicable, 1 = Off, 2 = Operational, 3 = Test)"
+BAT_SOC,,,,,DERStatus::stateOfChargeStatus,DER StateOfChargeStatus % of charge
+,,,,,DERStatus::storageModeStatus,"DER StorageModeStatus (0 = Charging, 1 = Discharging, 2 = Holding)"
+,,,,,DERStatus::storConnectStatus,"DER Storage Status (0 = Connected, 1 = Available, 2 = Operating, 3 = Test, 4 = Fault/Error)"
+,,,,,DERSettings::setESHighVolt,
+,,,,,DERSettings::setESLowVolt,
+,,,,,DERSettings::setESHighFreq,
+,,,,,DERSettings::setESLowFreq,
+,,,,,DERSettings::setESDelay,
+,,,,,DERSettings::setESRandomDelay,
+,,,,,DERSettings::setESRampTms,
+ctrl_es_delay,,,,,DefaultDERControl::setESDelay,
+ctrl_freq_max,,,,,DefaultDERControl::setESHighFreq,
+ctrl_volt_max,,,,,DefaultDERControl::setESHighVolt,
+ctrl_freq_min,,,,,DefaultDERControl::setESLowFreq,
+ctrl_volt_min,,,,,DefaultDERControl::setESLowVolt,
+ctrl_ramp_tms,,,,,DefaultDERControl::setESRampTms,
+ctrl_rand_delay,,,,,DefaultDERControl::setESRandomDelay,
+ctrl_grad_w,,,,,DefaultDERControl::setGradW,
+ctrl_soft_grad_w,,,,,DefaultDERControl::setSoftGradW,
+ctrl_connected,,,,,DERControlBase::opModConnect,"True/False Connected = True, Disconnected = False"
+ctrl_energized,,,,,DERControlBase::opModEnergize,"True/False Energized = True, De-Energized = False"
+ctrl_fixed_pf_absorb_w,,,,,DERControlBase::opModFixedPFAbsorbW,
+ctrl_fixed_pf_ingect_w,,,,,DERControlBase::opModFixedPFInjectW,
+ctrl_fixed_var,,,,,DERControlBase::opModFixedVar,
+ctrl_fixed_w,,,,,DERControlBase::opModFixedW,
+ctrl_freq_droop,,,,,DERControlBase::opModFreqDroop,
+ctrl_freq_w,,,,,DERControlBase::opModFreqWatt,
+,,,,,DERControlBase::opModHFRTMayTrip,
+,,,,,DERControlBase::opModHFRTMustTrip,
+,,,,,DERControlBase::opModHVRTMomentaryCessation,
+,,,,,DERControlBase::opModHVRTMustTrip,
+,,,,,DERControlBase::opModLFRTMayTrip,
+,,,,,DERControlBase::opModLVRTMomentaryCessation,
+,,,,,DERControlBase::opModLVRTMustTrip,
+ctrl_max_w,,,,,DERControlBase::opModMaxLimW,
+ctrl_target_var,,,,,DERControlBase::opModTargetVar,
+ctrl_target_w,Target Real Power,,,,DERControlBase::opModTargetW,
+,,,,,DERControlBase::opModVoltVar,
+,,,,,DERControlBase:opModVoltWatt,
+,,,,,DERControlBase::opModWattPF,
+,,,,,DERControlBase::opModWattVar,
+,,,,,DERControlBase::rampTms,

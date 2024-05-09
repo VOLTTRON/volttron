@@ -2,7 +2,7 @@
 
 Thank you for wanting to contribute back to Volttron! We really appreciate it.
 
-We have a lengthy [Guide to Contributions](https://volttron.readthedocs.io/en/develop/community_resources/contributing.html) on our ReadTheDocs site, where all of our documentation lives. This guide focuses on helpful instructions for newcomers to GitHub and Git.
+We have a lengthy [Guide to Contributions](https://volttron.readthedocs.io/en/main/developing-volttron/contributing-code.html) on our ReadTheDocs site, where all of our documentation lives. This guide focuses on helpful instructions for newcomers to GitHub and Git.
 
 ### Branch Naming
 

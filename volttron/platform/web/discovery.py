@@ -1,9 +1,11 @@
 import logging
-import requests
+import grequests
+from requests.exceptions import RequestException
+
 from urllib.parse import urlparse, urljoin
 
 from volttron.platform import jsonapi
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 
 _log = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ class DiscoveryError(Exception):
     pass
 
 
-class DiscoveryInfo(object):
+class DiscoveryInfo:
     """ A DiscoveryInfo class.
 
     The DiscoveryInfo class provides a wrapper around the return values from
@@ -62,7 +64,7 @@ class DiscoveryInfo(object):
 
             real_url = urljoin(web_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
-            response = requests.get(real_url, verify=False)
+            response = grequests.get(real_url, verify=False).send().response
 
             if not response.ok:
                 raise DiscoveryError(
@@ -73,7 +75,7 @@ class DiscoveryInfo(object):
                 "Invalid web_address passed {}"
                 .format(web_address)
             )
-        except requests.exceptions.RequestException as e:
+        except RequestException as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
             )

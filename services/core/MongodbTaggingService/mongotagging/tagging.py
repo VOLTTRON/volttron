@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import collections
@@ -44,7 +30,7 @@ from collections import OrderedDict
 
 import pymongo
 import re
-from pkg_resources import resource_string, resource_exists
+from pymongo import InsertOne, UpdateOne
 from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_tagging import BaseTaggingService
@@ -90,13 +76,13 @@ def tagging_service(config_path, **kwargs):
 
 class MongodbTaggingService(BaseTaggingService):
     """This is a tagging service agent that writes data to a Mongo database.
-    For instance with large amount of tags and frequent tag queries, a NOSQL 
-    database such as Mongodb would provide better efficiency than SQLite. 
+    For instance with large amount of tags and frequent tag queries, a NOSQL
+    database such as Mongodb would provide better efficiency than SQLite.
     """
     def __init__(self, connection, table_prefix=None, **kwargs):
         """Initialise the tagging service.
 
-        :param connection: dictionary object containing the database 
+        :param connection: dictionary object containing the database
          connection details
         :param table_prefix: optional prefix to be used for all tag tables
         :param kwargs: additional keyword arguments. (optional identity and
@@ -133,9 +119,9 @@ class MongodbTaggingService(BaseTaggingService):
         collections = []
         db = None
         try:
-            db = self._client.get_default_database()
-            collections = db.collection_names(include_system_collections=False)
-            _log.debug(collections)
+            db = self._client.get_database()
+            collections = db.list_collection_names()
+            _log.debug(f"GOT collections as {collections}")
         except Exception as e:
             err_message = "Unable to query list of existing tables from the " \
                           "database. Exception in init of tagging service: {}. " \
@@ -181,6 +167,8 @@ class MongodbTaggingService(BaseTaggingService):
             # _log.debug("status:{}".format(status))
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
+        else:
+            _log.info("Initialization complete")
 
     @doc_inherit
     def load_valid_tags(self):
@@ -210,12 +198,11 @@ class MongodbTaggingService(BaseTaggingService):
             # csv.DictReader uses first line in file for column headings
             # by default
             dr = csv.DictReader(csv_str.splitlines())
-            bulk_tags = db[self.tags_collection].initialize_ordered_bulk_op()
+            inserts = []
             for i in dr:
-                bulk_tags.insert({"_id":i['name'],
-                                  "kind":i['kind'],
-                                  "description":i['description']})
-            bulk_tags.execute()
+                inserts.append(InsertOne(
+                    {"_id": i['name'], "kind": i['kind'], "description": i['description']}))
+            db[self.tags_collection].bulk_write(inserts)
         else:
             raise ValueError(
                 "Unable to load list of reference tags and its parent. No "
@@ -231,17 +218,14 @@ class MongodbTaggingService(BaseTaggingService):
             # csv.DictReader uses first line in file for column headings
             # by default
             dr = csv.DictReader(csv_str.splitlines())
-            bulk_tags = db[
-                self.tag_refs_collection].initialize_ordered_bulk_op()
+            inserts = []
             for i in dr:
-                bulk_tags.insert({"_id":i['tag'],
-                                  "parent":i['parent_tag']})
-            bulk_tags.execute()
+                inserts.append(InsertOne({"_id": i['tag'], "parent": i['parent_tag']}))
+            db[self.tag_refs_collection].bulk_write(inserts)
         else:
             raise ValueError(
                 "Unable to load list of reference tags and its parent. No "
                 "such file: {}".format(file_path))
-
 
     def _init_categories(self, db):
         file_path = self.resource_sub_dir + '/categories.csv'
@@ -250,12 +234,10 @@ class MongodbTaggingService(BaseTaggingService):
             csv_str = content_file.read()
         if csv_str:
             dr = csv.DictReader(csv_str.splitlines())
-            bulk = db[
-                self.categories_collection].initialize_ordered_bulk_op()
+            inserts = []
             for i in dr:
-                bulk.insert({"_id": i['name'],
-                             "description": i['description']})
-            bulk.execute()
+                inserts.append(InsertOne({"_id": i['name'], "description": i['description']}))
+            db[self.categories_collection].bulk_write(inserts)
         else:
             _log.warning("No categories to initialize. No such file " + file_path)
 
@@ -265,7 +247,7 @@ class MongodbTaggingService(BaseTaggingService):
         with open(file_path, 'r') as content_file:
             txt_str = content_file.read()
 
-        bulk_tags = db[self.tags_collection].initialize_ordered_bulk_op()
+        updates = []
         if txt_str:
             current_category = ""
             tags = set()
@@ -283,15 +265,14 @@ class MongodbTaggingService(BaseTaggingService):
                 else:
                     temp= line.split(":")  # ignore description
                     tags.update(re.split(" +", temp[0]))
-            if len(tags)>0:
+            if len(tags) > 0:
                 for tag in tags:
                     mapping[tag].add(current_category)
 
             for tag in mapping.keys():
-                bulk_tags.find({"_id": tag}).update(
-                    {'$set': {"categories": list(mapping[tag])}})
+                updates.append(UpdateOne({"_id": tag}, {'$set': {"categories": list(mapping[tag])}}))
 
-            bulk_tags.execute()
+            db[self.tags_collection].bulk_write(updates)
             db[self.tags_collection].create_index(
                 [('categories', pymongo.ASCENDING)], background=True)
 
@@ -370,7 +351,7 @@ class MongodbTaggingService(BaseTaggingService):
     @doc_inherit
     def insert_topic_tags(self, tags, update_version=False):
         db = self._client.get_default_database()
-        bulk = db[self.topic_tags_collection].initialize_unordered_bulk_op()
+        updates = []
         result = dict()
         result['info'] = dict()
         result['error'] = dict()
@@ -400,9 +381,9 @@ class MongodbTaggingService(BaseTaggingService):
                 temp['_id'] = prefix
                 temp['id'] = prefix
                 execute = True
-                bulk.find({'_id': prefix}).upsert().update_one(
-                    {'$set': temp})
+                updates.append(UpdateOne({'_id': prefix}, {'$set': temp}, upsert=True))
                 result['info'][topic_pattern].append(prefix)
+
             if len(result['info'][topic_pattern]) == 1 and \
                 topic_pattern == result['info'][topic_pattern][0]:
                 # means value sent was actually some pattern so add
@@ -413,7 +394,7 @@ class MongodbTaggingService(BaseTaggingService):
                 result['info'].pop(topic_pattern)
         if execute:
             try:
-                bulk.execute()
+                db[self.topic_tags_collection].bulk_write(updates)
             except BulkWriteError as bwe:
                 errors = bwe.details['writeErrors']
                 _log.error("bwe error count {}".format(len(errors)))
