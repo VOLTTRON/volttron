@@ -99,7 +99,7 @@ class Interface(BaseInterface):
         except errors.Unreachable:
             _log.warning("Unable to reach BACnet proxy.")
         except (Exception, gevent.Timeout) as e:
-            _log.warning(f"Error trying to ping device: {e}")
+            _log.warning(f"Error trying to ping device with device_id '{self.device_id}' at {self.target_address}: {e}")
 
         self.scheduled_ping = None
 
