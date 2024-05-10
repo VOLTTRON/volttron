@@ -265,6 +265,7 @@ class Auth(SubsystemBase):
         """
         rpc_method_authorizations = {}
         rpc_methods = self.get_rpc_exports()
+        updated_rpc_authorizations = None
         for method in rpc_methods:
             if len(method.split(".")) > 1:
                 pass
@@ -295,9 +296,7 @@ class Auth(SubsystemBase):
                 _log.info(
                     f"Skipping updating rpc auth capabilities for agent "
                     f"{self._core().identity} connecting to remote address: {self._core().address} ")
-                updated_rpc_authorizations = None
         except gevent.timeout.Timeout:
-            updated_rpc_authorizations = None
             _log.warning(f"update_id_rpc_authorization rpc call timed out for {self._core().identity}   {rpc_method_authorizations}")
         except MethodNotFound:
             _log.warning("update_id_rpc_authorization method is missing from "
@@ -306,7 +305,6 @@ class Auth(SubsystemBase):
                          "dynamic RPC authorizations.")
             return
         except Exception as e:
-            updated_rpc_authorizations = None
             _log.exception(f"Exception when calling rpc method update_id_rpc_authorizations for identity: "
                            f"{self._core().identity}  Exception:{e}")
         if updated_rpc_authorizations is None:
@@ -318,7 +316,7 @@ class Auth(SubsystemBase):
                 f"the identity of the agent"
             )
             return
-        if rpc_method_authorizations != updated_rpc_authorizations:
+        if rpc_method_authorizations != updated_rpc_authorizations and updated_rpc_authorizations is not None:
             for method in updated_rpc_authorizations:
                 self.set_rpc_authorizations(
                     method, updated_rpc_authorizations[method]
