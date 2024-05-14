@@ -231,9 +231,16 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
             register_names = self.interface.get_register_names_view()
+            _log.debug(f"results keys: {results.keys}")
+            _log.debug(f"register_names keys: {register_names}")
+            # register_names contains list of all points
+            # results.keys gives points from the device 
+            # The following loop will check if there are more points from the device than what
+            # was expected and then log an error
             for point in (register_names - results.keys()):
+                _log.debug(f"Scraping point: {point}")
                 depth_first_topic = self.base_topic(point=point)
-                _log.error("Failed to scrape point: "+depth_first_topic)
+                _log.error(f"Failed to scrape point: {depth_first_topic}")
         except (Exception, gevent.Timeout) as ex:
             tb = traceback.format_exc()
             _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)

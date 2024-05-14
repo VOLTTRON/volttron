@@ -579,7 +579,7 @@ def main(argv=sys.argv):
                              help='Directory to create the new agent in (must not exist).')
     init_parser.add_argument('module_name',
                              help='Module name for agent. Class name is derived from this name.')
-    init_parser.add_argument('--template', choices=_get_agent_template_list(),
+    init_parser.add_argumentq('--template', choices=_get_agent_template_list(),
                              help='Name of the template to use. Defaults to "common".')
     init_parser.add_argument('--identity',
                              help='Set agent to have a fixed VIP identity. Useful for new service agents.')
