@@ -166,6 +166,9 @@ class DeviceTree(TopicTree):
             registry_config = registry_config if kwargs else registry_config.get(timeout=5)
             for pnt in registry_config:
                 point_name = pnt.pop('Volttron Point Name')
-                n = device_tree.create_node(point_name, f"{d}/{point_name}", parent=d, data=pnt)
-                n.segment_type = 'POINT'
+                try:
+                    n = device_tree.create_node(point_name, f"{d}/{point_name}", parent=d, data=pnt)
+                    n.segment_type = 'POINT'
+                except DuplicatedNodeIdError:
+                    _log.warning(f'Duplicate Voltron Point Name ({point_name}) found in registry: {reg_cfg_name}.')
         return device_tree
