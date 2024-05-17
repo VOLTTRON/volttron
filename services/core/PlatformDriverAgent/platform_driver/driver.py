@@ -167,13 +167,17 @@ class DriverAgent(BasicAgent):
 
         self.heart_beat_point = config.get("heart_beat_point")
 
-        # Check for duplicate names in registry entries and warn if this will cause rows to be skipped.
-        point_names = [r['Volttron Point Name'] for r in registry_config]
-        seen = set(point_names)
-        duplicates = [n for n in point_names if n not in seen or seen.remove(n)]
-        if duplicates:
-            _log.warning(f'Duplicate point names detected in registry file for {self.device_path}. '
-                         f'Only the last registry row will be used for points with names: {set(duplicates)}')
+        # Warn if there is no registry:
+        if registry_config is None:
+            _log.warning(f'No registry was found for device: devices/{self.device_path}')
+        else:
+            # Check for duplicate names in registry entries and warn if this will cause rows to be skipped.
+            point_names = [r['Volttron Point Name'] for r in registry_config]
+            seen = set(point_names)
+            duplicates = [n for n in point_names if n not in seen or seen.remove(n)]
+            if duplicates:
+                _log.warning(f'Duplicate point names detected in registry file for devices/{self.device_path}. '
+                             f'Only the last registry row will be used for points with names: {set(duplicates)}')
 
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
