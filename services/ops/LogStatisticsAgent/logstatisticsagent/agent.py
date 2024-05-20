@@ -76,7 +76,6 @@ class LogStatisticsAgent(Agent):
         if action == "NEW" or "UPDATE":
             self.reset_parameters(config)
             _log.info("Starting " + self.__class__.__name__ + " agent")
-            self.publish_analysis()
 
     def reset_parameters(self, config=None):
         self.analysis_interval_sec = config["analysis_interval_sec"]
