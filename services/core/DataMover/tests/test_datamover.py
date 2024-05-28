@@ -23,7 +23,6 @@
 # }}}
 
 import os
-import json
 import random
 import gevent
 import pytest
@@ -36,7 +35,6 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging.health import STATUS_GOOD
 
 datamover_uuid = None
 datamover_config = {
