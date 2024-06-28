@@ -97,9 +97,10 @@ class Interface(BaseInterface):
             self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address, self.device_id).get(timeout=self.timeout)
             pinged = True
         except errors.Unreachable:
-            _log.warning("Unable to reach BACnet proxy.")
+            _log.warning(f"Unable to reach BACnet proxy at: {self.proxy_address}.")
         except (Exception, gevent.Timeout) as e:
-            _log.warning(f"Error trying to ping device with device_id '{self.device_id}' at {self.target_address}: {e}")
+            _log.warning(f"Error trying to ping device with device_id '{self.device_id}' at {self.target_address}"
+                         f"through proxy {self.proxy_address}: {e}")
 
         self.scheduled_ping = None
 
