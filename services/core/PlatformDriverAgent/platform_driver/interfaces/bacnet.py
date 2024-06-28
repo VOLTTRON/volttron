@@ -108,16 +108,25 @@ class Interface(BaseInterface):
         if not pinged:
             self.schedule_ping()
 
-    def get_point(self, point_name, get_priority_array=False):
+    def get_point(self, point_name, on_property=None):
         register = self.get_register_by_name(point_name)
-        property_name = "priorityArray" if get_priority_array else register.property
-        register_index = None if get_priority_array else register.index
-        result = self.vip.rpc.call(self.proxy_address, 'read_property',
-                                   self.target_address, register.object_type,
-                                   register.instance_number, property_name, register_index).get(timeout=self.timeout)
+        if on_property is None:
+            result = self.vip.rpc.call(self.proxy_address, 'read_property',
+                                       self.target_address, register.object_type,
+                                       register.instance_number, register.property, register.index).get(timeout=self.timeout)
+        else:
+            point_map = {}
+            point_map[register.point_name] = [register.object_type,
+                                              register.instance_number,
+                                              on_property,
+                                              register.index]
+            result = self.vip.rpc.call(self.proxy_address, 'read_properties',
+                                       self.target_address, point_map,
+                                       self.max_per_request, True).get(timeout=self.timeout)
+            result = list(result.values())[0]
         return result
 
-    def set_point(self, point_name, value, priority=None):
+    def set_point(self, point_name, value, priority=None, on_property=None):
         # TODO: support writing from an array.
         register = self.get_register_by_name(point_name)
         if register.read_only:
@@ -130,7 +139,7 @@ class Interface(BaseInterface):
         args = [self.target_address, value,
                 register.object_type,
                 register.instance_number,
-                register.property,
+                on_property if on_property is not None else register.property,
                 priority if priority is not None else register.priority,
                 register.index]
         result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get(timeout=self.timeout)
