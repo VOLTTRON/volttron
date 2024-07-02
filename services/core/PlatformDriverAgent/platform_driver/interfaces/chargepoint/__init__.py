@@ -27,12 +27,11 @@ import gevent
 import logging
 import abc
 import sys
-
 from . import service as cps
-from . import async_service as async
-
+from . import async_service as async_service
 from .. import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
-from suds.sudsobject import asdict
+#from suds.sudsobject import asdict
+from zeep.helpers import serialize_object
 
 _log = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ type_mapping = {"string": str,
 point_name_mapping = {"Status.TimeStamp": "TimeStamp"}
 
 service = {}
-gevent.spawn(async.web_service)
+gevent.spawn(async_service.web_service)
 
 
 def recursive_asdict(d):
@@ -64,7 +63,7 @@ def recursive_asdict(d):
     http://stackoverflow.com/questions/2412486/serializing-a-suds-object-in-python
     """
     out = {}
-    for k, v in asdict(d).items():
+    for k, v in serialize_object(d, dict).items():
         if hasattr(v, '__keylist__'):
             out[k] = recursive_asdict(v)
         elif isinstance(v, list):
@@ -139,6 +138,16 @@ class ChargepointRegister(BaseRegister):
             raise IOError("Trying to write to a point configured read only: {0}".format(self.attribute_name))
         return True
 
+    def get_last_non_none_value(self,lst):
+        """
+        Depends on port number, the result could be a list with None value
+        get last non-None value as result
+        """
+        for item in reversed(lst):
+            if item is not None:
+                return item
+        return None
+
     def get_register(self, result, method, port_flag=True):
         """Gets correct register from API response.
 
@@ -151,9 +160,10 @@ class ChargepointRegister(BaseRegister):
         :return: Correct register value cast to appropriate python type. Returns None if there is an error.
         """
         try:
-            value = getattr(result, self.attribute_name)(self.port)[0] \
+            _log.debug(f'In get_register, to get {self.attribute_name}, the port_flag is {port_flag}')
+            value = self.get_last_non_none_value(getattr(result, self.attribute_name)(self.port)) \
                 if port_flag \
-                else getattr(result, self.attribute_name)(None)[0]
+                else self.get_last_non_none_value(getattr(result, self.attribute_name)(None))
             return self.sanitize_output(self.data_type, value)
         except cps.CPAPIException as exception:
             if exception._responseCode not in ['153']:
@@ -196,7 +206,7 @@ class StationRegister(ChargepointRegister):
     def value(self):
         global service
         method = service[self.username].getStations
-        result = async.CPRequest.request(method, self.timeout, stationID=self.station_id)
+        result = async_service.CPRequest.request(method, self.timeout, stationID=self.station_id)
         result.wait()
         return self.get_register(result.value, method)
 
@@ -237,7 +247,7 @@ class LoadRegister(ChargepointRegister):
     def value(self):
         global service
         method = service[self.username].getLoad
-        result = async.CPRequest.request(method, self.timeout, stationID=self.station_id)
+        result = async_service.CPRequest.request(method, self.timeout, stationID=self.station_id)
         result.wait()
         return self.get_register(result.value, method)
 
@@ -263,7 +273,7 @@ class LoadRegister(ChargepointRegister):
             kwargs = {'stationID': self.station_id}
             if self.attribute_name == 'shedState' and not value:
                 method = service[self.username].clearShedState
-                result = async.CPRequest.request(method, 0, stationID=self.station_id)
+                result = async_service.CPRequest.request(method, 0, stationID=self.station_id)
             elif self.attribute_name == 'shedState':
                 _log.error('shedState may only be written with value 0. If you want to shedLoad, write to '
                            'allowedLoad or percentShed')
@@ -273,7 +283,7 @@ class LoadRegister(ChargepointRegister):
                 kwargs[self.attribute_name] = value
                 if self.port:
                     kwargs['portNumber'] = self.port
-                result = async.CPRequest.request(method, 0, **kwargs)
+                result = async_service.CPRequest.request(method, 0, **kwargs)
 
             result.wait()
             if result.value.responseCode != "100":
@@ -322,7 +332,7 @@ class AlarmRegister(ChargepointRegister):
         if self.port:
             kwargs['portNumber'] = self.port
 
-        result = async.CPRequest.request(method, self.timeout, **kwargs)
+        result = async_service.CPRequest.request(method, self.timeout, **kwargs)
         result.wait()
         return self.get_register(result.value, method, False)
 
@@ -348,7 +358,7 @@ class AlarmRegister(ChargepointRegister):
             if self.attribute_name == 'clearAlarms' and value:
                 kwargs = {'stationID': self.station_id}
                 method = service[self.username].clearAlarms
-                result = async.CPRequest.request(method, 0, **kwargs)
+                result = async_service.CPRequest.request(method, 0, **kwargs)
 
                 result.wait()
                 if result.value.responseCode not in ['100', '153']:
@@ -383,11 +393,12 @@ class ChargingSessionRegister(ChargepointRegister):
     def value(self):
         global service
         method = service[self.username].getChargingSessionData
-        result = async.CPRequest.request(method, self.timeout, stationID=self.station_id)
+        result = async_service.CPRequest.request(method, self.timeout, stationID=self.station_id)
         result.wait()
 
         # Of Note, due to API limitations, port number is ignored for these calls
-        return self.get_register(result.value, method, False)
+        # NOTE: Change this port number for Chargingsession data. 
+        return self.get_register(result.value, method)
 
     @value.setter
     def value(self, x):
@@ -418,7 +429,7 @@ class StationStatusRegister(ChargepointRegister):
     def value(self):
         global service
         method = service[self.username].getStationStatus
-        result = async.CPRequest.request(method, self.timeout, self.station_id)
+        result = async_service.CPRequest.request(method, self.timeout, self.station_id)
         result.wait()
         return self.get_register(result.value, method)
 
@@ -455,7 +466,7 @@ class StationRightsRegister(ChargepointRegister):
     def value(self):
         global service
         method = service[self.username].getStationRights
-        result = async.CPRequest.request(method, self.timeout, stationID=self.station_id)
+        result = async_service.CPRequest.request(method, self.timeout, stationID=self.station_id)
         result.wait()
 
         # Note: this does not go through get_register, as it is of a unique type, 'dictionary.'
@@ -558,7 +569,7 @@ class Interface(BasicRevert, BaseInterface):
                 description=description,
                 port_number=port_num,
                 username=config_dict['username'],
-                timeout=config_dict['cacheExpiration']
+                timeout=config_dict.get('cacheExpiration',0)
             )
 
             self.insert_register(register)
