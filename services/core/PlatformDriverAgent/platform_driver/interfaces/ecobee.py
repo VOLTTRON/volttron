@@ -440,6 +440,25 @@ class Interface(BasicRevert, BaseInterface):
         if register.readable:
             return register.get_state(self.thermostat_data)
 
+    def _ensure_no_string(self, results):
+        """
+        Ensure that all values in the results dictionary are not strings
+        :param results: dictionary of results to check
+        :return: dictionary with all string values converted to floats
+        """
+        new_results = {}
+        for key, value_list in results.items():
+            if not isinstance(value_list, list):
+                value_list = [value_list]
+            for value in value_list:
+                if not isinstance(value, float):
+                    try:
+                        new_results[key] = float(value)
+                    except ValueError:
+                        _log.warning(f"Could not convert value {value} to float for point {key}")
+                        pass
+        return new_results
+
     def _scrape_all(self):
         """
         Fetch point data for all configured points
@@ -467,6 +486,7 @@ class Interface(BasicRevert, BaseInterface):
                         result.update(register_data)
                     else:
                         result[register.point_name] = register_data
+        result = self._ensure_no_string(result)
         return result
 
 
