@@ -1,0 +1,7 @@
+{
+  "analysis_interval_sec": 20,
+  "file_path": "/home/riley/DRIVERWORK/PORTS/rileysVOLTTRON/volttron.log",
+  "historian_topic": "analysis/log_statistics",
+  "publish_topic": "platform/log_statistics",
+  "unit": "mb"
+}
