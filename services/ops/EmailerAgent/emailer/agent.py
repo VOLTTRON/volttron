@@ -25,6 +25,7 @@
 
 # Import the email modules we'll need
 from email.mime.text import MIMEText
+from smtplib import SMTPException
 import logging
 import socket
 
@@ -251,17 +252,27 @@ class EmailerAgent(Agent):
             self.vip.health.set_status(STATUS_GOOD,
                                        "Successfully sent email.")
             send_successful = True
+        except SMTPException as smtp_err:
+            _log.error(f"SMTP error occurred: {smtp_err}")
+            _log.error(f"Unable to send email message: {mime_message.as_string()}")
+            self.vip.health.set_status(
+                STATUS_BAD,
+                "SMTP configuration or authentication issue. Please check your SMTP settings and credentials.")
+
+        except OSError as os_err:
+            _log.error(f"Network-related error occurred: {os_err}")
+            _log.error(f"Unable to send email message: {mime_message.as_string()}")
+            self.vip.health.set_status(
+                STATUS_BAD, "Network issue. Please check your internet connection and SMTP server accessibility.")
+
         except Exception as e:
-            _log.error(
-                'Unable to send email message: %s' % mime_message.as_string())
-            _log.error(e.args)
-            self.vip.health.set_status(STATUS_BAD,
-                                       "Unable to send email to recipients")
+            _log.error(f"An unexpected error occurred: {e}")
+            _log.error(f"Unable to send email message: {mime_message.as_string()}")
+            self.vip.health.set_status(STATUS_BAD, f"Unable to send email to recipients: {e}")
         finally:
             if sent_email_record is not None:
                 sent_email_record['successful'] = send_successful
-                self.vip.pubsub.publish("pubsub", "record/sent_email",
-                                        message=sent_email_record)
+                self.vip.pubsub.publish("pubsub", "record/sent_email", message=sent_email_record)
 
     def send_email(self, from_address, to_addresses, subject, message):
         """
