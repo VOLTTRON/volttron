@@ -664,6 +664,7 @@ class Client:
         return self.__meta[helpers.META_REQUEST_MAP].get(field, None)
 
     def read_request(self, request):
+
         results = self.client.execute(
             self.slave_address,
             request.read_function_code,
@@ -692,7 +693,6 @@ class Client:
         #         logger.debug(msg)
         #         raise Exception("{0}: {1}".format(msg))
         #     logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
-
 
     def timer(slogger):
         """Print the runtime of the decorated function"""

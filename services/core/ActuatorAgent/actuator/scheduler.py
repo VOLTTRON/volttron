@@ -21,14 +21,14 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
-
 import bisect
 import logging
-from pickle import dumps, loads
+
+from base64 import b64encode
 from collections import defaultdict, namedtuple
 from copy import deepcopy
 from datetime import timedelta
+from pickle import dumps, loads
 
 from volttron.platform.agent import utils
 
@@ -340,7 +340,7 @@ class ScheduleManager:
 
         try:
             self._cleanup(now)
-            self.save_state_callback(dumps(self.tasks))
+            self.save_state_callback(b64encode(dumps(self.tasks)).decode("utf-8"))
         except Exception:
             _log.error('Failed to save scheduler state!')
 
@@ -411,7 +411,10 @@ class ScheduleManager:
 
         self.save_state(now)
 
-        return RequestResult(True, preempted_tasks, '')
+        if preempted_tasks:
+            return RequestResult(True, list(preempted_tasks), 'TASK_WERE_PREEMPTED')
+        else:
+            return RequestResult(True, {}, '')
 
     def cancel_task(self, agent_id, task_id, now):
         if task_id not in self.tasks:

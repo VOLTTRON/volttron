@@ -487,7 +487,10 @@ class PlatformDriverAgent(Agent):
         """
         _log.debug("sending heartbeat")
         for device in self.instances.values():
-            device.heart_beat()
+            try:
+                device.heart_beat()
+            except (Exception, gevent.Timeout) as e:
+                _log.warning(f'Failed to set heart_beat point on device: {device.device_name} -- {e}.')
 
     @RPC.export
     def revert_point(self, path, point_name, **kwargs):

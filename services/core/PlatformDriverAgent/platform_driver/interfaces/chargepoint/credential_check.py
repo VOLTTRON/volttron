@@ -1,5 +1,5 @@
 from . import service as cps
-import suds
+import zeep
 import io
 
 station_csv = {
@@ -176,5 +176,5 @@ if __name__ == '__main__':
         else:
             print("Some other error happened")
 
-    except suds.WebFault as a:
+    except zeep.exception.Fault as e:
         print("Sorry, your API credentials are invalid. Please contact Chargepoint for assistance.")
