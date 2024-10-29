@@ -590,7 +590,7 @@ class BasicRevert(object, metaclass=abc.ABCMeta):
         """
         self._tracker.set_default(point, value)
 
-    def set_point(self, point_name, value):
+    def set_point(self, point_name, value, **kwargs):
         """
         Implementation of :py:meth:`BaseInterface.set_point`
 

@@ -89,7 +89,6 @@ class Interface(BasicRevert, BaseInterface):
         self.designation = None
         self.designation_map = defaultdict(list)
         self.desigo_registers = []
-        self.points = []
         self.scrape_interval = 900
         urllib3.disable_warnings(category=InsecureRequestWarning)
 
@@ -113,18 +112,17 @@ class Interface(BasicRevert, BaseInterface):
             register = Register(
                 register_type="desigo_p2",
                 read_only=True,
-                point_name=name,
+                point_name=prop,
                 designation=designation,
                 property_name=prop,
                 units="",
             )
             self.insert_register(register)
-            self.points.append(name)
         self.desigo_registers = self.registers[("byte", True)]
         for register in self.desigo_registers:
             self.designation_map[register.designation].append(register)
         _log.info("finished configuration for desigo API interface")
-        _log.info(f"registered {len(self.points)} points")
+        _log.info(f"registered {len(self.registers("byte", True))} points")
 
     def _grequests_exception_handler(self, request, exception):
         """
@@ -157,7 +155,7 @@ class Interface(BasicRevert, BaseInterface):
             self.auth_token = self.get_token()
             req = grequests.get(
                 f"{self.url}/{resource}",
-                headers={"authorization": f"Bearer {self.auth_token}"},
+                headers={"authorization": f"Bearer {self.get_token()}"},
                 verify=False,
                 timeout=300,
             )
@@ -176,7 +174,7 @@ class Interface(BasicRevert, BaseInterface):
         try:
             req = grequests.get(
                 f"{self.url}/{resource}",
-                headers={"authorization": f"Bearer {self.auth_token}"},
+                headers={"authorization": f"Bearer {self.get_token()}"},
                 params=parameters,
                 verify=False,
                 timeout=300,
@@ -194,7 +192,7 @@ class Interface(BasicRevert, BaseInterface):
                 before_request = datetime.utcnow()
                 req = grequests.get(
                     f"{self.url}/{resource}",
-                    headers={"authorization": f"Bearer {self.auth_token}"},
+                    headers={"authorization": f"Bearer {self.get_token()}"},
                     verify=False,
                     timeout=800,
                 )
@@ -225,7 +223,7 @@ class Interface(BasicRevert, BaseInterface):
         """
         _log.debug("trying to get token via RPC")
         try:
-            self.auth_token = self.vip.rpc.call("platform.desigo_credential_handler", "get_token", self.url).get(timeout=300)
+            self.auth_token = self.vip.rpc.call("platform.desigo_credential_handler", "get_token", self.url).get(timeout=30)
         except gevent.timeout.Timeout:
             _log.error("timed out getting token")
             return None
