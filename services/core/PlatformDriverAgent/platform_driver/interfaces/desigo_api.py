@@ -122,7 +122,7 @@ class Interface(BasicRevert, BaseInterface):
         for register in self.desigo_registers:
             self.designation_map[register.designation].append(register)
         _log.info("finished configuration for desigo API interface")
-        _log.info(f"registered {len(self.registers[("byte", True)])} points")
+        _log.info(f"registered {len(self.registers[('byte', True)])} points")
 
     def _grequests_exception_handler(self, request, exception):
         """
