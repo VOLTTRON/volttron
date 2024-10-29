@@ -76,4 +76,4 @@ to the device. Heart beats are triggered by the Actuator Agent which must be run
 
 
 ## Changes
-- 4.4.1 (2024-10-29) fixes for desigo api issues, retrieve token via bus regardless to allow effective caching.
+- 4.4.1 (2024-10-29) fixes for desigo api issues, retrieve token via bus regardless to allow effective caching. Fixed register getting created with wrong name, making every scrape generate errors
