@@ -33,7 +33,7 @@
 option_requirements = [('pip==24.0', []), ('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
 
 
-install_requires = ['gevent==21.12.0',
+install_requires = ['gevent==23.9.1',
                     'grequests==0.6.0',
                     'requests==2.23.0',
                     'idna<3,>=2.5',
