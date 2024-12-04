@@ -36,7 +36,7 @@ import copy
 import pycomm3
 
 from volttron.platform.agent import utils
-from master_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
+from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -214,7 +214,7 @@ class Interface(BasicRevert, BaseInterface):
             slc_results + logix_results):
             try:
                 assert result.error is None
-                results[register.point_name] = result.value
+                results[register.point_name] = float(result.value)
             except Exception as e:
                 _log.error("Error reading point: {}".format(repr(e)))
 
