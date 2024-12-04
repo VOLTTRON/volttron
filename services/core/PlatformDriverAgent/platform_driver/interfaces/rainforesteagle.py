@@ -3,8 +3,11 @@
     Platform Driver interface implementation for rainforest eagle 200 gateway
 """
 
+import json
 import logging
 import requests
+
+import gevent
 
 from platform_driver.interfaces import (
     BaseInterface,
@@ -38,36 +41,46 @@ class Register(BaseRegister):
         )
 
 
-class Interface(BasicRevert, BaseInterface):
+class Interface(BaseInterface):
+    """
+    Interface for the Rainforest Eagle 200 gateway
+    """
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.power_meter = {}
 
     def configure(self, config_dict, register_config):
         global auth, macid, address
-        _log.info(f"configuring rainforest gateway: {config_dict=} {register_config=}")
+        while True:
+            _log.info(f"configuring rainforest gateway: {config_dict=} {register_config=}")
 
-        username = config_dict["username"]
-        password = config_dict["password"]
-        auth = (username, password)
-        macid = config_dict["macid"]
-        address = config_dict["address"]
+            username = config_dict["username"]
+            password = config_dict["password"]
+            auth = (username, password)
+            macid = config_dict["macid"]
+            address = config_dict["address"]
 
-        self.power_meter = self.get_power_meter()
+            try:
+                self.power_meter = self.get_power_meter()
+            except json.decoder.JSONDecodeError:
+                _log.error("Could not decode JSON response from gateway, trying again in 5 seconds")
+                gevent.sleep(5)
+                continue
 
-        if not self.power_meter:
-            _log.error("Could not find connected power meter")
-            return
-        # query for variable values to build units and description for registers
-        variable_list = self.get_variables_list(self.power_meter, ZIGBEE_REGISTER_LIST)
-        for d in variable_list:
-            # remove zigbee: prefix
-            name = d["Name"][7:].lower()
-            units = d["Units"]
-            description = d["Description"]
-            self.insert_register(Register(name, units, description))
+            if not self.power_meter:
+                _log.error("Could not find connected power meter")
+                return
+            # query for variable values to build units and description for registers
+            variable_list = self.get_variables_list(self.power_meter, ZIGBEE_REGISTER_LIST)
+            for d in variable_list:
+                # remove zigbee: prefix
+                name = d["Name"][7:].lower()
+                units = d["Units"]
+                description = d["Description"]
+                self.insert_register(Register(name, units, description))
 
-        _log.info(f"Interface configuration complete. Found {variable_list=}")
+            _log.info(f"Interface configuration complete. Found {variable_list=}")
+            break
 
     def get_power_meter(self) -> dict:
         self.device_list = self.get_device_list()
@@ -89,6 +102,7 @@ class Interface(BasicRevert, BaseInterface):
             ):
                 _log.info(f"found active power meter {device}")
                 return device
+        return {}
 
     def get_point(self, point_name):
         return self.get_variable(self.power_meter, point_name)
