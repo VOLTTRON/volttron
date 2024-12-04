@@ -76,4 +76,10 @@ to the device. Heart beats are triggered by the Actuator Agent which must be run
 
 
 ## Changes
+
+- 4.4.2 (2024-12-04) 
+    - updated ethernetip driver to import from new platform_driver module
+    - updated rainforest eagle driver with error handling during configuration 
+
+
 - 4.4.1 (2024-10-29) fixes for desigo api issues, retrieve token via bus regardless to allow effective caching. Fixed register getting created with wrong name, making every scrape generate errors
