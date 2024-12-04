@@ -41,7 +41,7 @@ class Register(BaseRegister):
         )
 
 
-class Interface(BaseInterface):
+class Interface(BasicRevert, BaseInterface):
     """
     Interface for the Rainforest Eagle 200 gateway
     """
