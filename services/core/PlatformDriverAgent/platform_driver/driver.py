@@ -326,29 +326,47 @@ class DriverAgent(BasicAgent):
         return depth_first, breadth_first
 
     def get_point(self, point_name, **kwargs):
-        return self.interface.get_point(point_name, **kwargs)
+        try:
+            return self.interface.get_point(point_name, **kwargs)
+        except AttributeError as e:
+            _log.warning(e)
+
 
     def set_point(self, point_name, value, **kwargs):
-        return self.interface.set_point(point_name, value, **kwargs)
+        try:
+            return self.interface.set_point(point_name, value, **kwargs)
+        except AttributeError as e:
+            _log.warning(e)
 
     def scrape_all(self):
-        return self.interface.scrape_all()
+        try:
+            return self.interface.scrape_all()
+        except AttributeError as e:
+            _log.warning(e)
 
     def get_multiple_points(self, point_names, **kwargs):
-        return self.interface.get_multiple_points(self.device_name,
-                                                  point_names,
-                                                  **kwargs)
+        try:
+            return self.interface.get_multiple_points(self.device_name, point_names, **kwargs)
+        except AttributeError as e:
+            _log.warning(e)
 
     def set_multiple_points(self, point_names_values, **kwargs):
-        return self.interface.set_multiple_points(self.device_name,
-                                                  point_names_values,
-                                                  **kwargs)
+        try:
+            return self.interface.set_multiple_points(self.device_name, point_names_values, **kwargs)
+        except AttributeError as e:
+            _log.warning(e)
 
     def revert_point(self, point_name, **kwargs):
-        self.interface.revert_point(point_name, **kwargs)
+        try:
+            self.interface.revert_point(point_name, **kwargs)
+        except AttributeError as e:
+            _log.warning(e)
 
     def revert_all(self, **kwargs):
-        self.interface.revert_all(**kwargs)
+        try:
+            self.interface.revert_all(**kwargs)
+        except AttributeError as e:
+            _log.warning(e)
 
     def publish_cov_value(self, point_name, point_values):
         """
