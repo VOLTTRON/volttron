@@ -104,7 +104,7 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
         # Protect from circular reference for file
         from volttron.platform import get_home
 
-        super(VolttronHomeFileReloader, self).__init__([get_home() + '/' + filetowatch])
+        super(VolttronHomeFileReloader, self).__init__(patterns=[get_home() + '/' + filetowatch])
         _log.debug("patterns is {}".format([get_home() + '/' + filetowatch]))
         self._callback = callback
 
@@ -125,7 +125,7 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
     filetowatch *.json will watch all json files in <volttron_home>
     """
     def __init__(self, filetowatch, callback):
-        super(AbsolutePathFileReloader, self).__init__([filetowatch])
+        super(AbsolutePathFileReloader, self).__init__(patterns=[filetowatch])
         self._callback = callback
         self._filetowatch = filetowatch
 
