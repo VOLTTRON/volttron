@@ -105,8 +105,14 @@ set to ``https://localhost:8443`` the following HTTP request (with a proper
 
     GET https://localhost:8443/vui/
 
-Access to the API may be disabled by removing "vui" from the list of groups in ``$VOLTTRON_HOME/web-users.json`` for any user which should not have access
-to the API.
+Access to the API may be disabled by removing "vui" from the list of groups in ``$VOLTTRON_HOME/web-users.json`` for
+any user which should not have access to the API.
+
+.. Note::
+    Certain features of the API require that appropriate agents be installed to handle requests.  In particular,
+    devices endpoints require at least the Platform Driver Agent and the Actuator Agent to both be installed.
+    For use with BACnet devices, the BACnet Proxy Agent may also be required. Missing agents are likely to result
+    in timeout errors from the API as the request has been sent to an agent which is not there to respond.
 
 Path Structure
 ---------------
