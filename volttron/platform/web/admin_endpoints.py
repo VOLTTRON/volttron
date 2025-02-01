@@ -46,7 +46,6 @@ from volttron.platform.agent.web import Response
 from volttron.platform import get_home
 from volttron.platform import jsonapi
 from volttron.utils import VolttronHomeFileReloader
-from volttron.utils.persistance import PersistentDict
 
 
 _log = logging.getLogger(__name__)
@@ -84,7 +83,7 @@ class AdminEndpoints:
         else:
             self._ssl_public_key = None
 
-        self._userdict = None
+        self._userdict = {}
         self.reload_userdict()
 
         self._observer = Observer()
@@ -96,7 +95,14 @@ class AdminEndpoints:
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
-        self._userdict = PersistentDict(webuserpath, format="json")
+        if os.path.exists(webuserpath):
+            with open(webuserpath) as fp:
+                try:
+                    self._userdict = jsonapi.loads(fp.read())
+                except json.decoder.JSONDecodeError:
+                    self._userdict = {}
+                    # Keep same behavior as with PersistentDict
+                    raise ValueError("File not in a supported format")
 
     def get_routes(self):
         """
@@ -339,4 +345,5 @@ class AdminEndpoints:
             groups=groups
         )
 
-        self._userdict.sync()
+        with open(os.path.join(get_home(), 'web-users.json'), 'w') as fp:
+            fp.write(jsonapi.dumps(self._userdict, indent=2))

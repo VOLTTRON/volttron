@@ -123,7 +123,7 @@ def update(operation, verbose=None, offline=False, optional_requirements=[], rab
     # option_requirements contains wheel as first entry
 
     # Build option_requirements separately to pass install options
-    build_option = '--build-option' if wheeling else '--install-option'
+    build_option = '--build-option' if wheeling else '--config-settings'
 
     for requirement, options in option_requirements:
         args = []
@@ -227,7 +227,7 @@ def main(argv=sys.argv):
         sys.exit(77)
 
     # Python3 for life!
-    if sys.version_info.major < 3 or sys.version_info.minor < 6:
+    if sys.version_info.major < 3 or sys.version_info.minor < 8:
         sys.stderr.write('error: Python >= 3.8 is required\n')
         sys.exit(1)
 

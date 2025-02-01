@@ -247,6 +247,7 @@ class AIPplatform:
         if self.message_bus == 'rmq':
             self.rmq_mgmt = RabbitMQMgmt()
         self.instance_name = get_platform_instance_name()
+        self.agent_uuid_name_map = {}
 
     def add_agent_user_group(self):
         user = pwd.getpwuid(os.getuid())
@@ -682,11 +683,14 @@ class AIPplatform:
             self.remove_agent_user(volttron_agent_user)
 
     def agent_name(self, agent_uuid):
+        if cached_name := self.agent_uuid_name_map.get(agent_uuid):
+            return cached_name
         agent_path = os.path.join(self.install_dir, agent_uuid)
         for agent_name in os.listdir(agent_path):
             dist_info = os.path.join(
                 agent_path, agent_name, agent_name + '.dist-info')
             if os.path.exists(dist_info):
+                self.agent_uuid_name_map[agent_uuid] = agent_name
                 return agent_name
         raise KeyError(agent_uuid)
 

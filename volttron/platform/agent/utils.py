@@ -466,7 +466,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         # TODO: Make required for all agents.  Handle it through vctl and aip.
         if not os.environ.get("_LAUNCHED_BY_PLATFORM"):
             if not publickey or not secretkey:
-                raise ValueError("AGENT_PUBLIC and AGENT_SECRET environmental variables must "
+                raise ValueError("AGENT_PUBLICKEY and AGENT_SECRETKEY environmental variables must "
                                  "be set to run without the platform.")
 
         address = get_address()

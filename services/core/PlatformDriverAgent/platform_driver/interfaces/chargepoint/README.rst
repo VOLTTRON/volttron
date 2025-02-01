@@ -12,7 +12,7 @@ activated environment:
 
 ::
 
-    pip install suds-jurko
+    pip install zeep
 
 Alternatively requirements can be installed from requirements.txt using:
 
