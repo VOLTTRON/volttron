@@ -112,6 +112,7 @@ class Interface(BaseInterface):
         self.max_per_request = config_dict.get("max_per_request", 24)
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
         self.timeout = float(config_dict.get("timeout", 30.0))
+        self.failover_bacnet_to_single = bool(config_dict.get("failover_bacnet_to_single", False))
 
         self.ping_retry_interval = timedelta(
             seconds=config_dict.get("ping_retry_interval", 5.0)
@@ -247,7 +248,7 @@ class Interface(BaseInterface):
                 if "unknownProperty" in exc.message:
                     _log.debug(f"unknownProperty error: {exc.message}")
                     # self.vip.config.set("unknown_properties", exc.message)
-                if "noResponse" in exc.message and self.use_read_multiple:
+                if "noResponse" in exc.message and self.use_read_multiple and self.failover_bacnet_to_single is True:
                     _log.warning(
                         f"device {self.target_address} did not respond reading multiple"
                     )
