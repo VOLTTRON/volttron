@@ -42,8 +42,10 @@ import sys
 import time
 import traceback
 from urllib.parse import urlparse
+import threading
 
 import gevent
+from gevent.lock import RLock
 
 from volttron.platform.vip.agent import Agent, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
@@ -114,6 +116,12 @@ class ForwardHistorian(BaseHistorian):
     This historian forwards data to another instance as if it was published
     originally to the second instance.
     """
+    
+    # Connection states
+    DISCONNECTED = 'disconnected'
+    CONNECTING = 'connecting'
+    CONNECTED = 'connected'
+    DISCONNECTING = 'disconnecting'
 
     def __init__(self, destination_vip, destination_serverkey,
                  custom_topic_list=[],
@@ -137,6 +145,15 @@ class ForwardHistorian(BaseHistorian):
         self.required_target_agents = required_target_agents
         self.cache_only = cache_only
         self.destination_address = destination_address
+        
+        # Synchronization and connection state management
+        self._connection_lock = RLock()
+        self._connection_state = self.DISCONNECTED
+        self._connection_task = None
+        self._connection_retry_count = 0
+        self._max_connection_retries = 5
+        self._connection_retry_delay = 30  # Initial delay in seconds, will be increased exponentially
+        
         config = {
             "custom_topic_list": custom_topic_list,
             "topic_replace_list": self.topic_replace_list,
@@ -155,16 +172,40 @@ class ForwardHistorian(BaseHistorian):
         self.no_query = True
 
     def configure(self, configuration):
-        custom_topic_set = set(configuration.get('custom_topic_list', []))
-        self.destination_vip = str(configuration.get('destination_vip', ""))
-        self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
-        self.required_target_agents = configuration.get('required_target_agents', [])
-        self.topic_replace_list = configuration.get('topic_replace_list', [])
-        self.cache_only = configuration.get('cache_only', False)
-        self.destination_address = configuration.get('destination_address', None)
-        # Reset the replace map.
+        with self._connection_lock:
+            # First tear down any existing connection if connection details changed
+            old_destination_vip = self.destination_vip
+            old_destination_serverkey = self.destination_serverkey
+            old_destination_address = self.destination_address
+            
+            self.destination_vip = str(configuration.get('destination_vip', ""))
+            self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
+            self.required_target_agents = configuration.get('required_target_agents', [])
+            self.topic_replace_list = configuration.get('topic_replace_list', [])
+            self.cache_only = configuration.get('cache_only', False)
+            self.destination_address = configuration.get('destination_address', None)
+            
+            # If connection details changed, teardown existing connection
+            connection_changed = (
+                old_destination_vip != self.destination_vip or
+                old_destination_serverkey != self.destination_serverkey or
+                old_destination_address != self.destination_address
+            )
+            
+            if connection_changed and self._connection_state != self.DISCONNECTED:
+                _log.info("Connection configuration changed. Tearing down current connection.")
+                self._connection_state = self.DISCONNECTING
+                if self._target_platform is not None:
+                    self.historian_teardown()
+                self._connection_state = self.DISCONNECTED
+                self._connection_retry_count = 0
+
+        # Reset the replace map - safe to do as it's only modified in capture_data
+        # which is called by pubsub callbacks
         self._topic_replace_map = {}
 
+        # Update subscriptions
+        custom_topic_set = set(configuration.get('custom_topic_list', []))
         # Topics to add.
         new_topics = custom_topic_set - self._current_custom_topics
         # Topics to remove
@@ -318,164 +359,299 @@ class ForwardHistorian(BaseHistorian):
 
         _log.debug("publish_to_historian number of items: {}"
                    .format(len(to_publish_list)))
-        parsed = urlparse(self.core.address)
-        next_dest = urlparse(self.destination_vip)
         current_time = self.timestamp()
         last_time = self._last_timeout
-        _log.debug('Lasttime: {} currenttime: {}'.format(last_time,
-                                                         current_time))
-        timeout_occurred = False
+        
+        # Check if we're in a backoff period after a failure
         if self._last_timeout:
-            # if we failed we need to wait 60 seconds before we go on.
-            if self.timestamp() < self._last_timeout + 60:
-                _log.debug('Not allowing send < 60 seconds from failure')
+            # Calculate backoff time based on number of failures (exponential backoff)
+            backoff_time = min(60 * (2 ** min(self._connection_retry_count, 10)), 3600)  # Max 1 hour backoff
+            
+            if current_time < self._last_timeout + backoff_time:
+                _log.debug(f'In backoff period: {backoff_time}s from last failure. Skipping publish.')
                 return
-
-        if not self._target_platform:
-            self.historian_setup()
-        if not self._target_platform:
-            _log.error('Could not connect to targeted historian dest_vip {} dest_address {}'.format(
-                self.destination_vip, self.destination_address))
-            return
-
-        for vip_id in self.required_target_agents:
-            try:
-                self._target_platform.vip.ping(vip_id).get()
-            except Unreachable:
-                skip = "Skipping publish: Target platform not running " \
-                       "required agent {}".format(vip_id)
-                _log.warning(skip)
-                self.vip.health.set_status(
-                    STATUS_BAD, skip)
-                return
-            except Exception as e:
-                err = "Unhandled error publishing to target platform."
-                _log.error(err)
-                _log.error(traceback.format_exc())
-                self.vip.health.set_status(
-                    STATUS_BAD, err)
-                return
-
-        for x in to_publish_list:
-            topic = x['topic']
-            value = x['value']
-            # payload = jsonapi.loads(value)
-            payload = value
-            headers = payload['headers']
-            headers['X-Forwarded'] = True
-            if 'X-Forwarded-From' in headers:
-                if not isinstance(headers['X-Forwarded-From'], list):
-                    headers['X-Forwarded-From'] = [headers['X-Forwarded-From']]
-                headers['X-Forwarded-From'].append(self.instance_name)
-            else:
-                headers['X-Forwarded-From'] = self.instance_name
-
-            try:
-                del headers['Origin']
-            except KeyError:
-                pass
-            try:
-                del headers['Destination']
-            except KeyError:
-                pass
-
-            if self.gather_timing_data:
-                add_timing_data_to_header(headers,
-                                          self.core.agent_uuid or self.core.identity,
-                                          "forwarded")
-
-            if timeout_occurred:
-                _log.error(
-                    'A timeout has occurred so breaking out of publishing')
-                break
-            with gevent.Timeout(30):
+        
+        # Attempt to establish connection if needed
+        with self._connection_lock:
+            if self._connection_state == self.DISCONNECTED:
+                _log.debug("No active connection. Attempting to establish connection.")
+                self._connection_state = self.CONNECTING
                 try:
-                    self._target_platform.vip.pubsub.publish(
-                        peer='pubsub',
-                        topic=topic,
-                        headers=headers,
-                        message=payload['message']).get()
-                except gevent.Timeout:
-                    _log.debug("Timeout occurred email should send!")
-                    timeout_occurred = True
-                    self._last_timeout = self.timestamp()
-                    self._num_failures += 1
-                    # Stop the current platform from attempting to
-                    # connect
-                    self.historian_teardown()
-                    self.vip.health.set_status(
-                        STATUS_BAD, "Timeout occured")
-                except Unreachable:
-                    _log.error("Target not reachable. Wait till it's ready!")
-                except ZMQError as exc:
-                    if exc.errno == ENOTSOCK:
-                        # Stop the current platform from attempting to
-                        # connect
-                        _log.error("Target disconnected. Stopping target platform agent")
-                        self.historian_teardown()
-                        self.vip.health.set_status(
-                            STATUS_BAD, "Target platform disconnected")
+                    # Start the connection process
+                    self.historian_setup()
+                    if not self._target_platform:
+                        _log.error('Could not connect to targeted historian dest_vip {} dest_address {}'.format(
+                            self.destination_vip, self.destination_address))
+                        self._connection_state = self.DISCONNECTED
+                        self._connection_retry_count += 1
+                        self._last_timeout = self.timestamp()
+                        return
+                    
+                    self._connection_state = self.CONNECTED
+                    self._connection_retry_count = 0
                 except Exception as e:
-                    err = "Unhandled error publishing to target platfom."
+                    _log.error(f"Failed to establish connection: {e}")
+                    self._connection_state = self.DISCONNECTED
+                    self._connection_retry_count += 1
+                    self._last_timeout = self.timestamp()
+                    self.vip.health.set_status(STATUS_BAD, f"Connection failed: {e}")
+                    return
+            
+            if self._connection_state != self.CONNECTED:
+                _log.debug(f"Cannot publish in current connection state: {self._connection_state}")
+                return
+            
+            # Check if target platform is actually there
+            if not self._target_platform:
+                _log.error("Target platform reference is None despite connection state CONNECTED")
+                self._connection_state = self.DISCONNECTED
+                self._connection_retry_count += 1
+                self._last_timeout = self.timestamp()
+                return
+            
+            # Verify required target agents are available
+            for vip_id in self.required_target_agents:
+                try:
+                    self._target_platform.vip.ping(vip_id).get(timeout=5)
+                except Unreachable:
+                    skip = "Skipping publish: Target platform not running " \
+                           "required agent {}".format(vip_id)
+                    _log.warning(skip)
+                    self.vip.health.set_status(STATUS_BAD, skip)
+                    return
+                except gevent.Timeout:
+                    skip = f"Skipping publish: Timeout checking required agent {vip_id}"
+                    _log.warning(skip)
+                    self.vip.health.set_status(STATUS_BAD, skip)
+                    return
+                except Exception as e:
+                    err = f"Unhandled error checking required agent {vip_id}: {e}"
                     _log.error(err)
                     _log.error(traceback.format_exc())
-                    self.vip.health.set_status(
-                        STATUS_BAD, err)
-                    # Before returning lets mark any that weren't errors
-                    # as sent.
-                    self.report_handled(handled_records)
+                    self.vip.health.set_status(STATUS_BAD, err)
                     return
+            
+            # Process records to publish
+            publish_tasks = []
+            timeout_occurred = False
+            
+            for x in to_publish_list:
+                if timeout_occurred:
+                    _log.error('A timeout has occurred so breaking out of publishing')
+                    break
+                    
+                topic = x['topic']
+                value = x['value']
+                payload = value
+                headers = payload['headers']
+                headers['X-Forwarded'] = True
+                if 'X-Forwarded-From' in headers:
+                    if not isinstance(headers['X-Forwarded-From'], list):
+                        headers['X-Forwarded-From'] = [headers['X-Forwarded-From']]
+                    headers['X-Forwarded-From'].append(self.instance_name)
                 else:
-                    handled_records.append(x)
+                    headers['X-Forwarded-From'] = self.instance_name
 
-        _log.debug("handled: {} number of items".format(
-            len(to_publish_list)))
-        self.report_handled(handled_records)
+                try:
+                    del headers['Origin']
+                except KeyError:
+                    pass
+                try:
+                    del headers['Destination']
+                except KeyError:
+                    pass
 
-        if timeout_occurred:
-            _log.debug('Sending alert from the ForwardHistorian')
-            status = Status.from_json(self.vip.health.get_status_json())
-            self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                       status)
-        else:
-            self.vip.health.set_status(
-                STATUS_GOOD,"published {} items".format(
-                    len(to_publish_list)))
+                if self.gather_timing_data:
+                    add_timing_data_to_header(headers,
+                                            self.core.agent_uuid or self.core.identity,
+                                            "forwarded")
+
+                # Create individual publish tasks
+                try:
+                    publish_task = gevent.spawn(self._publish_item, topic, headers, payload['message'], x)
+                    publish_tasks.append(publish_task)
+                except Exception as e:
+                    _log.error(f"Error spawning publish task: {e}")
+            
+            # Wait for all publish tasks with a global timeout
+            try:
+                gevent.joinall(publish_tasks, timeout=30, raise_error=True)
+                
+                # Collect results
+                for task in publish_tasks:
+                    if task.successful():
+                        result = task.value
+                        if result['success']:
+                            handled_records.append(result['record'])
+                        elif result['timeout']:
+                            timeout_occurred = True
+                            
+            except gevent.Timeout:
+                # Global timeout
+                _log.error("Global timeout waiting for publish tasks")
+                timeout_occurred = True
+            
+            # Cancel any remaining tasks
+            for task in publish_tasks:
+                if not task.ready():
+                    task.kill(block=False)
+            
+            # Report handled records
+            if handled_records:
+                _log.debug(f"Successfully handled {len(handled_records)} records")
+                self.report_handled(handled_records)
+                
+            # Handle timeout if occurred
+            if timeout_occurred:
+                _log.warning('Connection timeout. Will attempt to reconnect.')
+                with self._connection_lock:
+                    self._last_timeout = self.timestamp()
+                    self._connection_retry_count += 1
+                    self._connection_state = self.DISCONNECTING
+                    self.historian_teardown()
+                    self._connection_state = self.DISCONNECTED
+                
+                _log.debug('Sending alert from the ForwardHistorian')
+                status = Status.from_json(self.vip.health.get_status_json())
+                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY, status)
+                self.vip.health.set_status(STATUS_BAD, "Connection timeout")
+            else:
+                self.vip.health.set_status(
+                    STATUS_GOOD, f"Published {len(handled_records)} items")
+    
+    def _publish_item(self, topic, headers, message, record):
+        """
+        Helper method to publish a single item with its own timeout handling
+        Returns: dict with status of the publish operation
+        """
+        result = {'success': False, 'timeout': False, 'record': record}
+        
+        try:
+            with gevent.Timeout(10):  # Individual publish timeout
+                self._target_platform.vip.pubsub.publish(
+                    peer='pubsub',
+                    topic=topic,
+                    headers=headers,
+                    message=message).get()
+                result['success'] = True
+        except gevent.Timeout:
+            _log.debug(f"Timeout publishing to {topic}")
+            result['timeout'] = True
+        except Unreachable:
+            _log.error(f"Target not reachable for {topic}")
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.error(f"ZMQ socket error for {topic}")
+        except Exception as e:
+            _log.error(f"Error publishing to {topic}: {e}")
+            
+        return result
 
     @doc_inherit
     def historian_setup(self):
-        _log.debug("Setting up to forward to {}".format(self.destination_vip))
+        """
+        Establish connection to the target platform with proper synchronization
+        """
+        with self._connection_lock:
+            if self._connection_state != self.CONNECTING:
+                _log.warning(f"Historian setup called while in {self._connection_state} state")
+                return
+                
+            _log.debug("Setting up to forward to {}".format(self.destination_vip))
+            
+            # Clean up any previous connection
+            if self._target_platform is not None:
+                try:
+                    _log.debug("Cleaning up previous connection before establishing new one")
+                    self._target_platform.core.stop()
+                except Exception as e:
+                    _log.warning(f"Error stopping previous connection: {e}")
+                finally:
+                    self._target_platform = None
 
-        try:
-            if self.destination_address:
-                address = self.destination_address
-            elif self.destination_vip:
-                address = self.destination_vip
+            try:
+                if self.destination_address:
+                    address = self.destination_address
+                elif self.destination_vip:
+                    address = self.destination_vip
+                else:
+                    _log.error("No destination address configured")
+                    self._connection_state = self.DISCONNECTED
+                    return
 
-            value = self.core.connect_remote_platform(address, serverkey=self.destination_serverkey)
+                # Use a timeout for the connection attempt
+                with gevent.Timeout(30):
+                    value = self.core.connect_remote_platform(address, serverkey=self.destination_serverkey)
 
-        except gevent.Timeout:
-            _log.error("Couldn't connect to address. gevent timeout: ({})".format(address))
-            self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
-        except Exception as ex:
-            _log.error(ex.args)
-            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex))
-        else:
-            if isinstance(value, Agent):
-                self._target_platform = value
+                    if isinstance(value, Agent):
+                        self._target_platform = value
+                        self._connection_state = self.CONNECTED
+                        self._connection_retry_count = 0
+                        self.vip.health.set_status(
+                            STATUS_GOOD, f"Connected to address ({address})")
+                        _log.info(f"Successfully connected to target at {address}")
+                    else:
+                        _log.error(f"Couldn't connect to address. Got Return value that is not Agent: ({address})")
+                        self.vip.health.set_status(STATUS_BAD, "Invalid agent detected.")
+                        self._connection_state = self.DISCONNECTED
+                        self._connection_retry_count += 1
 
-                self.vip.health.set_status(
-                    STATUS_GOOD, "Connected to address ({})".format(address))
-            else:
-                _log.error("Couldn't connect to address. Got Return value that is not Agent: ({})".format(address))
-                self.vip.health.set_status(STATUS_BAD, "Invalid agent detected.")
+            except gevent.Timeout:
+                _log.error(f"Timeout connecting to address: ({address})")
+                self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
+                self._connection_state = self.DISCONNECTED
+                self._connection_retry_count += 1
+            except Exception as ex:
+                _log.error(f"Error connecting to {address}: {ex}")
+                _log.error(traceback.format_exc())
+                self.vip.health.set_status(STATUS_BAD, f"Connection error: {ex}")
+                self._connection_state = self.DISCONNECTED
+                self._connection_retry_count += 1
 
     @doc_inherit
     def historian_teardown(self):
-        # Kill the forwarding agent if it is currently running.
-        if self._target_platform is not None:
-            self._target_platform.core.stop()
-            self._target_platform = None
+        """
+        Safely disconnect from target platform with proper synchronization
+        """
+        with self._connection_lock:
+            # Only teardown if we're in a state that allows it
+            if self._connection_state not in (self.CONNECTED, self.DISCONNECTING):
+                _log.warning(f"Historian teardown called while in {self._connection_state} state")
+                return
+                
+            _log.debug("Tearing down forwarding connection")
+            self._connection_state = self.DISCONNECTING
+            
+            # Cancel any pending connection tasks
+            if self._connection_task is not None and not self._connection_task.ready():
+                self._connection_task.kill(block=False)
+                self._connection_task = None
+                
+            # Kill the forwarding agent if it is currently running.
+            if self._target_platform is not None:
+                try:
+                    # Use a timeout to ensure we don't hang on shutdown
+                    with gevent.Timeout(5):
+                        self._target_platform.core.stop()
+                except gevent.Timeout:
+                    _log.warning("Timeout while stopping target platform")
+                except Exception as e:
+                    _log.warning(f"Error stopping target platform: {e}")
+                finally:
+                    self._target_platform = None
+                    
+            self._connection_state = self.DISCONNECTED
+            _log.debug("Connection teardown complete")
+            
+    def stop_process_thread(self):
+        """
+        Override the BaseHistorian's stop_process_thread to ensure we cleanly disconnect
+        """
+        # First tear down any connection to remote platform
+        self.historian_teardown()
+        
+        # Then call parent implementation to stop the processing thread
+        super().stop_process_thread()
 
 
 def main(argv=sys.argv):
