@@ -48,18 +48,23 @@
 from datetime import datetime
 import collections
 import struct
+import gevent
 import serial
 import six.moves
 import logging
 import math
 
+from volttron.platform.agent import utils
 import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
-from modbus_tk.exceptions import ModbusError
+from modbus_tk.exceptions import ModbusError, ModbusInvalidResponseError
+from platform_driver.driver_locks import client_socket_locks
 
 from . import helpers
 
+# utils.setup_logging()
+# _log = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 # In cache representation of modbus field.
@@ -310,7 +315,7 @@ class Field:
                 self._address = self._address - helpers.TABLE_ADDRESS[self._table]
             elif address_style == helpers.ADDRESS_OFFSET_PLUS_ONE:
                 self._address = self._address - 1
-            if self._address < 0 or self._address > 10000:
+            if self._address < 0 or self._address > (2 ** 16 - 1):
                 raise Exception("Modbus address out of range for table.")
 
 
@@ -608,6 +613,8 @@ class Client:
         self._error_count = 0
 
     def set_transport_tcp(self, hostname, port, timeout_in_sec=1.0):
+        self.device_address = hostname
+        self.port = port
         self.client = modbus_tcp.TcpMaster(host=hostname, port=int(port), timeout_in_sec=timeout_in_sec)
         return self
 
@@ -657,30 +664,101 @@ class Client:
         return self.__meta[helpers.META_REQUEST_MAP].get(field, None)
 
     def read_request(self, request):
-        logger.debug("Requesting: %s", request)
-        try:
-            results = self.client.execute(
-                self.slave_address,
-                request.read_function_code,
-                request.address,
-                quantity_of_x=request.count,
-                data_format=request.formatting,
-                threadsafe=False
-            )
-            self._data.update(request.parse_values(results))
-        except (AttributeError, ModbusError) as err:
-            if err is ModbusError:
-                code = err.get_exception_code()
-                raise Exception(f'{err.args[0]}, {helpers.TABLE_EXCEPTION_CODE.get(code, "UNDEFINED")}')
 
-            logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
+        results = self.client.execute(
+            self.slave_address,
+            request.read_function_code,
+            request.address,
+            quantity_of_x=request.count,
+            data_format=request.formatting,
+            threadsafe=False
+        )
+        logger.debug("Successfully read the request...")
+        self._data.update(request.parse_values(results))
+        # try:
+        #     results = self.client.execute(
+        #         self.slave_address,
+        #         request.read_function_code,
+        #         request.address,
+        #         quantity_of_x=request.count,
+        #         data_format=request.formatting,
+        #         threadsafe=False
+        #     )
+        #     logger.debug("Successfully read the request...")
+        #     self._data.update(request.parse_values(results))
+        # except (AttributeError, ModbusError) as err:
+        #     if "Exception code" in err.message:
+        #         msg = "{0}: {1}".format(err.message,
+        #                                           helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED"))
+        #         logger.debug(msg)
+        #         raise Exception("{0}: {1}".format(msg))
+        #     logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
+    def timer(slogger):
+        """Print the runtime of the decorated function"""
+        from functools import wraps
+        import time
+        def decorator_timer(func):
+            @wraps(func)
+            def wrapper_timer(*args, **kwargs):
+                start_time = datetime.now()  # 1
+                value = func(*args, **kwargs)
+                end_time = datetime.now()  # 2
+                run_time_sec = end_time - start_time
+                slogger.debug(
+                    f"Finished {func.__name__!r} in {run_time_sec.total_seconds()} seconds"
+                )
+                return value
+
+            return wrapper_timer
+
+        return decorator_timer
+
+    @timer(logger)
     def read_all(self):
+        logger.debug(f"READ_ALL Time now: {datetime.now()}")
         requests = self.__meta[helpers.META_REQUESTS]
         self._data.clear()
-        for r in requests:
-            self.read_request(r)
+        # gets the lock
+        with client_socket_locks(self.device_address, self.port):
+            logger.debug(f"Entered lock for {self.device_address}:{self.port}-{self.slave_address}")
+            logger.debug(f"Total requests to be read: {len(requests)}")
+            for r in requests:
+                logger.debug(f"Attempting to read_request on request: {r}")
+                retries = 3
+                while retries > 0:
+                    logger.debug(f"Retry: {retries}")
+                    exception_flag = False
+                    try:
+                        self.read_request(r)
+                        break # can use break or continue
+                    except ConnectionResetError:
+                        exception_flag = True
+                        logger.warning("ConnectionResetError on read_request()")
+                        logger.warning(f"Error response: {e}")
+                    except ModbusInvalidResponseError as e:
+                        exception_flag = True
+                        logger.warning("ModbusInvalidResponseError on read_request()")
+                        logger.warning(f"Error response: {e}")
+                    except Exception as e:
+                        exception_flag = True
+                        logger.warning("CATCHING ALL EXCEPTIONS")
+                        logger.warning(f"Error response: {e}")
+                    # if exception_flag:
+                    #     logger.warning("CLOSING SOCKET CONNECTION")
+                    #     self.client.close()
+                    #     gevent.sleep(1.0)
+                    #     logger.warning("OPENING SOCKET CONNECTION")
+                    #     self.client.open()
+                    retries -= 1
+                
+                if retries == 0:
+                    logger.debug(f"Failed to read request: {r}")
+                else:
+                    logger.debug(f"Succesfully read the request on retry: {retries}")
+        logger.debug(f"left lock for {self.device_address}:{self.port}-{self.slave_address}")
 
+    @timer(logger)    
     def dump_all(self):
         self.read_all()
         return [(f,

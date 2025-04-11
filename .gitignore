@@ -40,3 +40,11 @@ rabbitmq-server.download.tar.xz
 *ecobee_*.json
 .env*
 dist/
+
+Pipfile
+modbus_configs
+modbus_tk_configs
+activateenv
+volttron.service
+upgrade-scripts
+volttron_modbus.log
