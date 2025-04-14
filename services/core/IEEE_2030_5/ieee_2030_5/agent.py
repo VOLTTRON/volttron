@@ -23,13 +23,12 @@
 # }}}
 from __future__ import annotations
 from copy import deepcopy
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 import math
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from pprint import pformat
 from typing import Any, Dict, List
 
 import ieee_2030_5.models as m
@@ -39,15 +38,12 @@ from .client import IEEE2030_5_Client
 
 try:    # for modular
     from volttron import utils
-    from volttron.client.messaging.health import STATUS_GOOD
-    from volttron.client.vip.agent import RPC, Agent, Core, PubSub
-    from volttron.client.vip.agent.subsystems.query import Query
+    from volttron.client.vip.agent import Agent
     from volttron.utils.commands import vip_main
 except ImportError:
     from volttron.platform.agent import utils
     from volttron.platform.agent.utils import vip_main
-    from volttron.platform.vip.agent import RPC, Agent, Core, PubSub
-    from volttron.platform.vip.agent.subsystems.query import Query
+    from volttron.platform.vip.agent import Agent
 
 # from . import __version__
 __version__ = '0.1.0'
