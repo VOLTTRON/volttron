@@ -42,8 +42,8 @@ jobs:
       matrix:
         # Each entry in the os and python-version matrix will be run. For example, on a list of 3 os's and 4 python versions, 12 jobs will be run
         os: [ ubuntu-22.04 ]
-        python-version: [ 3.10 ]
-        
+        python-version: [ '3.10' ]
+
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
     # - This uses the matrix os from the strategy above

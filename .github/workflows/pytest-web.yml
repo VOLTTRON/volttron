@@ -37,7 +37,7 @@ jobs:
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
         os: [ ubuntu-22.04 ]
-        python-version: [ 3.10 ]
+        python-version: [ '3.10' ]
 
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machines between 16.04 and 20.04 available

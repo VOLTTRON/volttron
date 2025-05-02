@@ -37,7 +37,7 @@ jobs:
       matrix:
         # Each entry in the os and python-version matrix will be run
         os: [ ubuntu-22.04 ]
-        python-version: [ 3.10 ]
+        python-version: [ '3.10' ]
 
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machine 20.04 available
