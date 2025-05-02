@@ -802,8 +802,8 @@ class CPService:
         # Add SOAP Security tokens
         #TODO:might need to put this in config
         #NOTE: wihtout this setting, zeep will not get result
-        settins = Settings(strict=False, xml_huge_tree=True, xsd_ignore_sequence_order=True)
-        self._zeep_client = zeep.Client(SERVICE_WSDL_URL, wsse=UsernameToken(self._username, self._password),settings=settins)
+        settings = Settings(strict=False, xml_huge_tree=True, xsd_ignore_sequence_order=True)
+        self._zeep_client = zeep.Client(SERVICE_WSDL_URL, wsse=UsernameToken(self._username, self._password), settings=settings)
 
     def set_client(self, client):
         self._zeep_client = client
