@@ -669,7 +669,7 @@ class Client:
             )
             self._data.update(request.parse_values(results))
         except (AttributeError, ModbusError) as err:
-            if err is ModbusError:
+            if isinstance(err, ModbusError):
                 code = err.get_exception_code()
                 raise Exception(f'{err.args[0]}, {helpers.TABLE_EXCEPTION_CODE.get(code, "UNDEFINED")}')
 
