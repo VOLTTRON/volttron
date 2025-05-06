@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pprint import pformat
-from parser import ParserError
 
 import sys
 import time
@@ -54,7 +53,11 @@ class Configuration:
     ieee_server: str = 'https://127.0.0.1:8443'
     ieee_client_pk: str = Path('~/tls/private/dev1.pem').expanduser().as_posix()
     ieee_client_cert: str = Path('~/tls/certs/dev1.crt').expanduser().as_posix()
-    ieee_ca: str = Path('~/tls/certs/ca.crt').expanduser().as_posix()
+    # Use the cert or False to not verify the ca
+    #
+    # ieee_ca: bool | str  = Path('~/tls/certs/ca.crt').expanduser().as_posix()
+    #
+    ieee_ca: bool | str = False
 
 
 @dataclass
