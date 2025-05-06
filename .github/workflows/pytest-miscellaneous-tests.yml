@@ -57,7 +57,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis
       - name: Run certs test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@no_rmq
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -65,7 +65,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run core agent test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@no_rmq
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -73,7 +73,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run packaging test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@no_rmq
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -81,7 +81,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run platform init test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@no_rmq
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -89,7 +89,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run sqlite3 test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@no_rmq
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
