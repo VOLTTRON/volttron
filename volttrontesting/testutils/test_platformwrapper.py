@@ -29,16 +29,12 @@ import grequests
 import gevent
 import pytest
 from mock import MagicMock
-
-from volttron.platform import get_services_core, get_examples, jsonapi
-from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
-from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_address
-
+from volttrontesting.skip_if_handlers import rmq_skipif
 
 @pytest.mark.parametrize("messagebus, ssl_auth", [
-    ('zmq', False)
-    , ('rmq', True)
-    , ('zmq', True)
+    pytest.param('zmq', False),
+    pytest.param('rmq', True, marks=rmq_skipif),
+    pytest.param('zmq', True)
 ])
 def test_can_create(messagebus, ssl_auth):
     p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
@@ -54,6 +50,11 @@ def test_can_create(messagebus, ssl_auth):
             p.shutdown_platform()
 
     assert not p.is_running()
+from volttron.platform import get_services_core, get_examples, jsonapi
+from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
+
+
+from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_address
 
 
 @pytest.mark.parametrize("messagebus, https_enabled", [
