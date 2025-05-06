@@ -368,7 +368,7 @@ def test_extract_valid_wheel_and_dir(test_package):
 
         dist = os.path.join(destination, name_version + '.dist-info')
         assert Counter(os.listdir(dist)) == Counter(
-            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+            ['METADATA', 'metadata.json', 'RECORD',
              'top_level.txt', 'WHEEL'])
     finally:
         if install_dir:
@@ -411,7 +411,7 @@ def test_extract_include_uuid(test_package):
 
         dist = os.path.join(destination, name_version + '.dist-info')
         assert Counter(os.listdir(dist)) == Counter(
-            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+            ['METADATA', 'metadata.json', 'RECORD',
              'top_level.txt', 'WHEEL'])
     finally:
         if install_dir:
@@ -454,7 +454,7 @@ def test_extract_specific_uuid(test_package):
 
         dist = os.path.join(destination, name_version + '.dist-info')
         assert Counter(os.listdir(dist)) == Counter(
-            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+            ['METADATA', 'metadata.json', 'RECORD',
              'top_level.txt', 'WHEEL'])
     finally:
         if install_dir:
@@ -548,7 +548,7 @@ def test_extract_new_install_dir(test_package):
 
         dist = os.path.join(destination, name_version + '.dist-info')
         assert Counter(os.listdir(dist)) == Counter(
-            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+            ['METADATA', 'metadata.json', 'RECORD',
              'top_level.txt', 'WHEEL'])
 
     finally:
