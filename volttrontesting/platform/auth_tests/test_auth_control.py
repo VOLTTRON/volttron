@@ -333,7 +333,7 @@ def test_auth_rpc_method_add(auth_instance):
 
     assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
 
-@pytest.mark.xfail("Known issue. ToDo - https://github.com/VOLTTRON/volttron/issues/3215")
+@pytest.mark.xfail(reason="Known issue. ToDo - https://github.com/VOLTTRON/volttron/issues/3215")
 @pytest.mark.control
 def test_auth_rpc_method_remove(auth_instance):
     """Add an entry then update it with a different entry"""
