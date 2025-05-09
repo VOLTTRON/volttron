@@ -64,14 +64,15 @@ jobs:
           echo "OUTPUT_SUFFIX=$(basename $TEST_FILE)" >> $GITHUB_ENV
           
       - name: Create test historian database
+        run: |
+          psql -h postgres -U postgres -c "CREATE DATABASE test_historian;"
         env:
           # The hostname used to communicate with the PostgreSQL service container
           POSTGRES_HOST: postgres
           # The default PostgreSQL port
           POSTGRES_PORT: 5432
-        run: |
-          psql -U postgres -c "CREATE DATABASE test_historian;"
-          
+          POSTGRES_PASSWORD: postgres
+        
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@no_rmq
