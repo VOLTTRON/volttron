@@ -65,7 +65,7 @@ jobs:
           
       - name: Create test historian database
         run: |
-          psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
+          PGPASSWORD="postgres" psql -U postgres -h localhost -c "CREATE DATABASE test_historian;"
         env:
           # The hostname used to communicate with the PostgreSQL service container
           POSTGRES_HOST: localhost
