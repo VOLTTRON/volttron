@@ -65,9 +65,12 @@ jobs:
           
       - name: Create test historian database
         env:
-          POSTGRES_PASSWORD: postgres
+          # The hostname used to communicate with the PostgreSQL service container
+          POSTGRES_HOST: postgres
+          # The default PostgreSQL port
+          POSTGRES_PORT: 5432
         run: |
-          PGPASSWORD=mysecretpassword psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
+          psql -U postgres -c "CREATE DATABASE test_historian;"
           
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
