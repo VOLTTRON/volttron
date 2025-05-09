@@ -37,6 +37,17 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    services:
+        # Label used to access the service container
+        postgres:
+            # Docker Hub image
+            image: postgres
+            # Provide the password for postgres
+            env:
+                POSTGRES_PASSWORD: postgres
+            ports:
+                # Maps tcp port 5432 on service container to the host
+                - 5432:5432
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v4
