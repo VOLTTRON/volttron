@@ -1,10 +1,9 @@
 import datetime
-import itertools
 import os
 import logging
-import pytest
-from time import time
 
+import gevent
+import pytest
 
 try:
     import psycopg2
@@ -17,38 +16,40 @@ except ImportError:
     )
 from volttron.platform import jsonapi
 from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
-from volttrontesting.fixtures.docker_wrapper import create_container
-from volttrontesting.utils.utils import get_rand_port
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
-
-IMAGES = ["postgres:13"]
-if "CI" in os.environ:
-    IMAGES.extend(
-        ["postgres:12", "postgres:11"]
-    )
-
-ALLOW_CONNECTION_TIME = 10
-CONNECTION_HOST = "localhost"
-TEST_DATABASE = "test_historian"
-ROOT_USER = "postgres"
-ROOT_PASSWORD = "password"
-ENV_POSTGRESQL = {
-    "POSTGRES_USER": ROOT_USER,  # defining user not necessary but added to be explicit
-    "POSTGRES_PASSWORD": ROOT_PASSWORD,
-    "POSTGRES_DB": TEST_DATABASE,
-}
 DATA_TABLE = "data"
 TOPICS_TABLE = "topics"
 META_TABLE = "meta"
 AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
+db_connection = None
+user = 'postgres'
+password = 'postgres'
+historian_config = {
+    "connection": {
+        "type": "postgresql",
+        "params": {
+            'dbname': 'test_historian',
+            'port': os.environ.get("POSTGRES_PORT", 5432),
+            'host': 'localhost',
+            'user': os.environ.get("POSTGRES_USER", user),
+            'password': os.environ.get("POSTGRES_PASSWORD", password)
+        }
+    }
+}
+table_names = {
+    "data_table": DATA_TABLE,
+    "topics_table": TOPICS_TABLE,
+    "meta_table": META_TABLE,
+    "agg_topics_table": AGG_TOPICS_TABLE,
+    "agg_meta_table": AGG_META_TABLE,
+}
 
-
-def test_insert_meta_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_insert_meta_should_return_true(setup_functs):
+    sqlfuncts, historian_version = setup_functs
     if historian_version != "<4.0.0":
         pytest.skip("insert_meta() is called by historian only for schema <4.0.0")
     topic_id = "44"
@@ -56,20 +57,21 @@ def test_insert_meta_should_return_true(get_container_func):
     expected_data = (44, '"foobar44"')
 
     res = sqlfuncts.insert_meta(topic_id, metadata)
-
+    #db_connection.commit()
+    gevent.sleep(1)
     assert res is True
-    assert get_data_in_table(connection_port, "meta")[0] == expected_data
+    assert get_data_in_table("meta")[0] == expected_data
+    cleanup_tables(truncate_tables=["meta"], drop_tables=False)
 
-
-def test_update_meta_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_update_meta_should_succeed(setup_functs):
+    sqlfuncts, historian_version = setup_functs
     metadata = {"units": "count"}
     metadata_s = jsonapi.dumps(metadata)
     topic = "foobar"
 
     id = sqlfuncts.insert_topic(topic)
     sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
-    assert metadata_s not in get_data_in_table(connection_port, TOPICS_TABLE)[0]
+    assert metadata_s not in get_data_in_table(TOPICS_TABLE)[0]
 
     res = sqlfuncts.update_meta(id, metadata)
 
@@ -77,34 +79,35 @@ def test_update_meta_should_succeed(get_container_func):
     expected_gteq_4 = [(1, topic, metadata_s)]
     assert res is True
     if historian_version == "<4.0.0":
-        assert get_data_in_table(connection_port, META_TABLE) == expected_lt_4
+        assert get_data_in_table(META_TABLE) == expected_lt_4
+        cleanup_tables(truncate_tables=[META_TABLE], drop_tables=False)
     else:
-        assert get_data_in_table(connection_port, TOPICS_TABLE) == expected_gteq_4
+        assert get_data_in_table(TOPICS_TABLE) == expected_gteq_4
+        cleanup_tables(truncate_tables=[TOPICS_TABLE], drop_tables=False)
 
-
-def test_setup_historian_tables_should_create_tables(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_setup_historian_tables_should_create_tables(setup_functs):
+    sqlfuncts, historian_version = setup_functs
     # get_container initializes db and sqlfuncts
     # to test setup explicitly drop tables and see if tables get created correctly
-    drop_all_tables(connection_port)
+    cleanup_tables(None, drop_tables=True)
 
-    tables_before_setup = get_tables(connection_port)
+    tables_before_setup = select_all_historian_tables()
     assert tables_before_setup == set()
     expected_tables = set(["data", "topics"])
     sqlfuncts.setup_historian_tables()
-    actual_tables = get_tables(connection_port)
+    actual_tables = select_all_historian_tables()
     assert actual_tables == expected_tables
 
 
-def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_setup_aggregate_historian_tables_should_create_aggregate_tables(setup_functs):
+    sqlfuncts, historian_version = setup_functs
     # get_container initializes db and sqlfuncts to test setup explicitly drop tables and see if tables get created
-    drop_all_tables(connection_port)
-    create_historian_tables(container, historian_version)
+    cleanup_tables(None, drop_tables=True)
+    create_historian_tables(historian_version)
     agg_topic_table = "aggregate_topics"
     agg_meta_table = "aggregate_meta"
 
-    original_tables = get_tables(connection_port)
+    original_tables = select_all_historian_tables()
     assert agg_topic_table not in original_tables
     assert agg_meta_table not in original_tables
 
@@ -118,15 +121,15 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_con
 
     sqlfuncts.setup_aggregate_historian_tables()
 
-    updated_tables = get_tables(connection_port)
+    updated_tables = select_all_historian_tables()
     assert agg_topic_table in updated_tables
     assert agg_meta_table in updated_tables
     assert (
-        describe_table(connection_port, agg_topic_table)
+        describe_table(agg_topic_table)
         == expected_agg_topic_fields
     )
     assert (
-        describe_table(connection_port, agg_meta_table) == expected_agg_meta_fields
+        describe_table(agg_meta_table) == expected_agg_meta_fields
     )
     assert sqlfuncts.agg_topics_table == agg_topic_table
     assert sqlfuncts.agg_meta_table == agg_meta_table
@@ -147,28 +150,30 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_con
         ),
     ],
 )
-def test_query_should_return_data(get_container_func, topic_ids, id_name_map, expected_values):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
-    query = f"""
-                INSERT INTO {DATA_TABLE} VALUES ('2020-06-01 12:30:59', 43, '[2,3]')
-            """
-    seed_database(container, query)
+def test_query_should_return_data(setup_functs, topic_ids, id_name_map, expected_values):
+    global db_connection
+    sqlfuncts, historian_version = setup_functs
+    # explicit drop and recreate as the test is repeated it multiple times (number of params * historian version)
+    create_all_tables(historian_version, sqlfuncts)
+    db_connection.commit()
+    query = f"""INSERT INTO {DATA_TABLE} VALUES ('2020-06-01 12:30:59', 43, '[2,3]')"""
+    seed_database(query)
     actual_values = sqlfuncts.query(topic_ids, id_name_map)
     assert actual_values == expected_values
 
 
-def test_insert_topic_should_return_topic_id(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_insert_topic_should_return_topic_id(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     topic = "football"
     expected_topic_id = 1
     actual_topic_id = sqlfuncts.insert_topic(topic)
     assert actual_topic_id == expected_topic_id
+    cleanup_tables(truncate_tables=[TOPICS_TABLE], drop_tables=False)
 
 
-def test_insert_topic_and_meta_query_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_insert_topic_and_meta_query_should_succeed(setup_functs):
+    sqlfuncts, historian_version = setup_functs
     if historian_version == "<4.0.0":
         pytest.skip("Not relevant for historian schema before 4.0.0")
     topic = "football"
@@ -176,13 +181,14 @@ def test_insert_topic_and_meta_query_should_succeed(get_container_func):
     actual_id = sqlfuncts.insert_topic(topic, metadata=metadata)
 
     assert isinstance(actual_id, int)
-    result = get_data_in_table(connection_port, "topics")[0]
+    result = get_data_in_table("topics")[0]
     assert (actual_id, topic) == result[0:2]
     assert metadata == jsonapi.loads(result[2])
+    cleanup_tables(truncate_tables=[TOPICS_TABLE], drop_tables=False)
 
 
-def test_insert_agg_topic_should_return_agg_topic_id(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_insert_agg_topic_should_return_agg_topic_id(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     topic = "some_agg_topic"
     agg_type = "AVG"
@@ -194,12 +200,13 @@ def test_insert_agg_topic_should_return_agg_topic_id(get_container_func):
     )
 
     assert isinstance(actual_id, int)
-    assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
+    assert get_data_in_table(AGG_TOPICS_TABLE)[0] == expected_data
+    cleanup_tables(truncate_tables=[AGG_TOPICS_TABLE], drop_tables=False)
 
 
-def test_insert_data_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
+def test_insert_data_should_return_true(setup_functs):
+    sqlfuncts, historian_version = setup_functs
+    cleanup_tables(truncate_tables=[DATA_TABLE], drop_tables=False)
     ts = "2001-09-11 08:46:00"
     topic_id = "11"
     data = "1wtc"
@@ -208,11 +215,12 @@ def test_insert_data_should_return_true(get_container_func):
     res = sqlfuncts.insert_data(ts, topic_id, data)
 
     assert res is True
-    assert get_data_in_table(connection_port, "data") == expected_data
+    assert get_data_in_table(DATA_TABLE) == expected_data
+    cleanup_tables(truncate_tables=[DATA_TABLE], drop_tables=False)
 
 
-def test_update_topic_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_update_topic_should_return_true(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     topic = "football"
     actual_id = sqlfuncts.insert_topic(topic)
@@ -220,11 +228,12 @@ def test_update_topic_should_return_true(get_container_func):
 
     result = sqlfuncts.update_topic("soccer", actual_id)
     assert result is True
-    assert (actual_id, "soccer") == get_data_in_table(connection_port, "topics")[0][0:2]
+    assert (actual_id, "soccer") == get_data_in_table(TOPICS_TABLE)[0][0:2]
+    cleanup_tables(truncate_tables=[TOPICS_TABLE], drop_tables=False)
 
 
-def test_update_topic_and_metadata_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_update_topic_and_metadata_should_succeed(setup_functs):
+    sqlfuncts, historian_version = setup_functs
     if historian_version == "<4.0.0":
         pytest.skip("Not relevant for historian schema before 4.0.0")
     topic = "football"
@@ -235,12 +244,12 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
     result = sqlfuncts.update_topic("soccer", actual_id, metadata={"test": "test value"})
 
     assert result is True
-    assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
+    assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table("topics")[0]
+    cleanup_tables(truncate_tables=[TOPICS_TABLE], drop_tables=False)
 
 
-
-def test_get_aggregation_list_should_return_list(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_get_aggregation_list_should_return_list(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     expected_list = [
         "AVG",
@@ -264,49 +273,49 @@ def test_get_aggregation_list_should_return_list(get_container_func):
     assert sqlfuncts.get_aggregation_list() == expected_list
 
 
-def test_insert_agg_topic_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
+def test_insert_agg_topic_should_return_true(setup_functs):
+    sqlfuncts, historian_version = setup_functs
+    cleanup_tables(truncate_tables=[AGG_TOPICS_TABLE], drop_tables=False)
     topic = "some_agg_topic"
     agg_type = "AVG"
     agg_time_period = "2019"
-    expected_data = (1, "some_agg_topic", "AVG", "2019")
+    expected_data = ("some_agg_topic", "AVG", "2019")
 
     actual_id = sqlfuncts.insert_agg_topic(
         topic, agg_type, agg_time_period
     )
 
     assert isinstance(actual_id, int)
-    assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
+    assert get_data_in_table(AGG_TOPICS_TABLE)[0][1:] == expected_data
 
 
-def test_update_agg_topic_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
+def test_update_agg_topic_should_return_true(setup_functs):
+    sqlfuncts, historian_version = setup_functs
+    cleanup_tables(truncate_tables=[AGG_TOPICS_TABLE], drop_tables=False)
     topic = "cars"
     agg_type = "SUM"
     agg_time_period = "2100ZULU"
-    expected_data = (1, "cars", "SUM", "2100ZULU")
+    expected_data = ("cars", "SUM", "2100ZULU")
 
     actual_id = sqlfuncts.insert_agg_topic(
         topic, agg_type, agg_time_period
     )
 
     assert isinstance(actual_id, int)
-    assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
+    assert get_data_in_table(AGG_TOPICS_TABLE)[0][1:] == expected_data
 
     new_agg_topic_name = "boats"
-    expected_data = (1, "boats", "SUM", "2100ZULU")
+    expected_data = ("boats", "SUM", "2100ZULU")
 
     result = sqlfuncts.update_agg_topic(actual_id, new_agg_topic_name)
 
     assert result is True
-    assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
+    assert get_data_in_table(AGG_TOPICS_TABLE)[0][1:] == expected_data
 
 
-def test_insert_agg_meta_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
+def test_insert_agg_meta_should_return_true(setup_functs):
+    sqlfuncts, historian_version = setup_functs
+    cleanup_tables(truncate_tables=[AGG_META_TABLE], drop_tables=False)
     topic_id = 42
     # metadata must be in the following convention because aggregation methods, i.e. get_agg_topics, rely on metadata having a key called "configured_topics"
     metadata = {"configured_topics": "meaning of life"}
@@ -315,19 +324,22 @@ def test_insert_agg_meta_should_return_true(get_container_func):
     result = sqlfuncts.insert_agg_meta(topic_id, metadata)
 
     assert result is True
-    assert get_data_in_table(connection_port, AGG_META_TABLE)[0] == expected_data
+    assert get_data_in_table(AGG_META_TABLE)[0] == expected_data
 
 
-def test_get_topic_map_should_return_maps(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
+def test_get_topic_map_should_return_maps(setup_functs):
+    global db_connection
+    sqlfuncts, historian_version = setup_functs
+    create_all_tables(historian_version, sqlfuncts)
+    db_connection.commit()
+    gevent.sleep(0.5)
     query = """
                INSERT INTO topics (topic_name)
                VALUES ('football');
                INSERT INTO topics (topic_name)
                VALUES ('baseball');
             """
-    seed_database(container, query)
+    seed_database(query)
     expected = (
         {"baseball": 2, "football": 1},
         {"baseball": "baseball", "football": "football"},
@@ -338,25 +350,28 @@ def test_get_topic_map_should_return_maps(get_container_func):
     assert actual == expected
 
 
-def test_get_topic_meta_map_should_return_maps(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_get_topic_meta_map_should_return_maps(setup_functs):
+    sqlfuncts, historian_version = setup_functs
+
     if historian_version == "<4.0.0":
         pytest.skip("method applied only to version >=4.0.0")
     else:
+        create_all_tables(historian_version, sqlfuncts)
+        gevent.sleep(1)
         query = """
                    INSERT INTO topics (topic_name)
                    VALUES ('football');
                    INSERT INTO topics (topic_name, metadata)
-                   VALUES ('baseball', '{\\"meta\\":\\"value\\"}');
+                   VALUES ('baseball', '{"meta":"value"}');
                 """
-        seed_database(container, query)
+        seed_database(query)
         expected = {1: None, 2: {"meta": "value"}}
         actual = sqlfuncts.get_topic_meta_map()
         assert actual == expected
 
 
-def test_get_agg_topics_should_return_list(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_get_agg_topics_should_return_list(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     topic = "some_agg_topic"
     agg_type = "AVG"
@@ -373,19 +388,17 @@ def test_get_agg_topics_should_return_list(get_container_func):
     assert actual_list == expected_list
 
 
-def test_get_agg_topic_map_should_return_dict(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-
+def test_get_agg_topic_map_should_return_dict(setup_functs):
+    sqlfuncts, historian_version = setup_functs
+    create_all_tables(historian_version, sqlfuncts)
     query = f"""
                INSERT INTO {AGG_TOPICS_TABLE}
                (agg_topic_name, agg_type, agg_time_period)
                VALUES ('topic_name', 'AVG', '2001');
             """
-    seed_database(container, query)
+    seed_database(query)
     expected = {("topic_name", "AVG", "2001"): 1}
-
     actual = sqlfuncts.get_agg_topic_map()
-
     assert actual == expected
 
 
@@ -407,15 +420,17 @@ def test_get_agg_topic_map_should_return_dict(get_container_func):
     ],
 )
 def test_query_topics_by_pattern_should_return_matching_results(
-    get_container_func,
+    setup_functs,
     topic_1,
     topic_2,
     topic_3,
     topic_pattern,
     expected_result
 ):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
 
+    sqlfuncts, historian_version = setup_functs
+    create_all_tables(historian_version, sqlfuncts)
+    gevent.sleep(2)
     query = f"""
                INSERT INTO {TOPICS_TABLE}  (topic_name)
                VALUES ({topic_1});
@@ -424,14 +439,13 @@ def test_query_topics_by_pattern_should_return_matching_results(
                INSERT INTO {TOPICS_TABLE} (topic_name)
                VALUES ({topic_3});
             """
-    seed_database(container, query)
-
+    seed_database(query)
     actual_result = sqlfuncts.query_topics_by_pattern(topic_pattern)
     assert actual_result == expected_result
 
 
-def test_create_aggregate_store_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_create_aggregate_store_should_succeed(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     agg_type = "AVG"
     agg_time_period = "1984"
@@ -440,12 +454,12 @@ def test_create_aggregate_store_should_succeed(get_container_func):
 
     sqlfuncts.create_aggregate_store(agg_type, agg_time_period)
 
-    assert expected_aggregate_table in get_tables(connection_port)
-    assert describe_table(connection_port, expected_aggregate_table) == expected_fields
+    assert expected_aggregate_table in select_all_historian_tables()
+    assert describe_table(expected_aggregate_table) == expected_fields
 
 
-def test_insert_aggregate_stmt_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_insert_aggregate_stmt_should_succeed(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     # be aware that Postgresql will automatically fold unquoted names into lower case
     # From : https://www.postgresql.org/docs/current/sql-syntax-lexical.html
@@ -465,7 +479,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
                UNIQUE(ts, topic_id));
                CREATE INDEX IF NOT EXISTS idx_avg_1776 ON avg_1776 (ts ASC);
             """
-    seed_database(container, query)
+    seed_database(query)
 
     agg_topic_id = 42
     agg_type = "avg"
@@ -485,11 +499,11 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
     )
 
     assert res is True
-    assert get_data_in_table(connection_port, "avg_1776")[0] == expected_data
+    assert get_data_in_table("avg_1776")[0] == expected_data
 
 
-def test_collect_aggregate_stmt_should_return_rows(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_collect_aggregate_stmt_should_return_rows(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     query = f"""
                 INSERT INTO {DATA_TABLE}
@@ -497,7 +511,7 @@ def test_collect_aggregate_stmt_should_return_rows(get_container_func):
                 INSERT INTO {DATA_TABLE}
                 VALUES ('2020-06-01 12:31:59', 43, '8')
             """
-    seed_database(container, query)
+    seed_database(query)
 
     topic_ids = [42, 43]
     agg_type = "avg"
@@ -508,106 +522,77 @@ def test_collect_aggregate_stmt_should_return_rows(get_container_func):
     assert actual_aggregate == expected_aggregate
 
 
-def test_collect_aggregate_stmt_should_raise_value_error(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
+def test_collect_aggregate_stmt_should_raise_value_error(setup_functs):
+    sqlfuncts, historian_version = setup_functs
 
     with pytest.raises(ValueError):
             sqlfuncts.collect_aggregate("dfdfadfdadf", "Invalid agg type")
 
 
-def get_postgresqlfuncts(port):
-    connect_params = {
-        "dbname": TEST_DATABASE,
-        "user": ROOT_USER,
-        "password": ROOT_PASSWORD,
-        "host": "localhost",
-        "port": port,
-    }
-
-    table_names = {
-        "data_table": DATA_TABLE,
-        "topics_table": TOPICS_TABLE,
-        "meta_table": META_TABLE,
-        "agg_topics_table": AGG_TOPICS_TABLE,
-        "agg_meta_table": AGG_META_TABLE,
-    }
-
-    return PostgreSqlFuncts(connect_params, table_names)
-
-
-@pytest.fixture(scope="module", params=itertools.product(
-    IMAGES,
-    [
+@pytest.fixture(scope="module", params=[
      '<4.0.0',
      '>=4.0.0'
-     ]))
-def get_container_func(request):
-    global CONNECTION_HOST
-    historian_version = request.param[1]
-    kwargs = {'env': ENV_POSTGRESQL}
-    if os.path.exists("/.dockerenv"):
-        print("Running test within docker container.")
-        connection_port = 5432
-        CONNECTION_HOST = 'postgresql_test'
-        kwargs['hostname'] = CONNECTION_HOST
-    else:
-        ports_dict = ports_config()
-        kwargs['ports'] = ports_dict["ports"]
-        connection_port = ports_dict["port_on_host"]
-        CONNECTION_HOST = 'localhost'
+     ])
+def setup_functs(request):
+    global db_connection, historian_config, table_names
+    historian_version = request.param
 
-    with create_container(request.param[0], **kwargs) as container:
-        wait_for_connection(container, connection_port)
-        create_all_tables(container, historian_version)
-        postgresfuncts = get_postgresqlfuncts(connection_port)
-        postgresfuncts.setup_historian_tables()
-        yield container, postgresfuncts, connection_port, historian_version
+    db_connection = psycopg2.connect(**historian_config["connection"]["params"])
+    db_connection.autocommit = True
+    create_all_tables(historian_version)
+    postgresfuncts = PostgreSqlFuncts(historian_config["connection"]["params"], table_names)
+    postgresfuncts.setup_historian_tables()
+    yield postgresfuncts, historian_version
 
 
-def ports_config():
-    port_on_host = get_rand_port(ip="5432")
-    return {"port_on_host": port_on_host, "ports": {"5432/tcp": port_on_host}}
+def create_all_tables(historian_version, sqlfuncts=None):
+    try:
+        cleanup_tables(table_names.values(), drop_tables=True)
+    except Exception as exc:
+        print('Error truncating existing tables: {}'.format(exc))
+    create_historian_tables(historian_version, sqlfuncts)
+    create_aggregate_tables(historian_version)
 
 
-def create_all_tables(container, historian_version):
-    create_historian_tables(container, historian_version)
-    create_aggregate_tables(container, historian_version)
-
-
-def create_historian_tables(container, historian_version):
+def create_historian_tables(historian_version, sqlfuncts=None):
+    global db_connection, historian_config, table_names
+    cursor = db_connection.cursor()
     if historian_version == "<4.0.0":
-        query = f"""
-                    CREATE TABLE IF NOT EXISTS {DATA_TABLE} (
-                    ts TIMESTAMP NOT NULL,
-                    topic_id INTEGER NOT NULL,
-                    value_string TEXT NOT NULL,
-                    UNIQUE (topic_id, ts));
-                    CREATE TABLE IF NOT EXISTS {TOPICS_TABLE} (
-                    topic_id SERIAL PRIMARY KEY NOT NULL,
-                    topic_name VARCHAR(512) NOT NULL,
-                    UNIQUE (topic_name));
-                    CREATE TABLE IF NOT EXISTS {META_TABLE} (
-                    topic_id INTEGER PRIMARY KEY NOT NULL,
-                    metadata TEXT NOT NULL);
-                """
-    else:
-        query = f"""
-                    CREATE TABLE IF NOT EXISTS {DATA_TABLE} (
-                    ts TIMESTAMP NOT NULL,
-                    topic_id INTEGER NOT NULL,
-                    value_string TEXT NOT NULL,
-                    UNIQUE (topic_id, ts));
-                    CREATE TABLE IF NOT EXISTS {TOPICS_TABLE} (
-                    topic_id SERIAL PRIMARY KEY NOT NULL,
-                    topic_name VARCHAR(512) NOT NULL,
-                    metadata TEXT,
-                    UNIQUE (topic_name));
-                """
-    seed_database(container, query)
+        print("Setting up for version <4.0.0")
+        cursor = db_connection.cursor()
+        cursor.execute(SQL(
+            'CREATE TABLE IF NOT EXISTS {} ('
+            'ts TIMESTAMP NOT NULL, '
+            'topic_id INTEGER NOT NULL, '
+            'value_string TEXT NOT NULL, '
+            'UNIQUE (topic_id, ts)'
+            ')').format(Identifier(table_names['data_table'])))
+        cursor.execute(SQL(
+            'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
+            Identifier('idx_' + table_names['data_table']),
+            Identifier(table_names['data_table'])))
+        cursor.execute(SQL(
+            'CREATE TABLE IF NOT EXISTS {} ('
+            'topic_id SERIAL PRIMARY KEY NOT NULL, '
+            'topic_name VARCHAR(512) NOT NULL, '
+            'UNIQUE (topic_name)'
+            ')').format(Identifier(table_names['topics_table'])))
+        cursor.execute(SQL(
+            'CREATE TABLE IF NOT EXISTS {} ('
+            'topic_id INTEGER PRIMARY KEY NOT NULL, '
+            'metadata TEXT NOT NULL'
+            ')').format(Identifier(table_names['meta_table'])))
+        db_connection.commit()
+        cursor.close()
+    elif sqlfuncts:
+        sqlfuncts.setup_historian_tables()
+    gevent.sleep(5)
     return
 
 
-def create_aggregate_tables(container, historian_version):
+def create_aggregate_tables(historian_version):
+    global db_connection
+    cursor = db_connection.cursor()
     if historian_version == "<4.0.0":
         query = f"""
                     CREATE TABLE IF NOT EXISTS {AGG_TOPICS_TABLE} (
@@ -632,125 +617,73 @@ def create_aggregate_tables(container, historian_version):
                     agg_topic_id INTEGER PRIMARY KEY NOT NULL,
                     metadata TEXT NOT NULL);
                 """
-    seed_database(container, query)
-    return
-
-
-def seed_database(container, query):
-    command = (
-        f'psql --username="{ROOT_USER}" --dbname="{TEST_DATABASE}" --command="{query}"'
-    )
-    r = container.exec_run(cmd=command, tty=True)
-    print(r)
-    if r[0] == 1:
-        raise RuntimeError(
-            f"SQL query did not successfully complete on the container: \n {r}"
-        )
-    return
-
-
-def get_tables(port):
-    cnx, cursor = get_cnx_cursor(port)
-    # unlike MYSQL, Postgresql does not have a "SHOW TABLES" shortcut
-    # we have to create the query ourselves
-    query = SQL(
-        "SELECT table_name "
-        "FROM information_schema.tables "
-        "WHERE table_type = 'BASE TABLE' and "
-        "table_schema not in ('pg_catalog', 'information_schema')"
-    )
-    results = execute_statement(cnx, cursor, query)
-
-    return {t[0] for t in results}
-
-
-def describe_table(port, table):
-    cnx, cursor = get_cnx_cursor(port)
-    query = SQL(
-        "SELECT column_name " "FROM information_schema.columns " "WHERE table_name = %s"
-    )
-
-    results = execute_statement(cnx, cursor, query, args=[table])
-
-    return {t[0] for t in results}
-
-
-def get_data_in_table(port, table):
-    cnx, cursor = get_cnx_cursor(port)
-    query = SQL("SELECT * " "FROM {table_name}").format(table_name=Identifier(table))
-
-    results = execute_statement(cnx, cursor, query)
-
-    return results
-
-
-def execute_statement(cnx, cursor, query, args=None):
-    cursor.execute(query, vars=args)
-
-    results = cursor.fetchall()
-
+    cursor.execute(SQL(query))
+    db_connection.commit()
     cursor.close()
-    cnx.close()
-
-    return results
-
-
-def get_cnx_cursor(port):
-    connect_params = {
-        "database": TEST_DATABASE,
-        "user": ROOT_USER,
-        "password": ROOT_PASSWORD,
-        "host": "localhost",
-        "port": port,
-    }
-
-    cnx = psycopg2.connect(**connect_params)
-    cursor = cnx.cursor()
-
-    return cnx, cursor
-
-
-def wait_for_connection(container, port):
-    start_time = time()
-    while time() - start_time < ALLOW_CONNECTION_TIME:
-        command = f"psql --user={ROOT_USER} --dbname={TEST_DATABASE} --port={port}"
-        response = container.exec_run(command, tty=True)
-        # https://www.postgresql.org/docs/10/app-psql.html#id-1.9.4.18.7
-        # psql returns 0 to the shell if it finished normally,
-        # 1 if a fatal error of its own occurs (e.g. out of memory, file not found),
-        # 2 if the connection to the server went bad and the session was not interactive,
-        # and 3 if an error occurred in a script and the variable ON_ERROR_STOP was set.
-        exit_code = response[0]
-
-        if exit_code == 0:
-            return
-        elif exit_code == 1:
-            raise RuntimeError(response)
-        elif exit_code == 2:
-            continue
-        elif exit_code == 3:
-            raise RuntimeError(response)
-
-    # if we break out of the loop, we assume that connection has been verified given enough sleep time
     return
 
 
-def drop_all_tables(port):
-    tables = get_tables(port)
-    cnx, cursor = get_cnx_cursor(port)
+def select_all_historian_tables():
+    global db_connection
+    cursor = db_connection.cursor()
+    tables = []
     try:
-        for t in tables:
-            cursor.execute(SQL(f'DROP TABLE {t}'))
-        cnx.commit()
+        cursor.execute(f"""SELECT table_name FROM information_schema.tables
+                                    WHERE table_catalog = 'test_historian' and table_schema = 'public'""")
+        rows = cursor.fetchall()
+        print(f"table names {rows}")
+        tables = [columns[0] for columns in rows]
     except Exception as e:
-        print("Error deleting tables {}".format(e))
+        print("Error getting list of {}".format(e))
     finally:
         if cursor:
             cursor.close()
+    return set(tables)
 
 
-@pytest.fixture(autouse=True)
-def cleanup_tables(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-    drop_all_tables(connection_port)
-    create_all_tables(container, historian_version)
+def describe_table(table):
+    global db_connection
+    cursor = db_connection.cursor()
+    query = SQL(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}'")
+    cursor.execute(query, vars=table)
+    results = cursor.fetchall()
+    cursor.close()
+    return {t[0] for t in results}
+
+
+def get_data_in_table(table):
+    global db_connection
+    cursor = db_connection.cursor()
+    query = SQL("SELECT * " "FROM {table_name}").format(table_name=Identifier(table))
+    cursor.execute(query)
+    results = cursor.fetchall()
+    cursor.close()
+    return results
+
+def cleanup_tables(truncate_tables, drop_tables=False):
+    global db_connection
+    cursor = db_connection.cursor()
+    if truncate_tables is None:
+        truncate_tables = select_all_historian_tables()
+
+    if drop_tables:
+        for table in truncate_tables:
+            if table:
+                cursor.execute(SQL('DROP TABLE IF EXISTS {}').format(Identifier(table)))
+    else:
+        for table in truncate_tables:
+            if table:
+                cursor.execute(SQL('TRUNCATE TABLE {}').format(Identifier(table)))
+
+    db_connection.commit()
+    cursor.close()
+
+def seed_database(sql):
+    global db_connection
+    cursor = db_connection.cursor()
+    try:
+        cursor.execute(sql)
+    except psycopg2.errors.UndefinedTable as e:
+        print(e)
+    cursor.close()
+    db_connection.commit()
