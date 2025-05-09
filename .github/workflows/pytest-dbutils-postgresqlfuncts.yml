@@ -67,7 +67,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
         run: |
-          psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
+          PGPASSWORD=mysecretpassword psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
           
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
