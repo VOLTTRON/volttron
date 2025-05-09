@@ -63,7 +63,10 @@ jobs:
         run: |
           echo "OUTPUT_SUFFIX=$(basename $TEST_FILE)" >> $GITHUB_ENV
           
-      - run: |
+      - name: Create test historian database
+        env:
+          POSTGRES_PASSWORD: postgres
+        run: |
           psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
           
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
