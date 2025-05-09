@@ -7,10 +7,10 @@
 Installing the Platform
 =======================
 
-VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
+VOLTTRON is written in Python 3.10 and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
 the following resources are recommended:
 
--   `Python 3.6 Tutorial <https://docs.python.org/3.6/tutorial>`_
+-   `Python 3.10 Tutorial <https://docs.python.org/3.10/tutorial>`_
 -   `Linux Tutorial <http://ryanstutorials.net/linuxtutorial>`_
 
 This guide will specify commands to use to successfully install the platform on supported Linux distributions, but a
@@ -18,7 +18,7 @@ working knowledge of Linux will be helpful for troubleshooting and may improve y
 deployment.
 
 .. note::
-
+    volttron version 9.0.4 was tested on Ubuntu 22.04 and python 3.10
     Volttron version 7.0rc1 is currently tested for Ubuntu versions 18.04 and 18.10 as well as Linux Mint version 19.3.
     Version 6.x is tested for Ubuntu versions 16.04 and 18.04 as well as Linux Mint version 19.1.
 
