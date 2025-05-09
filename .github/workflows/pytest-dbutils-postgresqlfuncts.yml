@@ -62,7 +62,10 @@ jobs:
       - name: Create output suffix
         run: |
           echo "OUTPUT_SUFFIX=$(basename $TEST_FILE)" >> $GITHUB_ENV
-
+          
+      - run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
+          
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@no_rmq
