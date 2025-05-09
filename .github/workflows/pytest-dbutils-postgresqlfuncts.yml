@@ -48,6 +48,14 @@ jobs:
             ports:
                 # Maps tcp port 5432 on service container to the host
                 - 5432:5432
+        timescale:
+            image: timescale/timescaledb:latest-pg15
+            env:
+                POSTGRES_PASSWORD: postgres
+            ports:
+                # Maps tcp port 5432 on service container to the host
+                - 5433:5432
+
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v4
@@ -65,12 +73,11 @@ jobs:
           
       - name: Create test historian database
         run: |
-          PGPASSWORD="postgres" psql -U postgres -h localhost -c "CREATE DATABASE test_historian;"
+          PGPASSWORD="postgres" psql -U postgres -h localhost -p 5432 -c "CREATE DATABASE test_historian;"
+          PGPASSWORD="postgres" psql -U postgres -h localhost -p 5433 -c "CREATE DATABASE test_historian;"
         env:
           # The hostname used to communicate with the PostgreSQL service container
           POSTGRES_HOST: localhost
-          # The default PostgreSQL port
-          POSTGRES_PORT: 5432
           POSTGRES_PASSWORD: postgres
         
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.

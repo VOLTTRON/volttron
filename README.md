@@ -72,7 +72,7 @@ SQLAggregateHistorian source directory
 
 ## Installation
 
-VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems. For
+VOLTTRON is written in Python 3.10 and runs on Linux Operating Systems. For
 users unfamiliar with those technologies, the following resources are recommended:
 
 -   <https://docs.python.org/3.6/tutorial/>
@@ -81,7 +81,7 @@ users unfamiliar with those technologies, the following resources are recommende
 ### 1. Install prerequisites
 
 [Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
-
+From version 9.0.4, VOLTTRON requires python 3.10. And it was tested on Ubuntu 22.04
 From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
 

@@ -530,12 +530,16 @@ def test_collect_aggregate_stmt_should_raise_value_error(setup_functs):
 
 
 @pytest.fixture(scope="module", params=[
-     '<4.0.0',
-     '>=4.0.0'
+    ('<4.0.0', os.environ.get("POSTGRES_PORT", 5432)),
+    ('<4.0.0', os.environ.get("TIMESCALE_PORT", 5433)),
+    ('>=4.0.0', os.environ.get("POSTGRES_PORT", 5432)),
+    ('>=4.0.0', os.environ.get("POSTGRES_PORT", 5433))
      ])
 def setup_functs(request):
     global db_connection, historian_config, table_names
-    historian_version = request.param
+    historian_version = request.param[0]
+    port = request.param[1]
+    historian_config["connection"]["params"]["port"] = port
 
     db_connection = psycopg2.connect(**historian_config["connection"]["params"])
     db_connection.autocommit = True
