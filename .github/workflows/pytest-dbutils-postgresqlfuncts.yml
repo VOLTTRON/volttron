@@ -65,10 +65,10 @@ jobs:
           
       - name: Create test historian database
         run: |
-          psql -h postgres -U postgres -c "CREATE DATABASE test_historian;"
+          psql -h localhost -U postgres -c "CREATE DATABASE test_historian;"
         env:
           # The hostname used to communicate with the PostgreSQL service container
-          POSTGRES_HOST: postgres
+          POSTGRES_HOST: localhost
           # The default PostgreSQL port
           POSTGRES_PORT: 5432
           POSTGRES_PASSWORD: postgres
