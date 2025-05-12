@@ -239,7 +239,7 @@ def main(argv=sys.argv):
     parser = argparse.ArgumentParser(
         description='Bootstrap and update a virtual Python environment '
                     'for VOLTTRON development.',
-        usage='\n  bootstrap: python3.6 %(prog)s [options]'
+        usage='\n  bootstrap: python3.10 %(prog)s [options]'
               '\n  update:    {} %(prog)s [options]'.format(python),
         prog=os.path.basename(argv[0]),
         epilog="""

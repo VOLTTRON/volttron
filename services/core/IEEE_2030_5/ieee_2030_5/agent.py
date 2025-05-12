@@ -400,7 +400,7 @@ class IEEE_2030_5_Agent(Agent):
 
                     if point_value:
                         _log.debug(f'Setting point: {point.point_on_bus} to {point_value}')
-                        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', point.point_on_bus,
+                        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', self._control_point, point.point_on_bus,
                                           point_value)
             except TypeError:
                 _log.error(f'Error setting point {point.point_on_bus} to {point_value}')

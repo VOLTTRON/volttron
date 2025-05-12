@@ -22,14 +22,14 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-import suds.client
-import suds.wsse
+import zeep
+from zeep.wsse.username import UsernameToken
+from zeep import Settings
 import logging
 
 logger = logging.getLogger('chargepoint')
 
-SERVICE_WSDL_URL = "https://webservices.chargepoint.com/cp_api_5.0.wsdl"
-
+SERVICE_WSDL_URL = "https://webservices.chargepoint.com/cp_api_5.1.wsdl"
 CPAPI_SUCCESS = '100'
 
 XMPP_EVENTS = [
@@ -156,13 +156,13 @@ class CPStation:
     """Wrapper around the getStations() return by Chargepoint API.
 
     Data surrounding a Chargepoint Station can generally be categorized as static or dynamic.  Chargepoint API has two
-    basic calls, getLoad and getStation, that each return station data.  getLoad returns the stationLoadData SUDS
-    object, and getStation returns the stationDataExtended SUDS object.  These are each kept as separate meta-data
+    basic calls, getLoad and getStation, that each return station data.  getLoad returns the stationLoadData object, 
+    and getStation returns the stationDataExtended object.  These are each kept as separate meta-data
     parameters.
 
     :param cps: Chargepoint Service object.
-    :param sld: stationLoadData SUDS object.
-    :param sde: stationDataExtended SUDS object.
+    :param sld: stationLoadData object.
+    :param sde: stationDataExtended object.
 
     (stationDataExtended){
         stationID = "1:00001"
@@ -416,8 +416,17 @@ class CPAPIResponse:
             if flag:
                 logger.warning("Station does not have a definition for port {0}".format(port_number))
         else:
-            logger.warning("Response does not have Ports defined")
-            return None
+            if (attribute in ['sessionID', 'startTime', 'endTime', 'Energy', 'rfidSerialNumber', 'driverAccountNumber',
+                      'driverName']) and int(data['portNumber']) == port_number:
+                try:
+                    data_attribute = data[attribute]
+                    return data_attribute
+                except:
+                    logger.warning(f'Response does not have {attribute} field')
+                    return None 
+            else:
+                logger.warning("Response does not have Ports defined")
+                return None
 
     @staticmethod
     def check_output(attribute, parent_dict):
@@ -441,6 +450,7 @@ class CPAPIResponse:
                             else CPAPIResponse.is_not_found(name_string))
             else:
                 list.append(CPAPIResponse.get_port_value(portNum, item, name_string))
+        logger.debug(f'{name_string} list for {portNum} is {list}')
         return list
 
 
@@ -632,12 +642,14 @@ class CPAPIGetStationsResponse(CPAPIResponse):
 
     def startTime(self, port=None):
         if port:
+            logger.debug(f'startTime port is {port}')
             return CPAPIResponse.get_attr_from_response('startTime', self.stations, port)
         else:
             return [self.pricing_helper('startTime', station) for station in self.stations]
 
     def endTime(self, port=None):
         if port:
+            logger.debug(f'endTime port is {port}')
             return CPAPIResponse.get_attr_from_response('endTime', self.stations, port)
         else:
             return [self.pricing_helper('endTime', station) for station in self.stations]
@@ -758,8 +770,8 @@ class CPService:
     """
         Python wrapper around the Chargepoint WebServices API.
 
-        Current Version: 5.0
-        Docs: ChargePoint_Web_Services_API_Guide_Ver4.1_Rev5.pdf
+        Current Version: 5.1
+        Docs: ChargePoint_Web_Services_API_Guide_Ver5.1_Rev1.13.pdf
     """
 
     def __init__(self, username=None, password=None):
@@ -769,18 +781,18 @@ class CPService:
         """
         self._username = username
         self._password = password
-        self._suds_client = None
+        self._zeep_client = None
 
     @property
     def _client(self):
-        """Initialize the SUDS client if necessary."""
+        """Initialize the ZEEP client if necessary."""
 
-        if self._suds_client is None:
-            self._suds_client = suds.client.Client(SERVICE_WSDL_URL)
+        if self._zeep_client is None:
+            self._zeep_client = zeep.Client(SERVICE_WSDL_URL)
             # Add SOAP Security tokens
             self.set_security_token()
 
-        return self._suds_client
+        return self._zeep_client
 
     @property
     def _soap_service(self):
@@ -788,13 +800,13 @@ class CPService:
 
     def set_security_token(self):
         # Add SOAP Security tokens
-        security = suds.wsse.Security()
-        token = suds.wsse.UsernameToken(self._username, self._password)
-        security.tokens.append(token)
-        self._suds_client.set_options(wsse=security)
+        #TODO:might need to put this in config
+        #NOTE: wihtout this setting, zeep will not get result
+        settings = Settings(strict=False, xml_huge_tree=True, xsd_ignore_sequence_order=True)
+        self._zeep_client = zeep.Client(SERVICE_WSDL_URL, wsse=UsernameToken(self._username, self._password), settings=settings)
 
     def set_client(self, client):
-        self._suds_client = client
+        self._zeep_client = client
         self.set_security_token()
 
     def clearAlarms(self, **kwargs):
@@ -820,7 +832,7 @@ class CPService:
         :returns SOAP reply object.  If successful, there will be a responseCode of '100'.
         """
 
-        searchQuery = self._client.factory.create('clearAlarmsSearchQuery')
+        searchQuery = self._client.get_type('ns0:clearAlarmsSearchQuery')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.clearAlarms(searchQuery)
@@ -836,7 +848,7 @@ class CPService:
         :returns SOAP reply object.  If successful, there will be a responseCode of '100'.
         """
 
-        searchQuery = self._client.factory.create('shedQueryInputData')
+        searchQuery = self._client.get_type('ns0:shedQueryInputData')()
         if 'stationID' in kwargs.keys():
             setattr(searchQuery, 'shedStation', {'stationID': kwargs['stationID']})
         elif 'sgID' in kwargs.keys():
@@ -890,7 +902,7 @@ class CPService:
             }
         """
 
-        searchQuery = self._client.factory.create('getAlarmsSearchQuery')
+        searchQuery = self._client.get_type('ns0:getAlarmsSearchQuery')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getAlarms(searchQuery)
@@ -965,7 +977,7 @@ class CPService:
             }
         """
 
-        searchQuery = self._client.factory.create('sessionSearchdata')
+        searchQuery = self._client.get_type('ns0:sessionSearchdata')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getChargingSessionData(searchQuery)
@@ -1018,7 +1030,8 @@ class CPService:
         """
 
         # @ToDo: Figure out what type of request searchQuery should be here.
-        searchQuery = self._client.factory.create('stationSearchRequestExtended')
+        # @Note: Looks like it should be {sgID: xsd:int, stationID: xsd:string, sessionID: xsd:long}
+        searchQuery = {}
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getLoad(searchQuery)
@@ -1059,7 +1072,7 @@ class CPService:
             }
         """
 
-        searchQuery = self._client.factory.create('getOrgsAndStationGroupsSearchQuery')
+        searchQuery = self._client.get_type('ns0:getOrgsAndStationGroupsSearchQuery')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getOrgsAndStationGroups(searchQuery)
@@ -1214,7 +1227,7 @@ class CPService:
             }
         """
 
-        searchQuery = self._client.factory.create('stationRightsSearchRequest')
+        searchQuery = self._client.get_type('ns0:stationRightsSearchRequest')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getStationRights(searchQuery)
@@ -1359,7 +1372,8 @@ class CPService:
                 moreFlag = 0
             }
         """
-        searchQuery = self._client.factory.create('stationSearchRequestExtended')
+
+        searchQuery = self._client.get_type('ns0:stationSearchRequestExtended')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getStations(searchQuery)
@@ -1446,7 +1460,7 @@ class CPService:
             }
         """
 
-        searchQuery = self._client.factory.create('getUsersSearchRequest')
+        searchQuery = self._client.get_type('ns0:getUsersSearchRequest')()
         for k, v in kwargs.items():
             setattr(searchQuery, k, v)
         response = self._soap_service.getUsers(searchQuery)
@@ -1484,7 +1498,8 @@ class CPService:
 
         :returns SOAP reply object.  If successful, there will be a responseCode of '100'.
         """
-        searchQuery = self._client.factory.create('shedLoadQueryInputData')
+    
+        searchQuery = self._client.get_type('ns0:shedLoadQueryInputData')()
         port = kwargs.pop('portNumber', None)
         query_params = {'stationID': kwargs['stationID']}
         if port:

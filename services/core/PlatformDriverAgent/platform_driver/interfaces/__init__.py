@@ -237,12 +237,12 @@ class BaseInterface(object, metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self, vip=None, core=None, **kwargs):
+    def __init__(self, vip=None, core=None, device_path=None, **kwargs):
         # Object does not take any arguments to the init.
         super(BaseInterface, self).__init__()
         self.vip = vip
         self.core = core
-
+        self.device_path = device_path
         self.point_map = {}
 
         self.build_register_map()

@@ -669,9 +669,10 @@ class Client:
             )
             self._data.update(request.parse_values(results))
         except (AttributeError, ModbusError) as err:
-            if "Exception code" in err.message:
-                raise Exception("{0}: {1}".format(err.message,
-                                                  helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED")))
+            if isinstance(err, ModbusError):
+                code = err.get_exception_code()
+                raise Exception(f'{err.args[0]}, {helpers.TABLE_EXCEPTION_CODE.get(code, "UNDEFINED")}')
+
             logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
     def read_all(self):

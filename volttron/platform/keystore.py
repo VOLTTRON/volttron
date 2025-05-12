@@ -196,6 +196,8 @@ class KnownHostsStore(BaseJSONStore):
 
     @staticmethod
     def _parse_addr(addr):
+        if not "://" in addr:  # no schema urlparse parses it wrong and return port number as path
+            addr = "//" + addr
         url = urllib.parse.urlparse(addr)
         if url.netloc:
             return url.netloc

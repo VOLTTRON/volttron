@@ -7,10 +7,10 @@
 Installing the Platform
 =======================
 
-VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
+VOLTTRON is written in Python 3.10 and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
 the following resources are recommended:
 
--   `Python 3.6 Tutorial <https://docs.python.org/3.6/tutorial>`_
+-   `Python 3.10 Tutorial <https://docs.python.org/3.10/tutorial>`_
 -   `Linux Tutorial <http://ryanstutorials.net/linuxtutorial>`_
 
 This guide will specify commands to use to successfully install the platform on supported Linux distributions, but a
@@ -18,7 +18,7 @@ working knowledge of Linux will be helpful for troubleshooting and may improve y
 deployment.
 
 .. note::
-
+    volttron version 9.0.4 was tested on Ubuntu 22.04 and python 3.10
     Volttron version 7.0rc1 is currently tested for Ubuntu versions 18.04 and 18.10 as well as Linux Mint version 19.3.
     Version 6.x is tested for Ubuntu versions 16.04 and 18.04 as well as Linux Mint version 19.1.
 
@@ -32,8 +32,8 @@ The following packages will need to be installed on the system:
 
 *  git
 *  build-essential
-*  python3.6-dev
-*  python3.6-venv
+*  python3.10-dev
+*  python3.10-venv
 *  openssl
 *  libssl-dev
 *  libevent-dev
@@ -43,14 +43,14 @@ On **Debian-based systems**, these can all be installed with the following comma
 .. code-block:: bash
 
        sudo apt-get update
-       sudo apt-get install build-essential python3-dev python3-venv openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3.10-dev python3.10-venv openssl libssl-dev libevent-dev git
 
-On Ubuntu-based systems, available packages allow you to specify the Python3 version, 3.6 or greater is required
+On Ubuntu-based systems, available packages allow you to specify the Python3 version, 3.10 or greater is required
 (Debian itself does not provide those packages).
 
 .. code-block:: bash
 
-       sudo apt-get install build-essential python3.6-dev python3.6-venv openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3.10-dev python3.10-venv openssl libssl-dev libevent-dev git
 
 
 On arm-based systems (including, but not limited to, Raspbian), you must also install libffi-dev, you can do this with:
@@ -74,7 +74,7 @@ command:
    sudo yum install make automake gcc gcc-c++ kernel-devel python3-devel openssl openssl-devel libevent-devel git
 
 .. warning::
-   Python 3.6 or greater is required, please ensure you have installed a supported version with :bash:`python3 --version`
+   Python 3.10 or greater is required, please ensure you have installed a supported version with :bash:`python3 --version`
 
 If you have an agent which requires the pyodbc package, install the following additional requirements:
 

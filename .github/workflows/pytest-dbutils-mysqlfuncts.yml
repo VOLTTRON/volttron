@@ -32,8 +32,8 @@ jobs:
       fail-fast: false
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
-        os: [ ubuntu-20.04 ]
-        python-version: [ 3.8 ]
+        os: [ ubuntu-22.04 ]
+        python-version: [ '3.10' ]
 
     runs-on: ${{ matrix.os }}
 
@@ -54,7 +54,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v6
+        uses: volttron/volttron-build-action@no_rmq
         timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}

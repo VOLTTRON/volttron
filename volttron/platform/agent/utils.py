@@ -902,7 +902,8 @@ def is_volttron_running(volttron_home):
     pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
     if os.path.exists(pid_file):
         running = False
-        with open(pid_file, 'r') as pf:
+        import builtins
+        with builtins.open(pid_file, 'r') as pf:
             pid = int(pf.read().strip())
             running = psutil.pid_exists(pid)
         return running

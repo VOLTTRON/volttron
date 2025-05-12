@@ -90,9 +90,9 @@ copyright = '2023, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = '9.0.1'
+version = '9.0.4'
 # The full version, including alpha/beta/rc tags
-release = '9.0.1'
+release = '9.0.4'
 
 # -- General configuration ---------------------------------------------------
 
@@ -238,7 +238,7 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'https://docs.python.org/3.6':
+    'https://docs.python.org/3.10':
     None,
     'volttron-ansible':
     ('https://volttron.readthedocs.io/projects/volttron-ansible/en/main/',
