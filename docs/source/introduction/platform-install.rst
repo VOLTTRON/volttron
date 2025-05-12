@@ -32,8 +32,8 @@ The following packages will need to be installed on the system:
 
 *  git
 *  build-essential
-*  python3.6-dev
-*  python3.6-venv
+*  python3.10-dev
+*  python3.10-venv
 *  openssl
 *  libssl-dev
 *  libevent-dev
@@ -43,14 +43,14 @@ On **Debian-based systems**, these can all be installed with the following comma
 .. code-block:: bash
 
        sudo apt-get update
-       sudo apt-get install build-essential python3-dev python3-venv openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3.10-dev python3.10-venv openssl libssl-dev libevent-dev git
 
-On Ubuntu-based systems, available packages allow you to specify the Python3 version, 3.6 or greater is required
+On Ubuntu-based systems, available packages allow you to specify the Python3 version, 3.10 or greater is required
 (Debian itself does not provide those packages).
 
 .. code-block:: bash
 
-       sudo apt-get install build-essential python3.6-dev python3.6-venv openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3.10-dev python3.10-venv openssl libssl-dev libevent-dev git
 
 
 On arm-based systems (including, but not limited to, Raspbian), you must also install libffi-dev, you can do this with:
@@ -74,7 +74,7 @@ command:
    sudo yum install make automake gcc gcc-c++ kernel-devel python3-devel openssl openssl-devel libevent-devel git
 
 .. warning::
-   Python 3.6 or greater is required, please ensure you have installed a supported version with :bash:`python3 --version`
+   Python 3.10 or greater is required, please ensure you have installed a supported version with :bash:`python3 --version`
 
 If you have an agent which requires the pyodbc package, install the following additional requirements:
 

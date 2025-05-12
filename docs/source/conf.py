@@ -238,7 +238,7 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'https://docs.python.org/3.6':
+    'https://docs.python.org/3.10':
     None,
     'volttron-ansible':
     ('https://volttron.readthedocs.io/projects/volttron-ansible/en/main/',

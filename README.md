@@ -18,6 +18,7 @@ devices and provides an environment for developing applications which interact
 with that data.
 
 ## Upgrading Pre-8 to VOLTTRON 9.x
+VOLTTRON 9.0.4 requires python 3.10 and was tested on Ubuntu 22.04
 
 VOLTTRON 8 introduces four changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 
@@ -75,7 +76,7 @@ SQLAggregateHistorian source directory
 VOLTTRON is written in Python 3.10 and runs on Linux Operating Systems. For
 users unfamiliar with those technologies, the following resources are recommended:
 
--   <https://docs.python.org/3.6/tutorial/>
+-   <https://docs.python.org/3.10/tutorial/>
 -   <http://ryanstutorials.net/linuxtutorial>
 
 ### 1. Install prerequisites
@@ -94,7 +95,7 @@ sudo apt-get install build-essential libffi-dev python3-dev python3-venv openssl
  On Redhat or CENTOS systems, these can all be installed with the following command:
 ```sh
 sudo yum update
-sudo yum install make automake gcc gcc-c++ kernel-devel python3.6-devel pythone3.6-venv openssl openssl-devel libevent-devel git
+sudo yum install make automake gcc gcc-c++ kernel-devel python3.10-devel pythone3.10-venv openssl openssl-devel libevent-devel git
  ```
 
 ### 2. Clone VOLTTRON code
