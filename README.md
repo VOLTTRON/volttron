@@ -83,7 +83,7 @@ users unfamiliar with those technologies, the following resources are recommende
 
 [Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
 From version 9.0.4, VOLTTRON requires python 3.10. And it was tested on Ubuntu 22.04
-From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
+From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.10; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
 
 ```sh
@@ -122,7 +122,7 @@ Proceed to step 4.
 
 You can deactivate the environment at any time by running `deactivate`.
 
-#### Steps for RabbitMQ
+#### Steps for RabbitMQ 
 
 ##### 1. Install Erlang version 25 packages
 
