@@ -53,6 +53,7 @@ pytestmark = pytest.mark.skipif(
     reason=skip_msg
 )
 HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
+HOMEASSISTANT_SWITCH_DEVICE_TOPIC = "devices/home_assistant_switch"
 
 
 # Get the point which will should be off
@@ -132,6 +133,78 @@ def config_store(volttron_instance, platform_driver):
     print("Wiping out store.")
     volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_store", PLATFORM_DRIVER)
     gevent.sleep(0.1)
+
+
+@pytest.fixture(scope="module")
+def config_store_switch(volttron_instance, platform_driver):
+    """Registry + driver config for a switch entity."""
+    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}]
+    volttron_instance.add_capabilities(volttron_instance.dynamic_agent.core.publickey, capabilities)
+
+    registry_config = "homeassistant_switch_test.json"
+    registry_obj = [{
+        "Entity ID": "switch.volttrontest_switch",
+        "Entity Point": "state",
+        "Volttron Point Name": "switch_state",
+        "Units": "On / Off",
+        "Units Details": "off: 0, on: 1",
+        "Writable": True,
+        "Starting Value": 3,
+        "Type": "int",
+        "Notes": "test switch"
+    }]
+
+    volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
+                                                 "manage_store",
+                                                 PLATFORM_DRIVER,
+                                                 registry_config,
+                                                 json.dumps(registry_obj),
+                                                 config_type="json")
+    gevent.sleep(2)
+
+    driver_config = {
+        "driver_config": {"ip_address": HOMEASSISTANT_TEST_IP, "access_token": ACCESS_TOKEN, "port": PORT},
+        "driver_type": "home_assistant",
+        "registry_config": f"config://{registry_config}",
+        "timezone": "US/Pacific",
+        "interval": 30,
+    }
+
+    volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
+                                                 "manage_store",
+                                                 PLATFORM_DRIVER,
+                                                 HOMEASSISTANT_SWITCH_DEVICE_TOPIC,
+                                                 json.dumps(driver_config),
+                                                 config_type="json")
+    gevent.sleep(2)
+
+    yield platform_driver
+
+    volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_store", PLATFORM_DRIVER)
+    gevent.sleep(0.1)
+
+
+def test_switch_get_point(volttron_instance, config_store_switch):
+    expected_values = 0
+    agent = volttron_instance.dynamic_agent
+    result = agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'home_assistant', 'switch_state').get(timeout=20)
+    assert result == expected_values, "The switch get_point result does not match expected value."
+
+
+def test_switch_data_poll(volttron_instance, config_store_switch):
+    expected_values = [{'switch_state': 0}, {'switch_state': 1}]
+    agent = volttron_instance.dynamic_agent
+    result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
+    assert result in expected_values, "The switch scrape_all result does not match expected values."
+
+
+def test_switch_set_point(volttron_instance, config_store_switch):
+    expected_values = {'switch_state': 1}
+    agent = volttron_instance.dynamic_agent
+    agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'home_assistant', 'switch_state', 1)
+    gevent.sleep(10)
+    result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
+    assert result == expected_values, "The switch set_point result does not match expected value."
 
 
 @pytest.fixture(scope="module")

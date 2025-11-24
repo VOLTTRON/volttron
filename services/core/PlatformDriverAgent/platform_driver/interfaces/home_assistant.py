@@ -178,9 +178,25 @@ class Interface(BasicRevert, BaseInterface):
                 error_msg = f"Currently set_point is supported only for thermostats state and temperature {register.entity_id}"
                 _log.error(error_msg)
                 raise ValueError(error_msg)
+        # Changing switch values (on/off only currently)
+        elif "switch." in register.entity_id:
+            if entity_point == "state":
+                if isinstance(register.value, int) and register.value in [0, 1]:
+                    if register.value == 1:
+                        self.turn_on_switch(register.entity_id)
+                    elif register.value == 0:
+                        self.turn_off_switch(register.entity_id)
+                else:
+                    error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
+                    _log.info(error_msg)
+                    raise ValueError(error_msg)
+            else:
+                error_msg = f"Currently, switches only support state"
+                _log.info(error_msg)
+                raise ValueError(error_msg)
         else:
             error_msg = f"Unsupported entity_id: {register.entity_id}. " \
-                        f"Currently set_point is supported only for thermostats and lights"
+                        f"Currently set_point is supported only for thermostats, lights, input_booleans and switches"
             _log.error(error_msg)
             raise ValueError(error_msg)
         return register.value
@@ -236,8 +252,8 @@ class Interface(BasicRevert, BaseInterface):
                         attribute = entity_data.get("attributes", {}).get(f"{entity_point}", 0)
                         register.value = attribute
                         result[register.point_name] = attribute
-                # handling light states
-                elif "light." or "input_boolean." in entity_id: # Checks for lights or input bools since they have the same states.
+                # handling light, input_boolean, switch states
+                elif ("light." in entity_id) or ("input_boolean." in entity_id) or ("switch." in entity_id):
                     if entity_point == "state":
                         state = entity_data.get("state", None)
                         # Converting light states to numbers.
@@ -325,6 +341,24 @@ class Interface(BasicRevert, BaseInterface):
         payload = {
             "entity_id": f"{entity_id}"
         }
+        _post_method(url, headers, payload, f"turn on {entity_id}")
+
+    def turn_off_switch(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/switch/turn_off"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"turn off {entity_id}")
+
+    def turn_on_switch(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/switch/turn_on"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id}
         _post_method(url, headers, payload, f"turn on {entity_id}")
 
     def change_thermostat_mode(self, entity_id, mode):
