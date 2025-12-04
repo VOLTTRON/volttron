@@ -373,8 +373,12 @@ class ArgumentParser(_argparse.ArgumentParser):
                 # This argument is positional; skip further processing
                 cli_args.append(arg_string)
                 continue
-            # Some kind of option was encountered, so deal with it
-            action, option_string, explicit_arg = option_tuple
+            # Handle Python 3.12+ compatibility where _parse_optional may return more than 3 values
+            if _sys.version_info.minor >= 12:
+                action, option_string, sep, explicit_arg = option_tuple
+            else:
+                # Fallback for older Python versions
+                action, option_string, explicit_arg = option_tuple
             if explicit_arg is not None:
                 args = [explicit_arg]
             elif action.nargs in [_argparse.REMAINDER, _argparse.PARSER]:
