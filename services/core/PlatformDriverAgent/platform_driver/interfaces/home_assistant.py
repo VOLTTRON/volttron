@@ -72,6 +72,19 @@ def _post_method(url, headers, data, operation_description):
 
 
 class Interface(BasicRevert, BaseInterface):
+    
+    # Dispatch Table: Maps device domain → Write processing method
+    # Future additions of equipment only need to be written here
+    WRITE_HANDLERS = {
+        "light": "_write_light",
+        "input_boolean": "_write_input_boolean",
+        "climate": "_write_climate",
+        "switch": "_write_switch",
+        "cover": "_write_cover",
+        "fan": "_write_fan", 
+    }
+
+
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.point_name = None
@@ -111,95 +124,23 @@ class Interface(BasicRevert, BaseInterface):
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
+
         if register.read_only:
-            raise IOError(
-                "Trying to write to a point configured read only: " + point_name)
-        register.value = register.reg_type(value)  # setting the value
-        entity_point = register.entity_point
-        # Changing lights values in home assistant based off of register value.
-        if "light." in register.entity_id:
-            if entity_point == "state":
-                if isinstance(register.value, int) and register.value in [0, 1]:
-                    if register.value == 1:
-                        self.turn_on_lights(register.entity_id)
-                    elif register.value == 0:
-                        self.turn_off_lights(register.entity_id)
-                else:
-                    error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
-                    _log.info(error_msg)
-                    raise ValueError(error_msg)
+            raise IOError(f"Trying to write read-only point: {point_name}")
 
-            elif entity_point == "brightness":
-                if isinstance(register.value, int) and 0 <= register.value <= 255:  # Make sure its int and within range
-                    self.change_brightness(register.entity_id, register.value)
-                else:
-                    error_msg = "Brightness value should be an integer between 0 and 255"
-                    _log.error(error_msg)
-                    raise ValueError(error_msg)
-            else:
-                error_msg = f"Unexpected point_name {point_name} for register {register.entity_id}"
-                _log.error(error_msg)
-                raise ValueError(error_msg)
+        # Volttron Type Conversion
+        register.value = register.reg_type(value)
 
-        elif "input_boolean." in register.entity_id:
-            if entity_point == "state":
-                if isinstance(register.value, int) and register.value in [0, 1]:
-                    if register.value == 1:
-                        self.set_input_boolean(register.entity_id, "on")
-                    elif register.value == 0:
-                        self.set_input_boolean(register.entity_id, "off")
-                else:
-                    error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
-                    _log.info(error_msg)
-                    raise ValueError(error_msg)
-            else:
-                _log.info(f"Currently, input_booleans only support state")
+        entity_id = register.entity_id
+        domain = entity_id.split(".")[0]          
+        handler_name = self.WRITE_HANDLERS.get(domain)
 
-        # Changing thermostat values.
-        elif "climate." in register.entity_id:
-            if entity_point == "state":
-                if isinstance(register.value, int) and register.value in [0, 2, 3, 4]:
-                    if register.value == 0:
-                        self.change_thermostat_mode(entity_id=register.entity_id, mode="off")
-                    elif register.value == 2:
-                        self.change_thermostat_mode(entity_id=register.entity_id, mode="heat")
-                    elif register.value == 3:
-                        self.change_thermostat_mode(entity_id=register.entity_id, mode="cool")
-                    elif register.value == 4:
-                        self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
-                else:
-                    error_msg = f"Climate state should be an integer value of 0, 2, 3, or 4"
-                    _log.error(error_msg)
-                    raise ValueError(error_msg)
-            elif entity_point == "temperature":
-                self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
+        if handler_name is None:
+            raise ValueError(f"Unsupported device domain: {domain}")
 
-            else:
-                error_msg = f"Currently set_point is supported only for thermostats state and temperature {register.entity_id}"
-                _log.error(error_msg)
-                raise ValueError(error_msg)
-        # Changing switch values (on/off only currently)
-        elif "switch." in register.entity_id:
-            if entity_point == "state":
-                if isinstance(register.value, int) and register.value in [0, 1]:
-                    if register.value == 1:
-                        self.turn_on_switch(register.entity_id)
-                    elif register.value == 0:
-                        self.turn_off_switch(register.entity_id)
-                else:
-                    error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
-                    _log.info(error_msg)
-                    raise ValueError(error_msg)
-            else:
-                error_msg = f"Currently, switches only support state"
-                _log.info(error_msg)
-                raise ValueError(error_msg)
-        else:
-            error_msg = f"Unsupported entity_id: {register.entity_id}. " \
-                        f"Currently set_point is supported only for thermostats, lights, input_booleans and switches"
-            _log.error(error_msg)
-            raise ValueError(error_msg)
-        return register.value
+        handler = getattr(self, handler_name)
+        return handler(register)
+
 
     def get_entity_data(self, point_name):
         headers = {
@@ -284,7 +225,6 @@ class Interface(BasicRevert, BaseInterface):
         return result
 
     def parse_config(self, config_dict):
-
         if config_dict is None:
             return
         for regDef in config_dict:
@@ -320,6 +260,267 @@ class Interface(BasicRevert, BaseInterface):
 
             self.insert_register(register)
 
+
+    # Independent Handler for switch
+    def _write_switch(self, register):
+        entity_id = register.entity_id
+        entity_point = register.entity_point
+        value = register.value
+
+        if entity_point != "state":
+            raise ValueError("Switch only supports writing 'state'")
+
+        if value == 1:
+            return self.turn_on_switch(entity_id)
+        elif value == 0:
+            return self.turn_off_switch(entity_id)
+        else:
+            raise ValueError("Switch value must be 0 or 1")
+
+
+    # Independent Handler for cover
+    def _write_cover(self, register):
+        entity_id = register.entity_id
+        point = register.entity_point
+        value = register.value
+
+        # 0=close, 1=open, 2=stop
+        if point == "state":
+            if value == 1:
+                return self.open_cover(entity_id)
+            elif value == 0:
+                return self.close_cover(entity_id)
+            elif value == 2:
+                return self.stop_cover(entity_id)
+            else:
+                raise ValueError("Cover state must be 0(close), 1(open), 2(stop)")
+
+        # --- Processing Position (Percentage 0-100) ---
+        elif point == "position":
+            if not (0 <= value <= 100):
+                raise ValueError("Cover position must be between 0 and 100")
+            return self.set_cover_position(entity_id, value)
+
+        # --- Processing tilt (angle 0~100) ---
+        elif point == "tilt":
+            if not (0 <= value <= 100):
+                raise ValueError("Cover tilt must be 0~100")
+            return self.set_cover_tilt(entity_id, value)
+
+        else:
+            raise ValueError(f"Unsupported cover point: {point}")
+
+
+    # Independent Handler for fan
+    def _write_fan(self, register):
+        entity_id = register.entity_id
+        point = register.entity_point
+        value = register.value
+
+        # ---------------------
+        # Fan State (on/off)
+        # ---------------------
+        if point == "state":
+            if value == 1:
+                return self.turn_on_fan(entity_id)
+            elif value == 0:
+                return self.turn_off_fan(entity_id)
+            else:
+                raise ValueError("Fan state must be 0(off) or 1(on)")
+
+        # ---------------------
+        # Fan Speed (0~100)
+        # ---------------------
+        elif point == "percentage":
+            if not (0 <= value <= 100):
+                raise ValueError("Fan percentage must be 0~100")
+            return self.set_fan_percentage(entity_id, value)
+
+        # ---------------------
+        # Fan Direction (0=forward, 1=reverse)
+        # ---------------------
+        elif point == "direction":
+            if value == 0:
+                direction = "forward"
+            elif value == 1:
+                direction = "reverse"
+            else:
+                raise ValueError("Fan direction must be 0(forward) or 1(reverse)")
+            return self.set_fan_direction(entity_id, direction)
+
+        # ---------------------
+        # Optional Toggle
+        # ---------------------
+        elif point == "toggle":
+            return self.toggle_fan(entity_id)
+
+        else:
+            raise ValueError(f"Unsupported fan point: {point}")
+
+
+
+    # Independent Handler for light
+    def _write_light(self, register):
+        entity_id = register.entity_id
+        entity_point = register.entity_point
+        value = register.value
+
+        if entity_point == "state":
+            if value == 1:
+                return self.turn_on_lights(entity_id)
+            elif value == 0:
+                return self.turn_off_lights(entity_id)
+            else:
+                raise ValueError("Light state must be 0 or 1")
+
+        elif entity_point == "brightness":
+            if not (0 <= value <= 255):
+                raise ValueError("Brightness must be 0 to 255")
+            return self.change_brightness(entity_id, value)
+
+        else:
+            raise ValueError(f"Unsupported light point: {entity_point}")
+
+
+    def _write_input_boolean(self, register):
+        entity_id = register.entity_id
+        value = register.value
+
+        if value == 1:
+            return self.set_input_boolean(entity_id, "on")
+        elif value == 0:
+            return self.set_input_boolean(entity_id, "off")
+        else:
+            raise ValueError("input_boolean state must be 0 or 1")
+
+    
+    def _write_climate(self, register):
+        entity_id = register.entity_id
+        value = register.value
+        entity_point = register.entity_point
+
+        if entity_point == "state":
+            modes = {0: "off", 2: "heat", 3: "cool", 4: "auto"}
+            if value not in modes:
+                raise ValueError("Climate mode must be 0,2,3,4")
+            return self.change_thermostat_mode(entity_id, modes[value])
+
+        elif entity_point == "temperature":
+            return self.set_thermostat_temperature(entity_id, value)
+
+        else:
+            raise ValueError(f"Unsupported climate point: {entity_point}")
+
+
+
+
+    # The following are the API methods for various types of devices
+    # ===================================================================
+    # ===================================================================
+    # ===================================================================
+    # ========== COVER API METHODS ==========
+    def open_cover(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/cover/open_cover"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"open cover {entity_id}")
+
+    def close_cover(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/cover/close_cover"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"close cover {entity_id}")
+
+    def stop_cover(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/cover/stop_cover"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"stop cover {entity_id}")
+
+    def set_cover_position(self, entity_id, position):
+        url = f"http://{self.ip_address}:{self.port}/api/services/cover/set_cover_position"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"entity_id": entity_id, "position": position}
+        _post_method(url, headers, payload, f"set cover {entity_id} position to {position}")
+
+    def set_cover_tilt(self, entity_id, tilt_position):
+        url = f"http://{self.ip_address}:{self.port}/api/services/cover/set_cover_tilt_position"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"entity_id": entity_id, "tilt_position": tilt_position}
+        _post_method(url, headers, payload, f"set cover tilt of {entity_id} to {tilt_position}")
+
+
+
+
+    # ========== FAN API METHODS ==========
+    def turn_on_fan(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/fan/turn_on"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"turn on fan {entity_id}")
+
+
+    def turn_off_fan(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/fan/turn_off"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"turn off fan {entity_id}")
+
+
+    def toggle_fan(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/fan/toggle"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id}
+        _post_method(url, headers, payload, f"toggle fan {entity_id}")
+
+
+    def set_fan_percentage(self, entity_id, percentage):
+        url = f"http://{self.ip_address}:{self.port}/api/services/fan/set_percentage"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id, "percentage": percentage}
+        _post_method(url, headers, payload, f"set fan {entity_id} percentage to {percentage}")
+
+
+    def set_fan_direction(self, entity_id, direction):
+        url = f"http://{self.ip_address}:{self.port}/api/services/fan/set_direction"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"entity_id": entity_id, "direction": direction}
+        _post_method(url, headers, payload, f"set fan {entity_id} direction to {direction}")
+
+
+
+
+    # ========== LIGHT API METHODS ==========
     def turn_off_lights(self, entity_id):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
         headers = {
@@ -343,6 +544,10 @@ class Interface(BasicRevert, BaseInterface):
         }
         _post_method(url, headers, payload, f"turn on {entity_id}")
 
+
+
+
+    # ========== SWITCH API METHODS ==========
     def turn_off_switch(self, entity_id):
         url = f"http://{self.ip_address}:{self.port}/api/services/switch/turn_off"
         headers = {
@@ -361,6 +566,10 @@ class Interface(BasicRevert, BaseInterface):
         payload = {"entity_id": entity_id}
         _post_method(url, headers, payload, f"turn on {entity_id}")
 
+
+
+    
+    # ========== CLIMATE API METHODS ==========
     def change_thermostat_mode(self, entity_id, mode):
         # Check if enttiy_id startswith climate.
         if not entity_id.startswith("climate."):
