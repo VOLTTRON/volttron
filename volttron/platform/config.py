@@ -374,7 +374,7 @@ class ArgumentParser(_argparse.ArgumentParser):
                 cli_args.append(arg_string)
                 continue
             # Handle Python 3.12+ compatibility where _parse_optional may return more than 3 values
-            if _sys.version_info.minor >= 12:
+            if _sys.version_info >= (3, 12):
                 action, option_string, sep, explicit_arg = option_tuple
             else:
                 # Fallback for older Python versions
