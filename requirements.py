@@ -41,7 +41,7 @@ install_requires = ['gevent==24.2.1',
                     'psutil==5.9.1',
                     'python-dateutil==2.8.2',
                     'pytz==2022.1',
-                    'PyYAML==6.0',
+                    'PyYAML==6.0.1',
                     'setuptools>=40.0.0,<=70.0.0',
                     # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
                     'tzlocal==2.1',

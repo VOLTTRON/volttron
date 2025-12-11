@@ -176,6 +176,298 @@ Upon completion, initiate the platform driver. Utilize the listener agent to ver
     {'light_brightness': {'type': 'integer', 'tz': 'UTC', 'units': 'int'},
      'state': {'type': 'integer', 'tz': 'UTC', 'units': 'On / Off'}}]
 
+
+
+
+Write Access Support for Switch, Cover, and Fan
+===============================================
+
+Beginning in this version, the Home Assistant Driver supports *write access* for
+three additional Home Assistant device domains:
+
+- ``switch``  
+- ``cover``  
+- ``fan``  
+
+This expands VOLTTRON's ability to control additional IoT devices by allowing
+``set_point`` operations to call the appropriate Home Assistant REST API
+service endpoints.
+
+Below is a summary of write-capable entity points and their expected values.
+
+Switch Write Support
+--------------------
+
+Switches support a single writable point:
+
+============   ==========================
+Entity Point   Description
+============   ==========================
+state          ``0 = off``, ``1 = on``
+============   ==========================
+
+Example registry entry:
+
+.. code-block:: json
+
+    {
+        "Entity ID": "switch.my_switch",
+        "Entity Point": "state",
+        "Volttron Point Name": "switch_state",
+        "Units": "On/Off",
+        "Writable": true,
+        "Type": "int",
+        "Notes": "Example switch"
+    }
+
+Calling:
+
+.. code-block:: bash
+
+    vctl rpc call platform.driver set_point home_assistant switch_state 1
+
+invokes Home Assistant service:
+
+``switch.turn_on``
+
+
+Cover Write Support
+--------------------
+
+Covers support multiple writable points, enabling not just open/close but also
+position and tilt control.
+
+=================  ===============================================
+Entity Point        Description
+=================  ===============================================
+state               ``0=close``, ``1=open``, ``2=stop``
+position            Integer from 0–100 (percentage open)
+tilt                Integer from 0–100 (tilt angle)
+=================  ===============================================
+
+Example registry entries:
+
+.. code-block:: json
+
+    [
+        {
+            "Entity ID": "cover.my_shade",
+            "Entity Point": "state",
+            "Volttron Point Name": "shade_state",
+            "Writable": true,
+            "Type": "int"
+        },
+        {
+            "Entity ID": "cover.my_shade",
+            "Entity Point": "position",
+            "Volttron Point Name": "shade_position",
+            "Writable": true,
+            "Type": "int"
+        }
+    ]
+
+``set_point`` automatically maps to HA services:
+
+- ``cover.open_cover``
+- ``cover.close_cover``
+- ``cover.stop_cover``
+- ``cover.set_cover_position``
+
+
+Fan Write Support
+-----------------
+
+Fans support on/off, speed percentage, and direction control.
+
+=================  ===========================================
+Entity Point        Description
+=================  ===========================================
+state               ``0=off``, ``1=on``
+percentage          Speed percentage (0–100)
+direction           ``0 = forward``, ``1 = reverse``
+=================  ===========================================
+
+Example registry entries:
+
+.. code-block:: json
+
+    [
+        {
+            "Entity ID": "fan.living_room_fan",
+            "Entity Point": "state",
+            "Volttron Point Name": "fan_state",
+            "Writable": true,
+            "Type": "int"
+        },
+        {
+            "Entity ID": "fan.living_room_fan",
+            "Entity Point": "percentage",
+            "Volttron Point Name": "fan_percentage",
+            "Writable": true,
+            "Type": "int"
+        }
+    ]
+
+These map to Home Assistant services:
+
+- ``fan.turn_on`` / ``fan.turn_off``
+- ``fan.set_percentage``  
+- ``fan.set_direction``
+
+Example usage:
+
+.. code-block:: bash
+
+    vctl rpc call platform.driver set_point home_assistant fan_percentage 50
+
+This sets the fan speed to 50%.
+
+
+Write Access Support for Switch, Cover, and Fan
+===============================================
+
+Beginning in this version, the Home Assistant Driver supports *write access* for
+three additional Home Assistant device domains:
+
+- ``switch``  
+- ``cover``  
+- ``fan``  
+
+This expands VOLTTRON's ability to control additional IoT devices by allowing
+``set_point`` operations to call the appropriate Home Assistant REST API
+service endpoints.
+
+Below is a summary of write-capable entity points and their expected values.
+
+Switch Write Support
+--------------------
+
+Switches support a single writable point:
+
+============   ==========================
+Entity Point   Description
+============   ==========================
+state          ``0 = off``, ``1 = on``
+============   ==========================
+
+Example registry entry:
+
+.. code-block:: json
+
+    {
+        "Entity ID": "switch.my_switch",
+        "Entity Point": "state",
+        "Volttron Point Name": "switch_state",
+        "Units": "On/Off",
+        "Writable": true,
+        "Type": "int",
+        "Notes": "Example switch"
+    }
+
+Calling:
+
+.. code-block:: bash
+
+    vctl rpc call platform.driver set_point home_assistant switch_state 1
+
+invokes Home Assistant service:
+
+``switch.turn_on``
+
+
+Cover Write Support
+--------------------
+
+Covers support multiple writable points, enabling not just open/close but also
+position and tilt control.
+
+=================  ===============================================
+Entity Point        Description
+=================  ===============================================
+state               ``0=close``, ``1=open``, ``2=stop``
+position            Integer from 0–100 (percentage open)
+tilt                Integer from 0–100 (tilt angle)
+=================  ===============================================
+
+Example registry entries:
+
+.. code-block:: json
+
+    [
+        {
+            "Entity ID": "cover.my_shade",
+            "Entity Point": "state",
+            "Volttron Point Name": "shade_state",
+            "Writable": true,
+            "Type": "int"
+        },
+        {
+            "Entity ID": "cover.my_shade",
+            "Entity Point": "position",
+            "Volttron Point Name": "shade_position",
+            "Writable": true,
+            "Type": "int"
+        }
+    ]
+
+``set_point`` automatically maps to HA services:
+
+- ``cover.open_cover``
+- ``cover.close_cover``
+- ``cover.stop_cover``
+- ``cover.set_cover_position``
+
+
+Fan Write Support
+-----------------
+
+Fans support on/off, speed percentage, and direction control.
+
+=================  ===========================================
+Entity Point        Description
+=================  ===========================================
+state               ``0=off``, ``1=on``
+percentage          Speed percentage (0–100)
+direction           ``0 = forward``, ``1 = reverse``
+=================  ===========================================
+
+Example registry entries:
+
+.. code-block:: json
+
+    [
+        {
+            "Entity ID": "fan.living_room_fan",
+            "Entity Point": "state",
+            "Volttron Point Name": "fan_state",
+            "Writable": true,
+            "Type": "int"
+        },
+        {
+            "Entity ID": "fan.living_room_fan",
+            "Entity Point": "percentage",
+            "Volttron Point Name": "fan_percentage",
+            "Writable": true,
+            "Type": "int"
+        }
+    ]
+
+These map to Home Assistant services:
+
+- ``fan.turn_on`` / ``fan.turn_off``
+- ``fan.set_percentage``  
+- ``fan.set_direction``
+
+Example usage:
+
+.. code-block:: bash
+
+    vctl rpc call platform.driver set_point home_assistant fan_percentage 50
+
+This sets the fan speed to 50%.
+
+
+
 Running Tests
 +++++++++++++++++++++++
 To run tests on the VOLTTRON home assistant driver you need to create a helper in your home assistant instance. This can be done by going to **Settings > Devices & services > Helpers > Create Helper > Toggle**. Name this new toggle **volttrontest**. After that run the pytest from the root of your VOLTTRON file.
