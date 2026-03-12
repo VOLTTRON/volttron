@@ -1538,7 +1538,8 @@ class WeatherCache:
         :param cursor: Cache's cursor object used for querying
         :return: number of pages currently written to in the cache database
         """
-        cursor.execute("PRAGMA page_count")
+        cursor.execute("SELECT (page_count - freelist_count) as used_count"
+                       " FROM pragma_page_count(), pragma_freelist_count();")
         return cursor.fetchone()[0]
 
     def manage_cache_size(self):
