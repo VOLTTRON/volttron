@@ -340,7 +340,10 @@ class PlatformWebService(Agent):
         from volttron.platform.web import get_bearer, NotAuthorized
         try:
             bearer = get_bearer(environ)
-        except NotAuthorized:
+        except (NotAuthorized, ValueError):
+            # ValueError: a malformed Authorization header (e.g. "Bearer"
+            # with no token) makes get_bearer's split-unpack raise; fail
+            # closed with an explicit 401, not an uncaught 500.
             return '401 Unauthorized'
         if not bearer:
             return '401 Unauthorized'
@@ -351,8 +354,8 @@ class PlatformWebService(Agent):
         except jwt.ExpiredSignatureError:
             return '401 Unauthorized'
         except Exception:
-            # Any failure to resolve claims is treated as a denial, never as
-            # an open door (data-invariants: fail closed on indeterminate auth).
+            # Fail closed on indeterminate auth: any failure to resolve claims
+            # is a denial, never an open door.
             _log.error("Failed to resolve claims for allow-list request.")
             return '401 Unauthorized'
         if not isinstance(claims, dict):
