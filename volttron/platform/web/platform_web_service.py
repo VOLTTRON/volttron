@@ -328,8 +328,53 @@ class PlatformWebService(Agent):
         start_response('302 Found', [('Location', '/index.html')])
         return [b'1']
 
+    def _require_admin(self, environ):
+        """Resolve the caller's claims and confirm admin-group membership.
+
+        Returns the decoded claims dict when the caller presents a valid JWT
+        whose ``groups`` claim contains ``admin``. Returns an HTTP status
+        string (``'401 Unauthorized'`` / ``'403 Forbidden'``) when the caller
+        must be rejected. Fail-closed: a missing/invalid token, an
+        indeterminate claims set, or a missing ``groups`` claim all deny.
+        """
+        from volttron.platform.web import get_bearer, NotAuthorized
+        try:
+            bearer = get_bearer(environ)
+        except NotAuthorized:
+            return '401 Unauthorized'
+        if not bearer:
+            return '401 Unauthorized'
+        try:
+            claims = self.get_user_claims(bearer)
+        except NotAuthorized:
+            return '401 Unauthorized'
+        except jwt.ExpiredSignatureError:
+            return '401 Unauthorized'
+        except Exception:
+            # Any failure to resolve claims is treated as a denial, never as
+            # an open door (data-invariants: fail closed on indeterminate auth).
+            _log.error("Failed to resolve claims for allow-list request.")
+            return '401 Unauthorized'
+        if not isinstance(claims, dict):
+            return '403 Forbidden'
+        if 'admin' not in (claims.get('groups') or []):
+            return '403 Forbidden'
+        return claims
+
+    def _unauthorized(self, environ, start_response, status, request_id='NA'):
+        start_response(status,
+                       [('Content-Type', 'application/json')])
+        return [jsonapi.dumpb(
+            jsonrpc.json_error(request_id, UNAUTHORIZED, status))]
+
     def _allow(self, environ, start_response, data=None):
         _log.info('Allowing new vc instance to connect to server.')
+        # GHSA-j9rp-3mvh-v57x (VO-001): the allow-list mutates platform trust
+        # state (adds a CURVE key under the VOLTTRON_CENTRAL identity), so the
+        # caller must prove admin authorization BEFORE any auth-file write.
+        gate = self._require_admin(environ)
+        if isinstance(gate, str):
+            return self._unauthorized(environ, start_response, gate)
         jsondata = jsonapi.loads(data)
         json_validate_request(jsondata)
 
