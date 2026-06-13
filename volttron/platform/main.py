@@ -92,7 +92,7 @@ from .agent import utils
 from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      CONTROL_CONNECTION, KEY_DISCOVERY,
                                      PLATFORM, PLATFORM_HEALTH, PLATFORM_WEB,
-                                     PROXY_ROUTER)
+                                     PROXY_ROUTER, RUN_CONTROL_COMMANDS)
 from .keystore import KeyStore, KnownHostsStore
 from .store import ConfigStoreService
 from .vip.externalrpcservice import ExternalRPCService
@@ -867,7 +867,8 @@ def start_volttron_process(opts):
                                   'identity': '/.*/'
                               }
                           }, 'modify_rpc_method_allowance',
-                                        'allow_auth_modifications'],
+                                        'allow_auth_modifications',
+                                        RUN_CONTROL_COMMANDS],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
@@ -1276,7 +1277,8 @@ def setup_auth_service(opts, address, services):
                               'identity': '/.*/'}
                           },
                           'modify_rpc_method_allowance',
-                          'allow_auth_modifications'],
+                          'allow_auth_modifications',
+                          RUN_CONTROL_COMMANDS],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 

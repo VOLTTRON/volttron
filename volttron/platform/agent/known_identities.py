@@ -43,6 +43,11 @@ ROUTER = ''
 CONTROL = 'control'
 CONTROL_CONNECTION = 'control.connection'
 PLATFORM_WEB = 'platform_web'
+
+# Capability required to invoke privileged control-plane RPC methods such as
+# start/stop/install/remove agent and platform shutdown. Callers that lack
+# this capability are rejected with UNAUTHORIZED before the method body runs.
+RUN_CONTROL_COMMANDS = "run_control_commands"
 CONFIGURATION_STORE = 'config.store'
 KEY_DISCOVERY = 'keydiscovery'
 PROXY_ROUTER = 'zmq.proxy.router'
