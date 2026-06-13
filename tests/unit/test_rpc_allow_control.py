@@ -5,21 +5,26 @@ require the RUN_CONTROL_COMMANDS capability.
 
 These tests exercise:
 
-  1. The _add_auth_check gate logic directly (no live platform needed).
-     Each test asserts both the authorization DECISION (UNAUTHORIZED raised /
-     not raised) AND the SIDE EFFECT (method body called / not called), per
-     [[data-invariants]] Rule 1.
+  1. The REAL RPC._add_auth_check gate from
+     volttron/platform/vip/agent/subsystems/rpc.py, loaded via
+     importlib.util.spec_from_file_location (no live platform, no gevent
+     greenlet scheduler).  Each test constructs a minimal mock ``self``
+     supplying the three attributes the closure reads (context.vip_message.user,
+     _message_bus, _owner.vip.auth.get_capabilities) and asserts both the
+     authorization DECISION (UNAUTHORIZED raised / not raised) AND the SIDE
+     EFFECT (method body called / not called), per [[data-invariants]] Rule 1.
 
   2. That the @RPC.allow annotations are present on the expected
      ControlService methods (static decorator check, no platform startup).
 
-Import strategy: decorators.py and control.py both pull in heavy transitive
-deps through the volttron.platform.vip.agent package __init__. We load them
-via importlib.util.spec_from_file_location to skip the package __init__ chain
-and only pull in what the module itself actually needs.
+Import strategy: rpc.py, decorators.py, and control.py all pull in heavy
+transitive deps through the volttron.platform.vip.agent package __init__.
+We load each via importlib.util.spec_from_file_location to skip the package
+__init__ chain and only pull in what the module itself needs.  Stubs are
+injected into sys.modules before spec.loader.exec_module() for the four
+relative imports that rpc.py needs (.base, ..results, ..decorators, zmq).
 """
 import importlib.util
-import re
 import sys
 import types
 from pathlib import Path
@@ -50,81 +55,97 @@ def _load_module_directly(rel_path: str, module_name: str):
     return mod
 
 
-# Load decorators.py directly (only depends on gevent + stdlib)
-_decorators = _load_module_directly(
+def _stub_if_missing(mod_name, attrs):
+    if mod_name not in sys.modules:
+        stub = types.ModuleType(mod_name)
+        for k, v in attrs.items():
+            setattr(stub, k, v)
+        sys.modules[mod_name] = stub
+
+
+# ---------------------------------------------------------------------------
+# Load decorators.py and rpc.py using the direct-file strategy.
+#
+# rpc.py's relative imports are resolved by injecting stubs into sys.modules
+# for the four names it needs:
+#   .base             -> SubsystemBase (empty base class)
+#   ..results         -> counter, ResultsDictionary (unused in _add_auth_check)
+#   ..decorators      -> the REAL decorators.py (needed for annotate/annotations)
+#   zmq / zmq.green   -> stub (ZMQError, ENOTSOCK; never reached in unit tests)
+# ---------------------------------------------------------------------------
+
+# Step 1: load the real decorators.py so annotate/annotations are genuine.
+_decorators_mod = _load_module_directly(
     "volttron/platform/vip/agent/decorators.py",
-    "_test_decorators",
+    "volttron.platform.vip.agent.decorators",
 )
-annotate = _decorators.annotate
-annotations = _decorators.annotations
+annotate = _decorators_mod.annotate
+annotations = _decorators_mod.annotations
+
+# Step 2: stubs for rpc.py's remaining relative imports.
+_base_stub = types.ModuleType("volttron.platform.vip.agent.subsystems.base")
+
+
+class _SubsystemBase:
+    pass
+
+
+_base_stub.SubsystemBase = _SubsystemBase
+sys.modules["volttron.platform.vip.agent.subsystems.base"] = _base_stub
+
+_results_stub = types.ModuleType("volttron.platform.vip.agent.results")
+_results_stub.counter = lambda: iter(range(10_000))
+
+
+class _ResultsDictionary(dict):
+    pass
+
+
+_results_stub.ResultsDictionary = _ResultsDictionary
+sys.modules["volttron.platform.vip.agent.results"] = _results_stub
+
+# zmq stubs: ZMQError and ENOTSOCK are referenced at module import time.
+_stub_if_missing("zmq", {"ZMQError": Exception})
+_stub_if_missing("zmq.green", {"ENOTSOCK": -1})
+
+# Step 3: load the real rpc.py — this gives us the production RPC class.
+_rpc_mod = _load_module_directly(
+    "volttron/platform/vip/agent/subsystems/rpc.py",
+    "volttron.platform.vip.agent.subsystems.rpc",
+)
+_RealRPC = _rpc_mod.RPC
 
 
 # ---------------------------------------------------------------------------
-# Helpers: replicate the _add_auth_check closure from rpc.py.
-# We copy the logic verbatim so the test validates the PRODUCTION code path,
-# not an alternative implementation. This avoids importing the full RPC class.
+# Helper: build the minimal mock ``self`` that RPC._add_auth_check needs.
+#
+# The closure only reads three things from self:
+#   self.context.vip_message.user          -> the calling identity
+#   self._message_bus                      -> "zmq" | "rmq"
+#   self._owner.vip.auth.get_capabilities  -> callable returning cap dict
 # ---------------------------------------------------------------------------
 
-def _make_auth_checked(method, required_caps, caller_caps, message_bus="zmq"):
+def _make_rpc_self(caller_caps, message_bus: str = "zmq") -> MagicMock:
     """
-    Return a wrapped version of `method` that enforces `required_caps`.
-
-    `caller_caps` is the dict returned by get_capabilities(user), mirroring
-    what RPC._add_auth_check reads via self._owner.vip.auth.get_capabilities.
+    Return a MagicMock shaped like the RPC subsystem object that
+    _add_auth_check captures via closure.  caller_caps mirrors the dict
+    returned by get_capabilities(user) in the live platform.
     """
-    import re as _re
+    mock_self = MagicMock()
+    mock_self._message_bus = message_bus
+    mock_self.context.vip_message.user = "test_caller"
+    mock_self._owner.vip.auth.get_capabilities.return_value = caller_caps
+    return mock_self
 
-    def _isregex(obj):
-        return (
-            obj is not None
-            and isinstance(obj, str)
-            and len(obj) > 1
-            and obj[0] == obj[-1] == "/"
-        )
 
-    def checked_method(*args, **kwargs):
-        user = "test_caller"
-        user_capabilites = caller_caps
-        if user_capabilites:
-            user_capabilities_names = set(user_capabilites.keys())
-        else:
-            user_capabilities_names = set()
-
-        if required_caps == {""}:
-            pass
-        elif not required_caps.issubset(user_capabilities_names):
-            msg = (
-                "method '{}' requires capabilities {}, but capability {} "
-                "was provided for user {}"
-            ).format(method.__name__, required_caps, user_capabilites, user)
-            raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
-        else:
-            for cap_name, param_dict in user_capabilites.items():
-                if param_dict and required_caps and cap_name in required_caps:
-                    import inspect as _inspect
-                    args_dict = _inspect.getcallargs(method, *args, **kwargs)
-                    for name, value in param_dict.items():
-                        if name not in args_dict:
-                            raise jsonrpc.exception_from_json(
-                                jsonrpc.UNAUTHORIZED,
-                                "User {} capability is not defined properly.".format(user),
-                            )
-                        if _isregex(value):
-                            regex = _re.compile("^" + value[1:-1] + "$")
-                            if not regex.match(args_dict[name]):
-                                raise jsonrpc.exception_from_json(
-                                    jsonrpc.UNAUTHORIZED,
-                                    "User {} regex mismatch".format(user),
-                                )
-                        elif args_dict[name] != value:
-                            raise jsonrpc.exception_from_json(
-                                jsonrpc.UNAUTHORIZED,
-                                "User {} value mismatch".format(user),
-                            )
-        return method(*args, **kwargs)
-
-    checked_method.__name__ = method.__name__
-    return checked_method
+def _make_auth_checked(method, required_caps, caller_caps, message_bus: str = "zmq"):
+    """
+    Call the REAL RPC._add_auth_check with a mock self and return the
+    wrapped method.  This is the production function from rpc.py, not a
+    local replica.
+    """
+    mock_self = _make_rpc_self(caller_caps, message_bus)
+    return _RealRPC._add_auth_check(mock_self, method, required_caps)
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +154,12 @@ def _make_auth_checked(method, required_caps, caller_caps, message_bus="zmq"):
 
 class TestRpcAllowGate:
     """
-    Tests for the _add_auth_check authorization gate.
+    Tests for the REAL RPC._add_auth_check authorization gate.
 
-    Each test verifies both the DECISION (UNAUTHORIZED / allowed) and the
-    SIDE EFFECT (body did not / did execute), satisfying [[data-invariants]]
-    Rule 1 for the gate's two output paths.
+    Each test calls the production function from
+    volttron/platform/vip/agent/subsystems/rpc.py via _make_auth_checked and
+    asserts both the DECISION (UNAUTHORIZED / allowed) and the SIDE EFFECT
+    (body did not / did execute), satisfying [[data-invariants]] Rule 1.
     """
 
     def test_zero_capability_peer_rejected_and_no_side_effect(self):
@@ -266,6 +288,49 @@ class TestRpcAllowGate:
         assert called == [True]
         assert result == "removed"
 
+    def test_clear_status_zero_caps_rejected_and_no_side_effect(self):
+        """
+        Two-sided behavioral test for clear_status (B4 addition):
+        zero-capability caller receives UNAUTHORIZED and _aip.clear_status
+        is NOT called.
+        """
+        aip_mock = MagicMock()
+        called = []
+
+        def clear_status(clear_all=False):
+            # mirrors ControlService.clear_status body
+            called.append(True)
+            aip_mock.clear_status(clear_all)
+
+        checked = _make_auth_checked(clear_status, {RUN_CONTROL_COMMANDS}, {})
+
+        with pytest.raises(jsonrpc.Error) as exc_info:
+            checked()
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == [], "clear_status body must not run for zero-cap caller"
+        aip_mock.clear_status.assert_not_called()
+
+    def test_clear_status_run_control_commands_allowed_and_aip_called(self):
+        """
+        Two-sided behavioral test for clear_status (B4 addition):
+        caller with RUN_CONTROL_COMMANDS passes the gate and _aip.clear_status
+        IS called.
+        """
+        aip_mock = MagicMock()
+        called = []
+
+        def clear_status(clear_all=False):
+            called.append(True)
+            aip_mock.clear_status(clear_all)
+
+        caps = {RUN_CONTROL_COMMANDS: None}
+        checked = _make_auth_checked(clear_status, {RUN_CONTROL_COMMANDS}, caps)
+        checked(clear_all=True)
+
+        assert called == [True], "clear_status body must run for capable caller"
+        aip_mock.clear_status.assert_called_once_with(True)
+
 
 # ---------------------------------------------------------------------------
 # Tests: @RPC.allow annotations on ControlService methods
@@ -344,14 +409,6 @@ def _load_control_module():
     sys.modules["_test_control_module"] = mod
     spec.loader.exec_module(mod)
     return mod
-
-
-def _stub_if_missing(mod_name, attrs):
-    if mod_name not in sys.modules:
-        stub = types.ModuleType(mod_name)
-        for k, v in attrs.items():
-            setattr(stub, k, v)
-        sys.modules[mod_name] = stub
 
 
 @pytest.fixture(scope="module")
