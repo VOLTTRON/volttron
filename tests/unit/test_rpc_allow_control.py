@@ -460,7 +460,7 @@ class TestControlServiceAnnotations:
     privileged method and NOT applied to read-only methods.
     """
 
-    @pytest.mark.parametrize("method_name", "capability", [
+    @pytest.mark.parametrize("method_names, capability", [
         (STATUS_METHODS, CLEAR_AGENT_STATUS),
         (START_STOP_METHODS, START_STOP_AGENTS),
         (STOP_PLATFORM_METHODS, STOP_PLATFORM),
@@ -468,24 +468,25 @@ class TestControlServiceAnnotations:
         (INSTALL_REMOVE_METHODS, INSTALL_REMOVE_AGENTS)
     ])
     def test_privileged_method_has_correct_annotation(
-        self, method_name, control_mod
+        self, method_names, capability, control_mod
     ):
-        """
-        Each privileged method must carry correct capabilities in its
-        rpc.allow_capabilities annotation set; if the decorator is missing
-        the gate never wires up and the method is reachable by any peer.
-        """
-        ControlService = control_mod.ControlService
-        method = getattr(ControlService, method_name)
-        caps = annotations(method, set, "rpc.allow_capabilities")
-        assert caps, (
-            f"ControlService.{method_name} has no rpc.allow_capabilities "
-            f"annotation; @RPC.allow({capability!r}) is missing"
-        )
-        assert capability in caps, (
-            f"ControlService.{method_name} annotations {caps!r} "
-            f"do not include {capablity!r}"
-        )
+        for method_name in method_names:
+            """
+            Each privileged method must carry correct capabilities in its
+            rpc.allow_capabilities annotation set; if the decorator is missing
+            the gate never wires up and the method is reachable by any peer.
+            """
+            ControlService = control_mod.ControlService
+            method = getattr(ControlService, method_name)
+            caps = annotations(method, set, "rpc.allow_capabilities")
+            assert caps, (
+                f"ControlService.{method_name} has no rpc.allow_capabilities "
+                f"annotation; @RPC.allow({capability!r}) is missing"
+            )
+            assert capability in caps, (
+                f"ControlService.{method_name} annotations {caps!r} "
+                f"do not include {capablity!r}"
+            )
 
     @pytest.mark.parametrize("method_name", READ_ONLY_METHODS)
     def test_read_only_method_does_not_require_capability(
