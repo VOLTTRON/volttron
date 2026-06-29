@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Unit tests for VO-006 RC-A fix: privileged control-plane RPC methods must
-require the RUN_CONTROL_COMMANDS capability.
+require the correct capabilities to run gated control commands.
 
 These tests exercise:
 
@@ -42,7 +42,8 @@ if str(MONOLITH_ROOT) not in sys.path:
 
 # jsonrpc is importable with just stdlib + jsonapi (no gevent required)
 from volttron.platform import jsonrpc  # noqa: E402
-from volttron.platform.agent.known_identities import RUN_CONTROL_COMMANDS  # noqa: E402
+from volttron.platform.agent.known_identities import (CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
+                                                      START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)  # noqa: E402
 
 
 def _load_module_directly(rel_path: str, module_name: str):
@@ -173,7 +174,7 @@ class TestRpcAllowGate:
             called.append(True)
             return "body_ran"
 
-        checked = _make_auth_checked(install_agent, {RUN_CONTROL_COMMANDS}, {})
+        checked = _make_auth_checked(install_agent, {INSTALL_REMOVE_AGENTS}, {})
 
         with pytest.raises(jsonrpc.Error) as exc_info:
             checked()
@@ -193,7 +194,7 @@ class TestRpcAllowGate:
         def stop_agent(uuid):
             called.append(True)
 
-        checked = _make_auth_checked(stop_agent, {RUN_CONTROL_COMMANDS}, None)
+        checked = _make_auth_checked(stop_agent, {START_STOP_AGENTS}, None)
 
         with pytest.raises(jsonrpc.Error) as exc_info:
             checked("some-uuid")
@@ -213,7 +214,7 @@ class TestRpcAllowGate:
         def shutdown(*args, **kwargs):
             called.append(True)
 
-        checked = _make_auth_checked(shutdown, {RUN_CONTROL_COMMANDS}, platform_web_caps)
+        checked = _make_auth_checked(shutdown, {START_STOP_AGENTS}, platform_web_caps)
 
         with pytest.raises(jsonrpc.Error) as exc_info:
             checked()
@@ -221,19 +222,19 @@ class TestRpcAllowGate:
         assert exc_info.value.code == jsonrpc.UNAUTHORIZED
         assert called == [], "platform_web must not reach privileged control methods"
 
-    def test_peer_with_run_control_commands_allowed_and_body_runs(self):
+    def test_peer_with_install_remove_agents_allowed_and_body_runs(self):
         """
-        A peer whose capability set includes RUN_CONTROL_COMMANDS must pass
+        A peer whose capability set includes INSTALL_REMOVE_AGENTS must pass
         the gate and the method body must execute.
         """
-        caps = {RUN_CONTROL_COMMANDS: None}
+        caps = {INSTALL_REMOVE_AGENTS: None}
         called = []
 
         def install_agent(*args, **kwargs):
             called.append(True)
             return "body_ran"
 
-        checked = _make_auth_checked(install_agent, {RUN_CONTROL_COMMANDS}, caps)
+        checked = _make_auth_checked(install_agent, {INSTALL_REMOVE_AGENTS}, caps)
         result = checked()
 
         # Decision: no exception raised
@@ -244,13 +245,13 @@ class TestRpcAllowGate:
     def test_control_connection_full_caps_allowed_and_body_runs(self):
         """
         Regression: CONTROL_CONNECTION (vctl) with all its production
-        capabilities including RUN_CONTROL_COMMANDS must pass.
+        capabilities including START_STOP_AGNENTS must pass.
         """
         control_conn_caps = {
             "edit_config_store": None,
             "modify_rpc_method_allowance": None,
             "allow_auth_modifications": None,
-            RUN_CONTROL_COMMANDS: None,
+            START_STOP_AGENTS: None,
         }
         called = []
 
@@ -258,7 +259,7 @@ class TestRpcAllowGate:
             called.append(True)
             return "started"
 
-        checked = _make_auth_checked(start_agent, {RUN_CONTROL_COMMANDS}, control_conn_caps)
+        checked = _make_auth_checked(start_agent, {START_STOP_AGENTS}, control_conn_caps)
         result = checked("agent-uuid")
 
         assert called == [True]
@@ -267,14 +268,14 @@ class TestRpcAllowGate:
     def test_control_full_caps_allowed_and_body_runs(self):
         """
         Regression: CONTROL identity (the ControlService itself calling internal
-        methods) with all production capabilities including RUN_CONTROL_COMMANDS
+        methods) with all production capabilities including INSTALL_REMOVE_AGENTS
         must pass.
         """
         control_caps = {
             "edit_config_store": None,
             "modify_rpc_method_allowance": None,
             "allow_auth_modifications": None,
-            RUN_CONTROL_COMMANDS: None,
+            INSTALL_REMOVE_AGENTS: None,
         }
         called = []
 
@@ -282,7 +283,7 @@ class TestRpcAllowGate:
             called.append(True)
             return "removed"
 
-        checked = _make_auth_checked(remove_agent, {RUN_CONTROL_COMMANDS}, control_caps)
+        checked = _make_auth_checked(remove_agent, {INSTALL_REMOVE_AGENTS}, control_caps)
         result = checked("agent-uuid")
 
         assert called == [True]
@@ -302,7 +303,7 @@ class TestRpcAllowGate:
             called.append(True)
             aip_mock.clear_status(clear_all)
 
-        checked = _make_auth_checked(clear_status, {RUN_CONTROL_COMMANDS}, {})
+        checked = _make_auth_checked(clear_status, {CLEAR_AGENT_STATUS}, {})
 
         with pytest.raises(jsonrpc.Error) as exc_info:
             checked()
@@ -311,10 +312,10 @@ class TestRpcAllowGate:
         assert called == [], "clear_status body must not run for zero-cap caller"
         aip_mock.clear_status.assert_not_called()
 
-    def test_clear_status_run_control_commands_allowed_and_aip_called(self):
+    def test_clear_status_allowed_and_aip_called(self):
         """
         Two-sided behavioral test for clear_status (B4 addition):
-        caller with RUN_CONTROL_COMMANDS passes the gate and _aip.clear_status
+        caller with CLEAR_AGENT_STATUS passes the gate and _aip.clear_status
         IS called.
         """
         aip_mock = MagicMock()
@@ -324,8 +325,8 @@ class TestRpcAllowGate:
             called.append(True)
             aip_mock.clear_status(clear_all)
 
-        caps = {RUN_CONTROL_COMMANDS: None}
-        checked = _make_auth_checked(clear_status, {RUN_CONTROL_COMMANDS}, caps)
+        caps = {CLEAR_AGENT_STATUS: None}
+        checked = _make_auth_checked(clear_status, {CLEAR_AGENT_STATUS}, caps)
         checked(clear_all=True)
 
         assert called == [True], "clear_status body must run for capable caller"
@@ -416,20 +417,27 @@ def control_mod():
     return _load_control_module()
 
 
-PRIVILEGED_METHODS = [
-    "clear_status",
+STATUS_METHODS = [
+    "clear_status"
+    ]
+START_STOP_METHODS = [
     "start_agent",
     "stop_agent",
     "restart_agent",
     "shutdown",
-    "stop_platform",
-    "tag_agent",
+    "prioritize_agent"
+    ]
+STOP_PLATFORM_METHODS = [
+    "stop_platform"
+    ]
+TAG_AGENT_METHODS = [
+    "tag_agent"
+    ]
+INSTALL_REMOVE_METHODS = [
     "remove_agent",
-    "prioritize_agent",
-    "get_all_agent_publickeys",
     "install_agent_rmq",
-    "install_agent",
-]
+    "install_agent"
+    ]
 
 READ_ONLY_METHODS = [
     "peerlist",
@@ -442,21 +450,28 @@ READ_ONLY_METHODS = [
     "list_agents",
     "agent_vip_identity",
     "identity_exists",
+    "get_all_agent_publickeys"
 ]
 
 
 class TestControlServiceAnnotations:
     """
-    Static checks that @RPC.allow(RUN_CONTROL_COMMANDS) was applied to every
+    Static checks that @RPC.allow(<capability>) was applied to every
     privileged method and NOT applied to read-only methods.
     """
 
-    @pytest.mark.parametrize("method_name", PRIVILEGED_METHODS)
-    def test_privileged_method_has_run_control_commands_annotation(
+    @pytest.mark.parametrize("method_name", "capability", [
+        (STATUS_METHODS, CLEAR_AGENT_STATUS),
+        (START_STOP_METHODS, START_STOP_AGENTS),
+        (STOP_PLATFORM_METHODS, STOP_PLATFORM),
+        (TAG_AGENT_METHODS, TAG_AGENTS),
+        (INSTALL_REMOVE_METHODS, INSTALL_REMOVE_AGENTS)
+    ])
+    def test_privileged_method_has_correct_annotation(
         self, method_name, control_mod
     ):
         """
-        Each privileged method must carry RUN_CONTROL_COMMANDS in its
+        Each privileged method must carry correct capabilities in its
         rpc.allow_capabilities annotation set; if the decorator is missing
         the gate never wires up and the method is reachable by any peer.
         """
@@ -465,25 +480,27 @@ class TestControlServiceAnnotations:
         caps = annotations(method, set, "rpc.allow_capabilities")
         assert caps, (
             f"ControlService.{method_name} has no rpc.allow_capabilities "
-            f"annotation; @RPC.allow({RUN_CONTROL_COMMANDS!r}) is missing"
+            f"annotation; @RPC.allow({capability!r}) is missing"
         )
-        assert RUN_CONTROL_COMMANDS in caps, (
+        assert capability in caps, (
             f"ControlService.{method_name} annotations {caps!r} "
-            f"do not include {RUN_CONTROL_COMMANDS!r}"
+            f"do not include {capablity!r}"
         )
 
     @pytest.mark.parametrize("method_name", READ_ONLY_METHODS)
-    def test_read_only_method_does_not_require_run_control_commands(
+    def test_read_only_method_does_not_require_capability(
         self, method_name, control_mod
     ):
         """
-        Read-only methods must NOT carry RUN_CONTROL_COMMANDS; they remain
+        Read-only methods must NOT carry capabilities; they remain
         accessible to monitoring agents and the vctl status queries.
         """
         ControlService = control_mod.ControlService
         method = getattr(ControlService, method_name)
         caps = annotations(method, set, "rpc.allow_capabilities")
-        assert RUN_CONTROL_COMMANDS not in caps, (
-            f"ControlService.{method_name} should NOT require "
-            f"{RUN_CONTROL_COMMANDS!r} but {caps!r} was found"
-        )
+        capabilities = [CLEAR_AGENT_STATUS, START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS, INSTALL_REMOVE_AGENTS]
+        for capability in capabilities:
+            assert capability not in caps, (
+                f"ControlService.{method_name} should NOT require "
+                f"{capability!r} but {caps!r} was found"
+            )

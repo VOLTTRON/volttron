@@ -92,7 +92,8 @@ from .agent import utils
 from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      CONTROL_CONNECTION, KEY_DISCOVERY,
                                      PLATFORM, PLATFORM_HEALTH, PLATFORM_WEB,
-                                     PROXY_ROUTER, RUN_CONTROL_COMMANDS)
+                                     PROXY_ROUTER, CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
+                                     START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
 from .keystore import KeyStore, KnownHostsStore
 from .store import ConfigStoreService
 from .vip.externalrpcservice import ExternalRPCService
@@ -862,13 +863,20 @@ def start_volttron_process(opts):
             decode_key(ks_control_conn.public)),
                           user_id=CONTROL_CONNECTION,
                           identity=CONTROL_CONNECTION,
-                          capabilities=[{
-                              'edit_config_store': {
-                                  'identity': '/.*/'
-                              }
-                          }, 'modify_rpc_method_allowance',
-                                        'allow_auth_modifications',
-                                        RUN_CONTROL_COMMANDS],
+                          capabilities=[
+                              {
+                                  'edit_config_store': {
+                                      'identity': '/.*/'
+                                  }
+                              },
+                              'modify_rpc_method_allowance',
+                              'allow_auth_modifications',
+                              CLEAR_AGENT_STATUS,
+                              INSTALL_REMOVE_AGENTS,
+                              START_STOP_AGENTS,
+                              STOP_PLATFORM,
+                              TAG_AGENTS
+                          ],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
@@ -1278,7 +1286,12 @@ def setup_auth_service(opts, address, services):
                           },
                           'modify_rpc_method_allowance',
                           'allow_auth_modifications',
-                          RUN_CONTROL_COMMANDS],
+                          CLEAR_AGENT_STATUS,
+                          INSTALL_REMOVE_AGENTS,
+                          START_STOP_AGENTS,
+                          STOP_PLATFORM,
+                          TAG_AGENTS
+                      ],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
