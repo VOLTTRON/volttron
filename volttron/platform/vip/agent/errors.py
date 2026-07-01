@@ -46,6 +46,8 @@ class VIPError(Exception):
 
     @classmethod
     def from_errno(cls, errnum, msg, *args):
+        if isinstance(errnum, str) and errnum.lower().startswith('errno.'):
+            errnum = getattr(errno, errnum[len('errno.'):])
         errnum = int(errnum)
         return {
             errno.EHOSTUNREACH: Unreachable,
