@@ -41,7 +41,7 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, DRIVER_WRITE_METHODS
 from volttron.platform.agent.utils import get_fq_identity, is_secure_mode
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform import jsonapi
@@ -575,7 +575,10 @@ class AIPplatform:
         return KeyStore(keystore_path, encoded_public, encoded_secret)
 
     def _authorize_agent_keys(self, agent_uuid, identity, publickey):
-        capabilities = {'edit_config_store': {'identity': identity}}
+        capabilities = {
+            'edit_config_store': {'identity': identity},
+            DRIVER_WRITE_METHODS: None
+        }
 
         if identity == VOLTTRON_CENTRAL_PLATFORM:
             capabilities = {'edit_config_store': {'identity': '/.*/'}}

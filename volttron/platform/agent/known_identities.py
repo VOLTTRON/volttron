@@ -52,6 +52,8 @@ INSTALL_REMOVE_AGENTS = 'install_remove_agents'
 STOP_PLATFORM = 'stop_platform'
 TAG_AGENTS = 'tag_agents'
 CLEAR_AGENT_STATUS = 'clear_agent_status'
+DRIVER_OVERRIDES = 'driver_override'
+DRIVER_WRITES = 'driver_write'
 
 CONFIGURATION_STORE = 'config.store'
 KEY_DISCOVERY = 'keydiscovery'

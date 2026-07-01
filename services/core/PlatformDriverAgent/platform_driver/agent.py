@@ -29,7 +29,7 @@ from collections import defaultdict
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER, DRIVER_OVERRIDES, DRIVER_WRITES
 from .driver import DriverAgent
 import resource
 from datetime import datetime, timedelta
@@ -434,6 +434,7 @@ class PlatformDriverAgent(Agent):
         return self.instances[path].get_point(point_name, **kwargs)
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def set_point(self, path, point_name, value, **kwargs):
         """RPC method
 
@@ -462,6 +463,7 @@ class PlatformDriverAgent(Agent):
         return self.instances[path].get_multiple_points(point_names, **kwargs)
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def set_multiple_points(self, path, point_names_values, **kwargs):
         """RPC method
 
@@ -493,6 +495,7 @@ class PlatformDriverAgent(Agent):
                 _log.warning(f'Failed to set heart_beat point on device: {device.device_name} -- {e}.')
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def revert_point(self, path, point_name, **kwargs):
         """RPC method
 
@@ -512,6 +515,7 @@ class PlatformDriverAgent(Agent):
             self.instances[path].revert_point(point_name, **kwargs)
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def revert_device(self, path, **kwargs):
         """RPC method
 
@@ -529,6 +533,7 @@ class PlatformDriverAgent(Agent):
             self.instances[path].revert_all(**kwargs)
 
     @RPC.export
+    @RPC.allow(DRIVER_OVERRIDES)
     def set_override_on(self, pattern, duration=0.0, failsafe_revert=True, staggered_revert=False):
         """RPC method
 
@@ -597,6 +602,7 @@ class PlatformDriverAgent(Agent):
             self.vip.config.set("override_patterns", jsonapi.dumps(patterns))
 
     @RPC.export
+    @RPC.allow(DRIVER_OVERRIDES)
     def set_override_off(self, pattern):
         """RPC method
 
@@ -617,6 +623,7 @@ class PlatformDriverAgent(Agent):
         return list(self._override_devices)
 
     @RPC.export
+    @RPC.allow(DRIVER_OVERRIDES)
     def clear_overrides(self):
         """RPC method
 
