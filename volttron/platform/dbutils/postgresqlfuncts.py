@@ -154,7 +154,7 @@ class PostgreSqlFuncts(DbDriver):
 
     def setup_historian_tables(self):
         rows = self.select(f"""SELECT table_name FROM information_schema.tables
-                            WHERE table_catalog = '{self.db_name}' and table_schema = 'public' 
+                            WHERE table_catalog = '{self.db_name}' and table_schema = 'public'
                             AND table_name = '{self.data_table}'""")
         if rows:
             _log.debug("Found table {}. Historian table exists".format(
@@ -167,10 +167,10 @@ class PostgreSqlFuncts(DbDriver):
         else:
             self.execute_stmt(SQL(
                 'CREATE TABLE IF NOT EXISTS {} ('
-                    'ts TIMESTAMP NOT NULL, '
-                    'topic_id INTEGER NOT NULL, '
-                    'value_string TEXT NOT NULL, '
-                    'UNIQUE (topic_id, ts)'
+                'ts TIMESTAMP NOT NULL, '
+                'topic_id INTEGER NOT NULL, '
+                'value_string TEXT NOT NULL, '
+                'PRIMARY KEY (topic_id, ts)'
                 ')').format(Identifier(self.data_table)))
             if self.timescale_dialect:
                 _log.debug("trying to create hypertable")
@@ -187,18 +187,17 @@ class PostgreSqlFuncts(DbDriver):
                     'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
                     Identifier('idx_' + self.data_table),
                     Identifier(self.data_table)))
-
             self.execute_stmt(SQL(
                 'CREATE TABLE IF NOT EXISTS {} ('
-                    'topic_id SERIAL PRIMARY KEY NOT NULL, '
-                    'topic_name VARCHAR(512) NOT NULL, '
-                    'metadata TEXT, '
-                    'UNIQUE (topic_name)'
+                'topic_id SERIAL PRIMARY KEY NOT NULL, '
+                'topic_name VARCHAR(512) NOT NULL, '
+                'metadata TEXT, '
+                'UNIQUE (topic_name)'
                 ')').format(Identifier(self.topics_table)))
             # metadata is in topics table
             self.meta_table = self.topics_table
             self.commit()
-
+            
     def setup_aggregate_historian_tables(self):
 
         self.execute_stmt(SQL(
