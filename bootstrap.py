@@ -156,8 +156,12 @@ def update(operation, verbose=None, offline=False, optional_requirements=[], rab
     # --use-pep517 here makes pip provision a fresh, isolated build
     # environment per requirement instead, which supplies its own
     # setuptools/wheel pair and builds clean. This does not touch the
-    # wheel==0.30 pin above: it only changes how the *remaining* extras are
-    # built.
+    # wheel==0.30 pin above, but it does apply to the whole install call
+    # below, whose target is path[extras]: VOLTTRON's own editable install
+    # also switches from the legacy setup.py develop path to an isolated
+    # PEP 517 editable build, not just the remaining extras. Verified
+    # equivalent in outcome: pip install -e . succeeds and the auth suite
+    # is green.
     args.extend(['--use-pep517', '--editable', target])
     print(f"Target: {target}")
     pip(operation, args, verbose, offline)
