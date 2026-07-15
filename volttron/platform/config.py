@@ -374,7 +374,12 @@ class ArgumentParser(_argparse.ArgumentParser):
                 cli_args.append(arg_string)
                 continue
             # Some kind of option was encountered, so deal with it
-            action, option_string, explicit_arg = option_tuple
+            if len(option_tuple) == 3:  # Argparse behavior on Python versions < 3.11.9 and < 3.12.3
+                action, option_string, explicit_arg = option_tuple
+            elif len(option_tuple) == 4:  # Argparse behavior on Python versions >= 3.11.9 and >= 3.12.3
+                action, option_string, _, explicit_arg = option_tuple
+            else:
+                raise ValueError(f'Unable to parse options: "{arg_strings}".')
             if explicit_arg is not None:
                 args = [explicit_arg]
             elif action.nargs in [_argparse.REMAINDER, _argparse.PARSER]:
