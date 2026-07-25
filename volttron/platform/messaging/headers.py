@@ -24,6 +24,7 @@
 
 '''VOLTTRON platform™ messaging header name constants.'''
 
+__all__ = ['Headers']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'

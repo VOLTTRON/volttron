@@ -31,7 +31,7 @@ from volttron.platform import jsonapi
 from .headers import Headers
 
 
-__all__ = ['Headers', 'Socket']
+__all__ = ['Socket']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'

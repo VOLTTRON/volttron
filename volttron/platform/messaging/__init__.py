@@ -22,4 +22,5 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-from .socket import *
+from .headers import Headers
+from .socket import Socket
