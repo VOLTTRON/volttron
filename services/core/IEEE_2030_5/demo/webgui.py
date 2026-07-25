@@ -23,7 +23,7 @@ urllib3.disable_warnings()
 sys.path.insert(0, str(Path(__file__).absolute().parent.parent.as_posix()))
 
 import requests
-from nicegui import app, ui
+from nicegui import ui
 
 import ieee_2030_5.models as m
 from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
