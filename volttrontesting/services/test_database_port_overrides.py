@@ -76,14 +76,21 @@ PORT_CASES = (
 )
 
 
-@pytest.mark.parametrize("var, default, override, ports", PORT_CASES, ids=[case[0] for case in PORT_CASES])
-def test_default_port_with_variable_unset(monkeypatch, var, default, override, ports):
+@pytest.mark.parametrize(
+    "var, default, ports",
+    [(var, default, ports) for var, default, override, ports in PORT_CASES],
+    ids=[case[0] for case in PORT_CASES],
+)
+def test_default_port_with_variable_unset(monkeypatch, var, default, ports):
     monkeypatch.delenv(var, raising=False)
     _reload_modules()
     try:
         for site, value in ports().items():
             assert value == default, f"{site} port should default to {default} with {var} unset, got {value}"
     finally:
+        # Undo before reloading so the reload sees the session's
+        # environment, not the state this test's monkeypatch still holds.
+        monkeypatch.undo()
         _reload_modules()
 
 
@@ -96,7 +103,7 @@ def test_port_override_from_environment(monkeypatch, var, default, override, por
             assert isinstance(value, int), f"{site} port must be an int, got {type(value)}"
             assert value == override, f"{site} port should pick up {var}={override}, got {value}"
     finally:
-        # Restore the variable before reloading so a later test in this
-        # session that imports these modules sees the hardcoded default.
-        monkeypatch.delenv(var, raising=False)
+        # Undo before reloading so the reload sees the session's
+        # environment, not the state this test's monkeypatch still holds.
+        monkeypatch.undo()
         _reload_modules()
