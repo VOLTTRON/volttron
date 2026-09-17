@@ -7,6 +7,7 @@
 
 import ast
 import copy
+import os
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -93,7 +94,7 @@ mysql_aggregator = {
         "type": "mysql",
         "params": {
             "host": "localhost",
-            "port": 3306,
+            "port": int(os.environ.get("MYSQL_PORT", 3306)),
             "database": "test_historian",
             "user": "historian",
             "passwd": "historian"
@@ -108,7 +109,7 @@ mysql_aggregator_with_table_names = {
         "type": "mysql",
         "params": {
             "host": "localhost",
-            "port": 3306,
+            "port": int(os.environ.get("MYSQL_PORT", 3306)),
             "database": "test_historian",
             "user": "historian",
             "passwd": "historian"
@@ -130,7 +131,7 @@ mongo_aggregator = {
         "type": "mongodb",
         "params": {
             "host": "localhost",
-            "port": 27017,
+            "port": int(os.environ.get("MONGODB_PORT", 27017)),
             "database": "mongo_test",
             "user": "historian",
             "passwd": "historian",
@@ -146,7 +147,7 @@ postgresql_aggregator = {
         'type': 'postgresql',
         'params': {
             'dbname': 'test_historian',
-            'port': 5432,
+            'port': int(os.environ.get("POSTGRES_PORT", 5432)),
             'host': 'localhost',
             'user': 'historian',
             'password': 'historian'
@@ -161,7 +162,7 @@ postgresql_aggregator_with_table_names = {
         'type': 'postgresql',
         'params': {
             'dbname': 'test_historian',
-            'port': 5432,
+            'port': int(os.environ.get("POSTGRES_PORT", 5432)),
             'host': 'localhost',
             'user': 'historian',
             'password': 'historian'
