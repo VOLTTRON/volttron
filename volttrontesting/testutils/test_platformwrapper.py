@@ -22,6 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 from configparser import ConfigParser
+import shutil
 import time
 import os
 
@@ -52,6 +53,10 @@ def test_can_create(messagebus, ssl_auth):
     assert not p.is_running()
 from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
+from volttron.platform.agent.known_identities import (CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS,
+                                                       START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.keystore import KeyStore
 
 
 from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_address
@@ -398,3 +403,161 @@ def test_will_update_environ():
         assert os.environ.get("farthing") == "50"
 
     assert "farthing" not in os.environ
+
+
+# Issue 3238: the harness identity dynamic_agent drives the platform
+# lifecycle (remove_all_agents, stop_platform, shutdown_platform, and
+# prioritize_agent in tests) but was only granted edit_config_store and
+# allow_auth_modifications, so those calls were refused once ControlService
+# started requiring capabilities.
+
+def _expected_dynamic_agent_capabilities():
+    return {
+        'edit_config_store': {'identity': '/.*/'},
+        'allow_auth_modifications': None,
+        CLEAR_AGENT_STATUS: None,
+        INSTALL_REMOVE_AGENTS: None,
+        START_STOP_AGENTS: None,
+        STOP_PLATFORM: None,
+        TAG_AGENTS: None,
+    }
+
+
+def _dynamic_agent_entry(platform_wrapper):
+    with with_os_environ(platform_wrapper.env):
+        entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+    assert len(entries) == 1
+    return entries[0]
+
+
+@pytest.mark.wrapper
+def test_dynamic_agent_entry_has_control_capabilities():
+    """On a fresh auth-enabled instance (the pre-seed grant path), the
+    dynamic_agent entry holds exactly the capabilities the harness needs to
+    drive the platform lifecycle, named through known_identities."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        entry = _dynamic_agent_entry(p)
+        assert entry.capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        p.shutdown_platform()
+
+
+@pytest.mark.wrapper
+def test_dynamic_agent_entry_created_when_auth_file_preexists():
+    """The pre-seed grant only runs on a brand new auth.json. When the file
+    already has an allow entry for another identity, startup_platform still
+    ends with a correctly capable dynamic_agent entry, through the
+    build_agent(identity="dynamic_agent") grant path."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            other_ks = KeyStore(KeyStore.get_agent_keystore_path("other_identity"))
+            AuthFile().add(AuthEntry(
+                user_id="other_identity",
+                identity="other_identity",
+                credentials=other_ks.public,
+                capabilities=dict(edit_config_store=dict(identity="other_identity")),
+                comments="seeded so the auth file is not brand new"))
+
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        entry = _dynamic_agent_entry(p)
+        assert entry.capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        p.shutdown_platform()
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_merges_stale_entry():
+    """A dynamic_agent entry already on disk under this harness's own
+    keystore key, but missing the control capabilities, is merged up to
+    the full set. This exercises _update_dynamic_agent_capabilities
+    directly; no platform process needs to be running for it."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+            AuthFile().add(AuthEntry(
+                user_id="dynamic_agent",
+                identity="dynamic_agent",
+                credentials=ks.public,
+                capabilities=dict(edit_config_store=dict(identity="/.*/"),
+                                  allow_auth_modifications=None),
+                comments="stale entry seeded for test"))
+
+            p._update_dynamic_agent_capabilities()
+
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+        assert len(entries) == 1
+        assert entries[0].capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(p.volttron_home, ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_leaves_different_key_entry_untouched():
+    """Security constraint: the stale-entry update matches by user_id AND
+    by this harness's own dynamic_agent keystore key. An entry with the
+    same user_id but a different key (not this harness's own agent) is
+    left unchanged."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            impostor_ks = KeyStore(KeyStore.get_agent_keystore_path("impostor"))
+            stale_capabilities = dict(edit_config_store=dict(identity="/.*/"),
+                                      allow_auth_modifications=None)
+            AuthFile().add(AuthEntry(
+                user_id="dynamic_agent",
+                identity="dynamic_agent",
+                credentials=impostor_ks.public,
+                capabilities=dict(stale_capabilities),
+                comments="different key, must not be updated"))
+
+            p._update_dynamic_agent_capabilities()
+
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+        assert len(entries) == 1
+        assert entries[0].capabilities == stale_capabilities
+        assert entries[0].credentials == impostor_ks.public
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(p.volttron_home, ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_build_agent_default_capabilities_unchanged():
+    """build_agent() without an explicit capabilities argument still grants
+    only edit_config_store scoped to the agent's own identity: the
+    dynamic_agent grant paths must not widen the default for other
+    identities."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        agent = p.build_agent()
+        identity = agent.core.identity
+        with with_os_environ(p.env):
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == identity]
+        assert len(entries) == 1
+        assert entries[0].capabilities == {'edit_config_store': {'identity': identity}}
+    finally:
+        p.shutdown_platform()
+
+
+@pytest.mark.wrapper
+def test_remove_all_agents_removes_installed_agent():
+    """remove_all_agents (used for cleanup between tests) calls
+    control.remove_agent through dynamic_agent. Fails at d68dff037 with
+    "requires capabilities {'install_remove_agents'}"."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        auuid = p.install_agent(agent_dir=get_examples("ListenerAgent"), start=False)
+        assert auuid is not None
+
+        p.remove_all_agents()
+
+        assert p.list_agents() == []
+    finally:
+        p.shutdown_platform()

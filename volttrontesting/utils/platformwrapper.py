@@ -27,7 +27,10 @@ from .agent_additions import (add_volttron_central,
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi, is_rabbitmq_available
-from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.platform.agent.known_identities import (PLATFORM_WEB, CONTROL, CONTROL_CONNECTION,
+                                                       PROCESS_IDENTITIES, CLEAR_AGENT_STATUS,
+                                                       INSTALL_REMOVE_AGENTS, START_STOP_AGENTS,
+                                                       STOP_PLATFORM, TAG_AGENTS)
 from volttron.platform.auth.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -55,6 +58,27 @@ RESTRICTED_AVAILABLE = False
 # Change the connection timeout to default to 5 seconds rather than the default
 # of 30 secondes
 DEFAULT_TIMEOUT = 5
+
+
+def _dynamic_agent_capabilities():
+    """Capabilities dynamic_agent needs: the config-store and
+    auth-modification grants it already had, plus the five control
+    capabilities control.connection holds (main.py), so remove_all_agents,
+    stop_platform, shutdown_platform and prioritize_agent (called by
+    tests) are not refused. Returns a fresh dict on every call: AuthEntry
+    stores the dict it is given without copying it, and add_capabilities
+    mutates that dict in place, so a shared module-level dict would leak
+    updates across entries and across test runs.
+    """
+    capabilities = dict(edit_config_store=dict(identity="/.*/"), allow_auth_modifications=None)
+    capabilities.update({
+        CLEAR_AGENT_STATUS: None,
+        INSTALL_REMOVE_AGENTS: None,
+        START_STOP_AGENTS: None,
+        STOP_PLATFORM: None,
+        TAG_AGENTS: None,
+    })
+    return capabilities
 
 try:
     from volttron.restricted import (auth, certs)
@@ -629,6 +653,24 @@ class PlatformWrapper:
             gevent.sleep(2)
             return True
 
+    def _update_dynamic_agent_capabilities(self):
+        """Merge the control capabilities into an existing dynamic_agent
+        auth entry left over from a prior grant path or a reused
+        VOLTTRON_HOME, so a stale entry does not miss capabilities added
+        since it was written.
+
+        Matches only the entry that already carries this harness's own
+        dynamic_agent keystore key, and changes only its capabilities: an
+        entry with the same user_id but a different key is left untouched.
+        """
+        ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+        authfile = AuthFile()
+        for entry in authfile.read_allow_entries():
+            if entry.user_id == "dynamic_agent" and entry.credentials == ks.public:
+                entry.add_capabilities(_dynamic_agent_capabilities())
+                authfile.add(entry, overwrite=True)
+                return
+
     file_types = Union[Literal["raw"], Literal["json"], Literal["csv"]]
 
     def config_store_get(self, vip_identity: str, name: str, file_type: Optional[Literal["raw"]] = None) -> str:
@@ -779,7 +821,7 @@ class PlatformWrapper:
                     authfile.add(entry)
 
                     identity = "dynamic_agent"
-                    capabilities = dict(edit_config_store=dict(identity="/.*/"), allow_auth_modifications=None)
+                    capabilities = _dynamic_agent_capabilities()
                     # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
@@ -788,6 +830,14 @@ class PlatformWrapper:
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
+
+            if self.auth_enabled:
+                # Cover the two other startup paths: an auth.json that
+                # already had allow entries skips the pre-seed above, and a
+                # dynamic_agent entry left over from a prior grant (or a
+                # reused VOLTTRON_HOME) may still be missing capabilities
+                # added since it was written.
+                self._update_dynamic_agent_capabilities()
 
             msgdebug = self.env.get('MSG_DEBUG', False)
             enable_logging = self.env.get('ENABLE_LOGGING', False)
@@ -969,7 +1019,8 @@ class PlatformWrapper:
             # Use dynamic_agent so we can look and see the agent with peerlist.
             if not setupmode:
                 gevent.sleep(5)
-                self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+                self.dynamic_agent = self.build_agent(identity="dynamic_agent",
+                                                      capabilities=_dynamic_agent_capabilities())
                 assert self.dynamic_agent is not None
                 assert isinstance(self.dynamic_agent, Agent)
                 # has_control = False
