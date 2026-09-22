@@ -685,9 +685,15 @@ class PlatformWrapper:
                 entry.capabilities = expected
                 authfile.update_by_index(entry, index)
                 return
+        # Called before build_agent(identity="dynamic_agent") on the
+        # pre-existing-auth.json startup path, so no match here does not
+        # mean the grant failed: it may still be added moments later.
+        # The message says "not yet" rather than "were not granted",
+        # which this call site cannot know either way.
         _log.warning(
-            "No dynamic_agent auth entry matched this instance's own "
-            "keystore key in %s; control capabilities were not granted.",
+            "No dynamic_agent auth entry yet matches this instance's "
+            "own keystore key in %s; control capabilities are not "
+            "granted until a later grant path adds a matching entry.",
             self.volttron_home)
 
     file_types = Union[Literal["raw"], Literal["json"], Literal["csv"]]
