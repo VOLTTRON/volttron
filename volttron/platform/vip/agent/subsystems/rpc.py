@@ -378,7 +378,11 @@ class RPC(SubsystemBase):
                                     ),
                                 )
                             if _isregex(value):
-                                regex = re.compile("^" + value[1:-1] + "$")
+                                # A bare "^" + pattern + "$" loses full-string
+                                # anchoring on a top-level "|" alternation, so
+                                # every alternative but the last degrades to a
+                                # prefix match (CWE-625, #3242).
+                                regex = re.compile("^(?:" + value[1:-1] + ")$")
                                 if not regex.match(args_dict[name]):
                                     raise jsonrpc.exception_from_json(
                                         jsonrpc.UNAUTHORIZED,
