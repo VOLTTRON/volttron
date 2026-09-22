@@ -25,6 +25,7 @@ injected into sys.modules before spec.loader.exec_module() for the four
 relative imports that rpc.py needs (.base, ..results, ..decorators, zmq).
 """
 import importlib.util
+import logging
 import sys
 import types
 from pathlib import Path
@@ -126,26 +127,35 @@ _RealRPC = _rpc_mod.RPC
 #   self._owner.vip.auth.get_capabilities  -> callable returning cap dict
 # ---------------------------------------------------------------------------
 
-def _make_rpc_self(caller_caps, message_bus: str = "zmq") -> MagicMock:
+def _make_rpc_self(
+    caller_caps, message_bus: str = "zmq", enable_auth: bool = True
+) -> MagicMock:
     """
     Return a MagicMock shaped like the RPC subsystem object that
     _add_auth_check captures via closure.  caller_caps mirrors the dict
     returned by get_capabilities(user) in the live platform.
+
+    enable_auth defaults to True (auth enabled) so every existing caller
+    of this helper keeps enforcing, matching the value a MagicMock's
+    auto-created attribute would give before #3237 added the flag.
     """
     mock_self = MagicMock()
     mock_self._message_bus = message_bus
+    mock_self._enable_auth = enable_auth
     mock_self.context.vip_message.user = "test_caller"
     mock_self._owner.vip.auth.get_capabilities.return_value = caller_caps
     return mock_self
 
 
-def _make_auth_checked(method, required_caps, caller_caps, message_bus: str = "zmq"):
+def _make_auth_checked(
+    method, required_caps, caller_caps, message_bus: str = "zmq", enable_auth: bool = True
+):
     """
     Call the REAL RPC._add_auth_check with a mock self and return the
     wrapped method.  This is the production function from rpc.py, not a
     local replica.
     """
-    mock_self = _make_rpc_self(caller_caps, message_bus)
+    mock_self = _make_rpc_self(caller_caps, message_bus, enable_auth)
     return _RealRPC._add_auth_check(mock_self, method, required_caps)
 
 
@@ -331,6 +341,204 @@ class TestRpcAllowGate:
 
         assert called == [True], "clear_status body must run for capable caller"
         aip_mock.clear_status.assert_called_once_with(True)
+
+
+# ---------------------------------------------------------------------------
+# Tests: #3237, capability enforcement when authentication is disabled
+#
+# These build a real (non-MagicMock) owner/core-shaped object so that a
+# missing `vip.auth` attribute behaves as it does on the live platform
+# (AttributeError on access), rather than MagicMock's auto-vivified
+# attribute, per design.md assumption 4.
+# ---------------------------------------------------------------------------
+
+class _PlainOwnerNoAuth:
+    """An owner whose vip has no auth attribute, mirroring an agent built
+    with authentication disabled (Agent.Subsystems only creates vip.auth
+    when enable_auth is true)."""
+
+    def __init__(self):
+        self.vip = types.SimpleNamespace()
+
+
+class _RpcSelfStub:
+    """A minimal, real (non-Mock) RPC-shaped self carrying only the
+    attributes checked_method reads, for the construction-time enable_auth
+    flag."""
+
+    def __init__(self, owner, enable_auth, message_bus="zmq", user="test_caller"):
+        self._owner = owner
+        self._message_bus = message_bus
+        self._enable_auth = enable_auth
+        self.context = types.SimpleNamespace(
+            vip_message=types.SimpleNamespace(user=user)
+        )
+
+
+class _FakeSignal:
+    """No-op stand-in for a Core event signal (onsetup, onconnected, ...)."""
+
+    def connect(self, *args, **kwargs):
+        pass
+
+
+class _FakeCoreNoAuthFlag:
+    """Mimics the subset of Core that RPC.__init__ touches, deliberately
+    omitting enable_auth to exercise the fail-closed default (#3237)."""
+
+    messagebus = "zmq"
+    onsetup = _FakeSignal()
+    ondisconnected = _FakeSignal()
+    onconnected = _FakeSignal()
+
+    def register(self, *args, **kwargs):
+        pass
+
+
+class _NoExportsOwner:
+    pass
+
+
+class _IterateExportsStub:
+    """Carries only what _iterate_exports and _add_auth_check read, so the
+    real production methods can run against a hand-built export table
+    without a full RPC() construction."""
+
+    _add_auth_check = _RealRPC._add_auth_check
+    _iterate_exports = _RealRPC._iterate_exports
+
+    def __init__(self, exports, enable_auth):
+        self._exports = exports
+        self._enable_auth = enable_auth
+
+
+class TestRpcAuthDisabledCapabilityCheck:
+    """
+    Tests for the REAL RPC._add_auth_check and RPC._iterate_exports against
+    the #3237 constraints: skip enforcement when the serving agent's own
+    core says authentication is disabled, fail closed otherwise, and never
+    take the decision from the incoming message.
+    """
+
+    def test_auth_disabled_runs_body_and_returns_value_with_no_auth_subsystem(self):
+        """
+        Fails at d68dff037 with AttributeError: checked_method reaches
+        self._owner.vip.auth.get_capabilities(user) unconditionally, and
+        vip has no auth attribute here.
+        """
+        owner = _PlainOwnerNoAuth()
+        rpc_self = _RpcSelfStub(owner, enable_auth=False)
+        called = []
+
+        def install_agent(*args, **kwargs):
+            called.append(True)
+            return "body_ran"
+
+        checked = _RealRPC._add_auth_check(rpc_self, install_agent, {INSTALL_REMOVE_AGENTS})
+        result = checked()
+
+        assert called == [True], "method body must run once when auth is disabled"
+        assert result == "body_ran"
+
+    def test_auth_enabled_with_missing_auth_subsystem_raises_unauthorized_not_attributeerror(self):
+        """
+        Fails at d68dff037 with AttributeError for the same reason as
+        above. With auth enabled, a missing auth subsystem must fail
+        closed (UNAUTHORIZED), never leak AttributeError past the gate.
+        """
+        owner = _PlainOwnerNoAuth()
+        rpc_self = _RpcSelfStub(owner, enable_auth=True)
+        called = []
+
+        def install_agent(*args, **kwargs):
+            called.append(True)
+            return "body_ran"
+
+        checked = _RealRPC._add_auth_check(rpc_self, install_agent, {INSTALL_REMOVE_AGENTS})
+
+        with pytest.raises(jsonrpc.Error) as exc_info:
+            checked()
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == [], "method body must not run when the auth subsystem is missing"
+
+    def test_message_content_cannot_influence_enforcement_decision(self):
+        """
+        The enforcement decision must come only from self._enable_auth,
+        captured at construction, never from the incoming message. Vary
+        the message user; the auth-disabled outcome must not change.
+        """
+        owner = _PlainOwnerNoAuth()
+
+        for crafted_user in ("normal_agent", "enable_auth=False", "platform.auth"):
+            called = []
+
+            def install_agent(*args, **kwargs):
+                called.append(True)
+                return "body_ran"
+
+            rpc_self = _RpcSelfStub(owner, enable_auth=False, user=crafted_user)
+            checked = _RealRPC._add_auth_check(rpc_self, install_agent, {INSTALL_REMOVE_AGENTS})
+
+            assert checked() == "body_ran"
+            assert called == [True]
+
+    def test_missing_enable_auth_attribute_on_core_fails_closed(self):
+        """
+        Constructs a REAL RPC object against a core with no enable_auth
+        attribute. Fails at d68dff037 with AttributeError: RPC.__init__
+        never sets self._enable_auth there.
+        """
+        core = _FakeCoreNoAuthFlag()
+        owner = _NoExportsOwner()
+
+        rpc = _RealRPC(core, owner, MagicMock())
+
+        assert rpc._enable_auth is True, "an unreadable flag must enforce, not bypass"
+
+    def test_auth_disabled_agent_with_gated_export_logs_one_warning(self, caplog):
+        """
+        Fails at d68dff037: _iterate_exports never inspects enable_auth
+        and never logs, so 0 warnings are recorded, not 1.
+        """
+
+        def gated_method(self):
+            return "ran"
+
+        annotate(gated_method, set, "rpc.allow_capabilities", INSTALL_REMOVE_AGENTS)
+
+        stub = _IterateExportsStub({"gated_method": gated_method}, enable_auth=False)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub._iterate_exports()
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1, "exactly one warning, not one per gated method"
+        assert "gated_method" in warnings[0].getMessage()
+
+    def test_auth_enabled_agent_with_gated_export_logs_no_warning(self, caplog):
+        def gated_method(self):
+            return "ran"
+
+        annotate(gated_method, set, "rpc.allow_capabilities", INSTALL_REMOVE_AGENTS)
+
+        stub = _IterateExportsStub({"gated_method": gated_method}, enable_auth=True)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub._iterate_exports()
+
+        assert not [r for r in caplog.records if r.levelno == logging.WARNING]
+
+    def test_auth_disabled_agent_with_no_gated_exports_logs_no_warning(self, caplog):
+        def plain_method(self):
+            return "ran"
+
+        stub = _IterateExportsStub({"plain_method": plain_method}, enable_auth=False)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub._iterate_exports()
+
+        assert not [r for r in caplog.records if r.levelno == logging.WARNING]
 
 
 # ---------------------------------------------------------------------------
