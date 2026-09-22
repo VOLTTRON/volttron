@@ -31,3 +31,7 @@ the same across all the instances.
        not have any access restrictions
     3. You can still use ssl (https) for your web access
     4. Non auth mode is currently available only for ZMQ
+    5. With authentication disabled, capability requirements on RPC methods are not enforced. Each agent logs a
+       warning at startup naming the methods whose capability requirements go unenforced.
+    6. A parameter restriction on a gated method is matched against the whole value, so a value that differs from
+       an allowed one only by a trailing newline is refused where it was previously accepted.
