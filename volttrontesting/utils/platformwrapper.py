@@ -654,22 +654,41 @@ class PlatformWrapper:
             return True
 
     def _update_dynamic_agent_capabilities(self):
-        """Merge the control capabilities into an existing dynamic_agent
-        auth entry left over from a prior grant path or a reused
-        VOLTTRON_HOME, so a stale entry does not miss capabilities added
-        since it was written.
+        """Bring an existing dynamic_agent auth entry, left over from a
+        prior grant path or a reused VOLTTRON_HOME, up to exactly the
+        expected capability set, so a stale entry (missing a capability,
+        or still holding one that should not be there) does not diverge
+        from what a fresh grant would produce.
 
         Matches only the entry that already carries this harness's own
         dynamic_agent keystore key, and changes only its capabilities: an
-        entry with the same user_id but a different key is left untouched.
+        entry with the same user_id but a different key is left
+        untouched. Writes by index rather than through AuthFile.add,
+        because add() re-resolves the write target by user_id alone and
+        would hit the first same-user_id entry rather than the one just
+        matched by key. Uses explicit paths under self.volttron_home
+        instead of KeyStore/AuthFile's environment-derived defaults, so a
+        caller outside this instance's own environment context cannot
+        make it touch another VOLTTRON_HOME.
         """
-        ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
-        authfile = AuthFile()
-        for entry in authfile.read_allow_entries():
+        ks = KeyStore(os.path.join(self.volttron_home, "keystores", "dynamic_agent", "keystore.json"))
+        authfile = AuthFile(os.path.join(self.volttron_home, "auth.json"))
+        for index, entry in enumerate(authfile.read_allow_entries()):
             if entry.user_id == "dynamic_agent" and entry.credentials == ks.public:
-                entry.add_capabilities(_dynamic_agent_capabilities())
-                authfile.add(entry, overwrite=True)
+                expected = _dynamic_agent_capabilities()
+                if entry.capabilities == expected:
+                    return
+                # Assigned rather than merged in place: entry.capabilities
+                # aliases the AuthFile's own cached snapshot, so mutating
+                # it in place would corrupt a re-read of an unrelated
+                # entry sharing that snapshot.
+                entry.capabilities = expected
+                authfile.update_by_index(entry, index)
                 return
+        _log.warning(
+            "No dynamic_agent auth entry matched this instance's own "
+            "keystore key in %s; control capabilities were not granted.",
+            self.volttron_home)
 
     file_types = Union[Literal["raw"], Literal["json"], Literal["csv"]]
 

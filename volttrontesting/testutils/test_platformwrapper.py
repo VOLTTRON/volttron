@@ -22,7 +22,9 @@
 # ===----------------------------------------------------------------------===
 # }}}
 from configparser import ConfigParser
+import logging
 import shutil
+import tempfile
 import time
 import os
 
@@ -54,7 +56,8 @@ def test_can_create(messagebus, ssl_auth):
 from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttron.platform.agent.known_identities import (CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS,
-                                                       START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
+                                                       START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS,
+                                                       CONTROL)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 
@@ -493,7 +496,9 @@ def test_update_dynamic_agent_capabilities_merges_stale_entry():
         assert entries[0].capabilities == _expected_dynamic_agent_capabilities()
     finally:
         p.skip_cleanup = True
-        shutil.rmtree(p.volttron_home, ignore_errors=True)
+        # volttron_home is <mkdtemp>/volttron_home; remove the mkdtemp
+        # parent too, or an empty directory leaks per run.
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
 
 
 @pytest.mark.wrapper
@@ -523,7 +528,7 @@ def test_update_dynamic_agent_capabilities_leaves_different_key_entry_untouched(
         assert entries[0].credentials == impostor_ks.public
     finally:
         p.skip_cleanup = True
-        shutil.rmtree(p.volttron_home, ignore_errors=True)
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
 
 
 @pytest.mark.wrapper
@@ -559,5 +564,218 @@ def test_remove_all_agents_removes_installed_agent():
         p.remove_all_agents()
 
         assert p.list_agents() == []
+    finally:
+        p.shutdown_platform()
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_matches_by_index_not_first_user_id():
+    """Security constraint: the write must land on the entry that matched
+    by user_id AND key, not on whatever entry AuthFile.add would find
+    first by user_id alone. AuthFile.add() itself refuses to add a second
+    entry sharing a user_id, so this seeds both entries directly: the
+    shape a hand-written or externally modified auth.json can produce."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+            impostor_ks = KeyStore(KeyStore.get_agent_keystore_path("impostor"))
+            foreign_capabilities = dict(edit_config_store=dict(identity="/.*/"))
+            authfile = AuthFile()
+            authfile._write(
+                [AuthEntry(user_id="dynamic_agent", identity="dynamic_agent",
+                          credentials=impostor_ks.public,
+                          capabilities=dict(foreign_capabilities),
+                          comments="foreign entry, seeded first"),
+                 AuthEntry(user_id="dynamic_agent", identity="dynamic_agent",
+                          credentials=ks.public,
+                          capabilities=dict(edit_config_store=dict(identity="/.*/"),
+                                            allow_auth_modifications=None),
+                          comments="harness entry, seeded second")],
+                [], {}, {})
+
+            p._update_dynamic_agent_capabilities()
+
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+        assert len(entries) == 2
+        foreign = [e for e in entries if e.credentials == impostor_ks.public]
+        assert len(foreign) == 1
+        assert foreign[0].capabilities == foreign_capabilities
+        harness = [e for e in entries if e.credentials == ks.public]
+        assert len(harness) == 1
+        assert harness[0].capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_only_touches_instance_home():
+    """Security constraint: the update acts on self.volttron_home, never
+    on whatever VOLTTRON_HOME happens to be set in the process
+    environment. Calling it with a different VOLTTRON_HOME active must
+    not create or change any auth file or keystore under that other
+    home, and must still correctly update the instance's own home."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    other_home = tempfile.mkdtemp(prefix="other_home_", dir=os.environ.get("TMPDIR"))
+    try:
+        with with_os_environ(p.env):
+            ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+            AuthFile().add(AuthEntry(
+                user_id="dynamic_agent",
+                identity="dynamic_agent",
+                credentials=ks.public,
+                capabilities=dict(edit_config_store=dict(identity="/.*/"),
+                                  allow_auth_modifications=None),
+                comments="stale entry seeded for test"))
+
+        os.environ["VOLTTRON_HOME"] = other_home
+        p._update_dynamic_agent_capabilities()
+
+        assert not os.path.exists(os.path.join(other_home, "auth.json")), \
+            "auth.json was created outside the instance home"
+        assert not os.path.exists(os.path.join(other_home, "keystores")), \
+            "a keystore was created outside the instance home"
+
+        with with_os_environ(p.env):
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+        assert len(entries) == 1
+        assert entries[0].capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        os.environ.pop("VOLTTRON_HOME", None)
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+        shutil.rmtree(other_home, ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_drops_stale_driver_capability():
+    """Criterion 5 and security constraint 3: no harness identity may
+    hold driver_write. A stale entry that already carries it must end up
+    holding exactly the expected set, not the expected set plus
+    driver_write."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+            stale = dict(edit_config_store=dict(identity="/.*/"),
+                        allow_auth_modifications=None,
+                        driver_write=None)
+            AuthFile().add(AuthEntry(
+                user_id="dynamic_agent",
+                identity="dynamic_agent",
+                credentials=ks.public,
+                capabilities=dict(stale),
+                comments="stale entry holding driver_write"))
+
+            p._update_dynamic_agent_capabilities()
+
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+        assert len(entries) == 1
+        assert entries[0].capabilities == _expected_dynamic_agent_capabilities()
+        assert "driver_write" not in entries[0].capabilities
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_widens_scoped_edit_config_store():
+    """Criterion 1: edit_config_store must end up scoped to '/.*/'. A
+    stale entry whose edit_config_store is scoped to its own identity
+    (narrower than expected) must be widened to the exact expected
+    value, not left as a subset that happens to satisfy a merge."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+            stale = dict(edit_config_store=dict(identity="dynamic_agent"),
+                        allow_auth_modifications=None)
+            AuthFile().add(AuthEntry(
+                user_id="dynamic_agent",
+                identity="dynamic_agent",
+                credentials=ks.public,
+                capabilities=dict(stale),
+                comments="stale entry, edit_config_store scoped to its own identity"))
+
+            p._update_dynamic_agent_capabilities()
+
+            entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
+        assert len(entries) == 1
+        assert entries[0].capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_logs_when_no_entry_matches(caplog):
+    """When no dynamic_agent entry matches this instance's own keystore
+    key (a fresh VOLTTRON_HOME with no pre-seed run, or a regenerated
+    keystore), the harness silently ran with too few privileges before
+    this warning. The message names the identity and the home so the
+    cause is visible instead of surfacing later as unrelated refusals."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env), caplog.at_level(logging.WARNING):
+            p._update_dynamic_agent_capabilities()
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert warnings, "no warning logged when no entry matched"
+        assert "dynamic_agent" in warnings[0].getMessage()
+        assert p.volttron_home in warnings[0].getMessage()
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_skips_write_when_already_exact():
+    """Once the entry already holds exactly the expected capabilities
+    (the fresh pre-seed path always leaves it that way), calling the
+    update again must not rewrite auth.json: previously it was an
+    unconditional rewrite plus a fixed sleep, on every auth-enabled
+    startup, for a merge guaranteed to change nothing."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
+            AuthFile().add(AuthEntry(
+                user_id="dynamic_agent",
+                identity="dynamic_agent",
+                credentials=ks.public,
+                capabilities=_expected_dynamic_agent_capabilities(),
+                comments="already exact"))
+
+            auth_path = os.path.join(p.volttron_home, "auth.json")
+            before = os.stat(auth_path).st_mtime_ns
+
+            p._update_dynamic_agent_capabilities()
+
+        assert os.stat(auth_path).st_mtime_ns == before, "auth.json was rewritten for a no-op merge"
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_dynamic_agent_start_stop_agents_capability_exercised():
+    """CLEAR_AGENT_STATUS, START_STOP_AGENTS, STOP_PLATFORM and TAG_AGENTS
+    are otherwise pinned only by equality against a hand-written copy of
+    the expected set; only INSTALL_REMOVE_AGENTS is exercised through the
+    platform. This calls a start_stop_agents-gated control method
+    directly through dynamic_agent's own RPC connection, the same route
+    shutdown_platform and prioritize_agent use, and asserts the call is
+    not refused and the agent's running state changed."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        auuid = p.install_agent(agent_dir=get_examples("ListenerAgent"), start=False)
+        assert not p.is_agent_running(auuid)
+
+        p.dynamic_agent.vip.rpc(CONTROL, 'start_agent', auuid).get(timeout=10)
+        gevent.sleep(3)
+
+        assert p.is_agent_running(auuid)
     finally:
         p.shutdown_platform()
