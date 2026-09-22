@@ -548,6 +548,25 @@ class TestRpcAuthDisabledCapabilityCheck:
         assert "not a bool" in errors[0].getMessage()
         assert rpc._enable_auth is True
 
+    def test_nonbool_enable_auth_value_is_not_echoed_in_the_log(self, caplog):
+        """
+        The misconfiguration log names the type, not the raw value: a
+        secret mis-keyed into enable-auth must not be echoed to the
+        agent log (security re-review finding 10).
+        """
+        core = _FakeCoreNoAuthFlag()
+        core.enable_auth = "hunter2-secret-token"
+        owner = _NoExportsOwner()
+
+        with caplog.at_level(logging.ERROR, logger=_rpc_mod._log.name):
+            rpc = _RealRPC(core, owner, MagicMock())
+
+        errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(errors) == 1
+        assert "hunter2-secret-token" not in errors[0].getMessage()
+        assert "not a bool" in errors[0].getMessage()
+        assert rpc._enable_auth is True
+
     def test_environment_and_core_mutation_after_construction_cannot_reopen_a_skip(self):
         """
         Fails against a mutant that re-reads AUTH_ENABLED or the live
@@ -725,6 +744,45 @@ class TestRpcAuthDisabledCapabilityCheck:
 
         with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
             stub._iterate_exports()
+
+        assert not [r for r in caplog.records if r.levelno == logging.WARNING]
+
+    def test_dynamic_allow_with_method_object_on_auth_disabled_agent_logs_a_warning(self, caplog):
+        """
+        Fails against a mutant that drops the method-object branch's name
+        capture (gated_method_name = None): the warning then disappears
+        for every caller granting a capability with a method object
+        instead of a string alias, which is the form the in-tree auth
+        tests use (coverage re-review finding at rpc.py:738, mutant M6).
+        """
+        def install_agent(self):
+            return "ran"
+
+        stub = _IterateExportsStub({}, enable_auth=False)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub.allow(install_agent, INSTALL_REMOVE_AGENTS)
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert warnings[0].getMessage() == (
+            "authentication is disabled: capability requirements for "
+            "1 exported method(s) are not enforced: install_agent"
+        )
+        checked = stub._exports["install_agent"]
+        assert checked(stub) == "ran"
+
+    def test_dynamic_allow_with_unresolved_alias_on_auth_disabled_agent_logs_no_warning(self, caplog):
+        """
+        Fails against a mutant that drops the `gated_method_name and`
+        guard: a failed alias lookup then still reaches the warning call
+        with gated_method_name unset, naming a method that was never
+        gated (coverage re-review finding at rpc.py:743, mutant M16).
+        """
+        stub = _IterateExportsStub({}, enable_auth=False)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub.allow("not_an_export", INSTALL_REMOVE_AGENTS)
 
         assert not [r for r in caplog.records if r.levelno == logging.WARNING]
 
