@@ -26,6 +26,7 @@ relative imports that rpc.py needs (.base, ..results, ..decorators, zmq).
 """
 import importlib.util
 import logging
+import os
 import sys
 import types
 from pathlib import Path
@@ -406,6 +407,10 @@ class _IterateExportsStub:
 
     _add_auth_check = _RealRPC._add_auth_check
     _iterate_exports = _RealRPC._iterate_exports
+    _warn_unenforced_capabilities = _RealRPC._warn_unenforced_capabilities
+    # allow() is a dualmethod descriptor; .finstance is the plain instance
+    # function it wraps, the same one a real RPC instance dispatches to.
+    allow = _RealRPC.__dict__["allow"].finstance
 
     def __init__(self, exports, enable_auth):
         self._exports = exports
@@ -495,6 +500,189 @@ class TestRpcAuthDisabledCapabilityCheck:
         rpc = _RealRPC(core, owner, MagicMock())
 
         assert rpc._enable_auth is True, "an unreadable flag must enforce, not bypass"
+
+    @pytest.mark.parametrize(
+        "raw_value, expect_enforced",
+        [
+            (False, False),
+            (True, True),
+            (None, True),
+            (0, True),
+            ("", True),
+            ("False", True),
+            ("false", True),
+            (1, True),
+        ],
+    )
+    def test_falsy_and_nonbool_enable_auth_values_through_real_constructor(
+        self, raw_value, expect_enforced
+    ):
+        """
+        Fails at 6aebfcb0d for None, 0 and "": a bare getattr capture
+        treats any falsy value as disabled, though only a real bool
+        False should. Kills a mutant hardcoding the capture to True.
+        """
+        core = _FakeCoreNoAuthFlag()
+        core.enable_auth = raw_value
+        owner = _NoExportsOwner()
+
+        rpc = _RealRPC(core, owner, MagicMock())
+
+        assert rpc._enable_auth is expect_enforced
+
+    def test_nonbool_enable_auth_value_is_reported_not_guessed(self, caplog):
+        """
+        A config value that reaches core.enable_auth without ever being a
+        real bool (config values arrive unparsed) is logged, not
+        silently guessed at in either direction.
+        """
+        core = _FakeCoreNoAuthFlag()
+        core.enable_auth = "False"
+        owner = _NoExportsOwner()
+
+        with caplog.at_level(logging.ERROR, logger=_rpc_mod._log.name):
+            rpc = _RealRPC(core, owner, MagicMock())
+
+        errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(errors) == 1
+        assert "not a bool" in errors[0].getMessage()
+        assert rpc._enable_auth is True
+
+    def test_environment_and_core_mutation_after_construction_cannot_reopen_a_skip(self):
+        """
+        Fails against a mutant that re-reads AUTH_ENABLED or the live
+        core at call time: the captured skip must survive both being
+        changed back to enabled after construction.
+        """
+        core = _FakeCoreNoAuthFlag()
+        core.enable_auth = False
+        owner = _PlainOwnerNoAuth()
+        rpc = _RealRPC(core, owner, MagicMock())
+
+        def install_agent(*args, **kwargs):
+            return "body_ran"
+
+        checked = _RealRPC._add_auth_check(rpc, install_agent, {INSTALL_REMOVE_AGENTS})
+
+        os.environ["AUTH_ENABLED"] = "True"
+        core.enable_auth = True
+        try:
+            assert checked() == "body_ran", (
+                "a captured skip must not be reopened by a later "
+                "environment or core change"
+            )
+        finally:
+            del os.environ["AUTH_ENABLED"]
+
+    def test_environment_and_core_mutation_after_construction_cannot_open_a_gate(self):
+        """
+        Fails against a mutant that re-reads AUTH_ENABLED or the live
+        core at call time: a captured enforce must survive both being
+        changed back to disabled after construction.
+        """
+        core = _FakeCoreNoAuthFlag()
+        core.enable_auth = True
+        owner = _PlainOwnerNoAuth()
+        rpc = _RealRPC(core, owner, MagicMock())
+        # The real setup() callback (which sets this) never fires without
+        # a live core signal; supply what checked_method reads directly.
+        rpc.context = types.SimpleNamespace(
+            vip_message=types.SimpleNamespace(user="test_caller")
+        )
+        called = []
+
+        def install_agent(*args, **kwargs):
+            called.append(True)
+            return "body_ran"
+
+        checked = _RealRPC._add_auth_check(rpc, install_agent, {INSTALL_REMOVE_AGENTS})
+
+        os.environ["AUTH_ENABLED"] = "False"
+        core.enable_auth = False
+        try:
+            with pytest.raises(jsonrpc.Error) as exc_info:
+                checked()
+        finally:
+            del os.environ["AUTH_ENABLED"]
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == [], "a captured enforce must not be opened by a later change"
+
+    def test_auth_disabled_agent_with_two_gated_exports_logs_exact_warning(self, caplog):
+        """
+        Kills a mutant that reports the wrong count, only the first
+        method name, or appends a server key and VIP address (security
+        constraint 4 forbids identifying detail in this warning).
+        """
+        def gated_a(self):
+            return "ran"
+
+        def gated_b(self):
+            return "ran"
+
+        def plain_method(self):
+            return "ran"
+
+        annotate(gated_a, set, "rpc.allow_capabilities", INSTALL_REMOVE_AGENTS)
+        annotate(gated_b, set, "rpc.allow_capabilities", START_STOP_AGENTS)
+
+        # A third, ungated export is present so a mutant reporting
+        # len(self._exports) instead of len(gated_method_names) diverges
+        # from the correct count of 2.
+        stub = _IterateExportsStub(
+            {
+                "gated_b": gated_b,
+                "gated_a": gated_a,
+                "plain_method": plain_method,
+            },
+            enable_auth=False,
+        )
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub._iterate_exports()
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert warnings[0].getMessage() == (
+            "authentication is disabled: capability requirements for "
+            "2 exported method(s) are not enforced: gated_a, gated_b"
+        )
+
+    def test_dynamic_allow_on_auth_disabled_agent_logs_a_warning(self, caplog):
+        """
+        Fails at 6aebfcb0d: allow() wraps the method directly and never
+        re-enters _iterate_exports, so a capability granted this way
+        after construction skips enforcement with zero warnings.
+        """
+        def config_update(self):
+            return "ran"
+
+        stub = _IterateExportsStub({"config_update": config_update}, enable_auth=False)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub.allow("config_update", "sync_agent_config")
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert warnings[0].getMessage() == (
+            "authentication is disabled: capability requirements for "
+            "1 exported method(s) are not enforced: config_update"
+        )
+        # The dynamic path still enforces the skip itself, not only the warning.
+        checked = stub._exports["config_update"]
+        assert checked(stub) == "ran"
+
+    def test_dynamic_allow_on_auth_enabled_agent_logs_no_warning(self, caplog):
+        """Control: the new allow() warning does not fire when auth is enabled."""
+        def config_update(self):
+            return "ran"
+
+        stub = _IterateExportsStub({"config_update": config_update}, enable_auth=True)
+
+        with caplog.at_level(logging.WARNING, logger=_rpc_mod._log.name):
+            stub.allow("config_update", "sync_agent_config")
+
+        assert not [r for r in caplog.records if r.levelno == logging.WARNING]
 
     def test_auth_disabled_agent_with_gated_export_logs_one_warning(self, caplog):
         """
@@ -602,6 +790,65 @@ class TestParameterRestrictionRegexAnchoring:
 
         with pytest.raises(jsonrpc.Error) as exc_info:
             checked(identity="platform.driverEVIL")
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == []
+
+    def test_alternation_restriction_rejects_trailing_newline_residue(self):
+        """
+        Fails at 6aebfcb0d: re.match's "$" matches before a final
+        newline, so an identity with a newline appended still passes.
+        """
+        caps = {"edit_config_store": {"identity": "/platform.driver|platform.actuator/"}}
+        called = []
+
+        def manage_store(identity):
+            called.append(True)
+            return "wrote"
+
+        checked = _make_auth_checked(manage_store, {"edit_config_store"}, caps)
+
+        with pytest.raises(jsonrpc.Error) as exc_info:
+            checked(identity="platform.driver\n")
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == [], "a trailing newline must not slip past full-string anchoring"
+
+    def test_alternation_restriction_accepts_middle_and_last_alternatives(self):
+        """
+        Fails against a mutant that keeps only the first "|" alternative
+        (value[1:-1].split("|")[0]): the middle and last alternatives
+        would then be wrongly refused.
+        """
+        caps = {"edit_config_store": {"identity": "/aaa|bbb|ccc/"}}
+
+        for identity in ("bbb", "ccc"):
+            called = []
+
+            def manage_store(identity):
+                called.append(True)
+                return "wrote"
+
+            checked = _make_auth_checked(manage_store, {"edit_config_store"}, caps)
+            result = checked(identity=identity)
+
+            assert called == [True], f"{identity!r} is a legitimate alternative"
+            assert result == "wrote"
+
+    def test_alternation_restriction_rejects_value_extending_a_middle_alternative(self):
+        """Control for the mutant above: an out-of-scope value built from
+        the middle alternative is still refused."""
+        caps = {"edit_config_store": {"identity": "/aaa|bbb|ccc/"}}
+        called = []
+
+        def manage_store(identity):
+            called.append(True)
+            return "wrote"
+
+        checked = _make_auth_checked(manage_store, {"edit_config_store"}, caps)
+
+        with pytest.raises(jsonrpc.Error) as exc_info:
+            checked(identity="bbbXXX")
 
         assert exc_info.value.code == jsonrpc.UNAUTHORIZED
         assert called == []

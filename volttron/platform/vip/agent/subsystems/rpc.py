@@ -213,9 +213,19 @@ class RPC(SubsystemBase):
     def __init__(self, core, owner, peerlist_subsys):
         self.core = weakref.ref(core)
         self._owner = owner
-        # Captured once from the serving agent's own core, never re-read
-        # at call time; an unreadable flag enforces (#3237).
-        self._enable_auth = getattr(core, "enable_auth", True)
+        # Captured once here, never re-read at call time (#3237). Only a
+        # real bool False skips enforcement; anything else, present or
+        # absent, enforces, and a non-bool value is logged as misconfigured.
+        raw_enable_auth = getattr(core, "enable_auth", True)
+        if isinstance(raw_enable_auth, bool):
+            self._enable_auth = raw_enable_auth
+        else:
+            _log.error(
+                "core.enable_auth is %r (%s), not a bool; enforcing "
+                "capability checks",
+                raw_enable_auth, type(raw_enable_auth).__name__,
+            )
+            self._enable_auth = True
         self.context = None
         self._exports = {}
         self._dispatcher = None
@@ -288,12 +298,18 @@ class RPC(SubsystemBase):
         # Auth-disabled agents never enforce capability checks (#3237);
         # warn once at startup instead of silently widening access.
         if gated_method_names and not self._enable_auth:
-            _log.warning(
-                "authentication is disabled: capability requirements for "
-                "%d exported method(s) are not enforced: %s",
-                len(gated_method_names),
-                ", ".join(sorted(gated_method_names)),
-            )
+            self._warn_unenforced_capabilities(gated_method_names)
+
+    def _warn_unenforced_capabilities(self, method_names):
+        # Shared by _iterate_exports and allow() so a capability granted
+        # either before or after construction gets the same warning shape
+        # (count and sorted method names only, per #3237 constraint 4).
+        _log.warning(
+            "authentication is disabled: capability requirements for "
+            "%d exported method(s) are not enforced: %s",
+            len(method_names),
+            ", ".join(sorted(method_names)),
+        )
 
     def _add_auth_check(self, method, required_caps):
         """
@@ -302,10 +318,8 @@ class RPC(SubsystemBase):
         """
 
         def checked_method(*args, **kwargs):
-            # With authentication disabled no caller is verified, so a
-            # capability check cannot identify who is calling; enforcement
-            # is skipped here and logged once per agent in
-            # _iterate_exports (#3237).
+            # Enforcement is skipped here when disabled; a startup or
+            # allow()-time warning names the affected method (#3237).
             if not self._enable_auth:
                 return method(*args, **kwargs)
 
@@ -378,12 +392,13 @@ class RPC(SubsystemBase):
                                     ),
                                 )
                             if _isregex(value):
-                                # A bare "^" + pattern + "$" loses full-string
-                                # anchoring on a top-level "|" alternation, so
-                                # every alternative but the last degrades to a
-                                # prefix match (CWE-625, #3242).
+                                # "(?:...)" restores full-string anchoring
+                                # across a top-level "|" alternation
+                                # (CWE-625, #3242); fullmatch, not match,
+                                # also refuses a trailing newline that a
+                                # bare "$" would let through (#3237).
                                 regex = re.compile("^(?:" + value[1:-1] + ")$")
-                                if not regex.match(args_dict[name]):
+                                if not regex.fullmatch(args_dict[name]):
                                     raise jsonrpc.exception_from_json(
                                         jsonrpc.UNAUTHORIZED,
                                         "User {} can call method {} only "
@@ -710,15 +725,23 @@ class RPC(SubsystemBase):
         else:
             cap = set(capabilities)
         # Necessary if you have provided an alias for the rpc method.
+        gated_method_name = None
         if isinstance(method, str):
             if method in self._exports:
                 self._exports[method] = self._add_auth_check(
                     self._exports[method], cap
                 )
+                gated_method_name = method
             else:
                 _log.error("Method alias is not in RPC export list.")
         else:
-            self._exports[method.__name__] = self._add_auth_check(method, cap)
+            gated_method_name = method.__name__
+            self._exports[gated_method_name] = self._add_auth_check(method, cap)
+        # _iterate_exports only warns about methods gated before
+        # construction finishes; a capability granted afterward through
+        # this method needs its own warning (#3237).
+        if gated_method_name and not self._enable_auth:
+            self._warn_unenforced_capabilities([gated_method_name])
 
     @allow.classmethod
     def allow(cls, capabilities):
