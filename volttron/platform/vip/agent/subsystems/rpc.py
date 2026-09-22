@@ -213,6 +213,9 @@ class RPC(SubsystemBase):
     def __init__(self, core, owner, peerlist_subsys):
         self.core = weakref.ref(core)
         self._owner = owner
+        # Captured once from the serving agent's own core, never re-read
+        # at call time; an unreadable flag enforces (#3237).
+        self._enable_auth = getattr(core, "enable_auth", True)
         self.context = None
         self._exports = {}
         self._dispatcher = None
@@ -275,11 +278,22 @@ class RPC(SubsystemBase):
         Iterates over exported methods and adds authorization checks
         as necessary
         """
+        gated_method_names = []
         for method_name in self._exports:
             method = self._exports[method_name]
             caps = annotations(method, set, "rpc.allow_capabilities")
             if caps:
                 self._exports[method_name] = self._add_auth_check(method, caps)
+                gated_method_names.append(method_name)
+        # Auth-disabled agents never enforce capability checks (#3237);
+        # warn once at startup instead of silently widening access.
+        if gated_method_names and not self._enable_auth:
+            _log.warning(
+                "authentication is disabled: capability requirements for "
+                "%d exported method(s) are not enforced: %s",
+                len(gated_method_names),
+                ", ".join(sorted(gated_method_names)),
+            )
 
     def _add_auth_check(self, method, required_caps):
         """
@@ -288,12 +302,31 @@ class RPC(SubsystemBase):
         """
 
         def checked_method(*args, **kwargs):
+            # With authentication disabled no caller is verified, so a
+            # capability check cannot identify who is calling; enforcement
+            # is skipped here and logged once per agent in
+            # _iterate_exports (#3237).
+            if not self._enable_auth:
+                return method(*args, **kwargs)
+
             user = str(self.context.vip_message.user)
             if self._message_bus == "rmq":
                 # remove platform instance name. rmq user names are of the format <instance name>.<user>
                 user = user[user.index(".")+1:]
 
-            user_capabilites = self._owner.vip.auth.get_capabilities(user)
+            # Authentication is enabled but the auth subsystem did not
+            # attach to this agent; fail closed instead of letting
+            # AttributeError leak past the gate (#3237).
+            auth = getattr(self._owner.vip, "auth", None)
+            if auth is None:
+                raise jsonrpc.exception_from_json(
+                    jsonrpc.UNAUTHORIZED,
+                    "method '{}' requires capabilities {}, but the auth "
+                    "subsystem is not available for user {}".format(
+                        method.__name__, required_caps, user
+                    ),
+                )
+            user_capabilites = auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
             if user_capabilites:
                 user_capabilities_names = set(user_capabilites.keys())
