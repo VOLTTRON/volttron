@@ -231,6 +231,10 @@ The auth.json file entry for the above command would be:
       "comments": null
     }
 
+A parameter value is matched against the whole value, so a value that differs from an allowed one only by a
+trailing newline is refused. A pattern that holds a top-level alternation anchors each alternative on its
+own; previously, every alternative but the last matched only as a prefix of the value.
+
 
 .. _Protected-Topics:
 
