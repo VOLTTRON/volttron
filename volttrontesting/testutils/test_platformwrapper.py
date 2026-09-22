@@ -31,7 +31,7 @@ import os
 import grequests
 import gevent
 import pytest
-from mock import MagicMock
+from mock import MagicMock, patch
 from volttrontesting.skip_if_handlers import rmq_skipif
 
 @pytest.mark.parametrize("messagebus, ssl_auth", [
@@ -472,6 +472,27 @@ def test_dynamic_agent_entry_created_when_auth_file_preexists():
 
 
 @pytest.mark.wrapper
+def test_startup_skips_dynamic_agent_capability_update_when_auth_disabled():
+    """Security constraint: the grant runs only when the instance has
+    authentication enabled. On an auth-disabled instance, startup_platform
+    must not create an auth.json or a dynamic_agent keystore: both
+    KeyStore(path) and AuthFile(path) create the file at that path when
+    missing, so calling the update at all is enough to fail this."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=False)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+
+        auth_path = os.path.join(p.volttron_home, "auth.json")
+        keystore_dir = os.path.join(p.volttron_home, "keystores", "dynamic_agent")
+        assert not os.path.exists(auth_path), \
+            "auth.json was created on an auth-disabled instance"
+        assert not os.path.exists(keystore_dir), \
+            "a dynamic_agent keystore was created on an auth-disabled instance"
+    finally:
+        p.shutdown_platform()
+
+
+@pytest.mark.wrapper
 def test_update_dynamic_agent_capabilities_merges_stale_entry():
     """A dynamic_agent entry already on disk under this harness's own
     keystore key, but missing the control capabilities, is merged up to
@@ -618,6 +639,8 @@ def test_update_dynamic_agent_capabilities_only_touches_instance_home():
     home, and must still correctly update the instance's own home."""
     p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
     other_home = tempfile.mkdtemp(prefix="other_home_", dir=os.environ.get("TMPDIR"))
+    home_was_set = "VOLTTRON_HOME" in os.environ
+    home_prior_value = os.environ.get("VOLTTRON_HOME")
     try:
         with with_os_environ(p.env):
             ks = KeyStore(KeyStore.get_agent_keystore_path("dynamic_agent"))
@@ -629,20 +652,29 @@ def test_update_dynamic_agent_capabilities_only_touches_instance_home():
                                   allow_auth_modifications=None),
                 comments="stale entry seeded for test"))
 
-        os.environ["VOLTTRON_HOME"] = other_home
-        p._update_dynamic_agent_capabilities()
+        with with_os_environ({"VOLTTRON_HOME": other_home}):
+            p._update_dynamic_agent_capabilities()
 
-        assert not os.path.exists(os.path.join(other_home, "auth.json")), \
-            "auth.json was created outside the instance home"
-        assert not os.path.exists(os.path.join(other_home, "keystores")), \
-            "a keystore was created outside the instance home"
+            assert not os.path.exists(os.path.join(other_home, "auth.json")), \
+                "auth.json was created outside the instance home"
+            assert not os.path.exists(os.path.join(other_home, "keystores")), \
+                "a keystore was created outside the instance home"
+
+        # Guard the restore itself: a caller in the same process outside
+        # any with_os_environ block must see VOLTTRON_HOME exactly as it
+        # was before this test, set or unset.
+        if home_was_set:
+            assert os.environ.get("VOLTTRON_HOME") == home_prior_value, \
+                "VOLTTRON_HOME was not restored to its prior value"
+        else:
+            assert "VOLTTRON_HOME" not in os.environ, \
+                "VOLTTRON_HOME was left set after the test"
 
         with with_os_environ(p.env):
             entries = [e for e in AuthFile().read_allow_entries() if e.user_id == "dynamic_agent"]
         assert len(entries) == 1
         assert entries[0].capabilities == _expected_dynamic_agent_capabilities()
     finally:
-        os.environ.pop("VOLTTRON_HOME", None)
         p.skip_cleanup = True
         shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
         shutil.rmtree(other_home, ignore_errors=True)
@@ -684,7 +716,12 @@ def test_update_dynamic_agent_capabilities_widens_scoped_edit_config_store():
     """Criterion 1: edit_config_store must end up scoped to '/.*/'. A
     stale entry whose edit_config_store is scoped to its own identity
     (narrower than expected) must be widened to the exact expected
-    value, not left as a subset that happens to satisfy a merge."""
+    value. This does not pin assign over merge: a merge that overrides
+    with the expected value for keys the expected set already names
+    widens edit_config_store the same way, so it also passes here.
+    test_update_dynamic_agent_capabilities_drops_stale_driver_capability
+    is what pins assign, through driver_write, a key expected does not
+    name."""
     p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
     try:
         with with_os_environ(p.env):
@@ -714,16 +751,51 @@ def test_update_dynamic_agent_capabilities_logs_when_no_entry_matches(caplog):
     key (a fresh VOLTTRON_HOME with no pre-seed run, or a regenerated
     keystore), the harness silently ran with too few privileges before
     this warning. The message names the identity and the home so the
-    cause is visible instead of surfacing later as unrelated refusals."""
+    cause is visible instead of surfacing later as unrelated refusals.
+    Searches every captured WARNING record rather than the first: an
+    unrelated warning logged earlier in the block must not hide this
+    one, so one is logged here on purpose."""
     p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
     try:
         with with_os_environ(p.env), caplog.at_level(logging.WARNING):
+            logging.getLogger(__name__).warning("unrelated warning logged first")
             p._update_dynamic_agent_capabilities()
 
-        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert warnings, "no warning logged when no entry matched"
-        assert "dynamic_agent" in warnings[0].getMessage()
-        assert p.volttron_home in warnings[0].getMessage()
+        warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("dynamic_agent" in m for m in warnings), \
+            "no warning naming dynamic_agent logged when no entry matched"
+        assert any(p.volttron_home in m for m in warnings), \
+            "no warning naming the instance home logged when no entry matched"
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_update_dynamic_agent_capabilities_warning_is_accurate_before_preseed_grant(caplog):
+    """The pre-existing-auth.json startup path skips the pre-seed and
+    calls this method before build_agent grants the dynamic_agent entry:
+    at that point no entry has matched yet, but the grant has not
+    failed, it has not happened yet. The warning text must not claim
+    the grant failed on this legitimate path."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        with with_os_environ(p.env):
+            other_ks = KeyStore(KeyStore.get_agent_keystore_path("other_identity"))
+            AuthFile().add(AuthEntry(
+                user_id="other_identity",
+                identity="other_identity",
+                credentials=other_ks.public,
+                capabilities=dict(edit_config_store=dict(identity="other_identity")),
+                comments="seeded so the auth file is not brand new"))
+
+            with caplog.at_level(logging.WARNING):
+                p._update_dynamic_agent_capabilities()
+
+        warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+        assert warnings, "expected a warning when no dynamic_agent entry matches yet"
+        assert not any("were not granted" in m for m in warnings), \
+            "warning claimed the grant failed, though build_agent grants it later on this path"
     finally:
         p.skip_cleanup = True
         shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
@@ -735,7 +807,10 @@ def test_update_dynamic_agent_capabilities_skips_write_when_already_exact():
     (the fresh pre-seed path always leaves it that way), calling the
     update again must not rewrite auth.json: previously it was an
     unconditional rewrite plus a fixed sleep, on every auth-enabled
-    startup, for a merge guaranteed to change nothing."""
+    startup, for a merge guaranteed to change nothing. Asserted through
+    a patched AuthFile._write, which cannot be defeated by filesystem
+    timestamp granularity the way an mtime-only check can; the mtime
+    and content checks are kept alongside it."""
     p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
     try:
         with with_os_environ(p.env):
@@ -749,9 +824,16 @@ def test_update_dynamic_agent_capabilities_skips_write_when_already_exact():
 
             auth_path = os.path.join(p.volttron_home, "auth.json")
             before = os.stat(auth_path).st_mtime_ns
+            with open(auth_path, "rb") as f:
+                before_content = f.read()
 
-            p._update_dynamic_agent_capabilities()
+            with patch.object(AuthFile, "_write") as write_mock:
+                p._update_dynamic_agent_capabilities()
+            write_mock.assert_not_called()
 
+        with open(auth_path, "rb") as f:
+            after_content = f.read()
+        assert after_content == before_content, "auth.json content changed for a no-op merge"
         assert os.stat(auth_path).st_mtime_ns == before, "auth.json was rewritten for a no-op merge"
     finally:
         p.skip_cleanup = True
