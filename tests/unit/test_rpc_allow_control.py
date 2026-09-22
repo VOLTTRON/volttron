@@ -350,7 +350,7 @@ class TestRpcAllowGate:
 # These build a real (non-MagicMock) owner/core-shaped object so that a
 # missing `vip.auth` attribute behaves as it does on the live platform
 # (AttributeError on access), rather than MagicMock's auto-vivified
-# attribute, per design.md assumption 4.
+# attribute.
 # ---------------------------------------------------------------------------
 
 class _PlainOwnerNoAuth:
