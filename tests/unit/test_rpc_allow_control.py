@@ -109,7 +109,7 @@ sys.modules["volttron.platform.vip.agent.results"] = _results_stub
 _stub_if_missing("zmq", {"ZMQError": Exception})
 _stub_if_missing("zmq.green", {"ENOTSOCK": -1})
 
-# Step 3: load the real rpc.py — this gives us the production RPC class.
+# Step 3: load the real rpc.py - this gives us the production RPC class.
 _rpc_mod = _load_module_directly(
     "volttron/platform/vip/agent/subsystems/rpc.py",
     "volttron.platform.vip.agent.subsystems.rpc",
