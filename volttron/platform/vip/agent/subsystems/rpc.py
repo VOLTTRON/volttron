@@ -220,10 +220,12 @@ class RPC(SubsystemBase):
         if isinstance(raw_enable_auth, bool):
             self._enable_auth = raw_enable_auth
         else:
+            # Name the type, not the value: a secret mis-keyed into
+            # enable-auth must not be echoed into the agent log.
             _log.error(
-                "core.enable_auth is %r (%s), not a bool; enforcing "
+                "core.enable_auth is a %s, not a bool; enforcing "
                 "capability checks",
-                raw_enable_auth, type(raw_enable_auth).__name__,
+                type(raw_enable_auth).__name__,
             )
             self._enable_auth = True
         self.context = None
@@ -392,12 +394,14 @@ class RPC(SubsystemBase):
                                     ),
                                 )
                             if _isregex(value):
-                                # "(?:...)" restores full-string anchoring
-                                # across a top-level "|" alternation
-                                # (CWE-625, #3242); fullmatch, not match,
-                                # also refuses a trailing newline that a
-                                # bare "$" would let through (#3237).
-                                regex = re.compile("^(?:" + value[1:-1] + ")$")
+                                # fullmatch, not match, already anchors
+                                # each top-level "|" alternative to the
+                                # whole string on its own (CWE-625,
+                                # #3242), so no extra grouping is needed
+                                # here; fullmatch also refuses a trailing
+                                # newline that a bare "$" would let
+                                # through under match (#3237).
+                                regex = re.compile("^" + value[1:-1] + "$")
                                 if not regex.fullmatch(args_dict[name]):
                                     raise jsonrpc.exception_from_json(
                                         jsonrpc.UNAUTHORIZED,
