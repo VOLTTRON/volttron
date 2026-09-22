@@ -542,6 +542,72 @@ class TestRpcAuthDisabledCapabilityCheck:
 
 
 # ---------------------------------------------------------------------------
+# Tests: #3242, parameter-restriction regex full-string anchoring
+# ---------------------------------------------------------------------------
+
+class TestParameterRestrictionRegexAnchoring:
+    """
+    Tests for the REAL RPC._add_auth_check parameter-restriction regex
+    against CWE-625: a top-level `|` alternation must not degrade to a
+    prefix match on any alternative.
+    """
+
+    def test_alternation_restriction_rejects_value_outside_allowed_set(self):
+        """
+        Fails at d68dff037: re.compile("^" + value + "$") loses full-string
+        anchoring on the left alternative, so a value that merely starts
+        with an allowed alternative is wrongly accepted.
+        """
+        caps = {"edit_config_store": {"identity": "/platform.driver|platform.actuator/"}}
+        called = []
+
+        def manage_store(identity):
+            called.append(True)
+            return "wrote"
+
+        checked = _make_auth_checked(manage_store, {"edit_config_store"}, caps)
+
+        with pytest.raises(jsonrpc.Error) as exc_info:
+            checked(identity="platform.driverEVIL_OTHER_AGENT")
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == [], "method body must not run for an out-of-scope identity"
+
+    def test_single_value_regex_restriction_unchanged_accepts_match(self):
+        """Control: a non-alternation restriction still accepts its value."""
+        caps = {"edit_config_store": {"identity": "/platform.driver/"}}
+        called = []
+
+        def manage_store(identity):
+            called.append(True)
+            return "wrote"
+
+        checked = _make_auth_checked(manage_store, {"edit_config_store"}, caps)
+        result = checked(identity="platform.driver")
+
+        assert called == [True]
+        assert result == "wrote"
+
+    def test_single_value_regex_restriction_unchanged_rejects_prefix_match(self):
+        """Control: a non-alternation restriction already rejects a
+        suffix-appended value before and after the #3242 fix."""
+        caps = {"edit_config_store": {"identity": "/platform.driver/"}}
+        called = []
+
+        def manage_store(identity):
+            called.append(True)
+            return "wrote"
+
+        checked = _make_auth_checked(manage_store, {"edit_config_store"}, caps)
+
+        with pytest.raises(jsonrpc.Error) as exc_info:
+            checked(identity="platform.driverEVIL")
+
+        assert exc_info.value.code == jsonrpc.UNAUTHORIZED
+        assert called == []
+
+
+# ---------------------------------------------------------------------------
 # Tests: @RPC.allow annotations on ControlService methods
 # ---------------------------------------------------------------------------
 
