@@ -116,9 +116,15 @@ def get_rand_port(ip=None, min_ip=5000, max_ip=6000):
     return port
 
 
-def is_port_open(ip, port):
+def is_port_open(ip, port, timeout=2):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex((ip, port))
+    # connect_ex has no timeout of its own and otherwise waits for the OS
+    # connection timeout (minutes) on an address that never answers.
+    sock.settimeout(timeout)
+    try:
+        result = sock.connect_ex((ip, port))
+    finally:
+        sock.close()
     return result == 0
 
 
