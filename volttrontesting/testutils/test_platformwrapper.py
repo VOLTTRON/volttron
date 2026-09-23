@@ -34,6 +34,72 @@ import pytest
 from mock import MagicMock, patch
 from volttrontesting.skip_if_handlers import rmq_skipif
 
+
+def _assert_platform_home_under_tempdir(volttron_home):
+    """PlatformWrapper builds volttron_home as <mkdtemp result>/volttron_home,
+    and mkdtemp() honors TMPDIR. Check against tempfile.gettempdir() and
+    tempfile.gettempprefix() directly, so the assertion moves with TMPDIR
+    instead of requiring it to be unset.
+
+    Pins the mkdtemp-under-tempdir shape and that the home itself exists.
+    Does not pin freshness: a memoized or fixed-name home also satisfies
+    every clause here.
+    """
+    mkdtemp_dir = os.path.dirname(volttron_home)
+    assert os.path.dirname(mkdtemp_dir) == tempfile.gettempdir()
+    assert os.path.basename(mkdtemp_dir).startswith(tempfile.gettempprefix())
+    assert os.path.isdir(volttron_home)
+
+
+@pytest.fixture
+def _fake_tempdir(tmp_path, monkeypatch):
+    """Force tempfile.gettempdir() to tmp_path without touching TMPDIR or
+    the real system temp directory. This is also how the TMPDIR-unset
+    fallback path is exercised below: tempfile.tempdir is forced in
+    process instead of clearing the environment variable, so the test
+    runs without writing to /tmp.
+    """
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    return tmp_path
+
+
+def _make_home(mkdtemp_parent, prefix=None):
+    """Build a directory tree matching create_volttron_home()'s shape:
+    a mkdtemp-created directory holding a volttron_home leaf, both
+    present on disk.
+    """
+    mkdtemp_dir = tempfile.mkdtemp(dir=str(mkdtemp_parent), prefix=prefix)
+    home = os.path.join(mkdtemp_dir, "volttron_home")
+    os.makedirs(home)
+    return home
+
+
+def test_assert_platform_home_under_tempdir_passes_for_a_real_home(_fake_tempdir):
+    _assert_platform_home_under_tempdir(_make_home(_fake_tempdir))
+
+
+def test_assert_platform_home_under_tempdir_rejects_home_outside_tempdir(
+        _fake_tempdir, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside")
+    with pytest.raises(AssertionError):
+        _assert_platform_home_under_tempdir(_make_home(outside))
+
+
+def test_assert_platform_home_under_tempdir_rejects_non_mkdtemp_prefix(_fake_tempdir):
+    mkdtemp_dir = os.path.join(str(_fake_tempdir), "not_a_tmp_prefix")
+    home = os.path.join(mkdtemp_dir, "volttron_home")
+    os.makedirs(home)
+    with pytest.raises(AssertionError):
+        _assert_platform_home_under_tempdir(home)
+
+
+def test_assert_platform_home_under_tempdir_rejects_missing_leaf(_fake_tempdir):
+    mkdtemp_dir = tempfile.mkdtemp(dir=str(_fake_tempdir))
+    home = os.path.join(mkdtemp_dir, "volttron_home")
+    with pytest.raises(AssertionError):
+        _assert_platform_home_under_tempdir(home)
+
+
 @pytest.mark.parametrize("messagebus, ssl_auth", [
     pytest.param('zmq', False),
     pytest.param('rmq', True, marks=rmq_skipif),
@@ -43,7 +109,7 @@ def test_can_create(messagebus, ssl_auth):
     p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
     try:
         assert not p.is_running()
-        assert p.volttron_home.startswith("/tmp/tmp")
+        _assert_platform_home_under_tempdir(p.volttron_home)
 
         p.startup_platform(vip_address=get_rand_tcp_address())
         assert p.is_running()
@@ -76,7 +142,7 @@ def test_can_create_web_enabled(messagebus: str, https_enabled: bool):
     p = PlatformWrapper(messagebus=messagebus)
     try:
         assert not p.is_running()
-        assert p.volttron_home.startswith("/tmp/tmp")
+        _assert_platform_home_under_tempdir(p.volttron_home)
         http_address = get_rand_http_address(https=https_enabled)
         p.startup_platform(vip_address=get_rand_tcp_address(), bind_web_address=http_address)
         assert p.is_running()
