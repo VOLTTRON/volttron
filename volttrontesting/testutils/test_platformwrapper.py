@@ -34,6 +34,20 @@ import pytest
 from mock import MagicMock, patch
 from volttrontesting.skip_if_handlers import rmq_skipif
 
+
+def _assert_fresh_platform_home(volttron_home):
+    """PlatformWrapper builds volttron_home as <mkdtemp result>/volttron_home,
+    and mkdtemp() honors TMPDIR. Check against tempfile.gettempdir() and
+    tempfile.gettempprefix() directly, so the assertion moves with TMPDIR
+    instead of requiring it to be unset.
+    """
+    mkdtemp_dir = os.path.dirname(volttron_home)
+    assert os.path.realpath(os.path.dirname(mkdtemp_dir)) == \
+        os.path.realpath(tempfile.gettempdir())
+    assert os.path.basename(mkdtemp_dir).startswith(tempfile.gettempprefix())
+    assert os.path.isdir(mkdtemp_dir)
+
+
 @pytest.mark.parametrize("messagebus, ssl_auth", [
     pytest.param('zmq', False),
     pytest.param('rmq', True, marks=rmq_skipif),
@@ -43,7 +57,7 @@ def test_can_create(messagebus, ssl_auth):
     p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
     try:
         assert not p.is_running()
-        assert p.volttron_home.startswith("/tmp/tmp")
+        _assert_fresh_platform_home(p.volttron_home)
 
         p.startup_platform(vip_address=get_rand_tcp_address())
         assert p.is_running()
@@ -76,7 +90,7 @@ def test_can_create_web_enabled(messagebus: str, https_enabled: bool):
     p = PlatformWrapper(messagebus=messagebus)
     try:
         assert not p.is_running()
-        assert p.volttron_home.startswith("/tmp/tmp")
+        _assert_fresh_platform_home(p.volttron_home)
         http_address = get_rand_http_address(https=https_enabled)
         p.startup_platform(vip_address=get_rand_tcp_address(), bind_web_address=http_address)
         assert p.is_running()
