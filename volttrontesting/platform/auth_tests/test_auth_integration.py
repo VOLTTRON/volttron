@@ -111,13 +111,16 @@ def install_two_agents(volttron_instance):
     :return:
     """
     
+    # CI reruns a failing test against this same fixture and volttron_home
+    # (see #3261), so directory creation here must tolerate a path that
+    # already exists from the first attempt.
     tmpdir = volttron_instance.volttron_home+"/tmpdir"
-    os.mkdir(tmpdir)
+    os.makedirs(tmpdir, exist_ok=True)
     tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/called"
-    os.mkdir(tmpdir)
+    os.makedirs(tmpdir, exist_ok=True)
     os.chdir(tmpdir)
-    
-    os.mkdir("calledagent")
+
+    os.makedirs("calledagent", exist_ok=True)
     with open(os.path.join("calledagent", "__init__.py"), "w") as file:
         pass
     with open(os.path.join("calledagent", "calledagent.py"), "w") as file:
@@ -143,9 +146,9 @@ def install_two_agents(volttron_instance):
     
     
     tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/caller"
-    os.mkdir(tmpdir)
+    os.makedirs(tmpdir, exist_ok=True)
     os.chdir(tmpdir)
-    os.mkdir("calleragent")
+    os.makedirs("calleragent", exist_ok=True)
     with open(os.path.join("calleragent", "__init__.py"), "w") as file:
         pass
     with open(os.path.join("calleragent", "calleragent.py"), "w") as file:
@@ -202,22 +205,26 @@ def test_unauthorized_rpc_call(volttron_instance, install_two_agents):
     check_auth_error(volttron_instance, caller_agent_uuid, called_agent_uuid)
 
 def check_auth_error(volttron_instance, caller_agent_uuid, called_agent_uuid):
-    
-    expected_auth_err = ('volttron.platform.jsonrpc.Error('
-    '-32001, "method \'restricted_method\' '  
-    'requires capabilities {\'can_call_method\'}, ' 
-    'but capability {\'edit_config_store\': {\'identity\': \'caller_agent\'}}' 
-    ' was provided for user caller_agent")')
+
     volttron_instance.start_agent(called_agent_uuid)
     gevent.sleep(1)
     volttron_instance.start_agent(caller_agent_uuid)
-    
+
     # If the agent is not authorized health status is updated
     health =  volttron_instance.dynamic_agent.vip.rpc.call(
         "caller_agent", "health.get_status").get(timeout=2)
-    
+
     assert health.get('status') == STATUS_BAD
-    assert health.get('context') == expected_auth_err
+    # The granted capability set (volttron/platform/aip.py,
+    # _authorize_agent_keys) is not part of what this test proves, and it
+    # has grown before (#3260). Assert the refusal itself: the JSON-RPC
+    # unauthorized code, the required capability, the method, and the
+    # caller identity, not the full rendered capability dict.
+    context = health.get('context')
+    assert context is not None
+    assert str(jsonrpc.UNAUTHORIZED) in context
+    assert "method 'restricted_method' requires capabilities {'can_call_method'}, but capability " in context
+    assert context.endswith('was provided for user caller_agent")')
     
     
         
