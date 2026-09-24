@@ -30,6 +30,7 @@ import os
 
 import grequests
 import gevent
+import gevent.subprocess as subprocess
 import pytest
 from mock import MagicMock, patch
 from volttrontesting.skip_if_handlers import rmq_skipif
@@ -927,3 +928,185 @@ def test_dynamic_agent_start_stop_agents_capability_exercised():
         assert p.is_agent_running(auuid)
     finally:
         p.shutdown_platform()
+
+
+# Issue #3283: build_agent's readiness loop retried agent.vip.peerlist()
+# .get(timeout=.2), but peerlist() sends before it returns the AsyncResult
+# that .get() waits on, so a send that blocks (the VIP send lock, #3280)
+# defeated the retry count and the .get(timeout) entirely and ran until the
+# suite's 300s pytest timeout.
+
+class _BlockingSendAgent:
+    """Stand-in for agent_class in build_agent(): its vip.peerlist() blocks
+    the way a real client-side stall on the VIP send lock would, inside the
+    call that produces the AsyncResult rather than inside .get(). core.run
+    sets the ready event immediately so build_agent's own spawn/wait step
+    is not what is under test here."""
+
+    def __init__(self, *args, **kwargs):
+        self.core = MagicMock()
+        self.core.run = lambda event: event.set()
+        self.vip = MagicMock()
+        self.vip.peerlist.side_effect = lambda: gevent.sleep(3600)
+
+
+class _ReadinessWatchdogTimeout(Exception):
+    """Raised only by this test's own outer watchdog, never by
+    build_agent. Kept distinct from the Exception build_agent raises on a
+    real deadline so the two are told apart after pytest.raises catches
+    either of them."""
+    pass
+
+
+@pytest.mark.wrapper
+def test_build_agent_readiness_loop_bounded_by_wall_clock_deadline():
+    """Issue #3283, criteria 1-3: build_agent's readiness loop must be
+    bounded end to end, including the peerlist send, by a wall clock
+    deadline, and raise naming identity/address/elapsed time rather than
+    keep retrying. A 15s watchdog turns an unbounded wait into a fast,
+    unambiguous failure instead of the 300s pytest timeout: before the
+    fix, the watchdog's own _ReadinessWatchdogTimeout is what pytest.raises
+    catches, which the assertion below tells apart from a real deadline
+    exception."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=False)
+    try:
+        start = time.time()
+        with pytest.raises(Exception) as excinfo:
+            with gevent.Timeout(15, _ReadinessWatchdogTimeout(
+                    "build_agent's readiness loop was not bounded by a "
+                    "wall clock deadline within 15s")):
+                p.build_agent(agent_class=_BlockingSendAgent,
+                              address=p.vip_address, should_spawn=True)
+        elapsed = time.time() - start
+
+        assert not isinstance(excinfo.value, _ReadinessWatchdogTimeout), (
+            f"watchdog fired after {elapsed:.1f}s: {excinfo.value}")
+        assert elapsed < 15, f"took {elapsed:.1f}s, expected well under the 15s watchdog"
+        message = str(excinfo.value)
+        assert "identity=" in message and "elapsed=" in message, (
+            f"exception did not name identity and elapsed time: {message}")
+    finally:
+        p.skip_cleanup = True
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_build_agent_returns_connected_agent_within_deadline():
+    """Issue #3283, criterion 4: the new wall clock deadline must not
+    change the successful path. A normal build_agent against a real,
+    already-running platform still returns a connected agent."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        agent = p.build_agent()
+        assert CONTROL in agent.vip.peerlist().get(timeout=5)
+    finally:
+        p.shutdown_platform()
+
+
+# Issue #3282: shutdown_platform wrapped the whole dynamic-agent teardown
+# in a bare except that only logged str(e), so an exception raised by
+# list_agents(), remove_all_agents() or the control-shutdown RPC skipped
+# both dynamic_agent.core.stop() and dynamic_agent = None, since they were
+# the last two statements inside the same try.
+
+@pytest.mark.wrapper
+def test_shutdown_platform_clears_dynamic_agent_when_teardown_raises(caplog):
+    """Issue #3282, criteria 1-3: an exception during dynamic_agent
+    teardown (here, the control-shutdown RPC) must not prevent
+    dynamic_agent.core.stop() from running or dynamic_agent from being
+    cleared, and must be logged with its traceback and type rather than
+    only str(e)."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    p._instance_shutdown = False
+    p.skip_cleanup = True
+    p.p_process = None
+
+    fake_agent = MagicMock()
+    fake_agent.vip.rpc.return_value.get.side_effect = RuntimeError("control shutdown boom")
+    p.dynamic_agent = fake_agent
+
+    try:
+        with patch.object(PlatformWrapper, 'is_running', return_value=True), \
+             patch.object(PlatformWrapper, 'list_agents', return_value=[]), \
+             caplog.at_level(logging.ERROR):
+            p.shutdown_platform()
+
+        fake_agent.core.stop.assert_called_once()
+        assert p.dynamic_agent is None, "dynamic_agent survived a raising teardown"
+
+        error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert error_records, "no error-level record logged for the teardown exception"
+        assert any(r.exc_info and r.exc_info[0] is RuntimeError for r in error_records), \
+            "logged record did not carry the exception's traceback and type"
+    finally:
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_shutdown_platform_kills_a_process_that_outlives_terminate(caplog):
+    """Issue #3282, criterion 4: the terminate path must wait for the
+    platform process to exit with a bound, and kill and report a process
+    that is still alive after that bound, rather than only sending
+    SIGTERM and moving on after a fixed sleep."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    p._instance_shutdown = False
+    p.skip_cleanup = True
+    p.dynamic_agent = None
+
+    fake_process = MagicMock()
+    fake_process.pid = 999999
+    fake_process.wait.side_effect = [subprocess.TimeoutExpired(cmd="volttron", timeout=10), None]
+    p.p_process = fake_process
+
+    try:
+        with patch.object(PlatformWrapper, 'is_running', return_value=True), \
+             caplog.at_level(logging.ERROR):
+            p.shutdown_platform()
+
+        fake_process.terminate.assert_called_once()
+        fake_process.kill.assert_called_once()
+        assert fake_process.wait.call_count == 2
+        assert any("did not exit" in r.getMessage() for r in caplog.records), \
+            "no record reported the surviving process"
+    finally:
+        shutil.rmtree(os.path.dirname(p.volttron_home), ignore_errors=True)
+
+
+@pytest.mark.wrapper
+def test_dynamic_agent_core_greenlet_does_not_survive_a_raising_teardown():
+    """Issue #3282, criterion 5: the dynamic_agent's core greenlet, spawned
+    against this platform's own ZMQ context, must be stopped even when the
+    control-shutdown RPC raises, so it cannot survive into a second
+    PlatformWrapper started afterward in the same process. Before the fix,
+    core_greenlet.ready() stays False here because the bare except skips
+    core.stop() whenever the RPC raises."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    core_greenlet = None
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        core_greenlet = p.dynamic_agent.core.greenlet
+        assert core_greenlet is not None and not core_greenlet.ready()
+
+        original_rpc = p.dynamic_agent.vip.rpc
+
+        def _raise_on_shutdown(peer, method, *args, **kwargs):
+            if method == 'shutdown':
+                raise RuntimeError("simulated control-shutdown failure")
+            return original_rpc(peer, method, *args, **kwargs)
+
+        p.dynamic_agent.vip.rpc = _raise_on_shutdown
+    finally:
+        p.skip_cleanup = True
+        p.shutdown_platform()
+
+    assert p.dynamic_agent is None
+    assert core_greenlet.ready(), "dynamic_agent's core greenlet survived a raising teardown"
+
+    second = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        second.startup_platform(vip_address=get_rand_tcp_address())
+        assert second.is_running(), \
+            "a second platform could not start after the first's raising teardown"
+    finally:
+        second.shutdown_platform()

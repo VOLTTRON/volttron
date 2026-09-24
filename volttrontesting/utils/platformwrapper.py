@@ -59,6 +59,18 @@ RESTRICTED_AVAILABLE = False
 # of 30 secondes
 DEFAULT_TIMEOUT = 5
 
+# Bounds build_agent's readiness loop end to end, including the peerlist
+# send itself: .get(timeout=.2) alone only bounds the wait for a reply
+# (issue #3283).
+BUILD_AGENT_READINESS_TIMEOUT = 10
+
+
+class _BuildAgentReadinessTimeout(Exception):
+    """Raised by the gevent.Timeout guarding build_agent's readiness loop;
+    kept distinct from gevent.Timeout so the loop's own per-attempt
+    ``except gevent.Timeout`` does not swallow it."""
+    pass
+
 
 def _dynamic_agent_capabilities():
     """Capabilities dynamic_agent needs: the config-store and
@@ -558,19 +570,33 @@ class PlatformWrapper:
             if self.messagebus == 'rmq':
                 # agent seem to need a extra second for agent to establish connection
                 gevent.sleep(1)
-            while not has_control and times < 10:
-                times += 1
-                try:
-                    has_control = CONTROL in \
-                                  agent.vip.peerlist().get(
-                                      timeout=.2)
-                    self.logit("Has control? {}".format(has_control))
-                except gevent.Timeout:
-                    pass
+            readiness_start = time.time()
+            try:
+                # gevent.Timeout bounds the whole peerlist round trip
+                # rather than only the .get() below: peerlist() performs
+                # the VIP send before it ever returns an AsyncResult, so a
+                # send that blocks (the VIP send lock, #3280) would
+                # otherwise defeat the retry count and the .get(timeout)
+                # entirely and run until the suite's 300s pytest timeout.
+                with gevent.Timeout(BUILD_AGENT_READINESS_TIMEOUT, _BuildAgentReadinessTimeout):
+                    while not has_control:
+                        times += 1
+                        try:
+                            has_control = CONTROL in \
+                                          agent.vip.peerlist().get(
+                                              timeout=.2)
+                            self.logit("Has control? {}".format(has_control))
+                        except gevent.Timeout:
+                            pass
+            except _BuildAgentReadinessTimeout:
+                pass
 
             if not has_control:
+                elapsed = time.time() - readiness_start
                 self.shutdown_platform()
-                raise Exception("Couldn't connect to core platform!")
+                raise Exception(
+                    "Couldn't connect to core platform: identity={}, address={}, "
+                    "elapsed={:.1f}s, attempts={}".format(identity, address, elapsed, times))
 
         agent.publickey = publickey
         return agent
@@ -1640,7 +1666,7 @@ class PlatformWrapper:
                 return
 
             running_pids = []
-            if self.dynamic_agent: 
+            if self.dynamic_agent:
                 try:# because we are not creating dynamic agent in setupmode
                     for agnt in self.list_agents():
                         pid = self.agent_pid(agnt['uuid'])
@@ -1650,16 +1676,42 @@ class PlatformWrapper:
                         self.remove_all_agents()
                     # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
                     self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
-                    self.dynamic_agent.core.stop()
+                except BaseException:
+                    # exc_info carries the traceback and the exception type;
+                    # a bare str(e) drops both, and this teardown is exactly
+                    # where a bug hides behind "shutdown will not throw an
+                    # error if RMQ is down/has cert errors".
+                    _log.exception("Exception while shutting down dynamic_agent")
+                finally:
+                    # Must run even when a step above raised: otherwise the
+                    # agent's core greenlet, its monitor greenlet and its
+                    # DEALER socket survive into the next PlatformWrapper on
+                    # the same process-global ZMQ context (#3282).
+                    try:
+                        self.dynamic_agent.core.stop()
+                    except BaseException:
+                        _log.exception("Exception while stopping dynamic_agent's core")
                     self.dynamic_agent = None
-                except BaseException as e:
-                    self.logit(f"Exception while shutting down. {e}")
+
+                assert self.dynamic_agent is None, \
+                    "dynamic_agent survived shutdown_platform's teardown"
 
             if self.p_process is not None:
                 try:
                     gevent.sleep(0.2)
                     self.p_process.terminate()
-                    gevent.sleep(0.2)
+                    try:
+                        self.p_process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        _log.error(
+                            "Platform process %s did not exit within 10s of "
+                            "terminate(); killing it", self.p_process.pid)
+                        self.p_process.kill()
+                        try:
+                            self.p_process.wait(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            _log.error(
+                                "Platform process %s survived kill()", self.p_process.pid)
                 except OSError:
                     self.logit('Platform process was terminated.')
                 pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
