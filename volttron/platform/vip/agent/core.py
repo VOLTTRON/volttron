@@ -696,6 +696,52 @@ class ZMQCore(Core):
 
     connected = property(get_connected, set_connected)
 
+    def _dispatch_vip_message(self, sock, message, state):
+        """Route one message received by vip_loop to its subsystem handler.
+
+        A handler exception must not propagate out of here (#3279): it would
+        kill the loop greenlet and make Core.run raise 'VIP loop ended
+        prematurely', leaving the agent unrecoverable. Exception and
+        gevent.Timeout are both caught: an operational RPC timeout
+        (AsyncResult.get(timeout=...) inside a handler) is not a legitimate
+        loop-ending signal the way a closed socket or GreenletExit is.
+        GreenletExit and other BaseException signals still propagate.
+        """
+        subsystem = message.subsystem
+        # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
+        #     subsystem, message.id, len(message.args), message.args[0]))
+
+        # Handle hellos sent by CONNECTED event
+        if (str(subsystem) == 'hello' and message.id == state.ident
+                and len(message.args) > 3
+                and message.args[0] == 'welcome'):
+            version, server, identity = message.args[1:4]
+            self.connected = True
+            self.onconnected.send(self,
+                                  version=version,
+                                  router=server,
+                                  identity=identity)
+            return
+
+        try:
+            handle = self.subsystems[subsystem]
+        except KeyError:
+            _log.error('peer %r requested unknown subsystem %r',
+                       message.peer, subsystem)
+            message.user = ''
+            message.args = list(router._INVALID_SUBSYSTEM)
+            message.args.append(message.subsystem)
+            message.subsystem = 'error'
+            sock.send_vip_object(message, copy=False)
+            return
+
+        try:
+            handle(message)
+        except (Exception, gevent.Timeout):
+            _log.exception(
+                'unhandled exception in subsystem %r handler for peer %r'
+                ' message %r', subsystem, message.peer, message.id)
+
     def loop(self, running_event):
         # pre-setup
         # self.context.set(zmq.MAX_SOCKETS, 30690)
@@ -804,34 +850,7 @@ class ZMQCore(Core):
                         break
                     else:
                         raise
-                subsystem = message.subsystem
-                # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
-                #     subsystem, message.id, len(message.args), message.args[0]))
-
-                # Handle hellos sent by CONNECTED event
-                if (str(subsystem) == 'hello' and message.id == state.ident
-                        and len(message.args) > 3
-                        and message.args[0] == 'welcome'):
-                    version, server, identity = message.args[1:4]
-                    self.connected = True
-                    self.onconnected.send(self,
-                                          version=version,
-                                          router=server,
-                                          identity=identity)
-                    continue
-
-                try:
-                    handle = self.subsystems[subsystem]
-                except KeyError:
-                    _log.error('peer %r requested unknown subsystem %r',
-                               message.peer, subsystem)
-                    message.user = ''
-                    message.args = list(router._INVALID_SUBSYSTEM)
-                    message.args.append(message.subsystem)
-                    message.subsystem = 'error'
-                    sock.send_vip_object(message, copy=False)
-                else:
-                    handle(message)
+                self._dispatch_vip_message(sock, message, state)
 
         yield gevent.spawn(vip_loop)
         # pre-stop
