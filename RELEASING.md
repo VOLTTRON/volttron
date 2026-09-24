@@ -99,22 +99,25 @@ project's test suite and review process.
 
 ## 6. Merging the release into main
 
-The release branch is merged into `main` through a pull request. Do not
-squash it: this repository has squash merging turned off at the repository
-level, and the release history is worth keeping intact.
+The release branch is merged into `main` through a pull request, using a
+rebase merge. Do not squash it: this repository has squash merging turned
+off at the repository level, and the release history is worth keeping
+intact. Do not land it as an ordinary merge commit either: `main`'s branch
+protection requires a linear history, and an ordinary merge commit cannot
+satisfy that. Rebase merge is the strategy that satisfies both the
+linear-history requirement and the no-squash rule, and it is the one this
+project uses to land a release into `main`.
 
-For 9.0.4, that pull request landed as an ordinary two-parent merge commit.
-Reading this repository's current branch protection on `main` found that a
-linear history is now required there, which blocks an ordinary merge commit
-from landing on `main` at all: only a fast-forward or a rebase merge would
-satisfy it, and squash is unavailable repository-wide. This is a real
-inconsistency between what 9.0.4 did and what `main`'s current protection
-allows, not a decision this document is making. Until a maintainer with
-authority over branch protection resolves it one way or the other, treat a
-rebase merge into `main` as the strategy that satisfies both the current
-protection setting and the no-squash rule, and confirm the setting again
-before relying on this: branch protection is configuration, not code, and it
-can change independently of this document.
+This differs from how the 9.0.4 release actually landed: that pull request
+merged into `main` as an ordinary two-parent merge commit. A reader
+comparing the two should read the difference as history predating this
+policy, not as an error in either direction; the rebase merge requirement is
+what this project has settled on for every release going forward.
+
+Branch protection is configuration, not code, and it can change
+independently of this document. Confirm the linear-history and no-squash
+settings on `main` are still what this section assumes before relying on
+them.
 
 ## 7. Reconciling develop and main
 
