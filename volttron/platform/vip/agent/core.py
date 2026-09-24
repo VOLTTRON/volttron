@@ -535,11 +535,25 @@ class Core(BasicCore):
                          fset=lambda self, v: self.set_connected(v))
 
     def stop(self, timeout=None, platform_shutdown=False):
-        # Send message to router that this agent is stopping
-        if self.__connected and not platform_shutdown:
-            frames = [self.identity]
-            self.connection.send_vip('', 'agentstop', args=frames, copy=False)
-        super(Core, self).stop(timeout=timeout)
+        # Send message to router that this agent is stopping. Best-effort,
+        # and the superclass stop below runs in a finally: it must run
+        # whatever happens above, or every spawned greenlet on this agent
+        # is left running (#3280 review). A plain Exception (SendLockTimeout
+        # included) is caught and logged here. gevent.Timeout is
+        # deliberately NOT caught: it can only arrive from a caller who
+        # wrapped this whole call in their own deadline, and swallowing it
+        # would hide that cancellation from them; the finally still runs
+        # the superclass stop before it propagates.
+        try:
+            if self.__connected and not platform_shutdown:
+                frames = [self.identity]
+                try:
+                    self.connection.send_vip('', 'agentstop', args=frames, copy=False)
+                except Exception:
+                    _log.exception(
+                        'failed to notify router of agentstop; stopping anyway')
+        finally:
+            super(Core, self).stop(timeout=timeout)
 
     # This function moved directly from the zmqcore agent.  it is included here because
     # when we are attempting to connect to a zmq bus from a rmq bus this will be used
@@ -615,7 +629,19 @@ class Core(BasicCore):
                               subsystem='hello',
                               id=ident,
                               args=['hello'])
-            self.connection.send_vip_object(message)
+            try:
+                self.connection.send_vip_object(message)
+            except (Exception, gevent.Timeout):
+                # hello() is called from monitor() (spawned, unjoined, and
+                # itself inside a ZMQError-only try) and from loop() for
+                # the inproc case, where an unguarded raise reaches
+                # Core.run directly (#3280 review). connection_failed_check,
+                # spawned above, is the existing 10s fallback once
+                # hello_response_event stays unset either way; this logs
+                # the immediate cause instead of only a stderr traceback
+                # or a bare RuntimeError.
+                _log.exception(
+                    'unhandled exception sending hello to the VIP router')
 
         def hello_response(sender, version='', router='', identity=''):
             _log.info("Connected to platform: "
@@ -699,13 +725,16 @@ class ZMQCore(Core):
     def _dispatch_vip_message(self, sock, message, state):
         """Route one message received by vip_loop to its subsystem handler.
 
-        A handler exception must not propagate out of here (#3279): it would
-        kill the loop greenlet and make Core.run raise 'VIP loop ended
-        prematurely', leaving the agent unrecoverable. Exception and
-        gevent.Timeout are both caught: an operational RPC timeout
-        (AsyncResult.get(timeout=...) inside a handler) is not a legitimate
-        loop-ending signal the way a closed socket or GreenletExit is.
-        GreenletExit and other BaseException signals still propagate.
+        An exception must not propagate out of here (#3279): it would kill
+        the loop greenlet and make Core.run raise 'VIP loop ended
+        prematurely', leaving the agent unrecoverable. Every send this
+        method makes is guarded the same way, and so is the hello/welcome
+        signal fan-out: a receiver such as pubsub's reconnect handler sends
+        too (reviewed). Exception and gevent.Timeout are both caught: an
+        operational RPC timeout (AsyncResult.get(timeout=...) inside a
+        handler) is not a legitimate loop-ending signal the way a closed
+        socket or GreenletExit is. GreenletExit and other BaseException
+        signals still propagate.
         """
         subsystem = message.subsystem
         # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
@@ -717,10 +746,15 @@ class ZMQCore(Core):
                 and message.args[0] == 'welcome'):
             version, server, identity = message.args[1:4]
             self.connected = True
-            self.onconnected.send(self,
-                                  version=version,
-                                  router=server,
-                                  identity=identity)
+            try:
+                self.onconnected.send(self,
+                                      version=version,
+                                      router=server,
+                                      identity=identity)
+            except (Exception, gevent.Timeout):
+                _log.exception(
+                    'unhandled exception in an onconnected receiver for'
+                    ' peer %r message %r', message.peer, message.id)
             return
 
         try:
@@ -732,7 +766,15 @@ class ZMQCore(Core):
             message.args = list(router._INVALID_SUBSYSTEM)
             message.args.append(message.subsystem)
             message.subsystem = 'error'
-            sock.send_vip_object(message, copy=False)
+            try:
+                sock.send_vip_object(message, copy=False)
+            except (Exception, gevent.Timeout):
+                # This send can now raise SendLockTimeout (#3280); letting
+                # it escape would reproduce the #3279 cascade this method
+                # exists to prevent.
+                _log.exception(
+                    'unhandled exception sending unknown-subsystem error'
+                    ' reply to peer %r message %r', message.peer, message.id)
             return
 
         try:
