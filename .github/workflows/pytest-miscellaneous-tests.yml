@@ -113,6 +113,22 @@ jobs:
           test_path: volttrontesting/platform/vip/agent/test_vip_loop_guard.py
           test_output_suffix: misc
 
+      - name: Run VIP green socket test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@no_rmq
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/vip/test_green_socket.py
+          test_output_suffix: misc
+
+      - name: Run RPC send guard test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@no_rmq
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/vip/agent/test_rpc_guard.py
+          test_output_suffix: misc
+
       # Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v4
