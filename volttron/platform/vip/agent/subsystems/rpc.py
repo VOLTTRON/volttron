@@ -492,7 +492,14 @@ class RPC(SubsystemBase):
                     )
                 except ZMQError as ex:
                     _log.error("ZMQ error: {}".format(ex))
-                    pass
+                except (Exception, gevent.Timeout):
+                    # Same reasoning as _handle_subsystem below: @spawn'ed
+                    # and never joined, so an unguarded SendLockTimeout
+                    # (not a ZMQError) would otherwise be a stderr
+                    # traceback only.
+                    _log.exception(
+                        "unhandled exception sending external RPC reply"
+                        " message %r", message.id)
         except KeyError:
             pass
 
@@ -551,6 +558,18 @@ class RPC(SubsystemBase):
                         "Socket send on non-socket %s",
                         self.core().identity
                     )
+            except (Exception, gevent.Timeout):
+                # This method is @spawn'ed and never joined, so an
+                # exception that reaches here would otherwise be a stderr
+                # traceback only: nothing in _log, and the caller's
+                # AsyncResult is never filled (#3280 review). A
+                # SendLockTimeout is deliberately not a ZMQError, so it
+                # falls through the handler above. Not retried: a retry
+                # would go through the same send path and is as likely to
+                # hit the same wedge.
+                _log.exception(
+                    "unhandled exception sending RPC reply to peer %r"
+                    " message %r", message.peer, message.id)
 
     def _handle_error(self, sender, message, error, **kwargs):
         result = self._outstanding.pop(message.id, None)
