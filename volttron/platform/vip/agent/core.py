@@ -701,9 +701,11 @@ class ZMQCore(Core):
 
         A handler exception must not propagate out of here (#3279): it would
         kill the loop greenlet and make Core.run raise 'VIP loop ended
-        prematurely', leaving the agent unrecoverable. Only Exception is
-        caught; GreenletExit and other BaseException signals that legitimately
-        end the loop still propagate.
+        prematurely', leaving the agent unrecoverable. Exception and
+        gevent.Timeout are both caught: an operational RPC timeout
+        (AsyncResult.get(timeout=...) inside a handler) is not a legitimate
+        loop-ending signal the way a closed socket or GreenletExit is.
+        GreenletExit and other BaseException signals still propagate.
         """
         subsystem = message.subsystem
         # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
@@ -735,10 +737,10 @@ class ZMQCore(Core):
 
         try:
             handle(message)
-        except Exception:
+        except (Exception, gevent.Timeout):
             _log.exception(
-                'unhandled exception in subsystem %r handler for peer %r',
-                subsystem, message.peer)
+                'unhandled exception in subsystem %r handler for peer %r'
+                ' message %r', subsystem, message.peer, message.id)
 
     def loop(self, running_event):
         # pre-setup

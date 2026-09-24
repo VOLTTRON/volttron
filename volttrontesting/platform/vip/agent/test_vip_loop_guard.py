@@ -16,6 +16,17 @@ from volttron.platform.vip.agent.core import ZMQCore
 from volttron.platform.vip.socket import Message
 
 
+class _WatchdogExpired(BaseException):
+    """A test-only deadline signal, deliberately not an Exception.
+
+    TimeoutError (an Exception subclass, MRO TimeoutError -> OSError ->
+    Exception -> BaseException) would be swallowed by an internal
+    `except Exception:` guard running in the same greenlet, silently
+    turning a hung call into a passing test. This class stays outside
+    Exception so it always reaches the test.
+    """
+
+
 class _Owner:
     """A minimal agent-like owner for Core.setup(); no annotated members."""
 
@@ -131,7 +142,7 @@ def test_handler_exception_is_logged_and_next_message_still_delivered(
                        in str(r.exc_info[1]))
                    for r in error_records)
     finally:
-        with gevent.Timeout(5, TimeoutError('core.stop() hung')):
+        with gevent.Timeout(5, _WatchdogExpired('core.stop() hung')):
             core.stop(timeout=5)
         run_greenlet.join(5)
         run_greenlet.kill()
@@ -155,7 +166,7 @@ def test_core_stop_returns_after_handler_exception(monkeypatch):
     try:
         gevent.sleep(0.2)    # let vip_loop process the raising message
 
-        with gevent.Timeout(5, TimeoutError('core.stop() hung')):
+        with gevent.Timeout(5, _WatchdogExpired('core.stop() hung')):
             core.stop(timeout=5)
     finally:
         run_greenlet.join(5)
@@ -194,3 +205,71 @@ def test_socket_closed_error_still_ends_the_loop(monkeypatch):
     assert run_greenlet.ready(), 'core.run() never returned'
     with pytest.raises(RuntimeError, match='VIP loop ended prematurely'):
         run_greenlet.get()
+
+
+def test_gevent_timeout_from_handler_does_not_kill_the_loop(monkeypatch):
+    # gevent.Timeout subclasses BaseException directly (it does not
+    # subclass Exception), so a bare `except Exception` does not catch it.
+    # An AsyncResult.get(timeout=...) inside a handler raises exactly this
+    # on expiry, and that is an operational timeout, not a signal that
+    # should end the loop.
+    delivered = gevent.event.Event()
+    received = []
+
+    def timing_out_handler(message):
+        # gevent.Timeout's first positional arg is seconds, not a message;
+        # an AsyncResult.get(timeout=N) that expires raises a bare Timeout
+        # the same way (no seconds, no explicit exception argument).
+        raise gevent.Timeout()
+
+    def normal_handler(message):
+        received.append(message)
+        delivered.set()
+
+    fake_socket = _FakeSocket([
+        Message(peer='router', subsystem='timing_out', id='m1', args=[]),
+        Message(peer='router', subsystem='normal', id='m2', args=[]),
+    ])
+    core = _make_core(monkeypatch, fake_socket)
+    core.register('timing_out', timing_out_handler)
+    core.register('normal', normal_handler)
+
+    run_greenlet = gevent.spawn(core.run)
+    try:
+        assert delivered.wait(5), (
+            'the message after the gevent.Timeout handler was never'
+            ' delivered: the loop greenlet died')
+        assert len(received) == 1
+        assert received[0].id == 'm2'
+    finally:
+        with gevent.Timeout(5, _WatchdogExpired('core.stop() hung')):
+            core.stop(timeout=5)
+        run_greenlet.join(5)
+        run_greenlet.kill()
+
+
+def test_unknown_subsystem_reply_is_sent_correctly(monkeypatch):
+    # The KeyError branch was moved unchanged out of vip_loop's inline
+    # body; this pins that the move preserved its behavior, using
+    # _FakeSocket.sent (previously unread by any test).
+    fake_socket = _FakeSocket([
+        Message(peer='router', subsystem='nosuchsubsystem', id='m1',
+                args=[]),
+    ])
+    core = _make_core(monkeypatch, fake_socket)
+
+    run_greenlet = gevent.spawn(core.run)
+    try:
+        deadline = gevent.Timeout(5, TimeoutError('reply was never sent'))
+        with deadline:
+            while not fake_socket.sent:
+                gevent.sleep(0.05)
+        reply = fake_socket.sent[0]
+        assert reply.subsystem == 'error'
+        assert reply.peer == 'router'
+        assert reply.args[-1] == 'nosuchsubsystem'
+    finally:
+        with gevent.Timeout(5, _WatchdogExpired('core.stop() hung')):
+            core.stop(timeout=5)
+        run_greenlet.join(5)
+        run_greenlet.kill()
