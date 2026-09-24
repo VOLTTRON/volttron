@@ -43,6 +43,7 @@ jobs:
     # - At the current time there is only ubuntu machine 20.04 available
     # - This uses the matrix os from the strategy above
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
 
     # Each step will be run in order of listing.
     steps:

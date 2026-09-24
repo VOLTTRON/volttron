@@ -36,6 +36,7 @@ jobs:
         python-version: [ '3.10' ]
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
 
     services:
         # Label used to access the service container
@@ -83,7 +84,6 @@ jobs:
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@no_rmq
-        timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
