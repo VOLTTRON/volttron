@@ -3,7 +3,7 @@ import gevent
 import logging
 
 from volttron.platform import get_services_core
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,9 @@ def agent(request, volttron_instance):
 
     # Build platform driver agent
     md_agent = volttron_instance.build_agent(identity="test_md_agent")
-    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    # set_point/revert_point/revert_device are gated on driver_write (#3298);
+    # edit_config_store alone no longer authorizes them.
+    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}, DRIVER_WRITES]
     volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
     # Clean out platform driver configurations

@@ -5,7 +5,7 @@ import pytest
 
 from pathlib import Path
 
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE, DRIVER_WRITES, PLATFORM_DRIVER
 from volttron.platform import jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
@@ -61,7 +61,9 @@ def publish_agent(volttron_instance: PlatformWrapper):
     assert publish_agent.core.identity
     gevent.sleep(1)
 
-    capabilities = {"edit_config_store": {"identity": PLATFORM_DRIVER}}
+    # set_point is gated on driver_write (#3298); edit_config_store alone no
+    # longer authorizes it.
+    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}, DRIVER_WRITES]
     volttron_instance.add_capabilities(publish_agent.core.publickey, capabilities)
     gevent.sleep(1)
 

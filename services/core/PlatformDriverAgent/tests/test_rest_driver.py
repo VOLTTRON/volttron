@@ -29,7 +29,7 @@ from gevent import pywsgi
 from volttron.platform import get_services_core
 from volttrontesting.utils.utils import get_rand_http_address
 
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE, DRIVER_WRITES, PLATFORM_DRIVER
 
 server_addr = get_rand_http_address()
 no_scheme = server_addr[7:]
@@ -65,7 +65,9 @@ def handle(env, start_response):
 def agent(request, volttron_instance):
     agent = volttron_instance.build_agent()
     # Clean out platform driver configurations.
-    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    # set_point/revert_point are gated on driver_write (#3298); edit_config_store
+    # alone no longer authorizes them.
+    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}, DRIVER_WRITES]
     volttron_instance.add_capabilities(agent.core.publickey, capabilities)
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'delete_store',

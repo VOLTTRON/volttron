@@ -27,6 +27,7 @@ import pytest
 import gevent
 
 from volttron.platform import get_services_core
+from volttron.platform.agent.known_identities import DRIVER_WRITES
 
 pytestmark = [pytest.mark.contrib]
 
@@ -141,6 +142,10 @@ driverName,driverName,ChargingSessionRegister,1,string,,,FALSE,"""
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance):
     md_agent = volttron_instance.build_agent()
+    # set_point is gated on driver_write (#3298); the default capability
+    # build_agent grants (edit_config_store on the agent's own identity)
+    # does not authorize it.
+    volttron_instance.add_capabilities(md_agent.core.publickey, [DRIVER_WRITES])
     # Clean out platform driver configurations.
     md_agent.vip.rpc.call('config.store',
                           'delete_store',

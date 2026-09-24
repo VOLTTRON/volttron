@@ -30,6 +30,7 @@ import gevent
 from volttron.platform.agent.known_identities import (
     PLATFORM_DRIVER,
     CONFIGURATION_STORE,
+    DRIVER_WRITES,
 )
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
@@ -86,7 +87,9 @@ def test_set_point(volttron_instance, config_store):
 @pytest.fixture(scope="module")
 def config_store(volttron_instance, platform_driver):
 
-    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}]
+    # set_point is gated on driver_write (#3298); edit_config_store alone no
+    # longer authorizes it.
+    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}, DRIVER_WRITES]
     volttron_instance.add_capabilities(volttron_instance.dynamic_agent.core.publickey, capabilities)
 
     registry_config = "homeassistant_test.json"
