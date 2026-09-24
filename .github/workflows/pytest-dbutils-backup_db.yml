@@ -48,6 +48,7 @@ jobs:
     # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
     # - This uses the matrix os from the strategy above
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
 
     steps:
       # checkout the volttron repository and set current directory to it
@@ -66,7 +67,6 @@ jobs:
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@no_rmq
-        timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
