@@ -22,7 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-'''VIP - VOLTTRON™ Interconnect Protocol implementation
+'''VIP - VOLTTRON(TM) Interconnect Protocol implementation
 
 See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
 for protocol specification.

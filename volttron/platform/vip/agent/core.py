@@ -699,12 +699,11 @@ class ZMQCore(Core):
     def _dispatch_vip_message(self, sock, message, state):
         """Route one message received by vip_loop to its subsystem handler.
 
-        A subsystem handler exception must not propagate out of here (#3279):
-        vip_loop's while loop is the agent's only reader of this socket, so an
-        exception escaping it ends the loop greenlet, after which Core.run
-        raises RuntimeError('VIP loop ended prematurely') and the agent is
-        unrecoverable. Only Exception is caught; GreenletExit and other
-        BaseException signals that legitimately end the loop still propagate.
+        A handler exception must not propagate out of here (#3279): it would
+        kill the loop greenlet and make Core.run raise 'VIP loop ended
+        prematurely', leaving the agent unrecoverable. Only Exception is
+        caught; GreenletExit and other BaseException signals that legitimately
+        end the loop still propagate.
         """
         subsystem = message.subsystem
         # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
