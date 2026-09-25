@@ -172,13 +172,14 @@ def install_two_agents(volttron_instance):
     assert caller_uuid
     gevent.sleep(1)
 
+    # Fixed VIP identities (called_agent, caller_agent): a rerun of a failing
+    # test reinstalls onto the same platform instance and needs the prior
+    # install gone first, or it errors on "Identity already exists" (#3261).
     try:
         yield caller_uuid, called_uuid
     finally:
-        #volttron_instance.remove_agent(caller_uuid)
-        #volttron_instance.remove_agent(called_uuid)
-        # TODO if we have to wait for auth propagation anyways why do we create new agents for each test case
-        #  we should just update capabilities, at least we will save on agent creation and tear down time
+        volttron_instance.remove_agent(caller_uuid)
+        volttron_instance.remove_agent(called_uuid)
         gevent.sleep(1)
 
 
