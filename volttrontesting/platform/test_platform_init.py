@@ -79,6 +79,20 @@ def test_get_random_key():
         assert 40 == len(key)
 
 
+def test_build_vip_address_string_does_not_log_secretkey_in_vip_root(caplog):
+    # Refs #3307: vip_root itself can already carry ?secretkey=... (Connection
+    # passes the whole address through as vip_root when a key is missing),
+    # and that was logged raw even though the separate secretkey argument
+    # was already redacted.
+    vip_root = 'tcp://127.0.0.1:22916?secretkey=therootembeddedsecretvalue'
+    with get_test_volttron_home(messagebus='zmq'):
+        with caplog.at_level(logging.DEBUG):
+            build_vip_address_string(vip_root, 'theserverkeyvalue',
+                                     'thepublickeyvalue', 'thesecretkeyvalue')
+
+    assert 'therootembeddedsecretvalue' not in caplog.text
+
+
 def test_build_vip_address_string_does_not_log_secretkey(caplog):
     # #3304: the debug line used to interpolate secretkey directly.
     with get_test_volttron_home(messagebus='zmq'):
