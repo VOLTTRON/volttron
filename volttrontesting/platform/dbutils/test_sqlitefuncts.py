@@ -522,3 +522,84 @@ def test_dbdriver_init_does_not_log_password(caplog):
         DbDriver('sqlite3', database=':memory:', password='thepasswordvalue')
 
     assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_dbdriver_init_does_not_log_passwd(caplog):
+    # #3307: basedb only masked 'password'/'passwd' before; SQLHistorian's
+    # own mask list is wider and its shipped mysql config uses 'passwd'.
+    with caplog.at_level(logging.DEBUG):
+        DbDriver('sqlite3', database=':memory:', passwd='thepasswordvalue')
+
+    assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_dbdriver_init_does_not_log_pass_key(caplog):
+    # #3307: 'pass' and 'pw' are new to the mask set this round; nothing
+    # else here exercises them, so a mutant dropping either would survive.
+    with caplog.at_level(logging.DEBUG):
+        DbDriver('sqlite3', **{'database': ':memory:', 'pass': 'thepasswordvalue'})
+
+    assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_dbdriver_connect_receives_the_real_password(monkeypatch, caplog):
+    # Refs #3307: nothing proved the redacted copy used for logging was
+    # never the value actually handed to the driver's connect call.
+    calls = {}
+
+    class _FakeDbApiModule:
+        @staticmethod
+        def connect(**kwargs):
+            calls['kwargs'] = kwargs
+            return object()
+
+    import volttron.platform.dbutils.basedb as basedb_module
+    monkeypatch.setattr(basedb_module.importlib, 'import_module',
+                        lambda name: _FakeDbApiModule)
+
+    with caplog.at_level(logging.DEBUG):
+        driver = DbDriver('faketestmodule', database=':memory:',
+                          password='thepasswordvalue')
+
+    driver._DbDriver__connect()
+
+    assert 'thepasswordvalue' not in caplog.text
+    assert calls['kwargs']['password'] == 'thepasswordvalue'
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_sqlitefuncts_init_does_not_log_password(caplog):
+    # Refs #3307: a second connect-params debug line, separate from
+    # basedb's, also logged the raw dict.
+    connect_params = {'database': ':memory:', 'password': 'thepasswordvalue'}
+    with caplog.at_level(logging.DEBUG):
+        SqlLiteFuncts(dict(connect_params), None)
+
+    assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.mysqlfuncts
+@pytest.mark.dbutils
+def test_mysqlfuncts_init_does_not_log_password(caplog):
+    # Refs #3307: this params debug line, separate from the shared basedb
+    # one, still logged the raw password from SQLAggregateHistorian's
+    # config. Lives here, not in test_mysqlfuncts.py, because that file's
+    # autouse cleanup_tables fixture starts a real database container for
+    # every test in the module, including one that needs none.
+    mysql_connector = pytest.importorskip('mysql.connector')
+    from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
+
+    connect_params = {'host': 'localhost', 'port': 3306,
+                      'database': 'test_historian', 'user': 'historian',
+                      'passwd': 'thepasswordvalue'}
+    with caplog.at_level(logging.DEBUG):
+        MySqlFuncts(dict(connect_params), None)
+
+    assert 'thepasswordvalue' not in caplog.text

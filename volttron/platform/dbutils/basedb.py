@@ -76,7 +76,7 @@ class DbDriver:
             connect = dbapimodule
         else:
             _log.debug("Constructing Driver for %s in thread: %s", dbapimodule, thread_name)
-            _log.debug("kwargs for connect is %r", utils.redact_keys(kwargs, ('password', 'passwd')))
+            _log.debug("kwargs for connect is %r", utils.redact_keys(kwargs, utils.DB_SECRET_KEYS))
             dbapimodule = importlib.import_module(dbapimodule)
             connect = lambda: dbapimodule.connect(**kwargs)
         self.__connect = connect
