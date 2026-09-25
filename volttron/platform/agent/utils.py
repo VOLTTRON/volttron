@@ -21,7 +21,7 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-"""VOLTTRON platform™ agent helper classes/functions."""
+"""VOLTTRON platform agent helper classes/functions."""
 
 import argparse
 import calendar
