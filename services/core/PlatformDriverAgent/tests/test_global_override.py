@@ -70,7 +70,10 @@ def test_agent(volttron_instance):
 
     if volttron_instance.auth_enabled:
         # set_point/revert_device are gated on driver_write (#3298);
-        # edit_config_store alone no longer authorizes them.
+        # edit_config_store alone no longer authorizes them. The override
+        # methods this module also exercises (set_override_on/off) are
+        # gated on a separate driver_override capability, tracked in #3301
+        # and deliberately not granted here.
         capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}, DRIVER_WRITES]
         volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 

@@ -60,8 +60,8 @@ def agent(request, volttron_instance):
 
     # Build platform driver agent
     md_agent = volttron_instance.build_agent(identity="test_md_agent")
-    # set_point/revert_point/revert_device are gated on driver_write (#3298);
-    # edit_config_store alone no longer authorizes them.
+    # set_point is gated on driver_write (#3298); edit_config_store alone no
+    # longer authorizes it.
     capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}, DRIVER_WRITES]
     volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 

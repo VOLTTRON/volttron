@@ -150,6 +150,9 @@ def dnp3_tester_agent(request, volttron_instance):
     tester_agent = volttron_instance.build_agent(identity="test_dnp3_agent")
     gevent.sleep(1)
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    # set_point (called below) is gated on driver_write (#3298), not granted
+    # here: this module imports pydnp3, an undeclared dependency, so it
+    # cannot be collected and is excluded from that grant sweep.
     # Note: commented out the add_capabilities due to complained by volttron_instance fixture, i.e.,
     # pytest.param(dict(messagebus='rmq', ssl_auth=True),
     #              marks=rmq_skipif),  # complain add_capabilities
