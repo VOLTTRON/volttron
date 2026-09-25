@@ -1,0 +1,34 @@
+---
+exclude_paths:
+  # Frozen; nothing under deprecated/ is edited or reviewed.
+  - "deprecated/**"
+  # Documentation source, not code.
+  - "docs/**"
+  # Sample code meant for users to copy, not code this repo ships or runs.
+  - "examples/**"
+  # Webpack-generated VolttronCentral bundle; the pattern covers future hashes too.
+  - "services/core/VolttronCentral/volttroncentral/webroot/vc/css/app-*.css"
+  - "services/core/VolttronCentral/volttroncentral/webroot/vc/js/app-*.js"
+  # Vendored, minified third-party JavaScript and CSS.
+  - "**/*.min.js"
+  - "**/*.min.css"
+
+engines:
+  pylintpython3:
+    exclude_paths:
+      # Style and documentation checks do not apply to test code.
+      - "**/tests/**"
+      - "**/test_*.py"
+      - "**/*_test.py"
+      - "**/conftest.py"
+  prospector:
+    exclude_paths:
+      # Same style exclusion as Pylint; Bandit still analyzes this code.
+      - "**/tests/**"
+      - "**/test_*.py"
+      - "**/*_test.py"
+      - "**/conftest.py"
+  tsqllint:
+    exclude_paths:
+      # MySQL and SQLite schema DDL, not T-SQL.
+      - "services/core/SQLHistorian/*.sql"
