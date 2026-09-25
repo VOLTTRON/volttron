@@ -146,15 +146,8 @@ def __openssl_create_ca_certificate__(common_name: str, private_key_file: Path, 
 def __verify_ca_certificate__(private_key_file: str, ca_cert_file: str) -> bool:
     # Compare the public key each side carries, not the RSA-only modulus:
     # "openssl rsa -modulus" errors on an EC key, and this repository's own
-    # CA key is EC (see __openssl_create_private_key__), so a modulus-only
-    # check would report False for a genuinely matching EC pair. "openssl
-    # pkey -pubout" and "x509 -pubkey" both work for any key type.
-    #
-    # The prior use_shell=True call passed cmd as a list with shell=True,
-    # which on POSIX runs only cmd[0] ("openssl" with no arguments) and
-    # silently discards the pipe; a bare "openssl" exits 0 with empty
-    # stdout, so both sides always compared "" == "" and this always
-    # returned True.
+    # CA key is EC (see __openssl_create_private_key__). "openssl pkey
+    # -pubout" and "x509 -pubkey" both work for any key type.
     try:
         cert_pubkey = execute_command(
             ["openssl", "x509", "-pubkey", "-noout", "-in", str(ca_cert_file)],
@@ -179,29 +172,40 @@ def __openssl_create_csr__(common_name: str, opensslcnf: Path, private_key_file:
 
 
 def __openssl_verify_csr__(csr_file_path: str, private_key_file: str):
-    # openssl req -text -noout -verify -in csr_file_path -key private_ket_file
-    # A CSR that does not verify against the key makes openssl exit
-    # non-zero; return False rather than let execute_command's RuntimeError
-    # turn a bad CSR into a test ERROR instead of a FAILURE.
-    cmd = ["openssl", "req", "-text", "-noout", "-verify", "-in", csr_file_path, "-key", private_key_file]
+    # Two checks, neither trusting openssl's message text or "-verify
+    # -key"'s pass/fail behavior (both differ across OpenSSL versions):
+    # the self-signature is checked by exit status alone, and that the CSR
+    # pairs with the given key is checked by comparing public keys
+    # directly, the same way __verify_ca_certificate__ does.
     try:
-        return execute_command(cmd, err_prefix="Error verifying CSR", logger=_log)
+        execute_command(
+            ["openssl", "req", "-verify", "-noout", "-in", csr_file_path],
+            err_prefix="Error verifying CSR self-signature", logger=_log)
+        csr_pubkey = execute_command(
+            ["openssl", "req", "-pubkey", "-noout", "-in", csr_file_path],
+            err_prefix="Error getting public key from CSR", logger=_log)
+        key_pubkey = execute_command(
+            ["openssl", "pkey", "-pubout", "-in", private_key_file],
+            err_prefix="Error getting public key from private key", logger=_log)
+        if csr_pubkey != key_pubkey:
+            return False
+        return execute_command(
+            ["openssl", "req", "-text", "-noout", "-in", csr_file_path],
+            err_prefix="Error reading CSR text", logger=_log)
     except RuntimeError:
         return False
 
 
 def __openssl_create_signed_certificate__(common_name: str, opensslcnf: Path, ca_key_file: Path, ca_cert_file: Path,
                                           private_key_file: Path, cert_file: Path, as_server: bool = False):
-    # Transient CSR: keep it beside cert_file, named from cert_file's own
-    # basename rather than common_name. Path.name is always a single path
-    # component (pathlib strips any ".." segments from it), so a
-    # common_name like "../escape" cannot walk the CSR out of cert_file's
-    # own directory the way joining common_name onto the parent directly
-    # could (#3259 fix round 2).
+    # Transient CSR: named from common_name, in the same directory as
+    # cert_file. A common_name like "../escape" must not walk it out of
+    # that directory, so resolve the candidate path and refuse it rather
+    # than trust the name.
     cert_dir = Path(cert_file).resolve().parent
-    csr_file = cert_dir / (Path(cert_file).name + ".csr")
-    if csr_file.resolve().parent != cert_dir:
-        raise ValueError(f"CSR path {csr_file} would escape {cert_dir}")
+    csr_file = (cert_dir / common_name).resolve()
+    if csr_file.parent != cert_dir:
+        raise ValueError(f"CSR path for common_name {common_name!r} would escape {cert_dir}")
     __openssl_create_csr__(common_name, opensslcnf, private_key_file, csr_file)
     # openssl ca -keyfile /root/tls/private/ec-cakey.pem -cert /root/tls/certs/ec-cacert.pem \
     #   -in server.csr -out server.crt -config /root/tls/openssl.cnf

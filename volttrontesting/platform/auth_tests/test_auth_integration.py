@@ -117,7 +117,7 @@ def install_two_agents(volttron_instance):
     # installed_uuids tracks what actually got installed so far, so the
     # finally block can remove it even when a later step in this fixture
     # (the second install, or anything between the two) fails before the
-    # try ever reaches yield (#3261 fix round 2).
+    # try ever reaches yield.
     installed_uuids = []
     try:
         # CI reruns a failing test against this same fixture and
@@ -190,10 +190,10 @@ def install_two_agents(volttron_instance):
         yield caller_uuid, called_uuid
     finally:
         # Remove whatever got installed, even if a later step failed before
-        # yielding (#3261 fix round 2). Attempt every removal regardless of
-        # an earlier one raising, and never let a removal error replace the
-        # test's own failure/error: log it instead of swallowing it or
-        # letting it propagate from finally (#3261 fix round 1).
+        # yielding. Attempt every removal regardless of an earlier one
+        # raising, and never let a removal error replace the test's own
+        # failure/error: log it instead of swallowing it or letting it
+        # propagate from finally.
         for uuid in installed_uuids:
             try:
                 volttron_instance.remove_agent(uuid)
