@@ -557,3 +557,80 @@ def test_add_capabilities_writes_matched_entry_only(tmp_path):
     }
     assert "new_cap" in reread[cred_b].capabilities
     assert "new_cap" not in reread[cred_a].capabilities
+
+
+def _curve_key(char):
+    return char * 43
+
+
+def _disk_allow(auth_path):
+    with open(auth_path) as f:
+        return jsonapi.load(f)["allow"]
+
+
+@pytest.mark.auth
+def test_mixed_mutators_one_object(tmp_path):
+    """#3248: each mutator on one AuthFile builds on the previous write,
+    so a removal is not undone by a later write through the same object."""
+    auth_path = str(tmp_path / "auth.json")
+    for char in "ABCD":
+        AuthFile(auth_path).add(AuthEntry(user_id=f"u{char}",
+                                          credentials=_curve_key(char)))
+    auth_file = AuthFile(auth_path)
+
+    auth_file.remove_by_indices([0])
+    auth_file.update_by_index(
+        AuthEntry(user_id="uZ", credentials=_curve_key("Z")), 0)
+
+    disk = _disk_allow(auth_path)
+    assert [e["user_id"] for e in disk] == ["uZ", "uC", "uD"]
+    assert auth_file.auth_data["allow_list"] == disk
+
+    auth_path = str(tmp_path / "revoke.json")
+    AuthFile(auth_path).add(
+        AuthEntry(user_id="keep", credentials=_curve_key("K")))
+    AuthFile(auth_path).add(
+        AuthEntry(user_id="revoked", credentials=_curve_key("R")))
+    auth_file = AuthFile(auth_path)
+
+    auth_file.remove_by_indices([1])
+    auth_file.add(AuthEntry(user_id="new", credentials=_curve_key("N")))
+
+    assert [e["user_id"] for e in _disk_allow(auth_path)] == ["keep", "new"]
+
+
+@pytest.mark.auth
+def test_write_does_not_read_back(tmp_path, monkeypatch):
+    """#3248: _write keeps what it wrote without reading the file back, so
+    a read that sees an empty or truncated file cannot drop entries."""
+    auth_path = str(tmp_path / "auth.json")
+    auth_file = AuthFile(auth_path)
+    empty = {"allow_list": [], "deny_list": [], "groups": {}, "roles": {},
+             "version": {"major": 0, "minor": 0}}
+    monkeypatch.setattr(auth_file, "_read", lambda: empty)
+
+    auth_file.add(AuthEntry(user_id="first", credentials=_curve_key("F")))
+    auth_file.add(AuthEntry(user_id="second", credentials=_curve_key("S")))
+
+    assert [e["user_id"] for e in _disk_allow(auth_path)] == [
+        "first", "second"]
+
+
+@pytest.mark.auth
+def test_failed_write_keeps_auth_data(tmp_path):
+    """auth_data changes only after the file is written, so a failed write
+    leaves it matching the file."""
+    auth_path = str(tmp_path / "auth.json")
+    auth_file = AuthFile(auth_path)
+    auth_file.add(AuthEntry(user_id="first", credentials=_curve_key("F")))
+    before = jsonapi.loads(jsonapi.dumps(auth_file.auth_data))
+    os.chmod(auth_path, 0o444)
+    try:
+        with raises(PermissionError):
+            auth_file.add(AuthEntry(user_id="second",
+                                    credentials=_curve_key("S")))
+    finally:
+        os.chmod(auth_path, 0o644)
+
+    assert auth_file.auth_data == before
+    assert [e["user_id"] for e in _disk_allow(auth_path)] == ["first"]

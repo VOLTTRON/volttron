@@ -98,12 +98,17 @@ class AuthFile(object):
                     auth_data = jsonapi.loads(data)
         except Exception:
             _log.exception("error loading %s", self.auth_file)
+        return self._to_auth_data(auth_data)
+
+    @staticmethod
+    def _to_auth_data(file_data):
+        """Maps the file's allow/deny keys to the in-memory auth_data shape."""
         auth_output_data = {}
-        auth_output_data["allow_list"] = auth_data.get("allow", [])
-        auth_output_data["deny_list"] = auth_data.get("deny", [])
-        auth_output_data["groups"] = auth_data.get("groups", {})
-        auth_output_data["roles"] = auth_data.get("roles", {})
-        auth_output_data["version"] = auth_data.get(
+        auth_output_data["allow_list"] = file_data.get("allow", [])
+        auth_output_data["deny_list"] = file_data.get("deny", [])
+        auth_output_data["groups"] = file_data.get("groups", {})
+        auth_output_data["roles"] = file_data.get("roles", {})
+        auth_output_data["version"] = file_data.get(
             "version", {"major": 0, "minor": 0}
         )
         return auth_output_data
@@ -622,15 +627,14 @@ class AuthFile(object):
             "version": self.version,
         }
 
+        text = jsonapi.dumps(auth, indent=2)
         with open(self.auth_file, "w") as file_pointer:
-            jsonapi.dump(auth, file_pointer, indent=2)
+            file_pointer.write(text)
 
-        # Every mutator (add, update_by_index, remove_by_indices, ...)
-        # reads self.auth_data to build the entries it writes. Without
-        # this, a second mutation on the same object reads the snapshot
-        # from __init__/load() and its write discards what the first
-        # mutation just persisted (#3248).
-        self.auth_data = self._read()
+        # Mutators build their writes from auth_data, so it must match what
+        # was just written. Parsed from the written text, not re-read from
+        # disk, so a concurrent writer's partial file cannot replace it.
+        self.auth_data = self._to_auth_data(jsonapi.loads(text))
 
 
 class AuthFileIndexError(AuthException, IndexError):
