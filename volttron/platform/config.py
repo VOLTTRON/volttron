@@ -214,7 +214,10 @@ class ConfigFileAction(_argparse.Action):
         return ([], arg_strings) if self.inline else (arg_strings, [])
 
     def itersettings(self, parser, conffile):
-        section_re = _re.compile(r'^\s*\[\s*((?:\\.|[^\]])*?)\s*\](.*)$')
+        # [^\]] overlapped \\., so a backslash before the closing bracket
+        # could match either branch; excluding backslash from the fallback
+        # class removes the ambiguity that let backtracking blow up.
+        section_re = _re.compile(r'^\s*\[\s*((?:\\.|[^\]\\])*?)\s*\](.*)$')
         comment_re = _re.compile(r'^\s*(?:[#;].*)?$')
         setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
         section = None
