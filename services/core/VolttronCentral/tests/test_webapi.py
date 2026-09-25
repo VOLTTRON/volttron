@@ -190,7 +190,7 @@ def test_store_delete_configuration(auto_registered_local):
 def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
-    api = APITester(vc, username="reader", password="reader")
+    api = APITester(vc, username="admin", password="admin")
     gevent.sleep(5)
     platform = api.list_platforms()[0]
     print('The platform is {}'.format(platform))
