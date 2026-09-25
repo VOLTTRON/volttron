@@ -69,13 +69,6 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'Apache 2.0'
 
-# The optional backslash in the old (?:\\?.)*? let a lone backslash match
-# either alone or paired with the next char, so an unterminated quoted
-# string backtracked exponentially over every split of that ambiguity.
-# Disjoint alternatives (escaped-pair or non-backslash) remove the ambiguity.
-_comment_re = re.compile(r'((["\'])(?:\\.|[^\\])*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
-                         re.MULTILINE | re.DOTALL)
-
 _log = logging.getLogger(__name__)
 
 # The following are the only allowable characters for identities.
@@ -114,21 +107,66 @@ def normalize_identity(pre_identity):
     return norm
 
 
-def _repl(match):
-    """Replace the matched group with an appropriate string."""
-    # If the first group matched, a quoted string was matched and should
-    # be returned unchanged.  Otherwise a comment was matched and the
-    # empty string should be returned.
-    return match.group(1) or ''
-
-
 def strip_comments(string):
     """Return string with all comments stripped.
 
     Both JavaScript-style comments (//... and /*...*/) and hash (#...)
     comments are removed.
     """
-    return _comment_re.sub(_repl, string)
+    # A single forward scan rather than a backtracking regex: the previous
+    # quoted-string pattern let a lone backslash match two different ways,
+    # which cost exponential time on crafted input; a disjoint regex fixed
+    # that but paid quadratic time on an unterminated string, since sub()
+    # retried the escape scan from every later quote. This scans each
+    # position once. An unterminated string that never finds an unescaped
+    # closing quote falls back to the last raw occurrence of the quote
+    # character, matching what the backtracking regex found by trying
+    # every split of a trailing escape ambiguity.
+    out = []
+    i = 0
+    n = len(string)
+    while i < n:
+        c = string[i]
+        if c == '"' or c == "'":
+            j = i + 1
+            closed = False
+            while j < n:
+                cj = string[j]
+                if cj == '\\':
+                    j += 2 if j + 1 < n else 1
+                    continue
+                if cj == c:
+                    closed = True
+                    j += 1
+                    break
+                j += 1
+            if not closed:
+                last = string.rfind(c, i + 1)
+                if last != -1:
+                    j = last + 1
+                    closed = True
+            if closed:
+                out.append(string[i:j])
+                i = j
+            else:
+                out.append(c)
+                i += 1
+            continue
+        if c == '/' and string[i + 1:i + 2] == '*':
+            end = string.find('*/', i + 2)
+            if end == -1:
+                out.append(c)
+                i += 1
+            else:
+                i = end + 2
+            continue
+        if c == '#' or (c == '/' and string[i + 1:i + 2] == '/'):
+            nl = string.find('\n', i)
+            i = n if nl == -1 else nl
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
 
 
 def load_config(config_path):

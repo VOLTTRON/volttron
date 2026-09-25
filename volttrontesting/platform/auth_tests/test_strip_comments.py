@@ -48,12 +48,33 @@ def test_strip_comments_valid_input_unchanged(source, expected):
     assert strip_comments(source) == expected
 
 
+# A trailing, unescaped-by-parity backslash right before the closing
+# quote, with no quote later in the string: the historical pattern still
+# closed the string there instead of leaving it unterminated. Pinned so a
+# performance fix cannot silently change what a string like this means.
+# Each case leaves a comment marker inside what should still be the
+# string; without the recovered close, that marker reads as a real
+# comment and gets stripped, so these fail against the un-recovered
+# regex even though the string itself never actually terminates cleanly.
+ESCAPED_FINAL_DELIMITER_CASES = [
+    ('"a // b\\"', '"a // b\\"'),
+    ('"a # b\\"', '"a # b\\"'),
+    ("'a // b\\'", "'a // b\\'"),
+    ('"a /* b */ c\\"', '"a /* b */ c\\"'),
+]
+
+
+@pytest.mark.parametrize('source, expected', ESCAPED_FINAL_DELIMITER_CASES)
+def test_strip_comments_escaped_final_delimiter_keeps_old_meaning(source, expected):
+    assert strip_comments(source) == expected
+
+
 def test_strip_comments_pathological_input_stays_bounded():
-    # The old (?:\\?.)*? let a lone backslash match via the optional escape
-    # or via the bare "." alternative, so an unterminated quoted string with
-    # many backslashes backtracked over every split of that ambiguity.
-    payload = '"' + '\\' * 36 + 'x'
-    start = time.time()
+    # A payload only a linear scan finishes quickly: many escaped-quote
+    # pairs with nothing to close the string, at a size a backtracking or
+    # quadratic-retry scan could not clear in the bound below.
+    payload = '{"a": "' + '\\"' * 50000
+    start = time.monotonic()
     strip_comments(payload)
-    elapsed = time.time() - start
-    assert elapsed < 2.0
+    elapsed = time.monotonic() - start
+    assert elapsed < 1.0
