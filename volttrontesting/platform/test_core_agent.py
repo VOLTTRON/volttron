@@ -2,6 +2,7 @@ import hashlib
 import logging
 import subprocess
 import tarfile              # For sending through a channel.
+import urllib.parse
 from typing import List
 
 import gevent
@@ -9,6 +10,7 @@ import pytest
 import os
 from dateutil.parser import parse as dateparse
 
+from volttron.platform.agent.utils import ADDRESS_SECRET_KEYS, redact_address_secrets
 from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN
 from volttron.platform.vip.agent import Agent, RPC
@@ -16,6 +18,7 @@ from volttron.platform.vip.agent import core as core_module
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.core import Core, ZMQCore
 from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform.vip.socket import Address
 from volttron.platform import jsonapi
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 from volttrontesting.utils.platformwrapper import PlatformWrapper
@@ -334,6 +337,38 @@ def test_core_init_does_not_raise_on_malformed_address(caplog):
     assert core.address == address
 
 
+def test_address_secret_keys_matches_socket_address_mask_keys():
+    # Refs #3307: nothing tied this module's masked key set to
+    # volttron.platform.vip.socket.Address._MASK_KEYS; the two could drift
+    # apart with no test noticing.
+    assert set(ADDRESS_SECRET_KEYS) == set(Address._MASK_KEYS)
+
+
+def test_redact_address_secrets_marker_matches_address_marker():
+    # Refs #3307: reverting the redaction marker to its old value passed
+    # every test; pin it to the same string Address itself renders for a
+    # masked key, rather than a literal duplicated in two places.
+    raw_address = 'tcp://127.0.0.1:22916?server=PLAIN&username=bob&password=thepasswordvalue'
+    address_marker = urllib.parse.parse_qs(
+        urllib.parse.urlparse(str(Address(raw_address))).query)['password'][0]
+
+    redacted = redact_address_secrets(raw_address)
+
+    assert address_marker in redacted
+    assert 'thepasswordvalue' not in redacted
+
+
+def test_redact_address_secrets_never_raises_on_non_string_input():
+    # Refs #3307: only ValueError was caught, so an int, a list, or bytes
+    # raised AttributeError or TypeError straight out of a log call. None
+    # of those are addresses, but the helper must still return a safe
+    # marker rather than raise or hand the raw value back.
+    for value in (12345, [1, 2, 3], b'tcp://host?secretkey=thesecretkeyvalue'):
+        result = redact_address_secrets(value)
+        assert result != value
+        assert 'thesecretkeyvalue' not in str(result)
+
+
 class _FakeZMQConnection:
     """Stand-in for ZMQConnection so loop() runs with no real socket."""
 
@@ -404,3 +439,17 @@ def test_connection_init_does_not_log_secretkey_from_address_query(monkeypatch, 
     # Refs #3307: the real full address, secretkey included, must still be
     # what the underlying Core stores.
     assert connection._server.core.address == address
+
+
+def test_connection_init_does_not_log_password_from_address_query(monkeypatch, caplog):
+    # Refs #3307: connection.py's own "QS IS" debug line had no test with a
+    # password in the query string, only secretkey.
+    monkeypatch.setattr(Connection, 'is_connected', lambda self, timeout=None: True)
+    address = 'tcp://127.0.0.1:22916?password=thepasswordvalue'
+    with get_test_volttron_home(messagebus='zmq'):
+        with caplog.at_level(logging.DEBUG):
+            Connection(address=address, peer='control',
+                      publickey='thepublickeyvalue', secretkey='thesecretkeyvalue',
+                      serverkey='theserverkeyvalue', enable_auth=False)
+
+    assert 'thepasswordvalue' not in caplog.text
