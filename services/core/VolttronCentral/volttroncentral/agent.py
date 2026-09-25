@@ -218,11 +218,9 @@ class VolttronCentralAgent(Agent):
         if self._authenticated_sessions:
             self._authenticated_sessions.clear()
 
-        # The local-user "users" config key predates platform login and is no
-        # longer read: VolttronCentral users come from the platform web user
-        # store. Keep accepting the key, of whatever type a config author
-        # left it as, so an existing config does not break configuration;
-        # only warn, and never log the value itself.
+        # The local-user "users" config key predates platform login: VC
+        # users come from the platform web user store now. Accept the key
+        # for compatibility and only warn; never log its contents.
         if users:
             if isinstance(users, dict):
                 _log.warning(
