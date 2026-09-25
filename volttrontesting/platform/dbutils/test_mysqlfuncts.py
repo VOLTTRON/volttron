@@ -442,7 +442,9 @@ def get_container_func(request):
 
 
 def ports_config():
-    port_on_host = get_rand_port(ip="3306")
+    # get_rand_port checks that the candidate port is free on THIS machine,
+    # so it needs a local address, not the container's target port number.
+    port_on_host = get_rand_port(ip="127.0.0.1")
     return {"port_on_host": port_on_host, "ports": {"3306/tcp": port_on_host}}
 
 
@@ -450,15 +452,12 @@ def wait_for_connection(container):
     start_time = time()
     response = None
     while time() - start_time < ALLOW_CONNECTION_TIME:
-        command = (
-            f'mysqlshow --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE}'
-        )
+        # mysql:8.0 does not ship mysqlshow; mysqladmin is on the same image.
+        command = f'mysqladmin ping --user="root" --password="{ROOT_PASSWORD}"'
         response = container.exec_run(command, tty=True)
         exit_code, output = response
 
-        if exit_code == 1 and "Can't connect to local MySQL server" in output.decode():
-            continue
-        elif exit_code == 0:
+        if exit_code == 0:
             return
 
     raise RuntimeError(f"Failed to make connection within allowed time {response}")

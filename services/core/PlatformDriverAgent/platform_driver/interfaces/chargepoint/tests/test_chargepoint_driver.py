@@ -27,6 +27,7 @@ import pytest
 import gevent
 
 from volttron.platform import get_services_core
+from volttron.platform.agent.known_identities import DRIVER_WRITES
 
 pytestmark = [pytest.mark.contrib]
 
@@ -141,6 +142,12 @@ driverName,driverName,ChargingSessionRegister,1,string,,,FALSE,"""
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance):
     md_agent = volttron_instance.build_agent()
+    # The default capability build_agent grants (edit_config_store scoped to
+    # this agent's own random identity) does not authorize delete_store
+    # called below with identity='platform.driver', and set_point is gated
+    # on driver_write (#3298); neither is covered without an explicit grant.
+    capabilities = [{'edit_config_store': {'identity': 'platform.driver'}}, DRIVER_WRITES]
+    volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
     # Clean out platform driver configurations.
     md_agent.vip.rpc.call('config.store',
                           'delete_store',

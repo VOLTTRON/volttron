@@ -22,7 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-'''VIP - VOLTTRON™ Interconnect Protocol implementation
+'''VIP - VOLTTRON(TM) Interconnect Protocol implementation
 
 See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
 for protocol specification.
@@ -53,7 +53,7 @@ from zmq.utils import z85
 
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
-__all__ = ['Address', 'ProtocolError', 'Message', 'nonblocking']
+__all__ = ['Address', 'ProtocolError', 'SendLockTimeout', 'Message', 'nonblocking']
 
 BASE64_ENCODED_CURVE_KEY_LEN = 43
 
@@ -259,6 +259,16 @@ class Address:
 
 class ProtocolError(Exception):
     """Error raised for invalid use of Socket object."""
+    pass
+
+
+class SendLockTimeout(Exception):
+    """Raised when a VIP send cannot acquire the socket's send lock.
+
+    Deliberately not a ZMQError subclass: PeerList and Ping catch ZMQError
+    and act only on ENOTSOCK, so a ZMQError here would be swallowed into an
+    AsyncResult that is never filled.
+    """
     pass
 
 

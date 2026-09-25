@@ -43,6 +43,18 @@ ROUTER = ''
 CONTROL = 'control'
 CONTROL_CONNECTION = 'control.connection'
 PLATFORM_WEB = 'platform_web'
+
+# Capabilities required to invoke privileged control-plane RPC methods such as
+# start/stop/install/remove agent and platform shutdown. Callers that lack
+# these capabilities are rejected with UNAUTHORIZED before the method body runs.
+START_STOP_AGENTS = 'start_stop_agents'
+INSTALL_REMOVE_AGENTS = 'install_remove_agents'
+STOP_PLATFORM = 'stop_platform'
+TAG_AGENTS = 'tag_agents'
+CLEAR_AGENT_STATUS = 'clear_agent_status'
+DRIVER_OVERRIDES = 'driver_override'
+DRIVER_WRITES = 'driver_write'
+
 CONFIGURATION_STORE = 'config.store'
 KEY_DISCOVERY = 'keydiscovery'
 PROXY_ROUTER = 'zmq.proxy.router'

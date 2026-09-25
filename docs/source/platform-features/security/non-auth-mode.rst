@@ -31,3 +31,7 @@ the same across all the instances.
        not have any access restrictions
     3. You can still use ssl (https) for your web access
     4. Non auth mode is currently available only for ZMQ
+    5. With authentication disabled, RPC capability requirements are not enforced, including those on control
+       and driver write methods. An agent logs a warning naming its unenforced methods when it has at least
+       one gated export; a capability granted afterward through the dynamic allow() call logs its own warning
+       at that point instead.

@@ -66,7 +66,8 @@ class MySqlFuncts(DbDriver):
         # cached data even if we create a new cursor for each query and
         # close the cursor after fetching results
         connect_params['autocommit'] = True
-        _log.debug(f"Creating mysql connector with params {connect_params}")
+        _log.debug(f"Creating mysql connector with params "
+                  f"{utils.redact_keys(connect_params, utils.DB_SECRET_KEYS)}")
         super(MySqlFuncts, self).__init__('mysql.connector', auth_plugin='mysql_native_password',
                                           **connect_params)
 

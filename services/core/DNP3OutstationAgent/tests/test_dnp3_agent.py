@@ -13,11 +13,8 @@ import gevent
 import pytest
 import os
 import datetime
-# from dnp3_outstation.agent import Dnp3OutstationAgent
 from services.core.DNP3OutstationAgent.dnp3_outstation_agent.agent import Dnp3Agent as Dnp3OutstationAgent
-from dnp3_python.dnp3station.outstation_new import MyOutStationNew
 import random
-import subprocess
 import logging
 
 logging_logger = logging.getLogger(__name__)

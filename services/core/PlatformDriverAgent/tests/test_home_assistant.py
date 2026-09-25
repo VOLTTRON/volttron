@@ -30,6 +30,7 @@ import gevent
 from volttron.platform.agent.known_identities import (
     PLATFORM_DRIVER,
     CONFIGURATION_STORE,
+    DRIVER_WRITES,
 )
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
@@ -58,7 +59,7 @@ HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
 # Get the point which will should be off
 def test_get_point(volttron_instance, config_store):
     expected_values = 0
-    agent = volttron_instance.dynamic_agent
+    agent = config_store
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'home_assistant', 'bool_state').get(timeout=20)
     assert result == expected_values, "The result does not match the expected result."
 
@@ -67,7 +68,7 @@ def test_get_point(volttron_instance, config_store):
 # the value will default to 3 making the test fail.
 def test_data_poll(volttron_instance: PlatformWrapper, config_store):
     expected_values = [{'bool_state': 0}, {'bool_state': 1}]
-    agent = volttron_instance.dynamic_agent
+    agent = config_store
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
     assert result in expected_values, "The result does not match the expected result."
 
@@ -76,8 +77,8 @@ def test_data_poll(volttron_instance: PlatformWrapper, config_store):
 # it on and receive the correct value.
 def test_set_point(volttron_instance, config_store):
     expected_values = {'bool_state': 1}
-    agent = volttron_instance.dynamic_agent
-    agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'home_assistant', 'bool_state', 1)
+    agent = config_store
+    agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'home_assistant', 'bool_state', 1).get(timeout=20)
     gevent.sleep(10)
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
     assert result == expected_values, "The result does not match the expected result."
@@ -86,8 +87,15 @@ def test_set_point(volttron_instance, config_store):
 @pytest.fixture(scope="module")
 def config_store(volttron_instance, platform_driver):
 
-    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}]
-    volttron_instance.add_capabilities(volttron_instance.dynamic_agent.core.publickey, capabilities)
+    # Granted to a dedicated agent, not dynamic_agent: the harness resets
+    # dynamic_agent's capabilities to a fixed set that excludes driver_write
+    # on every platform startup (test_update_dynamic_agent_capabilities_
+    # drops_stale_driver_capability), so a grant there would be silently
+    # reverted. set_point is gated on driver_write (#3298); edit_config_store
+    # alone no longer authorizes it.
+    md_agent = volttron_instance.build_agent(identity="test_home_assistant_agent")
+    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}, DRIVER_WRITES]
+    volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
     registry_config = "homeassistant_test.json"
     registry_obj = [{
@@ -102,12 +110,12 @@ def config_store(volttron_instance, platform_driver):
         "Notes": "lights hallway"
     }]
 
-    volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                                 "manage_store",
-                                                 PLATFORM_DRIVER,
-                                                 registry_config,
-                                                 json.dumps(registry_obj),
-                                                 config_type="json")
+    md_agent.vip.rpc.call(CONFIGURATION_STORE,
+                          "manage_store",
+                          PLATFORM_DRIVER,
+                          registry_config,
+                          json.dumps(registry_obj),
+                          config_type="json").get(timeout=20)
     gevent.sleep(2)
     # driver config
     driver_config = {
@@ -118,20 +126,21 @@ def config_store(volttron_instance, platform_driver):
         "interval": 30,
     }
 
-    volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                                 "manage_store",
-                                                 PLATFORM_DRIVER,
-                                                 HOMEASSISTANT_DEVICE_TOPIC,
-                                                 json.dumps(driver_config),
-                                                 config_type="json"
-                                                 )
+    md_agent.vip.rpc.call(CONFIGURATION_STORE,
+                          "manage_store",
+                          PLATFORM_DRIVER,
+                          HOMEASSISTANT_DEVICE_TOPIC,
+                          json.dumps(driver_config),
+                          config_type="json"
+                          ).get(timeout=20)
     gevent.sleep(2)
 
-    yield platform_driver
+    yield md_agent
 
     print("Wiping out store.")
-    volttron_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_store", PLATFORM_DRIVER)
+    md_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_store", PLATFORM_DRIVER).get(timeout=20)
     gevent.sleep(0.1)
+    md_agent.core.stop()
 
 
 @pytest.fixture(scope="module")

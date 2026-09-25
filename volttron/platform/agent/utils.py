@@ -21,7 +21,7 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-"""VOLTTRON platform™ agent helper classes/functions."""
+"""VOLTTRON platform(TM) agent helper classes/functions."""
 
 import argparse
 import calendar
@@ -42,6 +42,7 @@ except ImportError:
 import re
 import stat
 import traceback
+import urllib.parse
 from configparser import ConfigParser
 from datetime import datetime
 
@@ -62,20 +63,82 @@ from volttron.utils.prompt import prompt_response
 __all__ = [
     'load_config', 'run_agent', 'start_agent_thread', 'is_valid_identity', 'load_platform_config',
     'get_messagebus', 'get_fq_identity', 'execute_command', 'get_aware_utc_now', 'is_secure_mode',
-    'is_web_enabled', 'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running'
+    'is_web_enabled', 'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running',
+    'redact', 'redact_keys', 'redact_address_secrets', 'DB_SECRET_KEYS'
 ]
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'Apache 2.0'
 
-_comment_re = re.compile(r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
-                         re.MULTILINE | re.DOTALL)
-
 _log = logging.getLogger(__name__)
 
 # The following are the only allowable characters for identities.
 _VALID_IDENTITY_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+# Same marker and key set as volttron.platform.vip.socket.Address._MASK_KEYS,
+# so a redacted VIP address reads the same whether it went through Address
+# or through this module.
+_REDACTED = 'XXXXX'
+ADDRESS_SECRET_KEYS = ('secretkey', 'password')
+
+# Matches the set services/core/SQLHistorian/sqlhistorian/historian.py
+# already masks before logging a database connection's params, plus the
+# MySQL connector's multi-factor authentication keys (password1/2/3).
+DB_SECRET_KEYS = ('pass', 'passwd', 'password', 'pw',
+                  'password1', 'password2', 'password3')
+
+_UNPARSEABLE_ADDRESS = '<unparseable address redacted>'
+
+
+def redact(value):
+    """Return a fixed marker for a truthy credential value, else the value.
+
+    Used at every log call that would otherwise print a secret key or a
+    database password.
+    """
+    return _REDACTED if value else value
+
+
+def redact_keys(mapping, sensitive_keys):
+    """Return a copy of mapping with each sensitive key's value redacted.
+
+    Key matching is case-insensitive so 'password' and 'passwd' style
+    kwargs are both caught regardless of how a driver names them.
+    """
+    lowered = {key.lower() for key in sensitive_keys}
+    return {key: (redact(value) if key.lower() in lowered else value)
+            for key, value in mapping.items()}
+
+
+def redact_address_secrets(address):
+    """Return address with any secretkey or password query value redacted.
+
+    A VIP address can carry the CURVE secret key or a PLAIN password in
+    its query string (see build_vip_address_string); this masks both
+    before the address is logged, without disturbing the rest of the
+    query. Never raises and never returns non-address input unchanged: a
+    caller that hands this a malformed address, or something that is not
+    an address at all (bytes, an int, a list), must still get a value
+    safe to log, not a failure the caller did not have before.
+    """
+    if not address:
+        return address
+    try:
+        parsed = urllib.parse.urlparse(address)
+        if not parsed.query:
+            return address
+        query = redact_keys(dict(urllib.parse.parse_qsl(parsed.query)),
+                            ADDRESS_SECRET_KEYS)
+        return parsed._replace(query=urllib.parse.urlencode(query)).geturl()
+    except Exception:
+        # Deliberately broad: urlparse raises ValueError on a malformed
+        # address, AttributeError on a non-string/bytes type such as an
+        # int or list, and mixing str with bytes input raises TypeError.
+        # Any of them must fall through to the marker, never to the raw
+        # input or an exception out of a log call.
+        return _UNPARSEABLE_ADDRESS
 
 
 def is_valid_identity(identity_to_check):
@@ -110,21 +173,67 @@ def normalize_identity(pre_identity):
     return norm
 
 
-def _repl(match):
-    """Replace the matched group with an appropriate string."""
-    # If the first group matched, a quoted string was matched and should
-    # be returned unchanged.  Otherwise a comment was matched and the
-    # empty string should be returned.
-    return match.group(1) or ''
-
-
 def strip_comments(string):
     """Return string with all comments stripped.
 
     Both JavaScript-style comments (//... and /*...*/) and hash (#...)
     comments are removed.
     """
-    return _comment_re.sub(_repl, string)
+    # A single, linear forward scan. An unclosed block comment is
+    # remembered so a later /* is not searched for again; an unterminated
+    # quoted string falls back to the last raw delimiter, as the
+    # historical pattern did.
+    out = []
+    i = 0
+    n = len(string)
+    no_close_from = None
+    while i < n:
+        c = string[i]
+        if c == '"' or c == "'":
+            j = i + 1
+            closed = False
+            while j < n:
+                cj = string[j]
+                if cj == '\\':
+                    j += 2 if j + 1 < n else 1
+                    continue
+                if cj == c:
+                    closed = True
+                    j += 1
+                    break
+                j += 1
+            if not closed:
+                last = string.rfind(c, i + 1)
+                if last != -1:
+                    j = last + 1
+                    closed = True
+            if closed:
+                out.append(string[i:j])
+                i = j
+            else:
+                out.append(c)
+                i += 1
+            continue
+        if c == '/' and string[i + 1:i + 2] == '*':
+            if no_close_from is not None and i + 2 >= no_close_from:
+                out.append(c)
+                i += 1
+                continue
+            end = string.find('*/', i + 2)
+            if end == -1:
+                no_close_from = i + 2
+                out.append(c)
+                i += 1
+            else:
+                i = end + 2
+            continue
+        if c == '#' or (c == '/' and string[i + 1:i + 2] == '/'):
+            nl = string.find('\n', i)
+            i = n if nl == -1 else nl
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
 
 
 def load_config(config_path):
@@ -824,7 +933,7 @@ def execute_command(cmds,
     raise a RuntimeError.  If logger is specified then write the exception
     to the logger otherwise this call will remain silent.
 
-    :param cmds:list of commands to pass to subprocess.run
+    :param cmds: list of commands to pass to subprocess.run
     :param env: environment to run the command with
     :param cwd: working directory for the command
     :param logger: a logger to use if errors occure
@@ -834,61 +943,27 @@ def execute_command(cmds,
     :raises RuntimeError: if the return code is not 0 from suprocess.run
     """
 
-    results = subprocess.run(cmds,
-                             env=env,
-                             cwd=cwd,
-                             stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             shell=use_shell)
-    if results.returncode != 0:
+    try:
+        results = subprocess.run(
+            cmds,
+            env=env,
+            cwd=cwd,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            shell=use_shell,
+            check=True
+        )
+        return results.stdout.decode('utf-8')
+    except subprocess.CalledProcessError as e:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
-        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
-                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
-                                                          results.args,
-                                                          results.stderr)
+        err_message = f"\n{err_prefix}: Command failed with non-zero exit code.\n" \
+                      f"Command: {e.cmd}\n" \
+                      f"Return Code: {e.returncode}\n" \
+                      f"Stdout:\n{e.stdout.decode('utf-8')}\n" \
+                      f"Stderr:\n{e.stderr.decode('utf-8')}\n"
         if logger:
             logger.exception(err_message)
-            raise RuntimeError(err_message)
-        else:
-            raise RuntimeError(err_message)
-
-    return results.stdout.decode('utf-8')
-
-
-#
-# def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
-#     """ Executes a given command using a subprocess.
-#
-#     Returns the return code and stdout of the call.
-#
-#     :param cmds:
-#     :param env:
-#     :param cwd:
-#     :param logger:
-#     :param err_prefix:
-#     :return:
-#     """
-#     if cwd is None:
-#         cwd = os.getcwd()
-#
-# #    try:
-#     results = subprocess.run(cmds, env=env, cwd=cwd,
-#                              stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#     if results.returncode != 0:
-#         err_prefix = "Error executing command"
-#         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
-#                       "Command:{} \nStderr:\n{}\n".format(err_prefix,
-#                                                           results.args,
-#                                                           results.stderr)
-#         if logger:
-#             logger.exception(err_message)
-#             raise RuntimeError()
-#         else:
-#             raise RuntimeError(err_message)
-#     return results.returncode, results.stdout.decode('utf-8')
-#     # except BaseException as e:
-#     #     _log.error("Exception running cmd: {} . Exception: {}".format(cmds, e))
-#     #     raise e
+        raise RuntimeError(err_message)
 
 
 def is_volttron_running(volttron_home):

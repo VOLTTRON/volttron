@@ -39,6 +39,7 @@ suite do the following:
 
 import ast
 import contextlib
+import os
 import tempfile
 from datetime import datetime, timedelta
 import inspect
@@ -75,7 +76,7 @@ if HAVE_POSTGRESQL:
 
 postgres_connection_params = {
                                 'dbname': 'test_historian',
-                                'port': 5432,
+                                'port': int(os.environ.get("POSTGRES_PORT", 5432)),
                                 'host': '127.0.0.1',
                                 'user' : 'historian',
                                 'password': 'historian'

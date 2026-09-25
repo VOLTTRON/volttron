@@ -144,7 +144,25 @@ def update(operation, verbose=None, offline=False, optional_requirements=[], rab
         optional_requirements = list(option_set)
     if optional_requirements:
         target += '[' + ','.join(optional_requirements) + ']'
-    args.extend(['--editable', target])
+    # Force the PEP 517 isolated build path for this install. Some
+    # transitive extras (modbus-tk, treelib) ship only a setup.py with no
+    # pyproject.toml, so pip's own use_pep517 fallback looks at whether
+    # setuptools and wheel are already importable in this environment. By
+    # this point in bootstrap they are (wheel==0.30 was just installed
+    # above), so pip takes the legacy, non-isolated setup.py path and hands
+    # those builds a modern setuptools running against the ambient
+    # wheel==0.30, whose bdist_wheel unconditionally imports
+    # wheel.wheelfile.WheelFile, an API wheel==0.30 does not have. Forcing
+    # --use-pep517 here makes pip provision a fresh, isolated build
+    # environment per requirement instead, which supplies its own
+    # setuptools/wheel pair and builds clean. This does not touch the
+    # wheel==0.30 pin above, but it does apply to the whole install call
+    # below, whose target is path[extras]: VOLTTRON's own editable install
+    # also switches from the legacy setup.py develop path to an isolated
+    # PEP 517 editable build, not just the remaining extras. Verified
+    # equivalent in outcome: pip install -e . succeeds and the auth suite
+    # is green.
+    args.extend(['--use-pep517', '--editable', target])
     print(f"Target: {target}")
     pip(operation, args, verbose, offline)
 

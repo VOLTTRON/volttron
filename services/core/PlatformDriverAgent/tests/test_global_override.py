@@ -30,7 +30,7 @@ import pytest
 import os
 
 from volttron.platform import get_services_core, get_volttron_root, jsonapi
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
 import gevent
 from volttron.platform.jsonrpc import RemoteError
 
@@ -69,7 +69,12 @@ def test_agent(volttron_instance):
     gevent.sleep(1)
 
     if volttron_instance.auth_enabled:
-        capabilities = {"edit_config_store": {"identity": PLATFORM_DRIVER}}
+        # set_point/revert_device are gated on driver_write (#3298);
+        # edit_config_store alone no longer authorizes them. The override
+        # methods this module also exercises (set_override_on/off) are
+        # gated on a separate driver_override capability, tracked in #3301
+        # and deliberately not granted here.
+        capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}, DRIVER_WRITES]
         volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
     # Clean out platform driver configurations

@@ -1202,7 +1202,7 @@ class BaseHistorianAgent(Agent):
                         if self._history_limit_days is not None:
                             last_element = to_publish_list[-1]
                             last_time_stamp = last_element["timestamp"]
-                            history_limit_timestamp = last_time_stamp - self._history_limit_days
+                            history_limit_timestamp = last_time_stamp - timedelta(days=self._history_limit_days)
 
                         try:
                             if not cache_only_enabled:
