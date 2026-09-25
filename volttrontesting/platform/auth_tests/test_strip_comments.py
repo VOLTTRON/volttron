@@ -28,9 +28,9 @@ import pytest
 
 from volttron.platform.agent.utils import strip_comments
 
-# auth_file.py runs every auth.json read through strip_comments before
-# parsing it as JSON (see FileAuthorization loading in auth_file.py), so a
-# change here changes what auth entries the platform accepts.
+# strip_comments backs the JSON-with-comments parser volttron config
+# loading uses; this pins the comment-stripping regex against
+# backtracking and against the exact set of inputs it already handles.
 
 VALID_CASES = [
     ('{"a": "b"}', '{"a": "b"}'),
