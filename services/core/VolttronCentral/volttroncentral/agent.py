@@ -90,7 +90,8 @@ def init_volttron_central(config_path, **kwargs):
     # Load the configuration into a dictionary
     config = utils.load_config(config_path)
 
-    # Required users
+    # Kept for backward compatibility with existing config files; no longer
+    # used for login (see VolttronCentralAgent._configure).
     users = config.get('users', None)
 
     # Expose the webroot property to be customized through the config
@@ -201,9 +202,8 @@ class VolttronCentralAgent(Agent):
             2. When 'store' is called through the volttron-ctl config command
                line with 'config' as the name.
 
-        Required Configuration:
-
-        The volttron central requires a user mapping.
+        VolttronCentral users are managed through the platform web user
+        store; no local user mapping is required.
 
         :param config_name:
         :param action:
@@ -220,18 +220,26 @@ class VolttronCentralAgent(Agent):
 
         # The local-user "users" config key predates platform login and is no
         # longer read: VolttronCentral users come from the platform web user
-        # store. Keep accepting the key so an existing config does not break
-        # configuration, but only warn, and never log the entries themselves.
+        # store. Keep accepting the key, of whatever type a config author
+        # left it as, so an existing config does not break configuration;
+        # only warn, and never log the value itself.
         if users:
-            _log.warning(
-                "VolttronCentral config 'users' key is no longer used for "
-                "login; %d user(s) ignored. VolttronCentral users are "
-                "managed through the platform web user store.", len(users))
+            if isinstance(users, dict):
+                _log.warning(
+                    "VolttronCentral config 'users' key is no longer used "
+                    "for login; %d user(s) ignored. VolttronCentral users "
+                    "are managed through the platform web user store.",
+                    len(users))
+            else:
+                _log.warning(
+                    "VolttronCentral config 'users' key is no longer used "
+                    "for login; ignored. VolttronCentral users are "
+                    "managed through the platform web user store.")
 
         # Unregister all routes for vc and then re-add down below.
         self.vip.web.unregister_all_routes()
 
-        self._authenticated_sessions = SessionHandler(None)
+        self._authenticated_sessions = SessionHandler()
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
