@@ -4,7 +4,7 @@ import pytest
 import shutil
 from pathlib import Path
 from volttron.platform.auth.certs import Certs, Subject, CertError
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.utils import get_platform_instance_name, execute_command
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils import certs_utils
 
@@ -135,12 +135,34 @@ def test_create_root_ca(temp_volttron_home):
 
     private_key = certs.private_key_file("VC-root-ca")
     cert_file = certs.cert_file("VC-root-ca")
-    # certs_utils (not test_certs_utils, which does not exist) provides
-    # TLSRepository; the cnf file lives beside this test, not in the CWD.
+    # The cnf file lives beside this test, not in the CWD.
     tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
                                      openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
                                      serverhost="FullyQualifiedIdentity")
     assert tls.verify_ca_cert(private_key, cert_file)
+
+
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
+def test_verify_ca_cert_rejects_mismatched_key(temp_volttron_home):
+    # verify_ca_cert must reject a cert paired with an unrelated key, not
+    # just accept a matching one (#3259 fix round 1).
+    certs = Certs()
+    data = {'C': 'US',
+            'ST': 'Washington',
+            'L': 'Richland',
+            'O': 'pnnl',
+            'OU': 'volttron',
+            'CN': INSTANCE_NAME+"_root_ca"}
+    certs.create_root_ca(**data)
+    cert_file = certs.cert_file("VC-root-ca")
+
+    other_key_file = os.path.join(temp_volttron_home, "unrelated.pem")
+    execute_command(["openssl", "genrsa", "-out", other_key_file, "2048"])
+
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
+    assert tls.verify_ca_cert(other_key_file, cert_file) is False
 
 
 def test_create_signed_cert_files(temp_volttron_home):
@@ -166,8 +188,7 @@ def test_create_signed_cert_files(temp_volttron_home):
 @pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
 def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
-    # certs_utils (not test_certs_utils, which does not exist) provides
-    # TLSRepository; the cnf file lives beside this test, not in the CWD.
+    # The cnf file lives beside this test, not in the CWD.
     tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
                                      openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
                                      serverhost="FullyQualifiedIdentity")
@@ -188,6 +209,54 @@ def test_create_csr(temp_volttron_home):
 
     csr_info = tls.verify_csr(csr_file_path, csr_private_key_path)
     assert csr_info != None
+
+
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
+def test_verify_csr_returns_false_for_wrong_key(temp_volttron_home):
+    # A CSR verified against the wrong key must report False, not raise
+    # (a bad verify is a test FAILURE, not an ERROR) (#3259 fix round 1).
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
+    tls.__create_ca__()
+    certs_using_tls = Certs(temp_volttron_home)
+    csr = certs_using_tls.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
+
+    csr_file_path = os.path.join(certs_using_tls.cert_dir, "CSR2.csr")
+    with open(csr_file_path, "wb") as f:
+        f.write(csr)
+
+    wrong_key_path = os.path.join(temp_volttron_home, "wrong.pem")
+    execute_command(["openssl", "genrsa", "-out", wrong_key_path, "2048"])
+
+    assert tls.verify_csr(csr_file_path, wrong_key_path) is False
+
+
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
+def test_signed_cert_csr_not_written_to_tmp(monkeypatch, temp_volttron_home):
+    # The CSR TLSRepository creates while signing a cert used to land at a
+    # fixed /tmp path; assert it never does, by inspecting /tmp right before
+    # the signing step consumes the CSR (#3259 fix round 1).
+    target = Path("/tmp/FullyQualifiedIdentity")
+    if target.exists():
+        target.unlink()
+
+    seen = {}
+    real_execute_command = certs_utils.execute_command
+
+    def spy(cmd, *args, **kwargs):
+        if cmd[:2] == ["openssl", "ca"]:
+            seen["tmp_existed"] = target.exists()
+        return real_execute_command(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(certs_utils, "execute_command", spy)
+
+    certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                               openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                               serverhost="FullyQualifiedIdentity")
+
+    assert seen == {"tmp_existed": False}
+    assert not target.exists()
 
 
 def test_approve_csr(temp_volttron_home, temp_csr):

@@ -143,14 +143,23 @@ def __openssl_create_ca_certificate__(common_name: str, private_key_file: Path, 
     return execute_command(cmd)
 
 
-def __verify_ca_certificate__(private_key_file: str, ca_cert_file: str):
-    # openssl x509 -noout -modulus -in server.crt| openssl md5
-    # openssl rsa -noout -modulus -in server.key| openssl md5
-    cmd = ["openssl", "x509", "-noout", "-modulus", "-in", ca_cert_file, "|", "openssl", "md5"]
-    cert_md5 = execute_command(cmd, use_shell=True)
-    cmd = ["openssl", "rsa", "-noout", "-modulus", "-in", private_key_file, "|", "openssl", "md5"]
-    key_md5 = execute_command(cmd, use_shell=True)
-    return cert_md5 == key_md5
+def __verify_ca_certificate__(private_key_file: str, ca_cert_file: str) -> bool:
+    # Compare the RSA modulus directly (same pattern as
+    # Certs.validate_key_pair in volttron/platform/auth/certs.py). The prior
+    # use_shell=True call passed cmd as a list with shell=True, which on
+    # POSIX runs only cmd[0] ("openssl" with no arguments) and silently
+    # discards the pipe; a bare "openssl" exits 0 with empty stdout, so both
+    # sides always compared "" == "" and this always returned True.
+    try:
+        cert_modulus = execute_command(
+            ["openssl", "x509", "-noout", "-modulus", "-in", str(ca_cert_file)],
+            err_prefix="Error getting modulus of certificate")
+        key_modulus = execute_command(
+            ["openssl", "rsa", "-noout", "-modulus", "-in", str(private_key_file)],
+            err_prefix="Error getting modulus of private key")
+    except RuntimeError:
+        return False
+    return cert_modulus == key_modulus
 
 
 def __openssl_create_csr__(common_name: str, opensslcnf: Path, private_key_file: Path, server_csr_file: Path):
@@ -166,13 +175,22 @@ def __openssl_create_csr__(common_name: str, opensslcnf: Path, private_key_file:
 
 def __openssl_verify_csr__(csr_file_path: str, private_key_file: str):
     # openssl req -text -noout -verify -in csr_file_path -key private_ket_file
+    # A CSR that does not verify against the key makes openssl exit
+    # non-zero; return False rather than let execute_command's RuntimeError
+    # turn a bad CSR into a test ERROR instead of a FAILURE.
     cmd = ["openssl", "req", "-text", "-noout", "-verify", "-in", csr_file_path, "-key", private_key_file]
-    return execute_command(cmd)
+    try:
+        return execute_command(cmd)
+    except RuntimeError:
+        return False
 
 
 def __openssl_create_signed_certificate__(common_name: str, opensslcnf: Path, ca_key_file: Path, ca_cert_file: Path,
                                           private_key_file: Path, cert_file: Path, as_server: bool = False):
-    csr_file = Path(f"/tmp/{common_name}")
+    # Transient CSR: write it beside cert_file (inside the repo dir the
+    # caller gave TLSRepository), not a fixed /tmp path that concurrent
+    # runs would collide on.
+    csr_file = Path(cert_file).parent / common_name
     __openssl_create_csr__(common_name, opensslcnf, private_key_file, csr_file)
     # openssl ca -keyfile /root/tls/private/ec-cakey.pem -cert /root/tls/certs/ec-cacert.pem \
     #   -in server.csr -out server.crt -config /root/tls/openssl.cnf
