@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import sys
@@ -7,6 +8,8 @@ import pytest
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform import jsonrpc
 from volttron.platform.messaging.health import STATUS_BAD
+
+_log = logging.getLogger(__name__)
 
 called_agent_src = """
 import sys
@@ -178,8 +181,15 @@ def install_two_agents(volttron_instance):
     try:
         yield caller_uuid, called_uuid
     finally:
-        volttron_instance.remove_agent(caller_uuid)
-        volttron_instance.remove_agent(called_uuid)
+        # Attempt both removals even if one raises, and never let a removal
+        # error replace the test's own failure/error: log it instead of
+        # swallowing it or letting it propagate from finally (#3261 fix
+        # round 1).
+        for uuid in (caller_uuid, called_uuid):
+            try:
+                volttron_instance.remove_agent(uuid)
+            except Exception:
+                _log.exception("Failed to remove agent %s during teardown", uuid)
         gevent.sleep(1)
 
 
