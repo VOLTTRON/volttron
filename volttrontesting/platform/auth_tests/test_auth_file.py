@@ -524,3 +524,36 @@ def test_add_multiple_entries_one_object_all_persist(tmp_path):
     persisted = AuthFile(auth_path).read_allow_entries()
     persisted_creds = {str(e.credentials) for e in persisted}
     assert persisted_creds == {str(e.credentials) for e in added}
+
+
+@pytest.mark.auth
+def test_add_capabilities_writes_matched_entry_only(tmp_path):
+    """#3247: add_capabilities matches an entry by credentials but must
+    not let AuthFile.add(overwrite=True) resolve the write target by
+    user_id alone, which can land on a different entry."""
+    from volttrontesting.utils.platformwrapper import PlatformWrapper
+
+    auth_path = str(tmp_path / "auth.json")
+    cred_a = "A" * 43
+    cred_b = "B" * 43
+    entry_a = AuthEntry(user_id="shared", credentials=cred_a)
+    entry_b = AuthEntry(user_id="shared", credentials=cred_b)
+
+    # add() itself refuses a second entry with a duplicate user_id, so
+    # this shape (two entries sharing a user_id, differing by key) is
+    # seeded with a direct write, bypassing that check.
+    seed = AuthFile(auth_path)
+    seed._write([entry_a, entry_b], [], {}, {})
+
+    wrapper = PlatformWrapper.__new__(PlatformWrapper)
+    wrapper.auth_enabled = True
+    wrapper.env = {}
+    wrapper.volttron_home = str(tmp_path)
+
+    wrapper.add_capabilities(cred_b, "new_cap")
+
+    reread = {
+        str(e.credentials): e for e in AuthFile(auth_path).read_allow_entries()
+    }
+    assert "new_cap" in reread[cred_b].capabilities
+    assert "new_cap" not in reread[cred_a].capabilities

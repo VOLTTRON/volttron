@@ -662,15 +662,29 @@ class PlatformWrapper:
                 capabilities = [capabilities]
             auth_path = self.volttron_home + "/auth.json"
             auth = AuthFile(auth_path)
-            entry = auth.find_by_credentials(publickey)[0]
-            caps = entry.capabilities
+            # Index the match ourselves: add(overwrite=True) resolves its
+            # write target by user_id alone (see
+            # _update_dynamic_agent_capabilities above), so it can land on
+            # a different entry that happens to share the matched one's
+            # user_id (#3247).
+            entries = auth.read_allow_entries()
+            matches = [
+                (i, e) for i, e in enumerate(entries)
+                if str(e.credentials) == publickey
+            ]
+            index, entry = matches[0]
+            # A copy, not entry.capabilities itself: that dict may be the
+            # same object AuthFile's own snapshot holds, so mutating it in
+            # place would corrupt the read before anything is written.
+            caps = dict(entry.capabilities)
 
             if isinstance(capabilities, list):
                 for c in capabilities:
                     self.add_capability(c, caps)
             else:
                 self.add_capability(capabilities, caps)
-            auth.add(entry, overwrite=True)
+            entry.capabilities = caps
+            auth.update_by_index(entry, index)
             _log.debug("Updated entry is {}".format(entry))
             # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
             # This slow down is not an issue with file watcher but rather vip.peerlist(). peerlist times out
