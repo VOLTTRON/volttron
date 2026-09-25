@@ -115,7 +115,7 @@ def config_store(volttron_instance, platform_driver):
                           PLATFORM_DRIVER,
                           registry_config,
                           json.dumps(registry_obj),
-                          config_type="json")
+                          config_type="json").get(timeout=20)
     gevent.sleep(2)
     # driver config
     driver_config = {
@@ -132,14 +132,15 @@ def config_store(volttron_instance, platform_driver):
                           HOMEASSISTANT_DEVICE_TOPIC,
                           json.dumps(driver_config),
                           config_type="json"
-                          )
+                          ).get(timeout=20)
     gevent.sleep(2)
 
     yield md_agent
 
     print("Wiping out store.")
-    md_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_store", PLATFORM_DRIVER)
+    md_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_store", PLATFORM_DRIVER).get(timeout=20)
     gevent.sleep(0.1)
+    md_agent.core.stop()
 
 
 @pytest.fixture(scope="module")
