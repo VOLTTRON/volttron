@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 
 from gevent import subprocess
@@ -6,6 +7,7 @@ import os
 
 from setuptools import glob
 
+from volttron.platform.dbutils.basedb import DbDriver
 from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 
 
@@ -510,3 +512,13 @@ def init_database(sqlitefuncts_client, historian_version):
 
 def init_historian_tables(sqlitefuncts_client):
     sqlitefuncts_client.setup_historian_tables()
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_dbdriver_init_does_not_log_password(caplog):
+    # #3304: "kwargs for connect is %r" logged the password verbatim.
+    with caplog.at_level(logging.DEBUG):
+        DbDriver('sqlite3', database=':memory:', password='thepasswordvalue')
+
+    assert 'thepasswordvalue' not in caplog.text
