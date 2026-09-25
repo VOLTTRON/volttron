@@ -625,6 +625,13 @@ class AuthFile(object):
         with open(self.auth_file, "w") as file_pointer:
             jsonapi.dump(auth, file_pointer, indent=2)
 
+        # Every mutator (add, update_by_index, remove_by_indices, ...)
+        # reads self.auth_data to build the entries it writes. Without
+        # this, a second mutation on the same object reads the snapshot
+        # from __init__/load() and its write discards what the first
+        # mutation just persisted (#3248).
+        self.auth_data = self._read()
+
 
 class AuthFileIndexError(AuthException, IndexError):
 

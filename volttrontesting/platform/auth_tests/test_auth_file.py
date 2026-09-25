@@ -503,3 +503,24 @@ def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
     assert len(entries) == 4
     for entry in entries:
         assert entry.rpc_method_authorizations == {}
+
+
+@pytest.mark.auth
+def test_add_multiple_entries_one_object_all_persist(tmp_path):
+    """#3248: the harness pre-seed builds one AuthFile and calls add()
+    on it repeatedly (platformwrapper.py startup_platform). Each write
+    must keep what the previous write already persisted."""
+    auth_path = str(tmp_path / "auth.json")
+    auth_file = AuthFile(auth_path)
+    added = [
+        AuthEntry(credentials=chr(65 + i) * 43, user_id=f"user{i}")
+        for i in range(4)
+    ]
+    for entry in added:
+        auth_file.add(entry)
+
+    # A fresh object reads what is actually on disk, not whichever
+    # in-memory view the writer instance happens to hold.
+    persisted = AuthFile(auth_path).read_allow_entries()
+    persisted_creds = {str(e.credentials) for e in persisted}
+    assert persisted_creds == {str(e.credentials) for e in added}
