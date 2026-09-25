@@ -58,6 +58,11 @@ class AuthService(Agent):
         self.core.delay_running_event_set = False
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
+        # The "before" side of read_auth_file's rpc authorization diff. Kept
+        # apart from auth_file.auth_data, which every write through
+        # auth_file refreshes before the file watcher runs.
+        self._last_loaded_allow_entries = copy.deepcopy(
+            self.auth_file.read_allow_entries())
         self.export_auth_file()
         self.can_update = False
         self.needs_rpc_update = False
@@ -429,7 +434,6 @@ class AuthService(Agent):
         _log.debug("loading auth file %s", self.auth_file_path)
         # Update from auth file into memory
         if self.auth_file.auth_data:
-            old_entries = self.auth_file.read_allow_entries().copy()
             self.auth_file.load()
             entries = self.auth_file.read_allow_entries()
             count = 0
@@ -438,12 +442,15 @@ class AuthService(Agent):
                 self.auth_file.load()
                 entries = self.auth_file.read_allow_entries()
                 count += 1
-            modified_entries = self._get_updated_entries(old_entries, entries)
-            denied_entries = self.auth_file.read_deny_entries()
         else:
             self.auth_file.load()
             entries = self.auth_file.read_allow_entries()
-            denied_entries = self.auth_file.read_deny_entries()
+        # Deep copy: update_id_rpc_authorizations edits the rpc dicts these
+        # entries share with auth_file.auth_data in place.
+        loaded_entries = copy.deepcopy(entries)
+        modified_entries = self._get_updated_entries(
+            self._last_loaded_allow_entries, entries)
+        denied_entries = self.auth_file.read_deny_entries()
         # Populate auth lists with current entries
         self._update_auth_lists(entries)
         self._update_auth_lists(denied_entries, is_allow=False)
@@ -461,6 +468,9 @@ class AuthService(Agent):
             except BaseException as err:
                 _log.error("Exception sending auth updates to peer. %r", err)
                 raise err
+        # Advanced only here, after a push that did not raise, so a failed
+        # push is retried on the next file event.
+        self._last_loaded_allow_entries = loaded_entries
         _log.debug("auth file %s loaded", self.auth_file_path)
 
     def get_protected_topics(self):
