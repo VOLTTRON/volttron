@@ -49,9 +49,9 @@ jobs:
             ports:
                 # Maps tcp port 5432 on service container to the host
                 - 5432:5432
-            # Blocks steps until the server accepts connections; does not
-            # cover timescale's second restart below, so the setup step
-            # also retries.
+            # Passes once each image's init server accepts a Unix-socket
+            # connection; postgres and timescale both restart once before
+            # opening TCP, so this alone would not catch either restart.
             options: >-
                 --health-cmd "pg_isready -U postgres"
                 --health-interval 5s
@@ -87,13 +87,15 @@ jobs:
           
       - name: Create test historian database
         run: |
-          # TimescaleDB restarts postgres once after its own init server; the
-          # service health check can pass during that init server, so retry a
-          # real query here instead of trusting health alone.
+          # postgres and timescale both boot an init server that accepts Unix-
+          # socket connections (what pg_isready above checks) before the real
+          # server opens TCP, so this TCP query is what excludes the init server.
           wait_for_postgres() {
             local port="$1"
-            for _ in $(seq 1 60); do
+            local attempt
+            for attempt in $(seq 1 60); do
               if PGPASSWORD="postgres" psql -U postgres -h localhost -p "$port" -c "SELECT 1;" >/dev/null 2>&1; then
+                echo "postgres on port $port ready after $attempt attempt(s)"
                 return 0
               fi
               sleep 1
