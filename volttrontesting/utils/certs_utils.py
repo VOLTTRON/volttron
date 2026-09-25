@@ -144,22 +144,27 @@ def __openssl_create_ca_certificate__(common_name: str, private_key_file: Path, 
 
 
 def __verify_ca_certificate__(private_key_file: str, ca_cert_file: str) -> bool:
-    # Compare the RSA modulus directly (same pattern as
-    # Certs.validate_key_pair in volttron/platform/auth/certs.py). The prior
-    # use_shell=True call passed cmd as a list with shell=True, which on
-    # POSIX runs only cmd[0] ("openssl" with no arguments) and silently
-    # discards the pipe; a bare "openssl" exits 0 with empty stdout, so both
-    # sides always compared "" == "" and this always returned True.
+    # Compare the public key each side carries, not the RSA-only modulus:
+    # "openssl rsa -modulus" errors on an EC key, and this repository's own
+    # CA key is EC (see __openssl_create_private_key__), so a modulus-only
+    # check would report False for a genuinely matching EC pair. "openssl
+    # pkey -pubout" and "x509 -pubkey" both work for any key type.
+    #
+    # The prior use_shell=True call passed cmd as a list with shell=True,
+    # which on POSIX runs only cmd[0] ("openssl" with no arguments) and
+    # silently discards the pipe; a bare "openssl" exits 0 with empty
+    # stdout, so both sides always compared "" == "" and this always
+    # returned True.
     try:
-        cert_modulus = execute_command(
-            ["openssl", "x509", "-noout", "-modulus", "-in", str(ca_cert_file)],
-            err_prefix="Error getting modulus of certificate")
-        key_modulus = execute_command(
-            ["openssl", "rsa", "-noout", "-modulus", "-in", str(private_key_file)],
-            err_prefix="Error getting modulus of private key")
+        cert_pubkey = execute_command(
+            ["openssl", "x509", "-pubkey", "-noout", "-in", str(ca_cert_file)],
+            err_prefix="Error getting public key from certificate", logger=_log)
+        key_pubkey = execute_command(
+            ["openssl", "pkey", "-pubout", "-in", str(private_key_file)],
+            err_prefix="Error getting public key from private key", logger=_log)
     except RuntimeError:
         return False
-    return cert_modulus == key_modulus
+    return cert_pubkey == key_pubkey
 
 
 def __openssl_create_csr__(common_name: str, opensslcnf: Path, private_key_file: Path, server_csr_file: Path):
@@ -180,17 +185,23 @@ def __openssl_verify_csr__(csr_file_path: str, private_key_file: str):
     # turn a bad CSR into a test ERROR instead of a FAILURE.
     cmd = ["openssl", "req", "-text", "-noout", "-verify", "-in", csr_file_path, "-key", private_key_file]
     try:
-        return execute_command(cmd)
+        return execute_command(cmd, err_prefix="Error verifying CSR", logger=_log)
     except RuntimeError:
         return False
 
 
 def __openssl_create_signed_certificate__(common_name: str, opensslcnf: Path, ca_key_file: Path, ca_cert_file: Path,
                                           private_key_file: Path, cert_file: Path, as_server: bool = False):
-    # Transient CSR: write it beside cert_file (inside the repo dir the
-    # caller gave TLSRepository), not a fixed /tmp path that concurrent
-    # runs would collide on.
-    csr_file = Path(cert_file).parent / common_name
+    # Transient CSR: keep it beside cert_file, named from cert_file's own
+    # basename rather than common_name. Path.name is always a single path
+    # component (pathlib strips any ".." segments from it), so a
+    # common_name like "../escape" cannot walk the CSR out of cert_file's
+    # own directory the way joining common_name onto the parent directly
+    # could (#3259 fix round 2).
+    cert_dir = Path(cert_file).resolve().parent
+    csr_file = cert_dir / (Path(cert_file).name + ".csr")
+    if csr_file.resolve().parent != cert_dir:
+        raise ValueError(f"CSR path {csr_file} would escape {cert_dir}")
     __openssl_create_csr__(common_name, opensslcnf, private_key_file, csr_file)
     # openssl ca -keyfile /root/tls/private/ec-cakey.pem -cert /root/tls/certs/ec-cacert.pem \
     #   -in server.csr -out server.crt -config /root/tls/openssl.cnf

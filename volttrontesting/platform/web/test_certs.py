@@ -165,6 +165,18 @@ def test_verify_ca_cert_rejects_mismatched_key(temp_volttron_home):
     assert tls.verify_ca_cert(other_key_file, cert_file) is False
 
 
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
+def test_verify_ca_cert_accepts_matching_ec_pair(temp_volttron_home):
+    # verify_ca_cert must accept a genuinely matching EC pair too: this
+    # module's own CA key is EC P-256 (see __openssl_create_private_key__),
+    # and a modulus-only check (RSA-specific) reports False for it even
+    # though it matches (#3259 fix round 2).
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
+    assert tls.verify_ca_cert(tls.ca_key_file, tls.ca_cert_file) is True
+
+
 def test_create_signed_cert_files(temp_volttron_home):
     certs = Certs()
     assert not certs.cert_exists("test_cert")
@@ -207,14 +219,22 @@ def test_create_csr(temp_volttron_home):
     with open(csr_file_path, "wb") as f:
         f.write(csr)
 
+    # verify_csr returns False on failure (not a raise), so "!= None" can
+    # never fail here; assert what a successful verify actually returns
+    # (#3259 fix round 2).
     csr_info = tls.verify_csr(csr_file_path, csr_private_key_path)
-    assert csr_info != None
+    assert csr_info is not False
+    assert "Certificate request self-signature verify OK" in csr_info
+    assert "CN=RemoteInstanceName.FullyQualifiedIdentity" in csr_info
 
 
 @pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
 def test_verify_csr_returns_false_for_wrong_key(temp_volttron_home):
     # A CSR verified against the wrong key must report False, not raise
     # (a bad verify is a test FAILURE, not an ERROR) (#3259 fix round 1).
+    # The wrong key must be the same type (EC P-256, like every key this
+    # module generates) or openssl fails on key type, not on mismatch,
+    # which proves nothing about the mismatch check (#3259 fix round 2).
     tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
                                      openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
                                      serverhost="FullyQualifiedIdentity")
@@ -227,7 +247,7 @@ def test_verify_csr_returns_false_for_wrong_key(temp_volttron_home):
         f.write(csr)
 
     wrong_key_path = os.path.join(temp_volttron_home, "wrong.pem")
-    execute_command(["openssl", "genrsa", "-out", wrong_key_path, "2048"])
+    execute_command(["openssl", "ecparam", "-out", wrong_key_path, "-name", "prime256v1", "-genkey"])
 
     assert tls.verify_csr(csr_file_path, wrong_key_path) is False
 
@@ -236,10 +256,11 @@ def test_verify_csr_returns_false_for_wrong_key(temp_volttron_home):
 def test_signed_cert_csr_not_written_to_tmp(monkeypatch, temp_volttron_home):
     # The CSR TLSRepository creates while signing a cert used to land at a
     # fixed /tmp path; assert it never does, by inspecting /tmp right before
-    # the signing step consumes the CSR (#3259 fix round 1).
+    # the signing step consumes the CSR (#3259 fix round 1). Never delete a
+    # file this test did not create: skip instead (#3259 fix round 2).
     target = Path("/tmp/FullyQualifiedIdentity")
     if target.exists():
-        target.unlink()
+        pytest.skip(f"{target} already exists; not deleting a file this test did not create")
 
     seen = {}
     real_execute_command = certs_utils.execute_command
@@ -257,6 +278,34 @@ def test_signed_cert_csr_not_written_to_tmp(monkeypatch, temp_volttron_home):
 
     assert seen == {"tmp_existed": False}
     assert not target.exists()
+
+
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
+def test_signed_cert_csr_stays_beside_cert_for_traversal_name(monkeypatch, temp_volttron_home):
+    # A common_name of "../escape" must not walk the transient CSR further
+    # out than the certificate it is signing (#3259 fix round 2).
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
+
+    seen = {}
+
+    def spy_create_csr(common_name, opensslcnf, private_key_file, server_csr_file):
+        seen["csr_dir"] = Path(server_csr_file).resolve().parent
+        return ""
+
+    monkeypatch.setattr(certs_utils, "__openssl_create_csr__", spy_create_csr)
+
+    cert_file = tls.__get_cert_file__("../escape")
+    try:
+        tls.create_cert("../escape", as_server=False)
+    except Exception:
+        # The signing step itself fails downstream of the CSR write (the
+        # stub wrote nothing real); only the computed CSR path is under
+        # test here.
+        pass
+
+    assert seen["csr_dir"] == Path(cert_file).resolve().parent
 
 
 def test_approve_csr(temp_volttron_home, temp_csr):
