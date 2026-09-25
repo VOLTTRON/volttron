@@ -186,34 +186,6 @@ def test_store_delete_configuration(auto_registered_local):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(True, reason='Permissions always admin presently')
-def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
-    vc, vcp = vc_vcp_platforms
-
-    api = APITester(vc, username="admin", password="admin")
-    gevent.sleep(5)
-    platform = api.list_platforms()[0]
-    print('The platform is {}'.format(platform))
-
-    agent_list = api.list_agents(platform_uuid=platform['uuid'])
-    print('The agent list is: {}'.format(agent_list))
-    assert len(agent_list) == 1
-    assert agent_list[0]['version']
-
-    add_listener(vcp, {"log-level": "DEBUG"})
-    agent_list = api.list_agents(platform_uuid=platform['uuid'])
-    assert len(agent_list) == 2
-
-    permissions = ('can_restart', 'can_remove', 'can_stop', 'can_start')
-
-    for agent in agent_list:
-        for p in permissions:
-            assert p in agent['permissions']
-            # for reader all should be false.
-            assert not agent['permissions'][p]
-
-
-@pytest.mark.vc
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(auto_registered_local):
 
     apitester = auto_registered_local
