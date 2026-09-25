@@ -538,8 +538,8 @@ def test_dbdriver_init_does_not_log_passwd(caplog):
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
 def test_dbdriver_init_does_not_log_pass_key(caplog):
-    # #3307: 'pass' and 'pw' are new to the mask set this round; nothing
-    # else here exercises them, so a mutant dropping either would survive.
+    # #3307: 'pass' and 'pw' were just added to the mask set; nothing else
+    # here exercises them, so a mutant dropping either would survive.
     with caplog.at_level(logging.DEBUG):
         DbDriver('sqlite3', **{'database': ':memory:', 'pass': 'thepasswordvalue'})
 
