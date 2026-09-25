@@ -8,11 +8,9 @@ from volttron.platform.agent.utils import get_platform_instance_name
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils import certs_utils
 
-try:
-    import openssl
-    HAS_OPENSSL = True
-except ImportError:
-    HAS_OPENSSL = False
+# certs_utils shells out to the openssl executable (see certs_utils.py), so
+# the guard checks for that executable, not a Python module.
+HAS_OPENSSL = shutil.which("openssl") is not None
 
 INSTANCE_NAME = "VC"
 PLATFORM_CONFIG = """
@@ -122,7 +120,7 @@ def test_certificate_directories(temp_volttron_home):
         assert os.path.exists(p)
 
 
-@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires openssl")
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
 def test_create_root_ca(temp_volttron_home):
     certs = Certs()
     assert not certs.ca_exists()
@@ -137,7 +135,11 @@ def test_create_root_ca(temp_volttron_home):
 
     private_key = certs.private_key_file("VC-root-ca")
     cert_file = certs.cert_file("VC-root-ca")
-    tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    # certs_utils (not test_certs_utils, which does not exist) provides
+    # TLSRepository; the cnf file lives beside this test, not in the CWD.
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
     assert tls.verify_ca_cert(private_key, cert_file)
 
 
@@ -161,10 +163,14 @@ def test_create_signed_cert_files(temp_volttron_home):
     assert existing_cert[0] == certs.cert("test_cert")
 
 
-@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires openssl")
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
 def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
-    tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    # certs_utils (not test_certs_utils, which does not exist) provides
+    # TLSRepository; the cnf file lives beside this test, not in the CWD.
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
     tls.__create_ca__()
     certs_using_tls = Certs(temp_volttron_home)
 
