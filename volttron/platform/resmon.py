@@ -41,6 +41,7 @@ without worrying about where to find the monitor instance.
 from ast import literal_eval
 import os
 import re
+from volttron.platform import _escape_scan
 from volttron.platform.aip import ExecutionEnvironment
 
 
@@ -71,28 +72,14 @@ __version__ = '0.1'
 
 
 _key_re = re.compile(r'^\s*([a-zA-Z0-9_]+)=')
-_tail_re = re.compile(r'\s*(?:#.*)?$')
-_unquoted_re = re.compile(r'([^#]*?)\s*(?:#.*)?$')
-
-
-def _backslash_run_before(line, pos):
-    """Count the consecutive backslashes immediately before pos."""
-    count = 0
-    i = pos - 1
-    while i >= 0 and line[i] == '\\':
-        count += 1
-        i -= 1
-    return count
 
 
 def _match_shell_var(line):
     """Return (key, raw_value) as the historical backtracking _var_re did,
-    or None. A double-quoted value is scanned once, escaping each backslash
-    pair; if that walk lands on a quote it cannot use (the rest of the line
-    does not fit) it un-escapes the nearest earlier quote that still has an
-    unused backslash of its own, the same recovery a backtracking engine
-    reaches by trying every split of the ambiguous escape once a later
-    position fails, without repeating the walk itself.
+    or None. The double- and single-quoted branches close on the shared
+    escape scan; the unquoted branch ends at the first '#' that is not
+    walled off by an embedded newline, matching what the historical
+    lazy [^#]*? plus \\s*(?:#.*)?$ accepted on a single line.
     """
     key_match = _key_re.match(line)
     if not key_match:
@@ -100,48 +87,37 @@ def _match_shell_var(line):
     key = key_match.group(1)
     pos = key_match.end()
     n = len(line)
+    # the last newline that is not the line's own final character: nothing
+    # past it can still satisfy a $ that only matches end-of-line or just
+    # before a truly trailing newline. Computed once, not per candidate.
+    bad = line.rfind('\n', 0, n - 1)
+
+    def tail_ok(text, at):
+        w = at
+        while w < n and text[w].isspace():
+            w += 1
+        return w == n or (text[w] == '#' and w > bad)
 
     if pos < n and line[pos] == '"':
-        i = pos + 1
-        found = None
-        reconsider = []
-        while True:
-            q = line.find('"', i)
-            if q == -1:
-                break
-            backslashes = _backslash_run_before(line, q)
-            if backslashes % 2 == 0 and _tail_re.match(line, q + 1):
-                found = q + 1
-                break
-            if backslashes == 0:
-                while reconsider:
-                    candidate = reconsider.pop()
-                    if _tail_re.match(line, candidate + 1):
-                        found = candidate + 1
-                        break
-                break
-            reconsider.append(q)
-            i = q + 1
-        if found is None:
-            while reconsider:
-                candidate = reconsider.pop()
-                if _tail_re.match(line, candidate + 1):
-                    found = candidate + 1
-                    break
-        if found is not None:
-            return key, line[pos:found]
+        close = _escape_scan.find_close(line, pos + 1, '"', tail_ok)
+        if close is not None:
+            return key, line[pos:close + 1]
         # falls through to the unquoted alternative, below
 
     elif pos < n and line[pos] == "'":
         end = line.find("'", pos + 1)
-        if end != -1 and _tail_re.match(line, end + 1):
+        if end != -1 and tail_ok(line, end + 1):
             return key, line[pos:end + 1]
         # falls through, as above
 
-    unquoted_match = _unquoted_re.match(line, pos)
-    if not unquoted_match:
+    hash_pos = line.find('#', pos)
+    if hash_pos == -1:
+        end = n
+    elif hash_pos > bad:
+        end = hash_pos
+    else:
         return None
-    return key, unquoted_match.group(1)
+    return key, line[pos:end].rstrip()
 
 
 def _iter_shell_vars(file):
