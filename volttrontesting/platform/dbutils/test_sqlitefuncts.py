@@ -538,12 +538,37 @@ def test_dbdriver_init_does_not_log_passwd(caplog):
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
 def test_dbdriver_init_does_not_log_pass_key(caplog):
-    # #3307: 'pass' and 'pw' were just added to the mask set; nothing else
-    # here exercises them, so a mutant dropping either would survive.
+    # #3307: 'pass' was just added to the mask set; nothing else here
+    # exercises it, so a mutant dropping it would survive.
     with caplog.at_level(logging.DEBUG):
         DbDriver('sqlite3', **{'database': ':memory:', 'pass': 'thepasswordvalue'})
 
     assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_dbdriver_init_does_not_log_pw_key(caplog):
+    # #3307: 'pw' is also in the mask set; nothing exercised it, so a
+    # mutant dropping it survived every test.
+    with caplog.at_level(logging.DEBUG):
+        DbDriver('sqlite3', database=':memory:', pw='thepasswordvalue')
+
+    assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_dbdriver_init_does_not_log_mysql_multi_factor_password_keys(caplog):
+    # Refs #3307: the MySQL connector's multi-factor auth uses password1,
+    # password2 and password3; none of those were in the mask set.
+    with caplog.at_level(logging.DEBUG):
+        DbDriver('sqlite3', database=':memory:', password1='thepassword1value',
+                password2='thepassword2value', password3='thepassword3value')
+
+    assert 'thepassword1value' not in caplog.text
+    assert 'thepassword2value' not in caplog.text
+    assert 'thepassword3value' not in caplog.text
 
 
 @pytest.mark.sqlitefuncts
@@ -585,6 +610,34 @@ def test_sqlitefuncts_init_does_not_log_password(caplog):
     assert 'thepasswordvalue' not in caplog.text
 
 
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
+def test_sqlitefuncts_connect_receives_the_real_password(monkeypatch, caplog):
+    # Refs #3307: sqlitefuncts.py's own connect-params debug line has no
+    # proof that the redacted copy used for logging is not what actually
+    # reaches connect.
+    calls = {}
+
+    class _FakeDbApiModule:
+        @staticmethod
+        def connect(**kwargs):
+            calls['kwargs'] = kwargs
+            return object()
+
+    import volttron.platform.dbutils.basedb as basedb_module
+    monkeypatch.setattr(basedb_module.importlib, 'import_module',
+                        lambda name: _FakeDbApiModule)
+
+    connect_params = {'database': ':memory:', 'password': 'thepasswordvalue'}
+    with caplog.at_level(logging.DEBUG):
+        driver = SqlLiteFuncts(dict(connect_params), None)
+
+    driver._DbDriver__connect()
+
+    assert 'thepasswordvalue' not in caplog.text
+    assert calls['kwargs']['password'] == 'thepasswordvalue'
+
+
 @pytest.mark.mysqlfuncts
 @pytest.mark.dbutils
 def test_mysqlfuncts_init_does_not_log_password(caplog):
@@ -603,3 +656,36 @@ def test_mysqlfuncts_init_does_not_log_password(caplog):
         MySqlFuncts(dict(connect_params), None)
 
     assert 'thepasswordvalue' not in caplog.text
+
+
+@pytest.mark.mysqlfuncts
+@pytest.mark.dbutils
+def test_mysqlfuncts_connect_receives_the_real_password(monkeypatch, caplog):
+    # Refs #3307: mysqlfuncts.py's own connect-params debug line has no
+    # proof that the redacted copy used for logging is not what actually
+    # reaches connect. No container: mysql.connector.connect is faked.
+    pytest.importorskip('mysql.connector')
+    from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
+
+    calls = {}
+
+    class _FakeDbApiModule:
+        @staticmethod
+        def connect(**kwargs):
+            calls['kwargs'] = kwargs
+            return object()
+
+    import volttron.platform.dbutils.basedb as basedb_module
+    monkeypatch.setattr(basedb_module.importlib, 'import_module',
+                        lambda name: _FakeDbApiModule)
+
+    connect_params = {'host': 'localhost', 'port': 3306,
+                      'database': 'test_historian', 'user': 'historian',
+                      'passwd': 'thepasswordvalue'}
+    with caplog.at_level(logging.DEBUG):
+        driver = MySqlFuncts(dict(connect_params), None)
+
+    driver._DbDriver__connect()
+
+    assert 'thepasswordvalue' not in caplog.text
+    assert calls['kwargs']['passwd'] == 'thepasswordvalue'
