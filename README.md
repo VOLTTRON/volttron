@@ -23,7 +23,7 @@ at https://eclipse-volttron.readthedocs.io/en/latest/. We would love for you to 
 feedback. Also, until our work on modular VOLTTRON is completed, please continue cloning and using this 
 repository for your production systems.
 
-VOLTTRON is an open source platform for distributed sensing and control. The
+VOLTTRON(TM) is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
