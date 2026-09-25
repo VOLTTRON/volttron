@@ -87,8 +87,10 @@ _REDACTED = 'XXXXX'
 ADDRESS_SECRET_KEYS = ('secretkey', 'password')
 
 # Matches the set services/core/SQLHistorian/sqlhistorian/historian.py
-# already masks before logging a database connection's params.
-DB_SECRET_KEYS = ('pass', 'passwd', 'password', 'pw')
+# already masks before logging a database connection's params, plus the
+# MySQL connector's multi-factor authentication keys (password1/2/3).
+DB_SECRET_KEYS = ('pass', 'passwd', 'password', 'pw',
+                  'password1', 'password2', 'password3')
 
 _UNPARSEABLE_ADDRESS = '<unparseable address redacted>'
 
@@ -119,8 +121,10 @@ def redact_address_secrets(address):
     A VIP address can carry the CURVE secret key or a PLAIN password in
     its query string (see build_vip_address_string); this masks both
     before the address is logged, without disturbing the rest of the
-    query. Never raises: a malformed address must not turn a log call
-    into a failure the caller did not have before.
+    query. Never raises and never returns non-address input unchanged: a
+    caller that hands this a malformed address, or something that is not
+    an address at all (bytes, an int, a list), must still get a value
+    safe to log, not a failure the caller did not have before.
     """
     if not address:
         return address
@@ -131,7 +135,12 @@ def redact_address_secrets(address):
         query = redact_keys(dict(urllib.parse.parse_qsl(parsed.query)),
                             ADDRESS_SECRET_KEYS)
         return parsed._replace(query=urllib.parse.urlencode(query)).geturl()
-    except ValueError:
+    except Exception:
+        # Deliberately broad: urlparse raises ValueError on a malformed
+        # address, AttributeError on a non-string/bytes type such as an
+        # int or list, and mixing str with bytes input raises TypeError.
+        # Any of them must fall through to the marker, never to the raw
+        # input or an exception out of a log call.
         return _UNPARSEABLE_ADDRESS
 
 
