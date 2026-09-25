@@ -155,7 +155,11 @@ class CSVRegister:
 
         try:
             if csv_transform:
-                match = re.match(r'(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
+                # a-zA-z (a typo for a-zA-Z) also matched [ \ ] ^ ` in
+                # addition to the underscore that scale_reg register
+                # names use (e.g. scale_reg(I_AC_CurrentSF)); keep the
+                # underscore, drop the other stray characters.
+                match = re.match(r'(\w+)\(([a-zA-Z0-9_.]*)\)', csv_transform)
                 func = match.group(1)
                 arg = match.group(2)
 
