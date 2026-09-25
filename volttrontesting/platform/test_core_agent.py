@@ -12,6 +12,8 @@ from dateutil.parser import parse as dateparse
 from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN
 from volttron.platform.vip.agent import Agent, RPC
+from volttron.platform.vip.agent import core as core_module
+from volttron.platform.vip.agent.core import Core, ZMQCore
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
@@ -291,3 +293,44 @@ def test_agent_health_last_update_increases(volttron_instance):
     s = agent.vip.health.get_status()
     dt2 = dateparse(s['last_updated'], fuzzy=True)
     assert dt < dt2
+
+
+def test_core_init_does_not_log_secretkey_in_address(caplog):
+    # #3304: the address can carry ?secretkey=... in its query string and
+    # was logged raw. Bare Core needs no running platform.
+    address = ('tcp://127.0.0.1:22916?serverkey=theserverkeyvalue'
+              '&publickey=thepublickeyvalue&secretkey=thesecretkeyvalue')
+    with caplog.at_level(logging.DEBUG):
+        Core(owner=object(), address=address, identity='probe-agent')
+
+    assert 'thesecretkeyvalue' not in caplog.text
+
+
+class _FakeZMQConnection:
+    """Stand-in for ZMQConnection so loop() runs with no real socket."""
+
+    socket = None
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def open_connection(self, socket_type):
+        pass
+
+    def set_properties(self, flags):
+        pass
+
+
+def test_zmqcore_loop_does_not_log_secretkey_in_address(monkeypatch, caplog):
+    # #3304: self.address can carry ?secretkey=... after auth setup, and
+    # loop() logged it raw at INFO on every connect.
+    monkeypatch.setattr(core_module, 'ZMQConnection', _FakeZMQConnection)
+    address = ('tcp://127.0.0.1:22916?serverkey=theserverkeyvalue'
+              '&publickey=thepublickeyvalue&secretkey=thesecretkeyvalue')
+    core = ZMQCore(owner=object(), address=address, identity='probe-agent',
+                   enable_auth=False)
+
+    with caplog.at_level(logging.DEBUG):
+        next(core.loop(None))
+
+    assert 'thesecretkeyvalue' not in caplog.text
