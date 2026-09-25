@@ -64,7 +64,7 @@ __all__ = [
     'load_config', 'run_agent', 'start_agent_thread', 'is_valid_identity', 'load_platform_config',
     'get_messagebus', 'get_fq_identity', 'execute_command', 'get_aware_utc_now', 'is_secure_mode',
     'is_web_enabled', 'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running',
-    'redact', 'redact_keys', 'redact_address_secretkey'
+    'redact', 'redact_keys', 'redact_address_secrets', 'DB_SECRET_KEYS'
 ]
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
@@ -80,7 +80,17 @@ _log = logging.getLogger(__name__)
 _VALID_IDENTITY_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 
 
-_REDACTED = '<redacted>'
+# Same marker and key set as volttron.platform.vip.socket.Address._MASK_KEYS,
+# so a redacted VIP address reads the same whether it went through Address
+# or through this module.
+_REDACTED = 'XXXXX'
+ADDRESS_SECRET_KEYS = ('secretkey', 'password')
+
+# Matches the set services/core/SQLHistorian/sqlhistorian/historian.py
+# already masks before logging a database connection's params.
+DB_SECRET_KEYS = ('pass', 'passwd', 'password', 'pw')
+
+_UNPARSEABLE_ADDRESS = '<unparseable address redacted>'
 
 
 def redact(value):
@@ -103,20 +113,26 @@ def redact_keys(mapping, sensitive_keys):
             for key, value in mapping.items()}
 
 
-def redact_address_secretkey(address):
-    """Return address with any ?secretkey=... query value redacted.
+def redact_address_secrets(address):
+    """Return address with any secretkey or password query value redacted.
 
-    A VIP address can carry the CURVE secret key in its query string
-    (see build_vip_address_string); this masks it before the address is
-    logged without disturbing the rest of the query.
+    A VIP address can carry the CURVE secret key or a PLAIN password in
+    its query string (see build_vip_address_string); this masks both
+    before the address is logged, without disturbing the rest of the
+    query. Never raises: a malformed address must not turn a log call
+    into a failure the caller did not have before.
     """
     if not address:
         return address
-    parsed = urllib.parse.urlparse(address)
-    if not parsed.query:
-        return address
-    query = redact_keys(dict(urllib.parse.parse_qsl(parsed.query)), ('secretkey',))
-    return parsed._replace(query=urllib.parse.urlencode(query)).geturl()
+    try:
+        parsed = urllib.parse.urlparse(address)
+        if not parsed.query:
+            return address
+        query = redact_keys(dict(urllib.parse.parse_qsl(parsed.query)),
+                            ADDRESS_SECRET_KEYS)
+        return parsed._replace(query=urllib.parse.urlencode(query)).geturl()
+    except ValueError:
+        return _UNPARSEABLE_ADDRESS
 
 
 def is_valid_identity(identity_to_check):
