@@ -21,7 +21,7 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-"""VOLTTRON platform agent helper classes/functions."""
+"""VOLTTRON platform(TM) agent helper classes/functions."""
 
 import argparse
 import calendar
@@ -113,18 +113,14 @@ def strip_comments(string):
     Both JavaScript-style comments (//... and /*...*/) and hash (#...)
     comments are removed.
     """
-    # A single forward scan rather than a backtracking regex: the previous
-    # quoted-string pattern let a lone backslash match two different ways,
-    # which cost exponential time on crafted input; a disjoint regex fixed
-    # that but paid quadratic time on an unterminated string, since sub()
-    # retried the escape scan from every later quote. This scans each
-    # position once. An unterminated string that never finds an unescaped
-    # closing quote falls back to the last raw occurrence of the quote
-    # character, matching what the backtracking regex found by trying
-    # every split of a trailing escape ambiguity.
+    # A single, linear forward scan. An unclosed block comment is
+    # remembered so a later /* is not searched for again; an unterminated
+    # quoted string falls back to the last raw delimiter, as the
+    # historical pattern did.
     out = []
     i = 0
     n = len(string)
+    no_close_from = None
     while i < n:
         c = string[i]
         if c == '"' or c == "'":
@@ -153,8 +149,13 @@ def strip_comments(string):
                 i += 1
             continue
         if c == '/' and string[i + 1:i + 2] == '*':
+            if no_close_from is not None and i + 2 >= no_close_from:
+                out.append(c)
+                i += 1
+                continue
             end = string.find('*/', i + 2)
             if end == -1:
+                no_close_from = i + 2
                 out.append(c)
                 i += 1
             else:
