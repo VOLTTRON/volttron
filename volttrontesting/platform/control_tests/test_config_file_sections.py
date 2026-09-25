@@ -54,12 +54,41 @@ def test_itersettings_valid_section_unchanged(lines, expected_section):
     assert settings[0][0] == expected_section
 
 
-def test_itersettings_pathological_input_stays_bounded():
-    # [^\]] overlapped \\., so a backslash run before an unterminated
-    # section header backtracked over every split between the escape and
-    # fallback branches.
-    payload = '[' + '\\' * 36
-    start = time.time()
-    list(_action().itersettings(None, [payload]))
-    elapsed = time.time() - start
-    assert elapsed < 2.0
+# A trailing, unescaped-by-parity backslash right before the closing
+# bracket, with no bracket later in the line: the historical pattern still
+# closed the header there instead of leaving it unterminated. These pin
+# that so a performance fix cannot silently change what a header like this
+# means: a later reader kept filing keys under the wrong section for it.
+ESCAPED_FINAL_DELIMITER_CASES = [
+    ('[x\\]', ('x\\', '')),
+    ('[x\\] rest', ('x\\', ' rest')),
+    ('[\\]', ('\\', '')),
+]
+
+
+@pytest.mark.parametrize('line, expected', ESCAPED_FINAL_DELIMITER_CASES)
+def test_match_section_header_escaped_final_delimiter_keeps_old_meaning(line, expected):
+    assert config.match_section_header(line) == expected
+
+
+def test_match_section_header_pathological_backslash_run_stays_bounded():
+    # A payload only a linear scan finishes quickly: a long backslash run
+    # with no closing bracket at all, so a backtracking scan would have to
+    # explore every way to split the ambiguous escape before giving up.
+    payload = '[' + '\\' * 100000
+    start = time.monotonic()
+    config.match_section_header(payload)
+    elapsed = time.monotonic() - start
+    assert elapsed < 1.0
+
+
+def test_match_section_header_pathological_whitespace_run_stays_bounded():
+    # The leading \s*, the lazy name group, and the trailing \s* all being
+    # able to absorb the same run of spaces made an unterminated header
+    # cubic in the run's length; a payload only a linear scan finishes
+    # quickly proves that overlap is gone.
+    payload = '[' + ' ' * 100000 + 'x'
+    start = time.monotonic()
+    config.match_section_header(payload)
+    elapsed = time.monotonic() - start
+    assert elapsed < 1.0

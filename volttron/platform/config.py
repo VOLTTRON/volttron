@@ -46,6 +46,94 @@ def expandall(string):
     return _os.path.expanduser(_os.path.expandvars(string))
 
 
+_section_open_re = _re.compile(r'^\s*\[\s*')
+_section_ws_re = _re.compile(r'\s')
+
+
+def _backslash_run_before(text, pos):
+    """Count the consecutive backslashes immediately before pos."""
+    count = 0
+    i = pos - 1
+    while i >= 0 and text[i] == '\\':
+        count += 1
+        i -= 1
+    return count
+
+
+def _section_tail_ok(line, pos):
+    """True when line[pos:] can end the match: a run of characters with no
+    embedded newline, then either the end of the line or one trailing
+    newline as its last character.
+    """
+    newline = line.find('\n', pos)
+    return newline == -1 or newline == len(line) - 1
+
+
+def _section_name_boundary(raw):
+    """Index in raw where the section name ends and trailing whitespace
+    the historical pattern also stripped begins. A backslash can never
+    escape a newline (there is no DOTALL here), so a trailing newline is
+    always free to strip regardless of what precedes it.
+    """
+    boundary = len(raw)
+    while boundary > 0 and _section_ws_re.match(raw[boundary - 1]):
+        if (raw[boundary - 1] != '\n'
+                and _backslash_run_before(raw, boundary - 1) % 2 == 1):
+            break
+        boundary -= 1
+    return boundary
+
+
+def match_section_header(line):
+    """Return (name, rest) as the historical backtracking section_re did,
+    or None. The closing bracket is found in a single walk that escapes
+    each backslash pair; when that walk lands on a bracket the rest of the
+    line cannot use, it un-escapes the nearest earlier bracket that still
+    has an unused backslash of its own, the same recovery a backtracking
+    engine reaches by trying every split of the ambiguous escape once a
+    later position fails, without repeating the walk itself. The same
+    escape rule governs the trailing whitespace a lazy \\s* absorbed.
+    """
+    open_match = _section_open_re.match(line)
+    if not open_match:
+        return None
+    start = open_match.end()
+    i = start
+    found = None
+    reconsider = []
+    while True:
+        q = line.find(']', i)
+        if q == -1:
+            break
+        backslashes = _backslash_run_before(line, q)
+        if backslashes % 2 == 0 and _section_tail_ok(line, q + 1):
+            found = q
+            break
+        if backslashes == 0:
+            while reconsider:
+                candidate = reconsider.pop()
+                if _section_tail_ok(line, candidate + 1):
+                    found = candidate
+                    break
+            break
+        reconsider.append(q)
+        i = q + 1
+    if found is None:
+        while reconsider:
+            candidate = reconsider.pop()
+            if _section_tail_ok(line, candidate + 1):
+                found = candidate
+                break
+    if found is None:
+        return None
+    raw = line[start:found]
+    name = raw[:_section_name_boundary(raw)]
+    tail = line[found + 1:]
+    newline = tail.find('\n')
+    rest = tail if newline == -1 else tail[:newline]
+    return name, rest
+
+
 class TrackingString(str):
     '''String subclass that allows attaching source information.'''
 
@@ -214,10 +302,6 @@ class ConfigFileAction(_argparse.Action):
         return ([], arg_strings) if self.inline else (arg_strings, [])
 
     def itersettings(self, parser, conffile):
-        # [^\]] overlapped \\., so a backslash before the closing bracket
-        # could match either branch; excluding backslash from the fallback
-        # class removes the ambiguity that let backtracking blow up.
-        section_re = _re.compile(r'^\s*\[\s*((?:\\.|[^\]\\])*?)\s*\](.*)$')
         comment_re = _re.compile(r'^\s*(?:[#;].*)?$')
         setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
         section = None
@@ -227,9 +311,9 @@ class ConfigFileAction(_argparse.Action):
             line = line.strip()
             if not line or comment_re.match(line):
                 continue
-            match = section_re.match(line)
+            match = match_section_header(line)
             if match:
-                section, rest = match.groups()
+                section, rest = match
                 if not comment_re.match(rest):
                     err = 'invalid syntax after section: {!r}'.format(rest)
                     parser.error(
