@@ -69,7 +69,11 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'Apache 2.0'
 
-_comment_re = re.compile(r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
+# The optional backslash in the old (?:\\?.)*? let a lone backslash match
+# either alone or paired with the next char, so an unterminated quoted
+# string backtracked exponentially over every split of that ambiguity.
+# Disjoint alternatives (escaped-pair or non-backslash) remove the ambiguity.
+_comment_re = re.compile(r'((["\'])(?:\\.|[^\\])*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
                          re.MULTILINE | re.DOTALL)
 
 _log = logging.getLogger(__name__)
