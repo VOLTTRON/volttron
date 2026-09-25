@@ -27,12 +27,20 @@ _NO_COUNT_WARNING = (
     "ignored. VolttronCentral users are managed through the platform "
     "web user store.")
 
+# SHA-512 hex digest of the dummy password "whatever", precomputed so this
+# file calls no hashing library. Lets a reintroduced local-fallback
+# comparison succeed on this fixture the same way it would on a real hash.
+_WHATEVER_SHA512 = (
+    "ae3d347982977b422948b64011ac14ac76c9ab15898fb562a66a136733aa645fb3a9"
+    "ccd9bee00cc578c2f44f486af47eb254af7c174244086d174cc52341e63a")
+
 
 def _make_agent():
     """A VolttronCentralAgent with no VIP subsystem: only the attributes
-    jsonrpc()/_configure() read are set."""
+    jsonrpc()/_configure() read are set. _authenticated_sessions starts at
+    None, matching a real agent before _configure runs."""
     agent = vc_agent.VolttronCentralAgent.__new__(vc_agent.VolttronCentralAgent)
-    agent._authenticated_sessions = SessionHandler()
+    agent._authenticated_sessions = None
     agent._websocket_endpoints = set()
     return agent
 
@@ -64,6 +72,7 @@ def _get_authorization_call(username, password):
 
 def test_failed_platform_login_returns_invalid_credentials(monkeypatch):
     agent = _make_agent()
+    agent._authenticated_sessions = SessionHandler()
     monkeypatch.setattr(vc_agent.grequests, "post",
                         lambda *a, **k: _failed_platform_login_chain())
     # Stands in for any code path that would still create a session; a
@@ -77,6 +86,7 @@ def test_failed_platform_login_returns_invalid_credentials(monkeypatch):
     assert result['error']['message'] == "Invalid username/password specified."
     add_session.assert_not_called()
     assert agent._authenticated_sessions._sessions == {}
+    assert agent._authenticated_sessions._session_tokens == {}
 
 
 def test_configure_with_users_key_logs_one_warning_and_ignores_it(monkeypatch, caplog):
@@ -156,7 +166,7 @@ def test_configure_then_failed_platform_login_creates_no_session(monkeypatch):
     agent = _make_agent()
     agent._default_config = {
         'webroot': '/tmp/webroot',
-        'users': {'reader': {'password': 'whatever', 'groups': ['reader']}},
+        'users': {'reader': {'password': _WHATEVER_SHA512, 'groups': ['reader']}},
         'topic_replace_list': [],
     }
     agent.vip = mock.Mock()
@@ -171,3 +181,4 @@ def test_configure_then_failed_platform_login_creates_no_session(monkeypatch):
 
     assert result['error']['message'] == "Invalid username/password specified."
     assert agent._authenticated_sessions._sessions == {}
+    assert agent._authenticated_sessions._session_tokens == {}
