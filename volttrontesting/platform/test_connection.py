@@ -2,7 +2,6 @@ import gevent
 import pytest
 from volttron.platform.agent.known_identities import CONTROL, PLATFORM_WEB, AUTH, CONFIGURATION_STORE
 from volttron.platform.keystore import KeyStore
-from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.utils import build_connection
 import os
 
@@ -68,3 +67,8 @@ def test_can_get_serverkey(setup_control_connection):
 def test_can_call_rpc(setup_control_connection):
     wrapper, connection = setup_control_connection
     assert connection.call('list_agents') == []
+
+
+# The Connection.__init__ credential-redaction tests moved to
+# test_core_agent.py: this file is collected only by .gitlab-ci.yml, not by
+# any GitHub workflow, and test_core_agent.py is. Refs #3307
