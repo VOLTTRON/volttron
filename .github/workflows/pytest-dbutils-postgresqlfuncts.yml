@@ -49,6 +49,14 @@ jobs:
             ports:
                 # Maps tcp port 5432 on service container to the host
                 - 5432:5432
+            # Blocks steps until the server accepts connections; does not
+            # cover timescale's second restart below, so the setup step
+            # also retries.
+            options: >-
+                --health-cmd "pg_isready -U postgres"
+                --health-interval 5s
+                --health-timeout 5s
+                --health-retries 10
         timescale:
             image: timescale/timescaledb:latest-pg15
             env:
@@ -56,6 +64,11 @@ jobs:
             ports:
                 # Maps tcp port 5432 on service container to the host
                 - 5433:5432
+            options: >-
+                --health-cmd "pg_isready -U postgres"
+                --health-interval 5s
+                --health-timeout 5s
+                --health-retries 10
 
     steps:
       # checkout the volttron repository and set current directory to it
@@ -74,6 +87,22 @@ jobs:
           
       - name: Create test historian database
         run: |
+          # TimescaleDB restarts postgres once after its own init server; the
+          # service health check can pass during that init server, so retry a
+          # real query here instead of trusting health alone.
+          wait_for_postgres() {
+            local port="$1"
+            for _ in $(seq 1 60); do
+              if PGPASSWORD="postgres" psql -U postgres -h localhost -p "$port" -c "SELECT 1;" >/dev/null 2>&1; then
+                return 0
+              fi
+              sleep 1
+            done
+            echo "postgres on port $port did not accept connections within 60s" >&2
+            PGPASSWORD="postgres" psql -U postgres -h localhost -p "$port" -c "SELECT 1;"
+          }
+          wait_for_postgres 5432
+          wait_for_postgres 5433
           PGPASSWORD="postgres" psql -U postgres -h localhost -p 5432 -c "CREATE DATABASE test_historian;"
           PGPASSWORD="postgres" psql -U postgres -h localhost -p 5433 -c "CREATE DATABASE test_historian;"
         env:
