@@ -100,7 +100,8 @@ class SqlLiteFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names['agg_topics_table']
             self.agg_meta_table = table_names['agg_meta_table']
-        _log.debug("In sqlitefuncts connect params {}".format(connect_params))
+        _log.debug("In sqlitefuncts connect params {}".format(
+            utils.redact_keys(connect_params, utils.DB_SECRET_KEYS)))
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
     def setup_historian_tables(self):

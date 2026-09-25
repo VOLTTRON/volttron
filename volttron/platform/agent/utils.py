@@ -21,7 +21,7 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-"""VOLTTRON platform™ agent helper classes/functions."""
+"""VOLTTRON platform agent helper classes/functions."""
 
 import argparse
 import calendar
@@ -42,6 +42,7 @@ except ImportError:
 import re
 import stat
 import traceback
+import urllib.parse
 from configparser import ConfigParser
 from datetime import datetime
 
@@ -62,7 +63,8 @@ from volttron.utils.prompt import prompt_response
 __all__ = [
     'load_config', 'run_agent', 'start_agent_thread', 'is_valid_identity', 'load_platform_config',
     'get_messagebus', 'get_fq_identity', 'execute_command', 'get_aware_utc_now', 'is_secure_mode',
-    'is_web_enabled', 'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running'
+    'is_web_enabled', 'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running',
+    'redact', 'redact_keys', 'redact_address_secrets', 'DB_SECRET_KEYS'
 ]
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
@@ -76,6 +78,70 @@ _log = logging.getLogger(__name__)
 
 # The following are the only allowable characters for identities.
 _VALID_IDENTITY_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+# Same marker and key set as volttron.platform.vip.socket.Address._MASK_KEYS,
+# so a redacted VIP address reads the same whether it went through Address
+# or through this module.
+_REDACTED = 'XXXXX'
+ADDRESS_SECRET_KEYS = ('secretkey', 'password')
+
+# Matches the set services/core/SQLHistorian/sqlhistorian/historian.py
+# already masks before logging a database connection's params, plus the
+# MySQL connector's multi-factor authentication keys (password1/2/3).
+DB_SECRET_KEYS = ('pass', 'passwd', 'password', 'pw',
+                  'password1', 'password2', 'password3')
+
+_UNPARSEABLE_ADDRESS = '<unparseable address redacted>'
+
+
+def redact(value):
+    """Return a fixed marker for a truthy credential value, else the value.
+
+    Used at every log call that would otherwise print a secret key or a
+    database password.
+    """
+    return _REDACTED if value else value
+
+
+def redact_keys(mapping, sensitive_keys):
+    """Return a copy of mapping with each sensitive key's value redacted.
+
+    Key matching is case-insensitive so 'password' and 'passwd' style
+    kwargs are both caught regardless of how a driver names them.
+    """
+    lowered = {key.lower() for key in sensitive_keys}
+    return {key: (redact(value) if key.lower() in lowered else value)
+            for key, value in mapping.items()}
+
+
+def redact_address_secrets(address):
+    """Return address with any secretkey or password query value redacted.
+
+    A VIP address can carry the CURVE secret key or a PLAIN password in
+    its query string (see build_vip_address_string); this masks both
+    before the address is logged, without disturbing the rest of the
+    query. Never raises and never returns non-address input unchanged: a
+    caller that hands this a malformed address, or something that is not
+    an address at all (bytes, an int, a list), must still get a value
+    safe to log, not a failure the caller did not have before.
+    """
+    if not address:
+        return address
+    try:
+        parsed = urllib.parse.urlparse(address)
+        if not parsed.query:
+            return address
+        query = redact_keys(dict(urllib.parse.parse_qsl(parsed.query)),
+                            ADDRESS_SECRET_KEYS)
+        return parsed._replace(query=urllib.parse.urlencode(query)).geturl()
+    except Exception:
+        # Deliberately broad: urlparse raises ValueError on a malformed
+        # address, AttributeError on a non-string/bytes type such as an
+        # int or list, and mixing str with bytes input raises TypeError.
+        # Any of them must fall through to the marker, never to the raw
+        # input or an exception out of a log call.
+        return _UNPARSEABLE_ADDRESS
 
 
 def is_valid_identity(identity_to_check):
