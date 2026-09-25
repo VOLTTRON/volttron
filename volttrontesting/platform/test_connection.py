@@ -1,12 +1,8 @@
-import logging
-
 import gevent
 import pytest
 from volttron.platform.agent.known_identities import CONTROL, PLATFORM_WEB, AUTH, CONFIGURATION_STORE
 from volttron.platform.keystore import KeyStore
-from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.utils import build_connection
-from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 import os
 
 
@@ -73,27 +69,6 @@ def test_can_call_rpc(setup_control_connection):
     assert connection.call('list_agents') == []
 
 
-def test_connection_init_does_not_log_secretkey(monkeypatch, caplog):
-    # #3304: Connection.__init__ used to interpolate secretkey directly.
-    # The handshake is stubbed out; only construction is under test here.
-    monkeypatch.setattr(Connection, 'is_connected', lambda self, timeout=None: True)
-    with get_test_volttron_home(messagebus='zmq'):
-        with caplog.at_level(logging.DEBUG):
-            Connection(address='ipc://@test-connection-novip', peer='control',
-                      publickey='thepublickeyvalue', secretkey='thesecretkeyvalue',
-                      serverkey='theserverkeyvalue', enable_auth=False)
-
-    assert 'thesecretkeyvalue' not in caplog.text
-
-
-def test_connection_init_does_not_log_secretkey_from_address_query(monkeypatch, caplog):
-    # #3304: the parsed query-string dict logged the same secretkey value
-    # when it arrived embedded in the address itself, not as a kwarg.
-    monkeypatch.setattr(Connection, 'is_connected', lambda self, timeout=None: True)
-    address = ('tcp://127.0.0.1:22916?serverkey=theserverkeyvalue'
-              '&publickey=thepublickeyvalue&secretkey=thesecretkeyvalue')
-    with get_test_volttron_home(messagebus='zmq'):
-        with caplog.at_level(logging.DEBUG):
-            Connection(address=address, peer='control', enable_auth=False)
-
-    assert 'thesecretkeyvalue' not in caplog.text
+# The Connection.__init__ credential-redaction tests moved to
+# test_core_agent.py: this file is collected only by .gitlab-ci.yml, not by
+# any GitHub workflow, and test_core_agent.py is. Refs #3307

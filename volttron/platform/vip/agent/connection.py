@@ -30,8 +30,8 @@ import gevent
 
 from volttron import platform
 from volttron.platform import get_home
-from volttron.platform.agent.utils import (get_aware_utc_now, redact,
-                                           redact_address_secretkey, redact_keys)
+from volttron.platform.agent.utils import (ADDRESS_SECRET_KEYS, get_aware_utc_now,
+                                           redact, redact_address_secrets, redact_keys)
 from volttron.platform.vip.agent import Agent
 from volttron.platform import build_vip_address_string
 
@@ -52,7 +52,7 @@ class Connection:
 
         self._log = logging.getLogger(__name__)
         self._log.debug("Connection: {}, {}, {}, {}, {}, {}"
-                   .format(redact_address_secretkey(address), peer, publickey,
+                   .format(redact_address_secrets(address), peer, publickey,
                           redact(secretkey), serverkey, message_bus))
         self._address = address
         self._peer = peer
@@ -70,9 +70,9 @@ class Connection:
             parsed = urllib.parse.urlparse(address)
             if parsed.scheme == 'tcp':
                 qs = urllib.parse.parse_qs(parsed.query)
-                # The address may embed secretkey=... in its query string
-                # (same leak shape as the log line above), so mask it here too.
-                self._log.debug('QS IS: {}'.format(redact_keys(qs, ('secretkey',))))
+                # The address may embed secretkey= or password= in its query
+                # string (same leak shape as the log line above).
+                self._log.debug('QS IS: {}'.format(redact_keys(qs, ADDRESS_SECRET_KEYS)))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
                 else:

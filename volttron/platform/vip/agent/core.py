@@ -517,7 +517,7 @@ class Core(BasicCore):
         self.socket = None
         self.connection = None
 
-        _log.debug('address: %s', utils.redact_address_secretkey(address))
+        _log.debug('address: %s', utils.redact_address_secrets(address))
         _log.debug('identity: %s', self.identity)
         _log.debug('agent_uuid: %s', agent_uuid)
         _log.debug('serverkey: %s', serverkey)
@@ -787,10 +787,10 @@ class ZMQCore(Core):
     def loop(self, running_event):
         # pre-setup
         # self.context.set(zmq.MAX_SOCKETS, 30690)
-        # self.address can carry ?secretkey=... after auth setup (#3304).
+        # self.address can carry ?secretkey= or ?password= after auth setup.
         _log.info(
             f"Identity: {self.identity} connecting to address:"
-            f"{utils.redact_address_secretkey(self.address)}")
+            f"{utils.redact_address_secrets(self.address)}")
         self.connection = ZMQConnection(self.address,
                                         self.identity,
                                         self.instance_name,
@@ -949,9 +949,9 @@ class ZMQCore(Core):
 
         parsed_address = urllib.parse.urlparse(address)
         # Same leak shape as Core.__init__: this address can carry
-        # ?secretkey=... too (#3304).
+        # ?secretkey= or ?password= too.
         _log.debug("Begining core.connect_remote_platform: {}".format(
-            utils.redact_address_secretkey(address)))
+            utils.redact_address_secrets(address)))
 
         value = None
         if parsed_address.scheme == "tcp":
@@ -1030,11 +1030,11 @@ class ZMQCore(Core):
                 )
 
             except DiscoveryError:
-                # address may carry ?secretkey=... too (#3304).
+                # address may carry ?secretkey= or ?password= too.
                 _log.error(
                     "Couldn't connect to %s or incorrect response returned "
                     "response was %s",
-                    utils.redact_address_secretkey(address),
+                    utils.redact_address_secrets(address),
                     value,
                 )
 
@@ -1330,9 +1330,9 @@ class RMQCore(Core):
 
         parsed_address = urllib.parse.urlparse(address)
         # Same leak shape as Core.__init__: this address can carry
-        # ?secretkey=... too (#3304).
+        # ?secretkey= or ?password= too.
         _log.info("Begining core.connect_remote_platform: {}".format(
-            utils.redact_address_secretkey(address)))
+            utils.redact_address_secrets(address)))
         value = None
         if parsed_address.scheme == "tcp":
             # ZMQ connection
@@ -1444,11 +1444,11 @@ class RMQCore(Core):
                     raise ValueError("Unknown path through discovery process!")
 
             except DiscoveryError:
-                # address may carry ?secretkey=... too (#3304).
+                # address may carry ?secretkey= or ?password= too.
                 _log.error(
                     "Couldn't connect to %s or incorrect response returned "
                     "response was %s",
-                    utils.redact_address_secretkey(address),
+                    utils.redact_address_secrets(address),
                     value,
                 )
 

@@ -13,9 +13,11 @@ from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
     STATUS_UNKNOWN
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.vip.agent import core as core_module
+from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.core import Core, ZMQCore
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import jsonapi
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 logging.basicConfig(level=logging.DEBUG)
@@ -301,18 +303,45 @@ def test_core_init_does_not_log_secretkey_in_address(caplog):
     address = ('tcp://127.0.0.1:22916?serverkey=theserverkeyvalue'
               '&publickey=thepublickeyvalue&secretkey=thesecretkeyvalue')
     with caplog.at_level(logging.DEBUG):
-        Core(owner=object(), address=address, identity='probe-agent')
+        core = Core(owner=object(), address=address, identity='probe-agent')
 
     assert 'thesecretkeyvalue' not in caplog.text
+    # Refs #3307: the redaction is for the log line only; the real address,
+    # secretkey included, must still be what Core stores.
+    assert core.address == address
+
+
+def test_core_init_does_not_log_password_in_plain_address(caplog):
+    # Refs #3307: the redactor only masked secretkey before, so a PLAIN
+    # address's password still reached this same log line unmasked.
+    address = 'tcp://127.0.0.1:22916?server=PLAIN&username=bob&password=thepasswordvalue'
+    with caplog.at_level(logging.DEBUG):
+        core = Core(owner=object(), address=address, identity='probe-agent')
+
+    assert 'thepasswordvalue' not in caplog.text
+    assert core.address == address
+
+
+def test_core_init_does_not_raise_on_malformed_address(caplog):
+    # Refs #3307: urlparse raises ValueError on a malformed address, and
+    # log arguments are evaluated even with DEBUG off, so Core used to fail
+    # from this log line on input that base Core did not reject.
+    address = 'tcp://[::1?secretkey=thesecretkeyvalue'
+    with caplog.at_level(logging.DEBUG):
+        core = Core(owner=object(), address=address, identity='probe-agent')
+
+    assert 'thesecretkeyvalue' not in caplog.text
+    assert core.address == address
 
 
 class _FakeZMQConnection:
     """Stand-in for ZMQConnection so loop() runs with no real socket."""
 
     socket = None
+    received_address = None
 
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self, address, *args, **kwargs):
+        type(self).received_address = address
 
     def open_connection(self, socket_type):
         pass
@@ -334,3 +363,44 @@ def test_zmqcore_loop_does_not_log_secretkey_in_address(monkeypatch, caplog):
         next(core.loop(None))
 
     assert 'thesecretkeyvalue' not in caplog.text
+    # Refs #3307: the redaction is for the log line only; loop() must still
+    # hand the real address to the connection.
+    assert _FakeZMQConnection.received_address == address
+
+
+def test_connection_init_does_not_log_secretkey(monkeypatch, caplog):
+    # #3304: Connection.__init__ used to interpolate secretkey directly.
+    # The handshake is stubbed out; only construction is under test here.
+    # Moved from test_connection.py (#3307), which no GitHub workflow
+    # collects.
+    monkeypatch.setattr(Connection, 'is_connected', lambda self, timeout=None: True)
+    with get_test_volttron_home(messagebus='zmq'):
+        with caplog.at_level(logging.DEBUG):
+            connection = Connection(
+                address='ipc://@test-connection-novip', peer='control',
+                publickey='thepublickeyvalue', secretkey='thesecretkeyvalue',
+                serverkey='theserverkeyvalue', enable_auth=False)
+
+    assert 'thesecretkeyvalue' not in caplog.text
+    # Refs #3307: Connection never forwards a kwarg secretkey to the
+    # underlying Agent for an ipc address (pre-existing, out of scope here);
+    # the real-value proof for this log line is the query-string variant
+    # below, where the secretkey does reach the stored address.
+
+
+def test_connection_init_does_not_log_secretkey_from_address_query(monkeypatch, caplog):
+    # #3304: the parsed query-string dict logged the same secretkey value
+    # when it arrived embedded in the address itself, not as a kwarg.
+    # Moved from test_connection.py (#3307), which no GitHub workflow
+    # collects.
+    monkeypatch.setattr(Connection, 'is_connected', lambda self, timeout=None: True)
+    address = ('tcp://127.0.0.1:22916?serverkey=theserverkeyvalue'
+              '&publickey=thepublickeyvalue&secretkey=thesecretkeyvalue')
+    with get_test_volttron_home(messagebus='zmq'):
+        with caplog.at_level(logging.DEBUG):
+            connection = Connection(address=address, peer='control', enable_auth=False)
+
+    assert 'thesecretkeyvalue' not in caplog.text
+    # Refs #3307: the real full address, secretkey included, must still be
+    # what the underlying Core stores.
+    assert connection._server.core.address == address
