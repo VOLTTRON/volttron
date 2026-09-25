@@ -1,5 +1,16 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
+[![CodeQL](https://github.com/VOLTTRON/volttron/actions/workflows/code_analysis.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/code_analysis.yml)
+
+[![Testing platform auth](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-auth.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-auth.yml)
+[![Testing BackupDatabase](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-backup_db.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-backup_db.yml)
+[![Testing mysqlfuncts](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-mysqlfuncts.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-mysqlfuncts.yml)
+[![Testing postgresqlfuncts](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-postgresqlfuncts.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-postgresqlfuncts.yml)
+[![Testing sqlitefuncts](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-sqlitefuncts.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-sqlitefuncts.yml)
+[![Miscellaneous platform tests](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-miscellaneous-tests.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-miscellaneous-tests.yml)
+[![Testing testutils directory](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-testutils.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-testutils.yml)
+[![Testing volttron-ctl](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-vctl.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-vctl.yml)
+[![Testing platform web](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-web.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-web.yml)
 
 # VOLTTRON
 
