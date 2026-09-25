@@ -70,8 +70,11 @@ __version__ = '0.1'
 
 
 
+# [^"] overlapped \\., so a backslash could be consumed either alone or
+# paired with the next char; excluding backslash from the fallback class
+# makes every backslash go through the escape branch.
 _var_re = re.compile(
-    r'''^\s*([a-zA-Z0-9_]+)=("(?:\\.|[^"])*"|'[^']*'|[^#]*?)\s*(?:#.*)?$''')
+    r'''^\s*([a-zA-Z0-9_]+)=("(?:\\.|[^"\\])*"|'[^']*'|[^#]*?)\s*(?:#.*)?$''')
 
 def _iter_shell_vars(file):
     for key, value in (match.groups() for match in
