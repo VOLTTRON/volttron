@@ -1,43 +1,23 @@
 import errno
 import os
-import uuid
 from copy import deepcopy
 
 class SessionHandler:
-    """A handler for dealing with authentication of sessions
+    """A cache of sessions authenticated by the platform web login.
 
-    The SessionHandler requires an authenticator to be handed in to this
-    object in order to authenticate user.  The authenticator must implement
-    an interface that expects a method called authenticate with parameters
-    username and password.  The return value must be either a list of groups
-    the user belongs two or None.
-
-    If successful then the a session token is generated and added to a cache
-    of validated users to be able to be checked against.  The user's ip address
-    is stored with the token for further checking of authentication.
+    Callers add a session with `_add_session` once the platform has
+    confirmed a login; this class does not authenticate on its own. A
+    session token is stored with the user's ip address so later requests
+    can be matched back to the ip they were issued to.
     """
-    def __init__(self, authenticator):
+    def __init__(self):
         self._sessions = {}
         self._session_tokens = {}
-        self._authenticator = authenticator
         self._stored_session_path = None
 
     def clear(self):
         self._sessions.clear()
         self._session_tokens.clear()
-
-    def authenticate(self, username, password, ip):
-        """Authenticates a user with the authenticator.
-
-        This is the main login function for the system.
-        """
-        groups = self._authenticator.authenticate(username, password)
-        if groups:
-            token = str(uuid.uuid4())
-            self._add_session(username, token, ip, ",".join(groups))
-            self._store_session()
-            return token
-        return None
 
     def _add_session(self, user, token, ip, groups):
         """Add a user session to the session cache"""
