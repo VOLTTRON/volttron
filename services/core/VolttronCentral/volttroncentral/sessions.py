@@ -1,6 +1,5 @@
 import errno
 import os
-import uuid
 from copy import deepcopy
 
 class SessionHandler:
