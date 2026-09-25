@@ -1,3 +1,4 @@
+import logging
 import os
 import socket
 import subprocess
@@ -12,6 +13,8 @@ import pytest
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+
+_log = logging.getLogger(__name__)
 
 
 def is_running_in_container():
@@ -73,6 +76,31 @@ def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
         gevent.sleep(sleep_time)
         if time.time() > time_start + max_seconds:
             return False
+
+
+def stop_agent_bounded(agent, timeout=30):
+    """Stop an agent's core within timeout seconds.
+
+    ``core.stop(timeout=...)`` only bounds the final greenlet join; if the
+    core's own greenlet is already dead, the request never reaches it and
+    ``core.stop()`` blocks forever regardless of that argument (#3274). A
+    ``gevent.Timeout`` around the whole call bounds every path. On expiry
+    the stop is abandoned and a warning names the agent; the caller's
+    teardown continues rather than hanging the test module.
+
+    :param agent: an object exposing ``agent.core.stop()``
+    :param int timeout: seconds to wait before giving up
+    :return: True if the core stopped in time, False on timeout
+    :rtype: bool
+    """
+    try:
+        with gevent.Timeout(timeout):
+            agent.core.stop()
+        return True
+    except gevent.Timeout:
+        identity = getattr(agent.core, "identity", agent)
+        _log.warning("agent %s did not stop within %s seconds", identity, timeout)
+        return False
 
 
 def messages_contains_prefix(prefix, messages):
