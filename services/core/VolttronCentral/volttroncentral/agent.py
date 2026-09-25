@@ -66,7 +66,6 @@ from volttron.platform.jsonrpc import (
     UNAVAILABLE_PLATFORM, INVALID_PARAMS,
     UNAVAILABLE_AGENT, INTERNAL_ERROR)
 from volttron.platform.vip.agent import Agent, RPC, Unreachable
-from .authenticate import Authenticate
 from .platforms import Platforms, PlatformHandler
 from .sessions import SessionHandler
 
@@ -219,14 +218,20 @@ class VolttronCentralAgent(Agent):
         if self._authenticated_sessions:
             self._authenticated_sessions.clear()
 
-        if users is None:
-            users = {}
-            _log.warning("No users are available for logging in!")
+        # The local-user "users" config key predates platform login and is no
+        # longer read: VolttronCentral users come from the platform web user
+        # store. Keep accepting the key so an existing config does not break
+        # configuration, but only warn, and never log the entries themselves.
+        if users:
+            _log.warning(
+                "VolttronCentral config 'users' key is no longer used for "
+                "login; %d user(s) ignored. VolttronCentral users are "
+                "managed through the platform web user store.", len(users))
 
         # Unregister all routes for vc and then re-add down below.
         self.vip.web.unregister_all_routes()
 
-        self._authenticated_sessions = SessionHandler(Authenticate(users))
+        self._authenticated_sessions = SessionHandler(None)
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
@@ -411,7 +416,9 @@ class VolttronCentralAgent(Agent):
                                                               token=authentication_token,
                                                               ip=env['REMOTE_ADDR'])
                 else:
-                    sess = self._authenticated_sessions.authenticate(**args)
+                    # No local fallback: a failed platform login is a failed
+                    # login.
+                    sess = None
 
                 if not sess:
                     _log.info('Invalid username/password for {}'.format(
@@ -933,64 +940,6 @@ class VolttronCentralAgent(Agent):
                     "Admin access is required to install agents")
 
         return platform.route_to_agent_method(id, platform_method, params)
-
-    def _validate_config_params(self, config):
-        """
-        Validate the configuration parameters of the default/updated parameters.
-
-        This method will return a list of "problems" with the configuration.
-        If there are no problems then an empty list is returned.
-
-        :param config: Configuration parameters for the volttron central agent.
-        :type config: dict
-        :return: The problems if any, [] if no problems
-        :rtype: list
-        """
-        problems = []
-        webroot = config.get('webroot')
-        if not webroot:
-            problems.append('Invalid webroot in configuration.')
-        elif not os.path.exists(webroot):
-            problems.append(
-                'Webroot {} does not exist on machine'.format(webroot))
-
-        users = config.get('users')
-        if not users:
-            problems.append('A users node must be specified!')
-        else:
-            has_admin = False
-
-            try:
-                for user, item in users.items():
-                    if 'password' not in item.keys():
-                        problems.append('user {} must have a password!'.format(
-                            user))
-                    elif not item['password']:
-                        problems.append('password for {} is blank!'.format(
-                            user
-                        ))
-
-                    if 'groups' not in item:
-                        problems.append('missing groups key for user {}'.format(
-                            user
-                        ))
-                    elif not isinstance(item['groups'], list):
-                        problems.append('groups must be a list of strings.')
-                    elif not item['groups']:
-                        problems.append(
-                            'user {} must belong to at least one group.'.format(
-                                user))
-
-                    # See if there is an adminstator present.
-                    if not has_admin and isinstance(item['groups'], list):
-                        has_admin = 'admin' in item['groups']
-            except AttributeError:
-                problems.append('invalid user node.')
-
-            if not has_admin:
-                problems.append("One user must be in the admin group.")
-
-        return problems
 
 
 def main(argv=sys.argv):
