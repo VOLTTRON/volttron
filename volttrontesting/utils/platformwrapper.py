@@ -678,8 +678,8 @@ class PlatformWrapper:
             else:
                 self.add_capability(capabilities, caps)
             auth.update_by_index(entry, index)
-            # AuthFile.add, used here before, slept 1 s after writing, and
-            # callers that make an RPC right after this rely on that wait.
+            # Same wait AuthFile.add makes after a write: callers make RPCs
+            # as soon as this returns.
             gevent.sleep(1)
             _log.debug("Updated entry is {}".format(entry))
             # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
