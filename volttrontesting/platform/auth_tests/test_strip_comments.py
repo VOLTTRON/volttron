@@ -47,6 +47,12 @@ VALID_CASES = [
     # a closed block comment must not poison a later, separate one: only
     # a real search miss may be remembered, not every comment attempt
     ('/* ok */ /* another */end', ' end'),
+    # the backslash before the escaped quote must skip both characters,
+    # not just the backslash, or the '#' after it reads as a real comment
+    ('"\\"#"', '"\\"#"'),
+    # a second, separate block-comment start right after the first one
+    # must still be output as literal text when neither one closes
+    ('/*/*', '/*/*'),
 ]
 
 
