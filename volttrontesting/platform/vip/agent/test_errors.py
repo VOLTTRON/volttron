@@ -89,7 +89,6 @@ def test_remote_error_with_exc_info_preserves_existing_behavior():
     err = RemoteError(msg_text, **exc_info)
 
     assert isinstance(err, RemoteError)
-    # The formatted message includes exc_type and exc_args, not the original text.
     assert str(err) == "ValueError('invalid value', 42)"
     assert err.message == msg_text
     assert err.exc_info == exc_info
@@ -106,3 +105,26 @@ def test_remote_error_with_exc_info_missing_exc_type_falls_back_to_message():
     assert str(err) == msg_text
     assert err.message == msg_text
     assert err.exc_info == exc_info
+
+
+def test_remote_error_repr_with_message_only():
+    # When RemoteError has no exc_type, repr includes the message so that
+    # logs and error reports show the actual error, not '<unknown>(...)'.
+    msg_text = 'connection failed'
+    err = RemoteError(msg_text)
+
+    assert msg_text in repr(err)
+
+
+def test_remote_error_repr_with_exc_type_unchanged():
+    # When exc_type is present, repr format is unchanged to preserve
+    # compatibility with code that parses the exc_type(exc_args) format.
+    msg_text = 'remote error'
+    exc_info = {
+        'exc_type': 'RuntimeError',
+        'exc_args': ['failed to initialize'],
+    }
+    err = RemoteError(msg_text, **exc_info)
+
+    assert repr(err) == "RuntimeError('failed to initialize')"
+    assert msg_text not in repr(err)
