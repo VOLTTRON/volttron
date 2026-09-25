@@ -47,7 +47,7 @@ If those same commits are also cherry-picked or merged back onto `develop`,
 the two histories stay consistent by construction, matching what was
 observed for 9.0.4.
 
-If `main` has commits that are not yet on `develop` (see section 6), merge
+If `main` has commits that are not yet on `develop` (see section 7), merge
 `main` into the release branch before finalizing it, the way `releases/9.0.4`
 merged `main` in before its release. This keeps the release from silently
 dropping a fix that only exists on `main`.
@@ -62,9 +62,17 @@ and by how the 9.0.4 release changed them:
   version declared in `setup.py` itself.
 - `docs/source/conf.py`, the Sphinx `version` and `release` assignments.
 
-Both are plain string literals and are not generated from the git tag or
-from each other. A release bumps both by hand, or by a script that writes
-both, so they cannot drift apart.
+Both are plain string literals, are not generated from the git tag or from
+each other, and nothing enforces that they agree: no script and no CI step
+reads either one back to check it against the other or against the tag. A
+release bumps both by hand, or by a script that writes both, and then
+confirms them before tagging:
+
+    grep "__version__" volttron/platform/__init__.py
+    grep -E "^(version|release) = " docs/source/conf.py
+
+Both commands must print the same version being released, and that version
+must match the tag about to be created (section 4).
 
 A small number of other files mention the version number in prose rather
 than as a machine-read field: `README.md` and
@@ -75,20 +83,48 @@ required for the package or the docs build to report the right version, but
 leaving them stale misleads a reader, so update them along with the version
 bump when their content is affected by the release.
 
-## 4. Tagging
+## 4. Tagging and publishing the release
 
-The tag `vX.Y.Z` is created on the release branch, at the commit that carries
-the version bump, before that branch is merged into `main`. This is what the
-9.0.4 tag shows: it points at the head of `releases/9.0.4`, not at the commit
-that later merged that branch into `main`. Continue that practice: tag the
-release branch tip, not the merge commit on `main`. If the merge into `main`
-is later done as a rebase (section 6), the commit on `main` will carry a
-different hash than the tag in any case, so the tag, not `main`'s tip, is the
-definitive record of what a given version contained.
+The tag `X.Y.Z` is created on the release branch, at the commit that carries
+the version bump, before that branch is merged into `main`. This repository
+does not prefix release tags with `v`: of 38 tags, only 2 carry a `v`, both
+2014-era pre-releases, and every 8.x and 9.x tag, 9.0.4 included, is bare.
+Use the bare form, matching section 1's own naming of the latest tag.
 
-A lightweight tag is sufficient at this step. Publishing a release (making
-the tag visible as a named release with notes) is a separate, later action,
-covered in section 9.
+This is what the 9.0.4 tag shows in another way too: it points at the head
+of `releases/9.0.4`, not at the commit that later merged that branch into
+`main`. Continue that practice: tag the release branch tip, not the merge
+commit on `main`.
+
+A lightweight tag is what every 8.x and 9.x tag in this repository actually
+is, confirmed by reading each tag object: it resolves directly to a commit
+rather than to a separate annotated tag object. A lightweight tag is
+therefore consistent with practice and is what this document asks for.
+
+That tag is a weaker record than calling it "definitive" without
+qualification would suggest, and it deserves the same caveat section 6 gives
+branch protection rather than none. Nothing in this repository protects a
+tag: the tag-protection endpoint returns 404 and the repository's rulesets
+list is empty. A lightweight tag also carries no tagger, date, message or
+signature, and anyone with push access can move or delete it. Once the
+rebase merge in section 6 lands a release, the commit `main` shows for that
+version is a new commit object, not the tagged one, and because this
+repository deletes a branch on merge, the tagged commit is then reachable
+from nothing but the tag itself. So: the tag is the record of what a version
+contained only for as long as the tag survives, and nothing here currently
+guards that survival. Switching to an annotated tag, or asking a maintainer
+with repository-settings authority to add tag protection for version tags,
+would each narrow this gap; both are proposals, not current practice, and
+neither is assumed by the rest of this document.
+
+Once the tag exists, a maintainer with release authority (section 10)
+creates a GitHub Release for it: not a draft, named after the version, with
+release notes summarizing what changed since the previous release. Every
+prior 8.x and 9.x release in this repository has a published, non-draft
+Release object of this kind, most combining a short hand-written summary
+with an auto-generated pull-request list. This step is manual today, like
+everything else in this document (section 11); nothing in this repository's
+CI creates it.
 
 ## 5. What gets released is not enforced by this document
 
@@ -172,14 +208,16 @@ in.
 ## 9. Publishing security advisories
 
 When a release includes a fix for an issue that was handled under
-coordinated disclosure, publish the corresponding advisory when the release
-that contains the fix is published, not before. A fix that only exists on a
-branch a user cannot yet install is not a fix a published advisory can
+coordinated disclosure, publish the corresponding advisory once the GitHub
+Release for that version (section 4) is itself published and not a draft,
+not before. A fix that only exists on a branch a user cannot yet install, or
+a release a reader cannot yet find, is not a fix a published advisory can
 responsibly point to.
 
-Coordinate the timing so the advisory goes out once the release artifact
-containing the fix is available to upgrade to, and confirm the advisory
-names the version that first contains the fix.
+Coordinate the timing so the advisory goes out once a reader can confirm,
+from the repository's Releases page or its API, that the version containing
+the fix is published rather than a draft, and confirm the advisory names
+that version.
 
 ## 10. Who decides what
 
@@ -205,3 +243,28 @@ automatically: bumping the version strings, creating the release branch,
 tagging, building or publishing a distributable package, building or pushing
 a container image, drafting release notes, or creating a published release
 from a tag. Every step in this document is done by hand until that changes.
+
+## 12. When a step fails
+
+Three steps in this document are hard or impossible to undo, and none of the
+sections above say what to do if each one fails.
+
+- The tag (section 4) is created before the release branch is merged into
+  `main`. If the release branch is then reworked or rejected, the tag
+  already names a commit that never lands anywhere durable. Delete that tag
+  and create a new one once a release point is actually ready. Do not reuse
+  the old tag name for a different commit: a moved tag with the same name as
+  something once published is exactly the weak point section 4 describes.
+- The rebase merge into `main` (section 6) can conflict. Resolve the
+  conflict on the release branch itself, then rebase again, so the branch's
+  own tested history is what actually lands, rather than resolving it inside
+  the pull request's own rebase tooling. If the conflicts are large enough
+  that this is impractical, re-cut the release branch from a current
+  `origin/develop` and start over, rather than forcing a resolution nobody
+  has reviewed.
+- Publishing a security advisory (section 9) is irreversible in the
+  disclosure sense: once details are public, they cannot be made
+  confidential again. If a defect in the advisory itself is found afterward,
+  such as a wrong version or a wrong description, correct it in place and
+  note the correction and its date within the advisory. Do not delete it and
+  post a new one in its place.
