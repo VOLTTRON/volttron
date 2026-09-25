@@ -30,19 +30,32 @@ from platform_driver.interfaces.modbus_tk.maps import CSVRegister, MapException
 # CSV (see maps/scale_reg_map.csv, which uses scale_reg(I_AC_CurrentSF)),
 # so the character class must keep accepting real register-name arguments.
 
+# Each case asserts on the parsed function and its full argument, by a
+# behaviour that only the correct, untruncated argument produces: a mutant
+# that captured a single character of the argument still returns a
+# non-None transform for every one of these, so "is not None" alone would
+# have missed it.
 VALID_CASES = [
-    ('scale(0.001)', 'scale', '0.001'),
-    ('scale_int(1.0)', 'scale_int', '1.0'),
-    ('mod10k(True)', 'mod10k', 'True'),
-    ('scale_reg(I_AC_CurrentSF)', 'scale_reg', 'I_AC_CurrentSF'),
-    ('scale_reg_pow_10(I_AC_CurrentSF)', 'scale_reg_pow_10', 'I_AC_CurrentSF'),
+    # scale(0.5): multiplier truncated to "0" would make func(2) == 0.
+    ('scale(0.5)', lambda transform: transform(2) == 1.0),
+    # scale_int(2.5): multiplier truncated to "2" would make func(2) == 4.
+    ('scale_int(2.5)', lambda transform: transform(2) == 5),
+    # mod10k(True): reverse=True swaps high/low; a wrong argument gives
+    # the un-reversed result (20003) instead.
+    ('mod10k(True)', lambda transform: transform(131075) == 30002),
+    # scale_reg keeps the full register name for the caller to resolve
+    # later; a truncated argument would leave only its first character.
+    ('scale_reg(I_AC_CurrentSF)',
+     lambda transform: transform.register_args == ['I_AC_CurrentSF']),
+    ('scale_reg_pow_10(I_AC_CurrentSF)',
+     lambda transform: transform.register_args == ['I_AC_CurrentSF']),
 ]
 
 
-@pytest.mark.parametrize('transform, func_name, expected_arg', VALID_CASES)
-def test_transform_regex_valid_input_unchanged(transform, func_name, expected_arg):
-    reg = CSVRegister(None, {'transform': transform})
-    assert reg._transform is not None
+@pytest.mark.parametrize('transform_str, check', VALID_CASES)
+def test_transform_regex_valid_input_unchanged(transform_str, check):
+    reg = CSVRegister(None, {'transform': transform_str})
+    assert check(reg._transform)
 
 
 # a-zA-z (a typo for a-zA-Z) also matched the ASCII range between 'Z' and
@@ -57,8 +70,9 @@ def test_transform_regex_rejects_stray_range_characters(stray):
         reg._transform
 
 
-def test_transform_regex_still_accepts_underscore_register_names():
-    # Underscore is a real, shipped character (scale_reg_map.csv), not part
-    # of the range typo being fixed; the fix must not reject it.
-    reg = CSVRegister(None, {'transform': 'scale_reg(I_AC_CurrentSF)'})
-    assert reg._transform is not None
+def test_transform_regex_rejects_bracket_in_register_name():
+    # Before the range fix, a-zA-z also accepted '[', so scale_reg(a[b)
+    # silently kept "a[b" as the register name instead of failing here.
+    reg = CSVRegister(None, {'transform': 'scale_reg(a[b)'})
+    with pytest.raises(MapException):
+        reg._transform
