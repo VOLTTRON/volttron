@@ -114,78 +114,87 @@ def install_two_agents(volttron_instance):
     :return:
     """
     
-    # CI reruns a failing test against this same fixture and volttron_home
-    # (see #3261), so directory creation here must tolerate a path that
-    # already exists from the first attempt.
-    tmpdir = volttron_instance.volttron_home+"/tmpdir"
-    os.makedirs(tmpdir, exist_ok=True)
-    tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/called"
-    os.makedirs(tmpdir, exist_ok=True)
-    os.chdir(tmpdir)
-
-    os.makedirs("calledagent", exist_ok=True)
-    with open(os.path.join("calledagent", "__init__.py"), "w") as file:
-        pass
-    with open(os.path.join("calledagent", "calledagent.py"), "w") as file:
-        file.write(called_agent_src)
-        with open(os.path.join("setup.py"), "w") as file:
-            file.write(called_agent_setup)
-    p = subprocess.Popen(
-        [sys.executable, "setup.py", "bdist_wheel"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    # print("out {}".format(stdout))
-    # print("err {}".format(stderr))
-
-    wheel = os.path.join(tmpdir, "dist", "calledagent-0.1-py3-none-any.whl")
-    assert os.path.exists(wheel)
-    called_uuid = volttron_instance.install_agent(agent_wheel=wheel, 
-                                                 vip_identity="called_agent",
-                                                 start=False)
-    assert called_uuid
-    gevent.sleep(1)
-    
-    
-    tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/caller"
-    os.makedirs(tmpdir, exist_ok=True)
-    os.chdir(tmpdir)
-    os.makedirs("calleragent", exist_ok=True)
-    with open(os.path.join("calleragent", "__init__.py"), "w") as file:
-        pass
-    with open(os.path.join("calleragent", "calleragent.py"), "w") as file:
-        file.write(caller_agent_src)
-        with open(os.path.join("setup.py"), "w") as file:
-            file.write(caller_agent_setup)
-    p = subprocess.Popen(
-        [sys.executable, "setup.py", "bdist_wheel"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    # print("out {}".format(stdout))
-    # print("err {}".format(stderr))
-
-    wheel = os.path.join(tmpdir, "dist", "calleragent-0.1-py3-none-any.whl")
-    assert os.path.exists(wheel)
-    caller_uuid = volttron_instance.install_agent(agent_wheel=wheel, 
-                                                 vip_identity="caller_agent",
-                                                 start=False)
-    assert caller_uuid
-    gevent.sleep(1)
-
-    # Fixed VIP identities (called_agent, caller_agent): a rerun of a failing
-    # test reinstalls onto the same platform instance and needs the prior
-    # install gone first, or it errors on "Identity already exists" (#3261).
+    # installed_uuids tracks what actually got installed so far, so the
+    # finally block can remove it even when a later step in this fixture
+    # (the second install, or anything between the two) fails before the
+    # try ever reaches yield (#3261 fix round 2).
+    installed_uuids = []
     try:
+        # CI reruns a failing test against this same fixture and
+        # volttron_home (see #3261), so directory creation here must
+        # tolerate a path that already exists from the first attempt.
+        tmpdir = volttron_instance.volttron_home+"/tmpdir"
+        os.makedirs(tmpdir, exist_ok=True)
+        tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/called"
+        os.makedirs(tmpdir, exist_ok=True)
+        os.chdir(tmpdir)
+
+        os.makedirs("calledagent", exist_ok=True)
+        with open(os.path.join("calledagent", "__init__.py"), "w") as file:
+            pass
+        with open(os.path.join("calledagent", "calledagent.py"), "w") as file:
+            file.write(called_agent_src)
+            with open(os.path.join("setup.py"), "w") as file:
+                file.write(called_agent_setup)
+        p = subprocess.Popen(
+            [sys.executable, "setup.py", "bdist_wheel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = p.communicate()
+        # print("out {}".format(stdout))
+        # print("err {}".format(stderr))
+
+        wheel = os.path.join(tmpdir, "dist", "calledagent-0.1-py3-none-any.whl")
+        assert os.path.exists(wheel)
+        called_uuid = volttron_instance.install_agent(agent_wheel=wheel,
+                                                     vip_identity="called_agent",
+                                                     start=False)
+        assert called_uuid
+        installed_uuids.append(called_uuid)
+        gevent.sleep(1)
+
+
+        tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/caller"
+        os.makedirs(tmpdir, exist_ok=True)
+        os.chdir(tmpdir)
+        os.makedirs("calleragent", exist_ok=True)
+        with open(os.path.join("calleragent", "__init__.py"), "w") as file:
+            pass
+        with open(os.path.join("calleragent", "calleragent.py"), "w") as file:
+            file.write(caller_agent_src)
+            with open(os.path.join("setup.py"), "w") as file:
+                file.write(caller_agent_setup)
+        p = subprocess.Popen(
+            [sys.executable, "setup.py", "bdist_wheel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = p.communicate()
+        # print("out {}".format(stdout))
+        # print("err {}".format(stderr))
+
+        wheel = os.path.join(tmpdir, "dist", "calleragent-0.1-py3-none-any.whl")
+        assert os.path.exists(wheel)
+        caller_uuid = volttron_instance.install_agent(agent_wheel=wheel,
+                                                     vip_identity="caller_agent",
+                                                     start=False)
+        assert caller_uuid
+        installed_uuids.append(caller_uuid)
+        gevent.sleep(1)
+
+        # Fixed VIP identities (called_agent, caller_agent): a rerun of a
+        # failing test reinstalls onto the same platform instance and needs
+        # the prior install gone first, or it errors on "Identity already
+        # exists" (#3261).
         yield caller_uuid, called_uuid
     finally:
-        # Attempt both removals even if one raises, and never let a removal
-        # error replace the test's own failure/error: log it instead of
-        # swallowing it or letting it propagate from finally (#3261 fix
-        # round 1).
-        for uuid in (caller_uuid, called_uuid):
+        # Remove whatever got installed, even if a later step failed before
+        # yielding (#3261 fix round 2). Attempt every removal regardless of
+        # an earlier one raising, and never let a removal error replace the
+        # test's own failure/error: log it instead of swallowing it or
+        # letting it propagate from finally (#3261 fix round 1).
+        for uuid in installed_uuids:
             try:
                 volttron_instance.remove_agent(uuid)
             except Exception:
