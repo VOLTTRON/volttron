@@ -1,6 +1,7 @@
 import json
 import os
 import pytest
+import re
 import shutil
 from pathlib import Path
 from volttron.platform.auth.certs import Certs, Subject, CertError
@@ -11,6 +12,21 @@ from volttrontesting.utils import certs_utils
 # certs_utils shells out to the openssl executable (see certs_utils.py), so
 # the guard checks for that executable, not a Python module.
 HAS_OPENSSL = shutil.which("openssl") is not None
+
+
+def _extract_cn(subject_text):
+    # openssl's subject rendering varies by version ("CN=x" vs "CN = x");
+    # match either rather than asserting on the exact text.
+    match = re.search(r"CN\s*=\s*([^,\n]+)", subject_text)
+    return match.group(1).strip() if match else None
+
+
+def test_extract_cn_tolerates_openssl_spacing():
+    assert _extract_cn("Subject: C = US, CN = RemoteInstanceName.FullyQualifiedIdentity") \
+        == "RemoteInstanceName.FullyQualifiedIdentity"
+    assert _extract_cn("Subject: C=US, CN=RemoteInstanceName.FullyQualifiedIdentity") \
+        == "RemoteInstanceName.FullyQualifiedIdentity"
+    assert _extract_cn("Subject: CN=SomeoneElse") != "RemoteInstanceName.FullyQualifiedIdentity"
 
 INSTANCE_NAME = "VC"
 PLATFORM_CONFIG = """
@@ -224,7 +240,7 @@ def test_create_csr(temp_volttron_home):
     # openssl's message wording, which is not stable across versions.
     csr_info = tls.verify_csr(csr_file_path, csr_private_key_path)
     assert csr_info is not False
-    assert "CN=RemoteInstanceName.FullyQualifiedIdentity" in csr_info
+    assert _extract_cn(csr_info) == "RemoteInstanceName.FullyQualifiedIdentity"
 
 
 @pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
@@ -252,12 +268,16 @@ def test_verify_csr_returns_false_for_wrong_key(temp_volttron_home):
 
 
 @pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
-def test_signed_cert_csr_not_written_to_tmp(monkeypatch, temp_volttron_home):
+def test_signed_cert_csr_stays_in_cert_directory(monkeypatch, temp_volttron_home):
     # The CSR TLSRepository creates while signing a cert used to land at a
-    # fixed /tmp path. Assert the path it actually computes is never under
-    # /tmp by spying on the CSR write itself, rather than by probing or
-    # deleting anything at /tmp, so this runs (and cannot silently skip)
-    # regardless of what a host already has at that path.
+    # fixed /tmp path. The property is containment in the certificate
+    # directory, not "not under /tmp": a platform's own VOLTTRON_HOME (and
+    # this fixture's temp_volttron_home) can itself be under /tmp, which is
+    # a legitimate location, not a regression.
+    tls = certs_utils.TLSRepository(repo_dir=temp_volttron_home,
+                                     openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
+                                     serverhost="FullyQualifiedIdentity")
+
     seen = {}
 
     def spy_create_csr(common_name, opensslcnf, private_key_file, server_csr_file):
@@ -266,17 +286,16 @@ def test_signed_cert_csr_not_written_to_tmp(monkeypatch, temp_volttron_home):
 
     monkeypatch.setattr(certs_utils, "__openssl_create_csr__", spy_create_csr)
 
+    cert_dir = tls.__get_cert_file__("AnotherIdentity").resolve().parent
     try:
-        certs_utils.TLSRepository(repo_dir=temp_volttron_home,
-                                   openssl_cnffile=str(Path(__file__).parent / "openssl.cnf"),
-                                   serverhost="FullyQualifiedIdentity")
+        tls.create_cert("AnotherIdentity", as_server=False)
     except Exception:
         # The signing step fails downstream of the CSR write (the stub
         # wrote nothing real); only the computed CSR path is under test.
         pass
 
     assert "csr_path" in seen
-    assert Path("/tmp") not in seen["csr_path"].parents
+    assert seen["csr_path"].parent == cert_dir
 
 
 @pytest.mark.skipif(not HAS_OPENSSL, reason="Requires the openssl executable on PATH")
