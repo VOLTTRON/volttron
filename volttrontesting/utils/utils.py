@@ -78,29 +78,44 @@ def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
             return False
 
 
+class AgentStopTimeoutError(Exception):
+    """Raised by stop_agent_bounded when its bound expires (#3274)."""
+
+
 def stop_agent_bounded(agent, timeout=30):
-    """Stop an agent's core within timeout seconds.
+    """Stop an agent's core, bounded, or fail loudly.
 
-    ``core.stop(timeout=...)`` only bounds the final greenlet join; if the
-    core's own greenlet is already dead, the request never reaches it and
-    ``core.stop()`` blocks forever regardless of that argument (#3274). A
-    ``gevent.Timeout`` around the whole call bounds every path. On expiry
-    the stop is abandoned and a warning names the agent; the caller's
-    teardown continues rather than hanging the test module.
+    A single outer gevent.Timeout is not enough: Core.stop's own
+    `finally: super().stop(timeout=...)` runs a second greenlet.join once
+    the agentstop send is interrupted, and a timer that already fired
+    does not protect that second wait. So `timeout` bounds three layers:
+    the outer gevent.Timeout, core.stop()'s own join, and a bounded kill
+    of the greenlet if it is still alive after both. Total elapsed time
+    can run past a single `timeout`, but never unbounded.
 
-    :param agent: an object exposing ``agent.core.stop()``
-    :param int timeout: seconds to wait before giving up
-    :return: True if the core stopped in time, False on timeout
-    :rtype: bool
+    On expiry the agent's identity is logged and AgentStopTimeoutError is
+    raised (#3274 criterion 2: fail loudly, not a silent pass). Only this
+    call's own timer counts as an expiry; a caller's own outer
+    gevent.Timeout propagates untouched.
+
+    :param agent: an object exposing ``agent.core.stop(timeout=...)``
+    :param int timeout: seconds to bound each wait by
+    :raises AgentStopTimeoutError: if the core did not stop in time
     """
+    timer = gevent.Timeout(timeout)
     try:
-        with gevent.Timeout(timeout):
-            agent.core.stop()
-        return True
-    except gevent.Timeout:
+        with timer:
+            agent.core.stop(timeout=timeout)
+    except gevent.Timeout as caught:
+        if caught is not timer:
+            raise
         identity = getattr(agent.core, "identity", agent)
-        _log.warning("agent %s did not stop within %s seconds", identity, timeout)
-        return False
+        greenlet = getattr(agent.core, "greenlet", None)
+        if greenlet is not None and not greenlet.ready():
+            greenlet.kill(block=True, timeout=timeout)
+        _log.error("agent %s did not stop within %s seconds", identity, timeout)
+        raise AgentStopTimeoutError(
+            "agent {} did not stop within {} seconds".format(identity, timeout))
 
 
 def messages_contains_prefix(prefix, messages):
