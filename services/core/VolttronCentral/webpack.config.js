@@ -121,14 +121,6 @@ module.exports = {
         new ExtractTextPlugin("css/[name]-[hash].css")
 
     ],
-    devServer: {
-        inline: true,
-        port: 65410,
-        proxy: {
-            '*': 'http://localhost:8080'
-        },
-        historyApiFallback: true,
-    },
 };
 
 if (IS_PRODUCTION) {

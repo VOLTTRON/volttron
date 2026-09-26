@@ -27,15 +27,14 @@
     "style-loader": "^0.13.1",
     "url-loader": "^0.5.7",
     "vinyl-source-stream": "^1.0.0",
-    "webpack": "^1.13.2",
-    "webpack-dev-server": "^1.16.2"
+    "webpack": "^1.13.2"
   },
   "dependencies": {
     "babel-polyfill": "^6.16.0",
     "babyparse": "^0.4.5",
     "bluebird": "^2.9.14",
     "chart.js": "^2.5.0",
-    "codemirror": "^4.13.0",
+    "codemirror": "^5.58.2",
     "flux": "^2.0.1",
     "font-awesome": "^4.6.3",
     "history": "^3.0.0",
