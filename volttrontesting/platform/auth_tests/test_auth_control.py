@@ -1,7 +1,6 @@
 import os
 import re
 import subprocess
-import time
 
 import gevent
 import pytest
@@ -10,7 +9,7 @@ from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQ
 
 from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
 from volttrontesting.utils.platformwrapper import with_os_environ
-from volttrontesting.utils.utils import AgentMock
+from volttrontesting.utils.utils import AgentMock, poll_gevent_sleep
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.auth import AuthService
 from volttron.platform.auth import AuthEntry, AuthFile
@@ -194,12 +193,14 @@ def _echo_refusal(caller, target_identity):
 
 
 def _wait_for_echo(caller, target_identity, refused, timeout=10):
-    deadline = time.time() + timeout
-    outcome = _echo_refusal(caller, target_identity)
-    while (outcome is not None) != refused and time.time() < deadline:
-        gevent.sleep(0.5)
-        outcome = _echo_refusal(caller, target_identity)
-    return outcome
+    outcome = []
+
+    def settled():
+        outcome[:] = [_echo_refusal(caller, target_identity)]
+        return (outcome[0] is not None) == refused
+
+    poll_gevent_sleep(timeout, settled, 0.5)
+    return outcome[0]
 
 
 def _build_agent_once_authorized(platform, identity, **kwargs):
@@ -212,12 +213,11 @@ def _build_agent_once_authorized(platform, identity, **kwargs):
             user_id=identity, identity=identity, credentials=publickey,
             capabilities={"edit_config_store": {"identity": identity}}),
             no_error=True)
-    start = time.time()
-    while platform.dynamic_agent.vip.rpc.call(
-            AUTH, "get_authorizations", identity).get(timeout=5) is None:
-        assert time.time() - start < 30, f"auth service never loaded {identity}"
-        gevent.sleep(0.5)
-    print(f"auth entry for {identity} loaded after {time.time() - start:.1f}s")
+    assert poll_gevent_sleep(
+        30,
+        lambda: platform.dynamic_agent.vip.rpc.call(
+            AUTH, "get_authorizations", identity).get(timeout=5) is not None,
+        0.5), f"auth service never loaded {identity}"
     return platform.build_agent(identity=identity, **kwargs)
 
 
