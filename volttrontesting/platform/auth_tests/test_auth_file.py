@@ -22,7 +22,9 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import logging
 import os
+import time
 
 import gevent
 import pytest
@@ -702,8 +704,8 @@ def test_snapshot_not_aliased(tmp_path, monkeypatch):
 
 @pytest.mark.auth
 def test_failed_push_is_sent_again(tmp_path, monkeypatch):
-    """A push that raises does not advance the snapshot, so the next reload
-    sends the same change again."""
+    """A push that raises is logged, not raised, and does not advance the
+    snapshot, so the next reload sends the same change again."""
     auth_path = str(tmp_path / "auth.json")
     AuthFile(auth_path).add(AuthEntry(
         user_id="agentx", identity="agentx", credentials=_curve_key("X")))
@@ -716,8 +718,71 @@ def test_failed_push_is_sent_again(tmp_path, monkeypatch):
 
     service._send_update = fail_once
     service.add_rpc_authorizations("agentx", "method1", ["cap1"])
-    with raises(RuntimeError):
-        service.read_auth_file()
+    service.read_auth_file()
     service.read_auth_file()
 
     assert service.pushed == [{"agentx": {"method1": ["cap1"]}}]
+
+
+def _wait_until(condition, timeout=10):
+    # gevent.sleep is stubbed here and the file watcher is a native
+    # thread, so wait on the clock rather than on the hub.
+    deadline = time.time() + timeout
+    while not condition():
+        if time.time() > deadline:
+            return False
+        time.sleep(0.1)
+    return True
+
+
+@pytest.mark.auth
+def test_watcher_survives_a_failed_push(tmp_path, monkeypatch, caplog):
+    """Through the real file watcher: a push that raises is logged, later
+    changes to auth.json still load, and the failed change is sent again."""
+    from volttron.platform.agent import utils
+
+    auth_path = str(tmp_path / "auth.json")
+    AuthFile(auth_path).add(AuthEntry(
+        user_id="agentx", identity="agentx", credentials=_curve_key("X")))
+    service = _auth_service_on(auth_path, monkeypatch)
+    record = service._send_update
+    attempts = []
+
+    def fail_first(modified_entries=None):
+        attempts.append(modified_entries)
+        if len(attempts) == 1:
+            raise BaseException("No peers connected to the platform")
+        record(modified_entries)
+
+    service._send_update = fail_first
+    observers = []
+
+    class RecordedObserver(utils.Observer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            observers.append(self)
+
+    monkeypatch.setattr(utils, "Observer", RecordedObserver)
+    utils.watch_file(auth_path, service.read_auth_file)
+    try:
+        service.add_rpc_authorizations("agentx", "method1", ["cap1"])
+        assert _wait_until(lambda: attempts)
+        AuthFile(auth_path).add(
+            AuthEntry(user_id="later", credentials=_curve_key("L")))
+        assert _wait_until(
+            lambda: "later" in [e.user_id for e in service.auth_entries])
+        assert _wait_until(
+            lambda: {"agentx": {"method1": ["cap1"]}} in service.pushed)
+        service.add_rpc_authorizations("agentx", "method2", ["cap2"])
+        assert _wait_until(
+            lambda: {"agentx": {"method1": ["cap1"], "method2": ["cap2"]}}
+            in service.pushed)
+    finally:
+        for observer in observers:
+            observer.stop()
+            observer.join(timeout=5)
+
+    assert [type(o).__mro__[1].__name__ for o in observers] == [
+        "InotifyObserver"]
+    assert any(r.levelno == logging.ERROR and r.exc_info
+               for r in caplog.records)
