@@ -22,7 +22,6 @@
 # ===----------------------------------------------------------------------===
 # }}}
 import argparse
-import hashlib
 import json
 import os
 import sys
@@ -641,44 +640,9 @@ def do_web_agent():
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
-    # resp = vc_config()
 
     print('Installing volttron central.')
     return {}
-
-
-def vc_config():
-    username = ''
-    while not username:
-        username = prompt_response('Enter volttron central admin user name:')
-        if not username:
-            print('ERROR Invalid username')
-    password = ''
-    password2 = ''
-    while not password:
-        password = prompt_response('Enter volttron central admin password:',
-                                   echo=False)
-        if not password:
-            print('ERROR: Invalid password')
-            continue
-
-        password2 = prompt_response('Retype password:',
-                                    echo=False)
-        if password2 != password:
-            print("ERROR: Passwords don't match")
-
-            password = ''
-
-    config = {
-        'users': {
-            username: {
-                'password': hashlib.sha512(password.encode('utf-8')).hexdigest(),
-                'groups': ['admin']
-            }
-        }
-    }
-
-    return config
 
 
 def get_cert_and_key(vhome):

@@ -48,6 +48,8 @@ from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.scheduling import periodic
 from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
 from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform.agent.known_identities import (CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
+                                                      START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
 
 HAVE_RESTRICTED = True
 
@@ -198,6 +200,7 @@ class ControlService(BaseAgent):
         return pk
 
     @RPC.export
+    @RPC.allow(CLEAR_AGENT_STATUS)
     def clear_status(self, clear_all=False):
         self._aip.clear_status(clear_all)
 
@@ -246,6 +249,7 @@ class ControlService(BaseAgent):
         return self._aip.status_agents(get_agent_user)
 
     @RPC.export
+    @RPC.allow(START_STOP_AGENTS)
     def start_agent(self, uuid):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
@@ -258,6 +262,7 @@ class ControlService(BaseAgent):
         self._aip.start_agent(uuid)
 
     @RPC.export
+    @RPC.allow(START_STOP_AGENTS)
     def stop_agent(self, uuid):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
@@ -277,15 +282,18 @@ class ControlService(BaseAgent):
         self.core.connection.send_vip("", "agentstop", args=frames, copy=False)
 
     @RPC.export
+    @RPC.allow(START_STOP_AGENTS)
     def restart_agent(self, uuid):
         self.stop_agent(uuid)
         self.start_agent(uuid)
 
     @RPC.export
+    @RPC.allow(START_STOP_AGENTS)
     def shutdown(self):
         self._aip.shutdown()
 
     @RPC.export
+    @RPC.allow(STOP_PLATFORM)
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
         self.core.connection.send_vip("", "quit")
@@ -307,6 +315,7 @@ class ControlService(BaseAgent):
         ]
 
     @RPC.export
+    @RPC.allow(TAG_AGENTS)
     def tag_agent(self, uuid, tag):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
@@ -327,6 +336,7 @@ class ControlService(BaseAgent):
         self._aip.tag_agent(uuid, tag)
 
     @RPC.export
+    @RPC.allow(INSTALL_REMOVE_AGENTS)
     def remove_agent(self, uuid, remove_auth=True):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
@@ -348,6 +358,7 @@ class ControlService(BaseAgent):
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
+    @RPC.allow(START_STOP_AGENTS)
     def prioritize_agent(self, uuid, priority="50"):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
@@ -387,7 +398,7 @@ class ControlService(BaseAgent):
     @RPC.export
     def get_all_agent_publickeys(self):
         """
-        RPC method to retrieve the public keys of all of the agents installed
+        RPC method to retrieve the public keys of all the agents installed
         on the VOLTTRON instance.
 
         This method does not differentiate between running and not running
@@ -416,6 +427,7 @@ class ControlService(BaseAgent):
         return self._identity_exists(identity)
 
     @RPC.export
+    @RPC.allow(INSTALL_REMOVE_AGENTS)
     def install_agent_rmq(self, vip_identity, filename, topic, force,
                           response_topic):
         """
@@ -575,6 +587,7 @@ class ControlService(BaseAgent):
         return agent_uuid
 
     @RPC.export
+    @RPC.allow(INSTALL_REMOVE_AGENTS)
     def install_agent(
         self,
         filename,

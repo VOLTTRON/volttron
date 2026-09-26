@@ -36,6 +36,7 @@ jobs:
         python-version: [ '3.10' ]
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
 
     steps:
       # checkout the volttron repository and set current directory to it
@@ -54,8 +55,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@no_rmq
-        timeout-minutes: 600
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}

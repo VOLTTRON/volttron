@@ -1,5 +1,16 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
+[![CodeQL](https://github.com/VOLTTRON/volttron/actions/workflows/code_analysis.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/code_analysis.yml)
+
+[![Testing platform auth](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-auth.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-auth.yml)
+[![Testing BackupDatabase](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-backup_db.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-backup_db.yml)
+[![Testing mysqlfuncts](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-mysqlfuncts.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-mysqlfuncts.yml)
+[![Testing postgresqlfuncts](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-postgresqlfuncts.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-postgresqlfuncts.yml)
+[![Testing sqlitefuncts](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-sqlitefuncts.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-dbutils-sqlitefuncts.yml)
+[![Miscellaneous platform tests](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-miscellaneous-tests.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-miscellaneous-tests.yml)
+[![Testing testutils directory](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-testutils.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-testutils.yml)
+[![Testing volttron-ctl](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-vctl.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-vctl.yml)
+[![Testing platform web](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-web.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-web.yml)
 
 # VOLTTRON
 
@@ -12,7 +23,7 @@ at https://eclipse-volttron.readthedocs.io/en/latest/. We would love for you to 
 feedback. Also, until our work on modular VOLTTRON is completed, please continue cloning and using this 
 repository for your production systems.
 
-VOLTTRON™ is an open source platform for distributed sensing and control. The
+VOLTTRON(TM) is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
@@ -83,7 +94,7 @@ users unfamiliar with those technologies, the following resources are recommende
 
 [Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
 From version 9.0.4, VOLTTRON requires python 3.10. And it was tested on Ubuntu 22.04
-From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
+From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.10; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
 
 ```sh
@@ -122,7 +133,7 @@ Proceed to step 4.
 
 You can deactivate the environment at any time by running `deactivate`.
 
-#### Steps for RabbitMQ
+#### Steps for RabbitMQ 
 
 ##### 1. Install Erlang version 25 packages
 

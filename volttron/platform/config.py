@@ -39,11 +39,61 @@ import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
+from volttron.platform import _escape_scan
 from volttron.platform.instance_setup import main
 
 
 def expandall(string):
     return _os.path.expanduser(_os.path.expandvars(string))
+
+
+_section_open_re = _re.compile(r'^\s*\[\s*')
+_section_ws_re = _re.compile(r'\s')
+
+
+def _section_name_boundary(raw):
+    """Index in raw where the section name ends and trailing whitespace
+    the historical pattern also stripped begins. A backslash can never
+    escape a newline (there is no DOTALL here), so a trailing newline is
+    always free to strip regardless of what precedes it.
+    """
+    boundary = len(raw)
+    while boundary > 0 and _section_ws_re.match(raw[boundary - 1]):
+        if (raw[boundary - 1] != '\n'
+                and _escape_scan.backslash_run_before(raw, boundary - 1) % 2 == 1):
+            break
+        boundary -= 1
+    return boundary
+
+
+def match_section_header(line):
+    """Return (name, rest) as the historical backtracking section_re did,
+    or None. The closing bracket is found on the shared escape scan; the
+    same escape rule governs the trailing whitespace a lazy \\s* absorbed.
+    """
+    open_match = _section_open_re.match(line)
+    if not open_match:
+        return None
+    start = open_match.end()
+    n = len(line)
+    # the last newline that is not the line's own final character:
+    # nothing past it can still satisfy a $ that only matches end-of-line
+    # or just before a truly trailing newline. Computed once, not per
+    # candidate the escape scan considers.
+    bad = line.rfind('\n', 0, n - 1)
+
+    def tail_ok(text, at):
+        return at > bad
+
+    found = _escape_scan.find_close(line, start, ']', tail_ok)
+    if found is None:
+        return None
+    raw = line[start:found]
+    name = raw[:_section_name_boundary(raw)]
+    tail = line[found + 1:]
+    newline = tail.find('\n')
+    rest = tail if newline == -1 else tail[:newline]
+    return name, rest
 
 
 class TrackingString(str):
@@ -214,7 +264,6 @@ class ConfigFileAction(_argparse.Action):
         return ([], arg_strings) if self.inline else (arg_strings, [])
 
     def itersettings(self, parser, conffile):
-        section_re = _re.compile(r'^\s*\[\s*((?:\\.|[^\]])*?)\s*\](.*)$')
         comment_re = _re.compile(r'^\s*(?:[#;].*)?$')
         setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
         section = None
@@ -224,9 +273,9 @@ class ConfigFileAction(_argparse.Action):
             line = line.strip()
             if not line or comment_re.match(line):
                 continue
-            match = section_re.match(line)
+            match = match_section_header(line)
             if match:
-                section, rest = match.groups()
+                section, rest = match
                 if not comment_re.match(rest):
                     err = 'invalid syntax after section: {!r}'.format(rest)
                     parser.error(

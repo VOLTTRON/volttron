@@ -22,7 +22,9 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import logging
 import os
+import time
 
 import gevent
 import pytest
@@ -503,3 +505,284 @@ def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
     assert len(entries) == 4
     for entry in entries:
         assert entry.rpc_method_authorizations == {}
+
+
+@pytest.mark.auth
+def test_add_multiple_entries_one_object_all_persist(tmp_path):
+    """#3248: the harness pre-seed builds one AuthFile and calls add()
+    on it repeatedly (platformwrapper.py startup_platform). Each write
+    must keep what the previous write already persisted."""
+    auth_path = str(tmp_path / "auth.json")
+    auth_file = AuthFile(auth_path)
+    added = [
+        AuthEntry(credentials=chr(65 + i) * 43, user_id=f"user{i}")
+        for i in range(4)
+    ]
+    for entry in added:
+        auth_file.add(entry)
+
+    # A fresh object reads what is actually on disk, not whichever
+    # in-memory view the writer instance happens to hold.
+    persisted = AuthFile(auth_path).read_allow_entries()
+    persisted_creds = {str(e.credentials) for e in persisted}
+    assert persisted_creds == {str(e.credentials) for e in added}
+
+
+@pytest.mark.auth
+def test_add_capabilities_writes_matched_entry_only(tmp_path):
+    """#3247: add_capabilities matches an entry by credentials but must
+    not let AuthFile.add(overwrite=True) resolve the write target by
+    user_id alone, which can land on a different entry."""
+    from volttrontesting.utils.platformwrapper import PlatformWrapper
+
+    auth_path = str(tmp_path / "auth.json")
+    cred_a = "A" * 43
+    cred_b = "B" * 43
+    entry_a = AuthEntry(user_id="shared", credentials=cred_a)
+    entry_b = AuthEntry(user_id="shared", credentials=cred_b)
+
+    # add() itself refuses a second entry with a duplicate user_id, so
+    # this shape (two entries sharing a user_id, differing by key) is
+    # seeded with a direct write, bypassing that check.
+    seed = AuthFile(auth_path)
+    seed._write([entry_a, entry_b], [], {}, {})
+
+    wrapper = PlatformWrapper.__new__(PlatformWrapper)
+    wrapper.auth_enabled = True
+    wrapper.env = {}
+    wrapper.volttron_home = str(tmp_path)
+
+    wrapper.add_capabilities(cred_b, "new_cap")
+
+    reread = {
+        str(e.credentials): e for e in AuthFile(auth_path).read_allow_entries()
+    }
+    assert "new_cap" in reread[cred_b].capabilities
+    assert "new_cap" not in reread[cred_a].capabilities
+
+
+def _curve_key(char):
+    return char * 43
+
+
+def _disk_allow(auth_path):
+    with open(auth_path) as f:
+        return jsonapi.load(f)["allow"]
+
+
+def _auth_service_on(auth_path, monkeypatch):
+    """An AuthService with only the state read_auth_file and the rpc
+    authorization methods use, after its onsetup load. _send_update
+    records the entries it would push instead of calling peers."""
+    from volttron.platform.auth import AuthService
+
+    monkeypatch.setattr(gevent, "sleep", lambda *args, **kwargs: None)
+    service = object.__new__(AuthService)
+    service.auth_file_path = auth_path
+    service.auth_file = AuthFile(auth_path)
+    service._last_loaded_allow_entries = []
+    service._auth_approved = []
+    service._auth_denied = []
+    service._is_connected = False
+    service.read_auth_file()
+    service._is_connected = True
+    service.pushed = []
+    service._send_update = (
+        lambda modified_entries=None: service.pushed.append(
+            {e.identity: e.rpc_method_authorizations
+             for e in modified_entries or []}))
+    return service
+
+
+@pytest.mark.auth
+def test_read_auth_file_diffs_write_through_own_authfile(tmp_path, monkeypatch):
+    """#3248: a write through the service's own AuthFile (vctl auth rpc
+    add|remove) must still reach running agents when the watcher reloads."""
+    auth_path = str(tmp_path / "auth.json")
+    AuthFile(auth_path).add(AuthEntry(
+        user_id="agentx", identity="agentx", credentials=_curve_key("X")))
+    service = _auth_service_on(auth_path, monkeypatch)
+
+    service.add_rpc_authorizations("agentx", "method1", ["cap1"])
+    service.read_auth_file()
+    service.delete_rpc_authorizations("agentx", "method1", ["cap1"])
+    service.read_auth_file()
+
+    assert service.pushed == [
+        {"agentx": {"method1": ["cap1"]}},
+        {"agentx": {"method1": [""]}},
+    ]
+    assert _disk_allow(auth_path)[0]["rpc_method_authorizations"] == {
+        "method1": [""]}
+
+
+@pytest.mark.auth
+def test_mixed_mutators_one_object(tmp_path):
+    """#3248: each mutator on one AuthFile builds on the previous write,
+    so a removal is not undone by a later write through the same object."""
+    auth_path = str(tmp_path / "auth.json")
+    for char in "ABCD":
+        AuthFile(auth_path).add(AuthEntry(user_id=f"u{char}",
+                                          credentials=_curve_key(char)))
+    auth_file = AuthFile(auth_path)
+
+    auth_file.remove_by_indices([0])
+    auth_file.update_by_index(
+        AuthEntry(user_id="uZ", credentials=_curve_key("Z")), 0)
+
+    disk = _disk_allow(auth_path)
+    assert [e["user_id"] for e in disk] == ["uZ", "uC", "uD"]
+    assert auth_file.auth_data["allow_list"] == disk
+
+    auth_path = str(tmp_path / "revoke.json")
+    AuthFile(auth_path).add(
+        AuthEntry(user_id="keep", credentials=_curve_key("K")))
+    AuthFile(auth_path).add(
+        AuthEntry(user_id="revoked", credentials=_curve_key("R")))
+    auth_file = AuthFile(auth_path)
+
+    auth_file.remove_by_indices([1])
+    auth_file.add(AuthEntry(user_id="new", credentials=_curve_key("N")))
+
+    assert [e["user_id"] for e in _disk_allow(auth_path)] == ["keep", "new"]
+
+
+@pytest.mark.auth
+def test_write_does_not_read_back(tmp_path, monkeypatch):
+    """#3248: _write keeps what it wrote without reading the file back, so
+    a read that sees an empty or truncated file cannot drop entries."""
+    auth_path = str(tmp_path / "auth.json")
+    auth_file = AuthFile(auth_path)
+    empty = {"allow_list": [], "deny_list": [], "groups": {}, "roles": {},
+             "version": {"major": 0, "minor": 0}}
+    monkeypatch.setattr(auth_file, "_read", lambda: empty)
+
+    auth_file.add(AuthEntry(user_id="first", credentials=_curve_key("F")))
+    auth_file.add(AuthEntry(user_id="second", credentials=_curve_key("S")))
+
+    assert [e["user_id"] for e in _disk_allow(auth_path)] == [
+        "first", "second"]
+
+
+@pytest.mark.auth
+def test_failed_write_keeps_auth_data(tmp_path):
+    """auth_data changes only after the file is written, so a failed write
+    leaves it matching the file."""
+    auth_path = str(tmp_path / "auth.json")
+    auth_file = AuthFile(auth_path)
+    auth_file.add(AuthEntry(user_id="first", credentials=_curve_key("F")))
+    before = jsonapi.loads(jsonapi.dumps(auth_file.auth_data))
+    os.chmod(auth_path, 0o444)
+    try:
+        with raises(PermissionError):
+            auth_file.add(AuthEntry(user_id="second",
+                                    credentials=_curve_key("S")))
+    finally:
+        os.chmod(auth_path, 0o644)
+
+    assert auth_file.auth_data == before
+    assert [e["user_id"] for e in _disk_allow(auth_path)] == ["first"]
+
+
+@pytest.mark.auth
+def test_snapshot_not_aliased(tmp_path, monkeypatch):
+    """update_id_rpc_authorizations edits an entry's rpc dict in place; the
+    reload after its write must still see the new method as a change."""
+    auth_path = str(tmp_path / "auth.json")
+    AuthFile(auth_path).add(AuthEntry(
+        user_id="agentx", identity="agentx", credentials=_curve_key("X"),
+        rpc_method_authorizations={"method1": ["cap1"]}))
+    service = _auth_service_on(auth_path, monkeypatch)
+
+    service.update_id_rpc_authorizations(
+        "agentx", {"method1": ["cap1"], "method2": ["cap2"]})
+    service.read_auth_file()
+
+    assert service.pushed == [
+        {"agentx": {"method1": ["cap1"], "method2": ["cap2"]}}]
+
+
+@pytest.mark.auth
+def test_failed_push_is_sent_again(tmp_path, monkeypatch):
+    """A push that raises is logged, not raised, and does not advance the
+    snapshot, so the next reload sends the same change again."""
+    auth_path = str(tmp_path / "auth.json")
+    AuthFile(auth_path).add(AuthEntry(
+        user_id="agentx", identity="agentx", credentials=_curve_key("X")))
+    service = _auth_service_on(auth_path, monkeypatch)
+    record = service._send_update
+
+    def fail_once(modified_entries=None):
+        service._send_update = record
+        raise RuntimeError("no peers")
+
+    service._send_update = fail_once
+    service.add_rpc_authorizations("agentx", "method1", ["cap1"])
+    service.read_auth_file()
+    service.read_auth_file()
+
+    assert service.pushed == [{"agentx": {"method1": ["cap1"]}}]
+
+
+def _wait_until(condition, timeout=10):
+    # gevent.sleep is stubbed here and the file watcher is a native
+    # thread, so wait on the clock rather than on the hub.
+    deadline = time.time() + timeout
+    while not condition():
+        if time.time() > deadline:
+            return False
+        time.sleep(0.1)
+    return True
+
+
+@pytest.mark.auth
+def test_watcher_survives_a_failed_push(tmp_path, monkeypatch, caplog):
+    """Through the real file watcher: a push that raises is logged, later
+    changes to auth.json still load, and the failed change is sent again."""
+    from volttron.platform.agent import utils
+
+    auth_path = str(tmp_path / "auth.json")
+    AuthFile(auth_path).add(AuthEntry(
+        user_id="agentx", identity="agentx", credentials=_curve_key("X")))
+    service = _auth_service_on(auth_path, monkeypatch)
+    record = service._send_update
+    attempts = []
+
+    def fail_first(modified_entries=None):
+        attempts.append(modified_entries)
+        if len(attempts) == 1:
+            raise BaseException("No peers connected to the platform")
+        record(modified_entries)
+
+    service._send_update = fail_first
+    observers = []
+
+    class RecordedObserver(utils.Observer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            observers.append(self)
+
+    monkeypatch.setattr(utils, "Observer", RecordedObserver)
+    utils.watch_file(auth_path, service.read_auth_file)
+    try:
+        service.add_rpc_authorizations("agentx", "method1", ["cap1"])
+        assert _wait_until(lambda: attempts)
+        AuthFile(auth_path).add(
+            AuthEntry(user_id="later", credentials=_curve_key("L")))
+        assert _wait_until(
+            lambda: "later" in [e.user_id for e in service.auth_entries])
+        assert _wait_until(
+            lambda: {"agentx": {"method1": ["cap1"]}} in service.pushed)
+        service.add_rpc_authorizations("agentx", "method2", ["cap2"])
+        assert _wait_until(
+            lambda: {"agentx": {"method1": ["cap1"], "method2": ["cap2"]}}
+            in service.pushed)
+    finally:
+        for observer in observers:
+            observer.stop()
+            observer.join(timeout=5)
+
+    assert [type(o).__mro__[1].__name__ for o in observers] == [
+        "InotifyObserver"]
+    assert any(r.levelno == logging.ERROR and r.exc_info
+               for r in caplog.records)

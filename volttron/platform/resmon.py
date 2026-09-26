@@ -41,6 +41,7 @@ without worrying about where to find the monitor instance.
 from ast import literal_eval
 import os
 import re
+from volttron.platform import _escape_scan
 from volttron.platform.aip import ExecutionEnvironment
 
 
@@ -70,12 +71,58 @@ __version__ = '0.1'
 
 
 
-_var_re = re.compile(
-    r'''^\s*([a-zA-Z0-9_]+)=("(?:\\.|[^"])*"|'[^']*'|[^#]*?)\s*(?:#.*)?$''')
+_key_re = re.compile(r'^\s*([a-zA-Z0-9_]+)=')
+
+
+def _match_shell_var(line):
+    """Return (key, raw_value) as the historical backtracking _var_re did,
+    or None. The double- and single-quoted branches close on the shared
+    escape scan; the unquoted branch ends at the first '#' that is not
+    walled off by an embedded newline, matching what the historical
+    lazy [^#]*? plus \\s*(?:#.*)?$ accepted on a single line.
+    """
+    key_match = _key_re.match(line)
+    if not key_match:
+        return None
+    key = key_match.group(1)
+    pos = key_match.end()
+    n = len(line)
+    # the last newline that is not the line's own final character: nothing
+    # past it can still satisfy a $ that only matches end-of-line or just
+    # before a truly trailing newline. Computed once, not per candidate.
+    bad = line.rfind('\n', 0, n - 1)
+
+    def tail_ok(text, at):
+        w = at
+        while w < n and text[w].isspace():
+            w += 1
+        return w == n or (text[w] == '#' and w > bad)
+
+    if pos < n and line[pos] == '"':
+        close = _escape_scan.find_close(line, pos + 1, '"', tail_ok)
+        if close is not None:
+            return key, line[pos:close + 1]
+        # falls through to the unquoted alternative, below
+
+    elif pos < n and line[pos] == "'":
+        end = line.find("'", pos + 1)
+        if end != -1 and tail_ok(line, end + 1):
+            return key, line[pos:end + 1]
+        # falls through, as above
+
+    hash_pos = line.find('#', pos)
+    if hash_pos == -1:
+        end = n
+    elif hash_pos > bad:
+        end = hash_pos
+    else:
+        return None
+    return key, line[pos:end].rstrip()
+
 
 def _iter_shell_vars(file):
-    for key, value in (match.groups() for match in
-            (_var_re.match(line) for line in file) if match):
+    for key, value in (match for match in
+            (_match_shell_var(line) for line in file) if match):
         if value[:1] == "'" == value[-1:]:
             yield key, value[1:-1]
         elif value[:1] == '"' == value[-1:]:

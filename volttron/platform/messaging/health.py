@@ -25,9 +25,8 @@
 import logging
 
 from volttron.platform import jsonapi
-from volttron.platform.agent.utils import (get_aware_utc_now,
-                                           format_timestamp,
-                                           parse_timestamp_string)
+from volttron.platform.agent.utils import get_aware_utc_now, format_timestamp
+
 
 CURRENT_STATUS = "current_status"
 LAST_UPDATED = "utc_last_updated"

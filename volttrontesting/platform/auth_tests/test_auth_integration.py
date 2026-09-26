@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import sys
@@ -7,6 +8,8 @@ import pytest
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform import jsonrpc
 from volttron.platform.messaging.health import STATUS_BAD
+
+_log = logging.getLogger(__name__)
 
 called_agent_src = """
 import sys
@@ -111,71 +114,91 @@ def install_two_agents(volttron_instance):
     :return:
     """
     
-    tmpdir = volttron_instance.volttron_home+"/tmpdir"
-    os.mkdir(tmpdir)
-    tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/called"
-    os.mkdir(tmpdir)
-    os.chdir(tmpdir)
-    
-    os.mkdir("calledagent")
-    with open(os.path.join("calledagent", "__init__.py"), "w") as file:
-        pass
-    with open(os.path.join("calledagent", "calledagent.py"), "w") as file:
-        file.write(called_agent_src)
-        with open(os.path.join("setup.py"), "w") as file:
-            file.write(called_agent_setup)
-    p = subprocess.Popen(
-        [sys.executable, "setup.py", "bdist_wheel"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    # print("out {}".format(stdout))
-    # print("err {}".format(stderr))
-
-    wheel = os.path.join(tmpdir, "dist", "calledagent-0.1-py3-none-any.whl")
-    assert os.path.exists(wheel)
-    called_uuid = volttron_instance.install_agent(agent_wheel=wheel, 
-                                                 vip_identity="called_agent",
-                                                 start=False)
-    assert called_uuid
-    gevent.sleep(1)
-    
-    
-    tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/caller"
-    os.mkdir(tmpdir)
-    os.chdir(tmpdir)
-    os.mkdir("calleragent")
-    with open(os.path.join("calleragent", "__init__.py"), "w") as file:
-        pass
-    with open(os.path.join("calleragent", "calleragent.py"), "w") as file:
-        file.write(caller_agent_src)
-        with open(os.path.join("setup.py"), "w") as file:
-            file.write(caller_agent_setup)
-    p = subprocess.Popen(
-        [sys.executable, "setup.py", "bdist_wheel"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    # print("out {}".format(stdout))
-    # print("err {}".format(stderr))
-
-    wheel = os.path.join(tmpdir, "dist", "calleragent-0.1-py3-none-any.whl")
-    assert os.path.exists(wheel)
-    caller_uuid = volttron_instance.install_agent(agent_wheel=wheel, 
-                                                 vip_identity="caller_agent",
-                                                 start=False)
-    assert caller_uuid
-    gevent.sleep(1)
-
+    # installed_uuids tracks what actually got installed so far, so the
+    # finally block can remove it even when a later step in this fixture
+    # (the second install, or anything between the two) fails before the
+    # try ever reaches yield.
+    installed_uuids = []
     try:
+        # CI reruns a failing test against this same fixture and
+        # volttron_home (see #3261), so directory creation here must
+        # tolerate a path that already exists from the first attempt.
+        tmpdir = volttron_instance.volttron_home+"/tmpdir"
+        os.makedirs(tmpdir, exist_ok=True)
+        tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/called"
+        os.makedirs(tmpdir, exist_ok=True)
+        os.chdir(tmpdir)
+
+        os.makedirs("calledagent", exist_ok=True)
+        with open(os.path.join("calledagent", "__init__.py"), "w") as file:
+            pass
+        with open(os.path.join("calledagent", "calledagent.py"), "w") as file:
+            file.write(called_agent_src)
+            with open(os.path.join("setup.py"), "w") as file:
+                file.write(called_agent_setup)
+        p = subprocess.Popen(
+            [sys.executable, "setup.py", "bdist_wheel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = p.communicate()
+        # print("out {}".format(stdout))
+        # print("err {}".format(stderr))
+
+        wheel = os.path.join(tmpdir, "dist", "calledagent-0.1-py3-none-any.whl")
+        assert os.path.exists(wheel)
+        called_uuid = volttron_instance.install_agent(agent_wheel=wheel,
+                                                     vip_identity="called_agent",
+                                                     start=False)
+        assert called_uuid
+        installed_uuids.append(called_uuid)
+        gevent.sleep(1)
+
+
+        tmpdir = volttron_instance.volttron_home+"/tmpdir" + "/caller"
+        os.makedirs(tmpdir, exist_ok=True)
+        os.chdir(tmpdir)
+        os.makedirs("calleragent", exist_ok=True)
+        with open(os.path.join("calleragent", "__init__.py"), "w") as file:
+            pass
+        with open(os.path.join("calleragent", "calleragent.py"), "w") as file:
+            file.write(caller_agent_src)
+            with open(os.path.join("setup.py"), "w") as file:
+                file.write(caller_agent_setup)
+        p = subprocess.Popen(
+            [sys.executable, "setup.py", "bdist_wheel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = p.communicate()
+        # print("out {}".format(stdout))
+        # print("err {}".format(stderr))
+
+        wheel = os.path.join(tmpdir, "dist", "calleragent-0.1-py3-none-any.whl")
+        assert os.path.exists(wheel)
+        caller_uuid = volttron_instance.install_agent(agent_wheel=wheel,
+                                                     vip_identity="caller_agent",
+                                                     start=False)
+        assert caller_uuid
+        installed_uuids.append(caller_uuid)
+        gevent.sleep(1)
+
+        # Fixed VIP identities (called_agent, caller_agent): a rerun of a
+        # failing test reinstalls onto the same platform instance and needs
+        # the prior install gone first, or it errors on "Identity already
+        # exists" (#3261).
         yield caller_uuid, called_uuid
     finally:
-        #volttron_instance.remove_agent(caller_uuid)
-        #volttron_instance.remove_agent(called_uuid)
-        # TODO if we have to wait for auth propagation anyways why do we create new agents for each test case
-        #  we should just update capabilities, at least we will save on agent creation and tear down time
+        # Remove whatever got installed, even if a later step failed before
+        # yielding. Attempt every removal regardless of an earlier one
+        # raising, and never let a removal error replace the test's own
+        # failure/error: log it instead of swallowing it or letting it
+        # propagate from finally.
+        for uuid in installed_uuids:
+            try:
+                volttron_instance.remove_agent(uuid)
+            except Exception:
+                _log.exception("Failed to remove agent %s during teardown", uuid)
         gevent.sleep(1)
 
 
@@ -202,22 +225,26 @@ def test_unauthorized_rpc_call(volttron_instance, install_two_agents):
     check_auth_error(volttron_instance, caller_agent_uuid, called_agent_uuid)
 
 def check_auth_error(volttron_instance, caller_agent_uuid, called_agent_uuid):
-    
-    expected_auth_err = ('volttron.platform.jsonrpc.Error('
-    '-32001, "method \'restricted_method\' '  
-    'requires capabilities {\'can_call_method\'}, ' 
-    'but capability {\'edit_config_store\': {\'identity\': \'caller_agent\'}}' 
-    ' was provided for user caller_agent")')
+
     volttron_instance.start_agent(called_agent_uuid)
     gevent.sleep(1)
     volttron_instance.start_agent(caller_agent_uuid)
-    
+
     # If the agent is not authorized health status is updated
     health =  volttron_instance.dynamic_agent.vip.rpc.call(
         "caller_agent", "health.get_status").get(timeout=2)
-    
+
     assert health.get('status') == STATUS_BAD
-    assert health.get('context') == expected_auth_err
+    # The granted capability set (volttron/platform/aip.py,
+    # _authorize_agent_keys) is not part of what this test proves, and it
+    # has grown before (#3260). Assert the refusal itself: the JSON-RPC
+    # unauthorized code, the required capability, the method, and the
+    # caller identity, not the full rendered capability dict.
+    context = health.get('context')
+    assert context is not None
+    assert str(jsonrpc.UNAUTHORIZED) in context
+    assert "method 'restricted_method' requires capabilities {'can_call_method'}, but capability " in context
+    assert context.endswith('was provided for user caller_agent")')
     
     
         

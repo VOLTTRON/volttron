@@ -43,6 +43,7 @@ jobs:
     # - At the current time there is only ubuntu machine 20.04 available
     # - This uses the matrix os from the strategy above
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
 
     # Each step will be run in order of listing.
     steps:
@@ -57,7 +58,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis
       - name: Run certs test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@no_rmq
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -65,15 +66,23 @@ jobs:
           test_output_suffix: misc
 
       - name: Run core agent test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@no_rmq
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
           test_path: volttrontesting/platform/test_core_agent.py
           test_output_suffix: misc
 
+      - name: Run VolttronCentral authenticate removal test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: services/core/VolttronCentral/tests/test_authenticate_removed.py
+          test_output_suffix: misc
+
       - name: Run packaging test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@no_rmq
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -81,7 +90,7 @@ jobs:
           test_output_suffix: misc
 
       - name: Run platform init test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@no_rmq
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
@@ -89,11 +98,59 @@ jobs:
           test_output_suffix: misc
 
       - name: Run sqlite3 test on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@no_rmq
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
           test_path: volttrontesting/platform/test_sqlite3_fix.py
+          test_output_suffix: misc
+
+      - name: Run VIP agent errors test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/vip/agent/test_errors.py
+          test_output_suffix: misc
+
+      - name: Run VIP loop guard test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/vip/agent/test_vip_loop_guard.py
+          test_output_suffix: misc
+
+      - name: Run VIP green socket test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/vip/test_green_socket.py
+          test_output_suffix: misc
+
+      - name: Run RPC send guard test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/vip/agent/test_rpc_guard.py
+          test_output_suffix: misc
+
+      - name: Run resmon test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/platform/test_resmon.py
+          test_output_suffix: misc
+
+      - name: Run modbus transform regex test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: services/core/PlatformDriverAgent/tests/test_modbus_transform_regex.py
           test_output_suffix: misc
 
       # Archive the results from the pytest to storage.

@@ -27,7 +27,10 @@ from .agent_additions import (add_volttron_central,
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi, is_rabbitmq_available
-from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.platform.agent.known_identities import (PLATFORM_WEB, CONTROL, CONTROL_CONNECTION,
+                                                       PROCESS_IDENTITIES, CLEAR_AGENT_STATUS,
+                                                       INSTALL_REMOVE_AGENTS, START_STOP_AGENTS,
+                                                       STOP_PLATFORM, TAG_AGENTS)
 from volttron.platform.auth.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -55,6 +58,62 @@ RESTRICTED_AVAILABLE = False
 # Change the connection timeout to default to 5 seconds rather than the default
 # of 30 secondes
 DEFAULT_TIMEOUT = 5
+
+# Bounds build_agent's readiness loop end to end, including the peerlist
+# send itself: .get(timeout=.2) alone only bounds the wait for a reply
+# (issue #3283).
+BUILD_AGENT_READINESS_TIMEOUT = 10
+
+# aip.py's ExecutionEnvironment.stop escalates SIGINT, SIGTERM, SIGKILL
+# across three gevent.with_timeout waits (60 + 30 + 30 = 120s worst case);
+# vctl's stop/remove calls need headroom above that (issue #3330).
+VCTL_STOP_BUDGET_TIMEOUT = 150
+
+# aip.py waits this long for SIGINT before escalating to SIGTERM (#3330).
+VCTL_STOP_SIGINT_WAIT = 60
+
+
+def _execute_vctl_stop_or_remove(cmd, env, logger, err_prefix, agent_uuid, action):
+    """Run a vctl stop/remove command and warn when it ran past the
+    platform's SIGINT wait: that means aip.py had to escalate to SIGTERM
+    or SIGKILL to stop the agent (issue #3330). Does not fail the call."""
+    start = time.monotonic()
+    result = execute_command(cmd, env=env, logger=logger, err_prefix=err_prefix)
+    elapsed = time.monotonic() - start
+    if elapsed > VCTL_STOP_SIGINT_WAIT:
+        logger.warning(
+            "%s for agent %s took %.1fs, past the platform's %ss SIGINT "
+            "wait: the agent needed SIGTERM/SIGKILL escalation to stop",
+            action, agent_uuid, elapsed, VCTL_STOP_SIGINT_WAIT)
+    return result
+
+
+class _BuildAgentReadinessTimeout(Exception):
+    """Raised by the gevent.Timeout guarding build_agent's readiness loop;
+    kept distinct from gevent.Timeout so the loop's own per-attempt
+    ``except gevent.Timeout`` does not swallow it."""
+    pass
+
+
+def _dynamic_agent_capabilities():
+    """Capabilities dynamic_agent needs: the config-store and
+    auth-modification grants it already had, plus the five control
+    capabilities control.connection holds (main.py), so remove_all_agents,
+    stop_platform, shutdown_platform and prioritize_agent (called by
+    tests) are not refused. Returns a fresh dict on every call: AuthEntry
+    stores the dict it is given without copying it, and add_capabilities
+    mutates that dict in place, so a shared module-level dict would leak
+    updates across entries and across test runs.
+    """
+    capabilities = dict(edit_config_store=dict(identity="/.*/"), allow_auth_modifications=None)
+    capabilities.update({
+        CLEAR_AGENT_STATUS: None,
+        INSTALL_REMOVE_AGENTS: None,
+        START_STOP_AGENTS: None,
+        STOP_PLATFORM: None,
+        TAG_AGENTS: None,
+    })
+    return capabilities
 
 try:
     from volttron.restricted import (auth, certs)
@@ -534,19 +593,33 @@ class PlatformWrapper:
             if self.messagebus == 'rmq':
                 # agent seem to need a extra second for agent to establish connection
                 gevent.sleep(1)
-            while not has_control and times < 10:
-                times += 1
-                try:
-                    has_control = CONTROL in \
-                                  agent.vip.peerlist().get(
-                                      timeout=.2)
-                    self.logit("Has control? {}".format(has_control))
-                except gevent.Timeout:
-                    pass
+            readiness_start = time.time()
+            try:
+                # gevent.Timeout bounds the whole peerlist round trip
+                # rather than only the .get() below: peerlist() performs
+                # the VIP send before it ever returns an AsyncResult, so a
+                # send that blocks (the VIP send lock, #3280) would
+                # otherwise defeat the retry count and the .get(timeout)
+                # entirely and run until the suite's 300s pytest timeout.
+                with gevent.Timeout(BUILD_AGENT_READINESS_TIMEOUT, _BuildAgentReadinessTimeout):
+                    while not has_control:
+                        times += 1
+                        try:
+                            has_control = CONTROL in \
+                                          agent.vip.peerlist().get(
+                                              timeout=.2)
+                            self.logit("Has control? {}".format(has_control))
+                        except gevent.Timeout:
+                            pass
+            except _BuildAgentReadinessTimeout:
+                pass
 
             if not has_control:
+                elapsed = time.time() - readiness_start
                 self.shutdown_platform()
-                raise Exception("Couldn't connect to core platform!")
+                raise Exception(
+                    "Couldn't connect to core platform: identity={}, address={}, "
+                    "elapsed={:.1f}s, attempts={}".format(identity, address, elapsed, times))
 
         agent.publickey = publickey
         return agent
@@ -612,7 +685,14 @@ class PlatformWrapper:
                 capabilities = [capabilities]
             auth_path = self.volttron_home + "/auth.json"
             auth = AuthFile(auth_path)
-            entry = auth.find_by_credentials(publickey)[0]
+            # Write by index: add(overwrite=True) finds its target by user_id
+            # alone, so it can hit another entry sharing this one's user_id.
+            entries = auth.read_allow_entries()
+            matches = [
+                (i, e) for i, e in enumerate(entries)
+                if str(e.credentials) == publickey
+            ]
+            index, entry = matches[0]
             caps = entry.capabilities
 
             if isinstance(capabilities, list):
@@ -620,7 +700,10 @@ class PlatformWrapper:
                     self.add_capability(c, caps)
             else:
                 self.add_capability(capabilities, caps)
-            auth.add(entry, overwrite=True)
+            auth.update_by_index(entry, index)
+            # Same wait AuthFile.add makes after a write: callers make RPCs
+            # as soon as this returns.
+            gevent.sleep(1)
             _log.debug("Updated entry is {}".format(entry))
             # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
             # This slow down is not an issue with file watcher but rather vip.peerlist(). peerlist times out
@@ -628,6 +711,49 @@ class PlatformWrapper:
             # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
             gevent.sleep(2)
             return True
+
+    def _update_dynamic_agent_capabilities(self):
+        """Bring an existing dynamic_agent auth entry, left over from a
+        prior grant path or a reused VOLTTRON_HOME, up to exactly the
+        expected capability set, so a stale entry (missing a capability,
+        or still holding one that should not be there) does not diverge
+        from what a fresh grant would produce.
+
+        Matches only the entry that already carries this harness's own
+        dynamic_agent keystore key, and changes only its capabilities: an
+        entry with the same user_id but a different key is left
+        untouched. Writes by index rather than through AuthFile.add,
+        because add() re-resolves the write target by user_id alone and
+        would hit the first same-user_id entry rather than the one just
+        matched by key. Uses explicit paths under self.volttron_home
+        instead of KeyStore/AuthFile's environment-derived defaults, so a
+        caller outside this instance's own environment context cannot
+        make it touch another VOLTTRON_HOME.
+        """
+        ks = KeyStore(os.path.join(self.volttron_home, "keystores", "dynamic_agent", "keystore.json"))
+        authfile = AuthFile(os.path.join(self.volttron_home, "auth.json"))
+        for index, entry in enumerate(authfile.read_allow_entries()):
+            if entry.user_id == "dynamic_agent" and entry.credentials == ks.public:
+                expected = _dynamic_agent_capabilities()
+                if entry.capabilities == expected:
+                    return
+                # Assigned rather than merged in place: entry.capabilities
+                # aliases the AuthFile's own cached snapshot, so mutating
+                # it in place would corrupt a re-read of an unrelated
+                # entry sharing that snapshot.
+                entry.capabilities = expected
+                authfile.update_by_index(entry, index)
+                return
+        # Called before build_agent(identity="dynamic_agent") on the
+        # pre-existing-auth.json startup path, so no match here does not
+        # mean the grant failed: it may still be added moments later.
+        # The message says "not yet" rather than "were not granted",
+        # which this call site cannot know either way.
+        _log.warning(
+            "No dynamic_agent auth entry yet matches this instance's "
+            "own keystore key in %s; control capabilities are not "
+            "granted until a later grant path adds a matching entry.",
+            self.volttron_home)
 
     file_types = Union[Literal["raw"], Literal["json"], Literal["csv"]]
 
@@ -779,7 +905,7 @@ class PlatformWrapper:
                     authfile.add(entry)
 
                     identity = "dynamic_agent"
-                    capabilities = dict(edit_config_store=dict(identity="/.*/"), allow_auth_modifications=None)
+                    capabilities = _dynamic_agent_capabilities()
                     # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
@@ -788,6 +914,14 @@ class PlatformWrapper:
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
+
+            if self.auth_enabled:
+                # Cover the two other startup paths: an auth.json that
+                # already had allow entries skips the pre-seed above, and a
+                # dynamic_agent entry left over from a prior grant (or a
+                # reused VOLTTRON_HOME) may still be missing capabilities
+                # added since it was written.
+                self._update_dynamic_agent_capabilities()
 
             msgdebug = self.env.get('MSG_DEBUG', False)
             enable_logging = self.env.get('ENABLE_LOGGING', False)
@@ -969,7 +1103,8 @@ class PlatformWrapper:
             # Use dynamic_agent so we can look and see the agent with peerlist.
             if not setupmode:
                 gevent.sleep(5)
-                self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+                self.dynamic_agent = self.build_agent(identity="dynamic_agent",
+                                                      capabilities=_dynamic_agent_capabilities())
                 assert self.dynamic_agent is not None
                 assert isinstance(self.dynamic_agent, Agent)
                 # has_control = False
@@ -1334,9 +1469,10 @@ class PlatformWrapper:
             _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
             cmd = [self.vctl_exe]
-            cmd.extend(['stop', agent_uuid])
-            res = execute_command(cmd, env=self.env, logger=_log,
-                                  err_prefix="Error stopping agent")
+            cmd.extend(['stop', agent_uuid, '--timeout', str(VCTL_STOP_BUDGET_TIMEOUT)])
+            res = _execute_vctl_stop_or_remove(cmd, self.env, _log,
+                                               "Error stopping agent",
+                                               agent_uuid, "stop")
             return self.agent_pid(agent_uuid)
 
     def list_agents(self):
@@ -1350,9 +1486,10 @@ class PlatformWrapper:
             _log.debug("REMOVING AGENT: {}".format(agent_uuid))
             self.__wait_for_control_connection_to_exit__()
             cmd = [self.vctl_exe]
-            cmd.extend(['remove', agent_uuid])
-            res = execute_command(cmd, env=self.env, logger=_log,
-                                  err_prefix="Error removing agent")
+            cmd.extend(['remove', agent_uuid, '--timeout', str(VCTL_STOP_BUDGET_TIMEOUT)])
+            res = _execute_vctl_stop_or_remove(cmd, self.env, _log,
+                                               "Error removing agent",
+                                               agent_uuid, "remove")
             pid = None
             try:
                 pid = self.agent_pid(agent_uuid)
@@ -1564,7 +1701,7 @@ class PlatformWrapper:
                 return
 
             running_pids = []
-            if self.dynamic_agent: 
+            if self.dynamic_agent:
                 try:# because we are not creating dynamic agent in setupmode
                     for agnt in self.list_agents():
                         pid = self.agent_pid(agnt['uuid'])
@@ -1574,16 +1711,42 @@ class PlatformWrapper:
                         self.remove_all_agents()
                     # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
                     self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
-                    self.dynamic_agent.core.stop()
+                except BaseException:
+                    # exc_info carries the traceback and the exception type;
+                    # a bare str(e) drops both, and this teardown is exactly
+                    # where a bug hides behind "shutdown will not throw an
+                    # error if RMQ is down/has cert errors".
+                    _log.exception("Exception while shutting down dynamic_agent")
+                finally:
+                    # Must run even when a step above raised: otherwise the
+                    # agent's core greenlet, its monitor greenlet and its
+                    # DEALER socket survive into the next PlatformWrapper on
+                    # the same process-global ZMQ context (#3282).
+                    try:
+                        self.dynamic_agent.core.stop()
+                    except BaseException:
+                        _log.exception("Exception while stopping dynamic_agent's core")
                     self.dynamic_agent = None
-                except BaseException as e:
-                    self.logit(f"Exception while shutting down. {e}")
+
+                assert self.dynamic_agent is None, \
+                    "dynamic_agent survived shutdown_platform's teardown"
 
             if self.p_process is not None:
                 try:
                     gevent.sleep(0.2)
                     self.p_process.terminate()
-                    gevent.sleep(0.2)
+                    try:
+                        self.p_process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        _log.error(
+                            "Platform process %s did not exit within 10s of "
+                            "terminate(); killing it", self.p_process.pid)
+                        self.p_process.kill()
+                        try:
+                            self.p_process.wait(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            _log.error(
+                                "Platform process %s survived kill()", self.p_process.pid)
                 except OSError:
                     self.logit('Platform process was terminated.')
                 pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)

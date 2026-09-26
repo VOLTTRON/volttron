@@ -59,6 +59,7 @@ import ast
 import copy
 from datetime import datetime, timedelta
 import itertools
+import os
 import random
 import sqlite3
 import sys
@@ -75,6 +76,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
+from volttrontesting.utils.utils import stop_agent_bounded
 
 try:
     from crate import client
@@ -185,7 +187,7 @@ mysql_platform = {
         "type": "mysql",
         "params": {
             "host": "localhost",
-            "port": 3306,
+            "port": int(os.environ.get("MYSQL_PORT", 3306)),
             "database": "test_historian",
             "user": "historian",
             "passwd": "historian"
@@ -199,7 +201,7 @@ mongo_platform = {
         "type": "mongodb",
         "params": {
             "host": "localhost",
-            "port": 27017,
+            "port": int(os.environ.get("MONGODB_PORT", 27017)),
             "database": "mongo_test",
             "user": "historian",
             "passwd": "historian",
@@ -214,7 +216,7 @@ postgresql_platform = {
         'type': 'postgresql',
         'params': {
             'dbname': 'test_historian',
-            'port': 5432,
+            'port': int(os.environ.get("POSTGRES_PORT", 5432)),
             'host': 'localhost',
             'user': 'historian',
             'password': 'historian'
@@ -573,7 +575,7 @@ def publish_agent(request, volttron_instance):
     def stop_agent():
         print("In teardown method of publish_agent")
         if isinstance(agent, Agent):
-            agent.core.stop()
+            stop_agent_bounded(agent)
 
     request.addfinalizer(stop_agent)
     return agent
@@ -588,7 +590,9 @@ def query_agent(request, volttron_instance):
     # agent that published to message bus
     def stop_agent():
         print("In teardown method of query_agent")
-        agent.core.stop()
+        # bounded: a crashed core's greenlet never services this request,
+        # and an unbounded stop() then hangs the whole module (#3274)
+        stop_agent_bounded(agent)
 
     request.addfinalizer(stop_agent)
     return agent

@@ -88,7 +88,12 @@ MARKET_ERROR = _(MARKET_BASE.replace('{subtopic}', 'error'))
 MARKET_RECORD = _(RECORD.replace('{subtopic}', MARKET_CLEAR))
 
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
-AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(platform.uname()[1], os.getpid()))
+# Use platform.node() rather than platform.uname()[1] for the hostname. Both
+# return the same node name, but uname() additionally shells out to a
+# subprocess to fill the "processor" field, and that subprocess call deadlocks
+# at import time under gevent's monkey-patched os on newer CPython (observed
+# hanging on 3.13). node() reads the hostname directly with no subprocess.
+AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(platform.node(), os.getpid()))
 
 LOGGER_BASE =_('datalogger')
 LOGGER = _('datalogger/{subtopic}')
