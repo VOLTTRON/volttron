@@ -76,6 +76,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
+from volttrontesting.utils.utils import stop_agent_bounded
 
 try:
     from crate import client
@@ -574,7 +575,7 @@ def publish_agent(request, volttron_instance):
     def stop_agent():
         print("In teardown method of publish_agent")
         if isinstance(agent, Agent):
-            agent.core.stop()
+            stop_agent_bounded(agent)
 
     request.addfinalizer(stop_agent)
     return agent
@@ -589,7 +590,9 @@ def query_agent(request, volttron_instance):
     # agent that published to message bus
     def stop_agent():
         print("In teardown method of query_agent")
-        agent.core.stop()
+        # bounded: a crashed core's greenlet never services this request,
+        # and an unbounded stop() then hangs the whole module (#3274)
+        stop_agent_bounded(agent)
 
     request.addfinalizer(stop_agent)
     return agent

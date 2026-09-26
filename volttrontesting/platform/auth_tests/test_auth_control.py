@@ -9,11 +9,13 @@ from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQ
 
 from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
 from volttrontesting.utils.platformwrapper import with_os_environ
-from volttrontesting.utils.utils import AgentMock
-from volttron.platform.vip.agent import Agent
+from volttrontesting.utils.utils import AgentMock, poll_gevent_sleep
+from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.auth import AuthService
-from volttron.platform.auth import AuthEntry
-from volttron.platform import jsonapi
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform import jsonapi, jsonrpc
+from volttron.platform.agent.known_identities import AUTH
+from volttron.platform.keystore import KeyStore
 
 _auth_entry1 = AuthEntry(
     domain='test1_domain', address='test1_address', mechanism='NULL',
@@ -171,6 +173,61 @@ def auth_rpc_method_remove(platform, agent, method, auth_cap):
     print(f"Out is: {out}")
     print(f"ERROR is: {err}")
 
+
+class _RpcTarget(Agent):
+    """An agent with one ungated export for the rpc add and remove tests."""
+
+    @RPC.export
+    def echo(self, value):
+        return value
+
+
+def _echo_refusal(caller, target_identity):
+    """Returns None when caller's call to echo succeeds, else the error text."""
+    try:
+        result = caller.vip.rpc.call(target_identity, "echo", 7).get(timeout=2)
+    except (jsonrpc.Error, jsonrpc.RemoteError) as err:
+        return str(err)
+    assert result == 7
+    return None
+
+
+def _wait_for_echo(caller, target_identity, refused, timeout=10):
+    outcome = []
+
+    def settled():
+        outcome[:] = [_echo_refusal(caller, target_identity)]
+        return (outcome[0] is not None) == refused
+
+    poll_gevent_sleep(timeout, settled, 0.5)
+    return outcome[0]
+
+
+def _build_agent_once_authorized(platform, identity, **kwargs):
+    """build_agent connects a fixed 4 s after writing the auth entry, which
+    is too soon while the auth service is still pushing an earlier change.
+    Write the same entry first and wait until the service has loaded it."""
+    with with_os_environ(platform.env):
+        publickey = KeyStore(KeyStore.get_agent_keystore_path(identity)).public
+        AuthFile().add(AuthEntry(
+            user_id=identity, identity=identity, credentials=publickey,
+            capabilities={"edit_config_store": {"identity": identity}}),
+            no_error=True)
+    assert poll_gevent_sleep(
+        30,
+        lambda: platform.dynamic_agent.vip.rpc.call(
+            AUTH, "get_authorizations", identity).get(timeout=5) is not None,
+        0.5), f"auth service never loaded {identity}"
+    return platform.build_agent(identity=identity, **kwargs)
+
+
+def _build_rpc_target_and_caller(platform, suffix):
+    target = _build_agent_once_authorized(
+        platform, f"rpc_target_{suffix}", agent_class=_RpcTarget)
+    caller = _build_agent_once_authorized(platform, f"rpc_caller_{suffix}")
+    return target, caller
+
+
 def assert_auth_entries_same(e1, e2):
     for field in ['domain', 'address', 'user_id', 'credentials', 'comments',
                   'enabled']:
@@ -309,6 +366,21 @@ def test_auth_remove(auth_instance):
 def test_auth_rpc_method_add(auth_instance):
     """Add an entry then update it with a different entry"""
     platform = auth_instance
+    # The change must reach the running agent, not only the file: a caller
+    # without the new capability is refused once it is pushed. Run first,
+    # while no push to an agent that is not connected is still pending.
+    target, caller = _build_rpc_target_and_caller(platform, "add")
+    try:
+        target_id = target.core.identity
+        assert _echo_refusal(caller, target_id) is None
+        auth_rpc_method_add(platform, target_id, 'echo', 'test_auth')
+        refusal = _wait_for_echo(caller, target_id, refused=True)
+        assert refusal is not None
+        assert "method 'echo' requires capabilities {'test_auth'}" in refusal
+    finally:
+        caller.core.stop()
+        target.core.stop()
+
     entries = auth_list_json(platform)
     len_entries = len(entries)
     auth_add(platform, _auth_entry7)
@@ -333,11 +405,24 @@ def test_auth_rpc_method_add(auth_instance):
 
     assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
 
-@pytest.mark.xfail(reason="Known issue. ToDo - https://github.com/VOLTTRON/volttron/issues/3215")
+
 @pytest.mark.control
 def test_auth_rpc_method_remove(auth_instance):
     """Add an entry then update it with a different entry"""
     platform = auth_instance
+    # Removing the last capability opens the method again on the running
+    # agent, so the removal must be pushed as well as the addition.
+    target, caller = _build_rpc_target_and_caller(platform, "remove")
+    try:
+        target_id = target.core.identity
+        auth_rpc_method_add(platform, target_id, 'echo', 'test_auth')
+        assert _wait_for_echo(caller, target_id, refused=True) is not None
+        auth_rpc_method_remove(platform, target_id, 'echo', 'test_auth')
+        assert _wait_for_echo(caller, target_id, refused=False) is None
+    finally:
+        caller.core.stop()
+        target.core.stop()
+
     entries = auth_list_json(platform)
     len_entries = len(entries)
     auth_add(platform, _auth_entry8)

@@ -58,6 +58,11 @@ class AuthService(Agent):
         self.core.delay_running_event_set = False
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
+        # The "before" side of read_auth_file's rpc authorization diff. Kept
+        # apart from auth_file.auth_data, which every write through
+        # auth_file refreshes before the file watcher runs.
+        self._last_loaded_allow_entries = copy.deepcopy(
+            self.auth_file.read_allow_entries())
         self.export_auth_file()
         self.can_update = False
         self.needs_rpc_update = False
@@ -426,24 +431,42 @@ class AuthService(Agent):
         return modified_entries
 
     def read_auth_file(self):
+        """Reloads auth.json and pushes changed entries to peers.
+
+        The file watcher calls this on its own native thread, where an
+        exception that escapes ends the watch for good, so failures are
+        logged here instead of raised.
+        """
+        try:
+            self._load_and_push_auth_file()
+        except (KeyboardInterrupt, SystemExit, gevent.GreenletExit):
+            raise
+        except BaseException:
+            # _send_update raises a bare BaseException when no peer answers.
+            _log.exception("error loading auth file %s; the next change to "
+                           "it retries the load and push",
+                           self.auth_file_path)
+
+    def _load_and_push_auth_file(self):
         _log.debug("loading auth file %s", self.auth_file_path)
-        # Update from auth file into memory
+        # The snapshot is copied from freshly parsed data inside AuthFile:
+        # update_id_rpc_authorizations edits auth_data's rpc dicts in place
+        # on the hub while this runs on the watcher thread.
         if self.auth_file.auth_data:
-            old_entries = self.auth_file.read_allow_entries().copy()
-            self.auth_file.load()
+            loaded_entries = self.auth_file.load_allow_snapshot()
             entries = self.auth_file.read_allow_entries()
             count = 0
             # Allow for multiple tries to ensure auth file is read
             while not entries and count < 3:
-                self.auth_file.load()
+                loaded_entries = self.auth_file.load_allow_snapshot()
                 entries = self.auth_file.read_allow_entries()
                 count += 1
-            modified_entries = self._get_updated_entries(old_entries, entries)
-            denied_entries = self.auth_file.read_deny_entries()
         else:
-            self.auth_file.load()
+            loaded_entries = self.auth_file.load_allow_snapshot()
             entries = self.auth_file.read_allow_entries()
-            denied_entries = self.auth_file.read_deny_entries()
+        modified_entries = self._get_updated_entries(
+            self._last_loaded_allow_entries, entries)
+        denied_entries = self.auth_file.read_deny_entries()
         # Populate auth lists with current entries
         self._update_auth_lists(entries)
         self._update_auth_lists(denied_entries, is_allow=False)
@@ -452,15 +475,14 @@ class AuthService(Agent):
         entries.sort()
         self.auth_entries = entries
         if self._is_connected:
-            try:
-                _log.debug("Sending auth updates to peers")
-                # Give it few seconds for platform to startup or for the
-                # router to detect agent install/remove action
-                gevent.sleep(2)
-                self._send_update(modified_entries)
-            except BaseException as err:
-                _log.error("Exception sending auth updates to peer. %r", err)
-                raise err
+            _log.debug("Sending auth updates to peers")
+            # Give it few seconds for platform to startup or for the
+            # router to detect agent install/remove action
+            gevent.sleep(2)
+            self._send_update(modified_entries)
+        # Not reached when the push raises, so the next file event diffs
+        # against the old snapshot and pushes the same change again.
+        self._last_loaded_allow_entries = loaded_entries
         _log.debug("auth file %s loaded", self.auth_file_path)
 
     def get_protected_topics(self):

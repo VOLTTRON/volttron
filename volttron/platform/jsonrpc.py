@@ -178,6 +178,8 @@ class RemoteError(Exception):
             else:
                 args = ', '.join(repr(arg) for arg in exc_args)
                 msg = '%s(%s)' % (exc_type, args)
+        else:
+            msg = message
         super(RemoteError, self).__init__(msg)
         self.message = message
         self.exc_info = exc_info
@@ -189,6 +191,8 @@ class RemoteError(Exception):
                                  self.exc_info['exc_args'])
         except KeyError:
             exc_args = '...'
+        if exc_type == '<unknown>':
+            return '%s: %s' % (exc_type, self.message)
         return '%s(%s)' % (exc_type, exc_args)
 
     def print_tb(self, file=sys.stderr):

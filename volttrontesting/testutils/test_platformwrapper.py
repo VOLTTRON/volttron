@@ -124,7 +124,7 @@ from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttron.platform.agent.known_identities import (CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS,
                                                        START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS,
-                                                       CONTROL)
+                                                       CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 
@@ -510,6 +510,22 @@ def test_dynamic_agent_entry_has_control_capabilities():
         p.startup_platform(vip_address=get_rand_tcp_address())
         entry = _dynamic_agent_entry(p)
         assert entry.capabilities == _expected_dynamic_agent_capabilities()
+    finally:
+        p.shutdown_platform()
+
+
+@pytest.mark.wrapper
+def test_preseed_entries_present_after_startup():
+    """#3248: the pre-seed adds every entry through one AuthFile; after
+    startup_platform returns, auth.json holds all of them, not only the
+    last one added."""
+    p = PlatformWrapper(messagebus='zmq', auth_enabled=True)
+    try:
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        with open(os.path.join(p.volttron_home, "auth.json")) as f:
+            user_ids = {e["user_id"] for e in jsonapi.load(f)["allow"]}
+        expected = set(PROCESS_IDENTITIES) | {CONTROL_CONNECTION, "dynamic_agent"}
+        assert expected - user_ids == set()
     finally:
         p.shutdown_platform()
 
