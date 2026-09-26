@@ -64,6 +64,14 @@ DEFAULT_TIMEOUT = 5
 # (issue #3283).
 BUILD_AGENT_READINESS_TIMEOUT = 10
 
+# vctl's own --timeout defaults to 60s and covers the whole remote call,
+# including the platform's stop of the agent process: aip.py's
+# ExecutionEnvironment.stop escalates SIGINT, SIGTERM, SIGKILL across three
+# gevent.with_timeout waits (60 + 30 + 30 = 120s worst case) before giving
+# up. A vctl call whose platform-side handler stops an agent (stop, remove)
+# needs headroom above that 120s budget, not vctl's 60s default (issue #3330).
+VCTL_STOP_BUDGET_TIMEOUT = 150
+
 
 class _BuildAgentReadinessTimeout(Exception):
     """Raised by the gevent.Timeout guarding build_agent's readiness loop;
@@ -1436,7 +1444,7 @@ class PlatformWrapper:
             _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
             cmd = [self.vctl_exe]
-            cmd.extend(['stop', agent_uuid])
+            cmd.extend(['stop', agent_uuid, '--timeout', str(VCTL_STOP_BUDGET_TIMEOUT)])
             res = execute_command(cmd, env=self.env, logger=_log,
                                   err_prefix="Error stopping agent")
             return self.agent_pid(agent_uuid)
@@ -1452,7 +1460,7 @@ class PlatformWrapper:
             _log.debug("REMOVING AGENT: {}".format(agent_uuid))
             self.__wait_for_control_connection_to_exit__()
             cmd = [self.vctl_exe]
-            cmd.extend(['remove', agent_uuid])
+            cmd.extend(['remove', agent_uuid, '--timeout', str(VCTL_STOP_BUDGET_TIMEOUT)])
             res = execute_command(cmd, env=self.env, logger=_log,
                                   err_prefix="Error removing agent")
             pid = None
