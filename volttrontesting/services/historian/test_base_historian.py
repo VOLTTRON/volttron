@@ -43,6 +43,7 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD, Status
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
+from volttrontesting.utils.utils import stop_agent_bounded
 
 
 class Historian(BaseHistorian):
@@ -123,7 +124,8 @@ class BasicHistorian(BaseHistorian):
 def client_agent(request, volttron_instance):
     agent = volttron_instance.build_agent()
     yield agent
-    agent.core.stop()
+    # bounded: see query_agent's finalizer in test_historian.py (#3274)
+    stop_agent_bounded(agent)
 
 
 alert_publishes = []
