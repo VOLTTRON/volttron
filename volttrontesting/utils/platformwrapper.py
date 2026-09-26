@@ -64,6 +64,29 @@ DEFAULT_TIMEOUT = 5
 # (issue #3283).
 BUILD_AGENT_READINESS_TIMEOUT = 10
 
+# aip.py's ExecutionEnvironment.stop escalates SIGINT, SIGTERM, SIGKILL
+# across three gevent.with_timeout waits (60 + 30 + 30 = 120s worst case);
+# vctl's stop/remove calls need headroom above that (issue #3330).
+VCTL_STOP_BUDGET_TIMEOUT = 150
+
+# aip.py waits this long for SIGINT before escalating to SIGTERM (#3330).
+VCTL_STOP_SIGINT_WAIT = 60
+
+
+def _execute_vctl_stop_or_remove(cmd, env, logger, err_prefix, agent_uuid, action):
+    """Run a vctl stop/remove command and warn when it ran past the
+    platform's SIGINT wait: that means aip.py had to escalate to SIGTERM
+    or SIGKILL to stop the agent (issue #3330). Does not fail the call."""
+    start = time.monotonic()
+    result = execute_command(cmd, env=env, logger=logger, err_prefix=err_prefix)
+    elapsed = time.monotonic() - start
+    if elapsed > VCTL_STOP_SIGINT_WAIT:
+        logger.warning(
+            "%s for agent %s took %.1fs, past the platform's %ss SIGINT "
+            "wait: the agent needed SIGTERM/SIGKILL escalation to stop",
+            action, agent_uuid, elapsed, VCTL_STOP_SIGINT_WAIT)
+    return result
+
 
 class _BuildAgentReadinessTimeout(Exception):
     """Raised by the gevent.Timeout guarding build_agent's readiness loop;
@@ -1436,9 +1459,10 @@ class PlatformWrapper:
             _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
             cmd = [self.vctl_exe]
-            cmd.extend(['stop', agent_uuid])
-            res = execute_command(cmd, env=self.env, logger=_log,
-                                  err_prefix="Error stopping agent")
+            cmd.extend(['stop', agent_uuid, '--timeout', str(VCTL_STOP_BUDGET_TIMEOUT)])
+            res = _execute_vctl_stop_or_remove(cmd, self.env, _log,
+                                               "Error stopping agent",
+                                               agent_uuid, "stop")
             return self.agent_pid(agent_uuid)
 
     def list_agents(self):
@@ -1452,9 +1476,10 @@ class PlatformWrapper:
             _log.debug("REMOVING AGENT: {}".format(agent_uuid))
             self.__wait_for_control_connection_to_exit__()
             cmd = [self.vctl_exe]
-            cmd.extend(['remove', agent_uuid])
-            res = execute_command(cmd, env=self.env, logger=_log,
-                                  err_prefix="Error removing agent")
+            cmd.extend(['remove', agent_uuid, '--timeout', str(VCTL_STOP_BUDGET_TIMEOUT)])
+            res = _execute_vctl_stop_or_remove(cmd, self.env, _log,
+                                               "Error removing agent",
+                                               agent_uuid, "remove")
             pid = None
             try:
                 pid = self.agent_pid(agent_uuid)
