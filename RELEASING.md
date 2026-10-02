@@ -1,11 +1,9 @@
 # Releasing VOLTTRON
 
 This document describes how a VOLTTRON release is prepared, tagged, and
-published. It reflects the process this repository has actually used, drawn
-from its release branches and tags, not a generic template. Where past
-practice was unclear or inconsistent, that is stated plainly, alongside what
-this document proposes going forward. Nothing in this document is automated
-unless section 11 says otherwise.
+published. It is drawn from this repository's release branches and tags, not
+from a generic template. Nothing in this document is automated unless
+section 11 says otherwise.
 
 ## 1. Version policy
 
@@ -23,34 +21,23 @@ Only MINOR and PATCH move.
   MINOR or PATCH; it needs its own decision by a project maintainer with
   release authority before it ships at all.
 
-The latest tag at the time this document was written is 9.0.4.
+Read the latest release tag from `git tag` or the repository's Releases page;
+the next version is chosen against it.
 
 ## 2. Where release work happens
 
 A release is prepared on a branch named `releases/<version>` (for example
 `releases/9.0.4`), cut from `develop`.
 
-Past practice here is worth stating plainly rather than idealizing. For the
-9.0.4 release, the commits that bumped the version string and updated release
-facing documentation were made in the same commit sequence that also became
-part of `develop`'s own history: they carry the same commit hashes on both
-branches. The `releases/9.0.4` branch did not stay a long lived line of its
-own divergent commits; it ended up pointing at a commit that `develop` also
-reached. In practice, the release branch functioned as a stable name for a
-chosen point in the ongoing `develop` history, once the release preparation
-commits landed there.
+Cut `releases/<version>` from `origin/develop` at the commit chosen as the
+release point. Make the version bump and any release-facing documentation
+changes (section 3) as commits on that branch. The 9.0.4 release worked the
+same way: its preparation commits carry the same hashes on `develop`, so the
+two histories stay consistent.
 
-Going forward, treat `releases/<version>` as cut from `origin/develop` at the
-commit chosen as the release point. Make the version bump and any
-release-facing documentation changes (section 3) as commits on that branch.
-If those same commits are also cherry-picked or merged back onto `develop`,
-the two histories stay consistent by construction, matching what was
-observed for 9.0.4.
-
-If `main` has commits that are not yet on `develop` (see section 7), merge
-`main` into the release branch before finalizing it, the way `releases/9.0.4`
-merged `main` in before its release. This keeps the release from silently
-dropping a fix that only exists on `main`.
+Before finalizing the release branch, merge `main` into it every release, even
+when `main` appears to be level with `develop` (section 7). This keeps the
+release from silently dropping a fix that only exists on `main`.
 
 ## 3. What gets updated in a release
 
@@ -91,69 +78,68 @@ does not prefix release tags with `v`: of 38 tags, only 2 carry a `v`, both
 2014-era pre-releases, and every 8.x and 9.x tag, 9.0.4 included, is bare.
 Use the bare form, matching section 1's own naming of the latest tag.
 
-This is what the 9.0.4 tag shows in another way too: it points at the head
-of `releases/9.0.4`, not at the commit that later merged that branch into
-`main`. Continue that practice: tag the release branch tip, not the merge
-commit on `main`.
+Tag the release branch tip, not the merge commit on `main`; the 9.0.4 tag
+likewise points at the head of `releases/9.0.4`. Create the tag only after a
+maintainer with release authority has approved the release (section 10).
 
-A lightweight tag is what every 8.x and 9.x tag in this repository actually
-is, confirmed by reading each tag object: it resolves directly to a commit
-rather than to a separate annotated tag object. A lightweight tag is
-therefore consistent with practice and is what this document asks for.
+Release tags are annotated, so each carries a tagger, a date and a message:
 
-That tag is a weaker record than calling it "definitive" without
-qualification would suggest, and it deserves the same caveat section 6 gives
-branch protection rather than none. Nothing in this repository protects a
-tag: the tag-protection endpoint returns 404 and the repository's rulesets
-list is empty. A lightweight tag also carries no tagger, date, message or
-signature, and anyone with push access can move or delete it. Once the
-rebase merge in section 6 lands a release, the commit `main` shows for that
-version is a new commit object, not the tagged one, and because this
-repository deletes a branch on merge, the tagged commit is then reachable
-from nothing but the tag itself. So: the tag is the record of what a version
-contained only for as long as the tag survives, and nothing here currently
-guards that survival. Switching to an annotated tag, or asking a maintainer
-with repository-settings authority to add tag protection for version tags,
-would each narrow this gap; both are proposals, not current practice, and
-neither is assumed by the rest of this document.
+    git tag -a X.Y.Z -m "VOLTTRON X.Y.Z" <release-branch-tip-sha>
+    git push origin X.Y.Z
+
+Verify it with `git cat-file -t X.Y.Z`, which prints `tag` for an annotated
+tag and `commit` for a lightweight one. The existing 8.x and 9.x tags are
+lightweight and are left as they are.
+
+The tag is the record of what a version contained only for as long as the tag
+survives. This repository deletes a branch on merge, and the rebase merge in
+section 6 lands a release as new commit objects, so the tagged commit is
+reachable from nothing but the tag itself. An annotated tag can still be moved
+or deleted by anyone with push access, and the repository has no tag
+protection: its rulesets list is empty and no tag rule exists. A maintainer
+with repository-settings authority adds a ruleset protecting version tags as a
+one-time setup step; until that is done, treat the tag as unprotected.
 
 Once the tag exists, a maintainer with release authority (section 10)
 creates a GitHub Release for it: not a draft, named after the version, with
 release notes summarizing what changed since the previous release. Every
 prior 8.x and 9.x release in this repository has a published, non-draft
 Release object of this kind, most combining a short hand-written summary
-with an auto-generated pull-request list. This step is manual today, like
+with an auto-generated pull-request list. This step is manual, like
 everything else in this document (section 11); nothing in this repository's
-CI creates it.
+CI creates it. Publish the release before any advisory that depends on it
+(section 9).
 
 ## 5. What gets released is not enforced by this document
 
 This document describes the branch and tag mechanics. It does not, by
 itself, guarantee that the code on the release branch is ready: that is a
 judgment for whoever approves the release (section 10), informed by the
-project's test suite and review process.
+project's test suite and review process. The test workflows run on pushes to
+`develop` and `releases/**` and on pull requests into `main`, so check that
+they passed on the release branch tip and on the release pull request before
+approving. Pushes to `main` do not trigger them.
 
 ## 6. Merging the release into main
 
 The release branch is merged into `main` through a pull request, using a
 rebase merge. Do not squash it: this repository has squash merging turned
 off at the repository level, and the release history is worth keeping
-intact. Do not land it as an ordinary merge commit either: `main`'s branch
-protection requires a linear history, and an ordinary merge commit cannot
-satisfy that. Rebase merge is the strategy that satisfies both the
-linear-history requirement and the no-squash rule, and it is the one this
-project uses to land a release into `main`.
+intact. Rebase merge is the strategy this project uses to land a release
+into `main`. The repository does not force it: `main`'s protection does not
+require linear history, so GitHub also offers the merge-commit button on the
+release pull request, and the choice rests on the person merging. The 9.0.4
+pull request merged as an ordinary two-parent merge commit, before this policy.
 
-This differs from how the 9.0.4 release actually landed: that pull request
-merged into `main` as an ordinary two-parent merge commit. A reader
-comparing the two should read the difference as history predating this
-policy, not as an error in either direction; the rebase merge requirement is
-what this project has settled on for every release going forward.
+`main`'s protection requires one approving review, including a code owner's.
+The author of the pull request cannot supply that approval, and admin
+enforcement is off, so an administrator can merge without it. Follow the
+approval requirement anyway.
 
-Branch protection is configuration, not code, and it can change
-independently of this document. Confirm the linear-history and no-squash
-settings on `main` are still what this section assumes before relying on
-them.
+Branch protection is configuration, not code, and it can change independently
+of this document. A maintainer with admin rights reads the current settings
+with `gh api repos/VOLTTRON/volttron/branches/main/protection`; anyone else
+reads the merge options on the pull request itself.
 
 ## 7. Reconciling develop and main
 
@@ -165,34 +151,28 @@ only moves when a release is merged into it. Between releases, `main` and
 `develop` diverge, and it is easy for that gap to go unnoticed because
 nothing forces it closed.
 
-At the time this document was written, `main` carried two commits that
-`develop` did not: the merge that landed the 9.0.4 release, and a later,
-unrelated documentation wording fix made directly on `main`. Meanwhile
-`develop` carried many more commits that `main` did not, none of which had
-been folded back into `main` since. This repository's history does show
-occasional "merge main into develop" commits, so reconciling in that
-direction is established practice, but the most recent one found predates the
-9.0.4 release by roughly a year, and none has happened since. In other words,
-the practice exists but has not been kept up, and the gap has been allowed to
-grow.
-
-Propose, as a standing part of every release, doing both halves of this
-explicitly rather than leaving either to chance:
+Left alone, the gap grows unnoticed, as it did before the 9.0.4 release
+and again after it. Every release does both halves of the reconciliation
+explicitly rather than leaving either to chance. Check the current state with
+`git rev-list --left-right --count origin/develop...origin/main`, which
+prints the commits only on `develop` and the commits only on `main`.
 
 - Before finalizing a release branch, merge `main`'s current tip into it
   (section 2), so nothing that only exists on `main` is lost when the release
   branch replaces `main`'s history at the next merge.
 - After the release branch is merged into `main`, merge `main` back into
-  `develop` (or cherry-pick the release-specific commits: the version bump
-  and any documentation changes made directly on the release branch) so
+  `develop` through a pull request, as a merge commit and never a squash, so
   `develop` carries the same version marker `main` now has, and so any fix
-  made directly on `main` is not permanently absent from `develop`.
+  made directly on `main` is not permanently absent from `develop`. The rebase
+  merge in section 6 gives `main` new copies of commits `develop` already
+  carries; if the merge conflicts on those, resolve toward the `develop`
+  content and confirm the version strings in section 3 read the released
+  version afterward.
 
 The cost of the second step grows with how long it has been skipped: doing it
 right after every release is a small, usually conflict-free merge; doing it
-after a long gap, as would be the case today, means resolving conflicts
-across a much larger and more diverged set of files. Doing it every release
-is what keeps the cost small.
+after a long gap means resolving conflicts across a much larger and more
+diverged set of files.
 
 ## 8. Closing issues
 
@@ -221,9 +201,9 @@ that version.
 
 ## 10. Who decides what
 
-Preparing a release, proposing the version number, and drafting the branch
+Preparing a release, choosing the version number, and drafting the branch
 and tag is not the same decision as authorizing that release to ship.
-Whoever prepares a release proposes the version number and the branch
+Whoever prepares a release puts forward the version number and the branch
 contents; a project maintainer with release authority reviews and approves
 before anything is tagged or published.
 
@@ -232,7 +212,7 @@ decisions, and approval of one does not by itself authorize the other. A
 change can be merged to `develop`, or even merged into a release branch,
 well before anyone decides that branch should become a published release.
 
-## 11. What is not automated today
+## 11. What is manual
 
 There is no release workflow in this repository's CI configuration. All ten
 GitHub Actions workflow files under `.github/workflows` run tests or static
