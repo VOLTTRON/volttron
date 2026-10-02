@@ -7,8 +7,9 @@ private vulnerability reporting on this repository:
 
 https://github.com/VOLTTRON/volttron/security/advisories/new
 
-You need a signed-in GitHub account to open the form. The report is visible
-only to you and the repository maintainers.
+You need a signed-in GitHub account to open the form. The report is not
+public: it is visible to you and to the people who manage this repository's
+security.
 
 Please do not report a security vulnerability through a public issue,
 discussion, or pull request.
@@ -18,8 +19,8 @@ discussion, or pull request.
 Please include as much of the following as you can, so the report can be
 triaged quickly:
 
-* The type of issue (for example, an authentication bypass, injection, or
-  cross-site scripting)
+* The type of issue (for example, buffer overflow, path traversal, or denial
+  of service)
 * Affected version(s)
 * Impact of the issue, including how an attacker might exploit it
 * Step-by-step instructions to reproduce the issue
@@ -33,16 +34,16 @@ triaged quickly:
 
 | Version | Supported |
 | ------- | --------- |
-| 9.0.x (latest release: 9.0.4) | Yes |
-| Earlier than 9.0 | No |
+| Latest 9.x release | Yes |
+| Older 9.x releases | No |
 
-Security fixes are made on the 9.0.x line. The major version stays at 9, so
-a fix is released as a new 9.0.x version.
+Security fixes ship in the latest 9.x release, as a patch version or, when a
+fix adds a capability, a minor version.
 
 ## What to expect
 
-* Your report is received privately through the advisory form.
-* The maintainers confirm the issue and work on a fix in a private advisory.
+* The maintainers assess the report and, for a confirmed issue, work on a fix
+  in a private advisory.
 * When a fix is ready, it is released and the advisory is published, with
   credit to the reporter unless you ask otherwise.
 
