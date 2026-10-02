@@ -153,6 +153,14 @@ jobs:
           test_path: services/core/PlatformDriverAgent/tests/test_modbus_transform_regex.py
           test_output_suffix: misc
 
+      - name: Run weather cache trim test on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: volttrontesting/services/weather/test_base_weather_cache.py
+          test_output_suffix: misc
+
       # Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v4
