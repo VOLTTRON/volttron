@@ -92,9 +92,9 @@ tag and `commit` for a lightweight one. The existing 8.x and 9.x tags are
 lightweight and are left as they are.
 
 The tag is the record of what a version contained only for as long as the tag
-survives. This repository deletes a branch on merge, and the rebase merge in
-section 6 lands a release as new commit objects, so the tagged commit is
-reachable from nothing but the tag itself. An annotated tag can still be moved
+survives. This repository deletes a branch on merge, but the merge commit in
+section 6 brings the tagged commit into `main`, so `main` still contains it
+after the branch is gone. An annotated tag can still be moved
 or deleted by anyone with push access, and the repository has no tag
 protection: its rulesets list is empty and no tag rule exists. A maintainer
 with repository-settings authority adds a ruleset protecting version tags as a
@@ -123,13 +123,13 @@ approving. Pushes to `main` do not trigger them.
 ## 6. Merging the release into main
 
 The release branch is merged into `main` through a pull request, using a
-rebase merge. Do not squash it: this repository has squash merging turned
-off at the repository level, and the release history is worth keeping
-intact. Rebase merge is the strategy this project uses to land a release
-into `main`. The repository does not force it: `main`'s protection does not
-require linear history, so GitHub also offers the merge-commit button on the
-release pull request, and the choice rests on the person merging. The 9.0.4
-pull request merged as an ordinary two-parent merge commit, before this policy.
+merge commit (`gh pr merge <n> --merge`). Never squash it: this repository has
+squash merging turned off at the repository level, and the release history is
+worth keeping intact. A merge commit keeps the tagged release commit reachable
+from `main`. The repository also allows a rebase merge, and `main`'s protection
+does not require linear history, so the choice rests on the person merging;
+this project's policy is the merge commit. The 9.0.4 pull request merged the
+same way, as an ordinary two-parent merge commit.
 
 `main`'s protection requires one approving review, including a code owner's.
 The author of the pull request cannot supply that approval, and admin
@@ -159,14 +159,12 @@ prints the commits only on `develop` and the commits only on `main`.
 
 - Before finalizing a release branch, merge `main`'s current tip into it
   (section 2), so nothing that only exists on `main` is lost when the release
-  branch replaces `main`'s history at the next merge.
+  branch is merged into `main`.
 - After the release branch is merged into `main`, merge `main` back into
   `develop` through a pull request, as a merge commit and never a squash, so
   `develop` carries the same version marker `main` now has, and so any fix
-  made directly on `main` is not permanently absent from `develop`. The rebase
-  merge in section 6 gives `main` new copies of commits `develop` already
-  carries; if the merge conflicts on those, resolve toward the `develop`
-  content and confirm the version strings in section 3 read the released
+  made directly on `main` is not permanently absent from `develop`. If the
+  merge conflicts, resolve toward the `develop` content and confirm the version strings in section 3 read the released
   version afterward.
 
 The cost of the second step grows with how long it has been skipped: doing it
@@ -235,10 +233,10 @@ sections above say what to do if each one fails.
   and create a new one once a release point is actually ready. Do not reuse
   the old tag name for a different commit: a moved tag with the same name as
   something once published is exactly the weak point section 4 describes.
-- The rebase merge into `main` (section 6) can conflict. Resolve the
-  conflict on the release branch itself, then rebase again, so the branch's
-  own tested history is what actually lands, rather than resolving it inside
-  the pull request's own rebase tooling. If the conflicts are large enough
+- The merge into `main` (section 6) can conflict. Resolve the
+  conflict on the release branch itself by merging `main` into it, then merge
+  the pull request, so the resolution is reviewed on the branch rather than
+  made inside the pull request's own tooling. If the conflicts are large enough
   that this is impractical, re-cut the release branch from a current
   `origin/develop` and start over, rather than forcing a resolution nobody
   has reviewed.
