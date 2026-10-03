@@ -27,9 +27,7 @@ the next version is chosen against it.
 ## 2. Where release work happens
 
 A release is prepared on a branch named `releases/<version>` (for example
-`releases/9.0.4`), cut from `develop`.
-
-Cut `releases/<version>` from `origin/develop` at the commit chosen as the
+`releases/9.0.4`). Cut it from `origin/develop` at the commit chosen as the
 release point. Make the version bump and any release-facing documentation
 changes (section 3) as commits on that branch. The 9.0.4 release worked the
 same way: its preparation commits carry the same hashes on `develop`, so the
@@ -37,7 +35,9 @@ two histories stay consistent.
 
 Before finalizing the release branch, merge `main` into it every release, even
 when `main` appears to be level with `develop` (section 7). This keeps the
-release from silently dropping a fix that only exists on `main`.
+release from silently dropping a fix that only exists on `main`. Resolve any
+conflict from that merge on the release branch, and do it before the tag is
+created (section 4), so the tagged tip is the content that lands on `main`.
 
 ## 3. What gets updated in a release
 
@@ -70,10 +70,11 @@ required for the package or the docs build to report the right version, but
 leaving them stale misleads a reader, so update them along with the version
 bump when their content is affected by the release.
 
-## 4. Tagging and publishing the release
+## 4. Tagging the release
 
 The tag `X.Y.Z` is created on the release branch, at the commit that carries
-the version bump, before that branch is merged into `main`. This repository
+the version bump and the merge of `main` (section 2), before that branch is
+merged into `main`. This repository
 does not prefix release tags with `v`: of 38 tags, only 2 carry a `v`, both
 2014-era pre-releases, and every 8.x and 9.x tag, 9.0.4 included, is bare.
 Use the bare form, matching section 1's own naming of the latest tag.
@@ -88,8 +89,14 @@ Release tags are annotated, so each carries a tagger, a date and a message:
     git push origin X.Y.Z
 
 Verify it with `git cat-file -t X.Y.Z`, which prints `tag` for an annotated
-tag and `commit` for a lightweight one. The existing 8.x and 9.x tags are
-lightweight and are left as they are.
+tag and `commit` for a lightweight one. That checks only the local tag, so
+also confirm the push reached the remote: `git ls-remote --tags origin X.Y.Z`
+prints a line, and an empty result means it did not land. The existing 8.x and
+9.x tags are lightweight and are left as they are.
+
+Once a tag is pushed it is never moved, deleted and re-created, or reused for a
+different commit. Any change after tagging means a new version: bump it
+(section 3), create a new tag, and treat the old one as abandoned (section 12).
 
 The tag is the record of what a version contained only for as long as the tag
 survives. This repository deletes a branch on merge, but the merge commit in
@@ -99,16 +106,6 @@ or deleted by anyone with push access, and the repository has no tag
 protection: its rulesets list is empty and no tag rule exists. A maintainer
 with repository-settings authority adds a ruleset protecting version tags as a
 one-time setup step; until that is done, treat the tag as unprotected.
-
-Once the tag exists, a maintainer with release authority (section 10)
-creates a GitHub Release for it: not a draft, named after the version, with
-release notes summarizing what changed since the previous release. Every
-prior 8.x and 9.x release in this repository has a published, non-draft
-Release object of this kind, most combining a short hand-written summary
-with an auto-generated pull-request list. This step is manual, like
-everything else in this document (section 11); nothing in this repository's
-CI creates it. Publish the release before any advisory that depends on it
-(section 9).
 
 ## 5. What gets released is not enforced by this document
 
@@ -120,7 +117,7 @@ project's test suite and review process. The test workflows run on pushes to
 they passed on the release branch tip and on the release pull request before
 approving. Pushes to `main` do not trigger them.
 
-## 6. Merging the release into main
+## 6. Merging the release into main, then publishing it
 
 The release branch is merged into `main` through a pull request, using a
 merge commit (`gh pr merge <n> --merge`). Never squash it: this repository has
@@ -131,15 +128,31 @@ does not require linear history, so the choice rests on the person merging;
 this project's policy is the merge commit. The 9.0.4 pull request merged the
 same way, as an ordinary two-parent merge commit.
 
-`main`'s protection requires one approving review, including a code owner's.
-The author of the pull request cannot supply that approval, and admin
-enforcement is off, so an administrator can merge without it. Follow the
-approval requirement anyway.
+`main`'s protection requires one approving review and has the code-owner
+setting on. That setting has no effect without a CODEOWNERS file, and this
+repository has none (the contents API returns 404 for `CODEOWNERS`,
+`.github/CODEOWNERS` and `docs/CODEOWNERS`), so one approval from anyone with
+write access suffices. Adding a CODEOWNERS file is a maintainer decision and
+is not part of a release. The author of the pull request cannot supply that
+approval, and admin enforcement is off, so an administrator can merge without
+it. Follow the approval requirement anyway.
 
 Branch protection is configuration, not code, and it can change independently
 of this document. A maintainer with admin rights reads the current settings
 with `gh api repos/VOLTTRON/volttron/branches/main/protection`; anyone else
 reads the merge options on the pull request itself.
+
+Publish nothing until the merge has landed. Once the release pull request has
+merged into `main` (confirm with `gh pr view <n> --json state`, which must read
+`MERGED`), a maintainer with release authority (section 10) creates a GitHub
+Release for the tag: not a draft, named after the version, with release notes
+summarizing what changed since the previous release. Every 8.x and 9.x tag in
+this repository except `8.0` has a published, non-draft Release object of this
+kind (checked with `gh api repos/VOLTTRON/volttron/releases`), most combining a
+short hand-written summary with an auto-generated pull-request list. This step
+is manual, like everything else in this document (section 11); nothing in this
+repository's CI creates it. Publish the Release before any advisory that
+depends on it (section 9).
 
 ## 7. Reconciling develop and main
 
@@ -153,7 +166,9 @@ nothing forces it closed.
 
 Left alone, the gap grows unnoticed, as it did before the 9.0.4 release
 and again after it. Every release does both halves of the reconciliation
-explicitly rather than leaving either to chance. Check the current state with
+explicitly rather than leaving either to chance. Run `git fetch --tags origin`
+first, because the next command reads remote-tracking refs that are only as
+current as the last fetch. Then check the current state with
 `git rev-list --left-right --count origin/develop...origin/main`, which
 prints the commits only on `develop` and the commits only on `main`.
 
@@ -164,8 +179,11 @@ prints the commits only on `develop` and the commits only on `main`.
   `develop` through a pull request, as a merge commit and never a squash, so
   `develop` carries the same version marker `main` now has, and so any fix
   made directly on `main` is not permanently absent from `develop`. If the
-  merge conflicts, resolve toward the `develop` content and confirm the version strings in section 3 read the released
-  version afterward.
+  merge conflicts, review each conflicted hunk rather than taking one side
+  wholesale. Keep a fix that exists only on `main`, and keep the released
+  version strings in section 3; after resolving, confirm both files read the
+  released version. Taking the `develop` side blindly drops a `main`-only fix
+  and can undo the version.
 
 The cost of the second step grows with how long it has been skipped: doing it
 right after every release is a small, usually conflict-free merge; doing it
@@ -187,7 +205,7 @@ in.
 
 When a release includes a fix for an issue that was handled under
 coordinated disclosure, publish the corresponding advisory once the GitHub
-Release for that version (section 4) is itself published and not a draft,
+Release for that version (section 6) is itself published and not a draft,
 not before. A fix that only exists on a branch a user cannot yet install, or
 a release a reader cannot yet find, is not a fix a published advisory can
 responsibly point to.
@@ -224,22 +242,26 @@ from a tag. Every step in this document is done by hand until that changes.
 
 ## 12. When a step fails
 
-Three steps in this document are hard or impossible to undo, and none of the
-sections above say what to do if each one fails.
+Three steps in this document are hard or impossible to undo, so each has a
+recovery rule here.
 
 - The tag (section 4) is created before the release branch is merged into
-  `main`. If the release branch is then reworked or rejected, the tag
-  already names a commit that never lands anywhere durable. Delete that tag
-  and create a new one once a release point is actually ready. Do not reuse
-  the old tag name for a different commit: a moved tag with the same name as
-  something once published is exactly the weak point section 4 describes.
-- The merge into `main` (section 6) can conflict. Resolve the
-  conflict on the release branch itself by merging `main` into it, then merge
-  the pull request, so the resolution is reviewed on the branch rather than
-  made inside the pull request's own tooling. If the conflicts are large enough
-  that this is impractical, re-cut the release branch from a current
-  `origin/develop` and start over, rather than forcing a resolution nobody
-  has reviewed.
+  `main`, and nothing is published until after the merge (section 6). If the
+  release branch is then reworked or rejected, the tag names a commit that
+  never lands anywhere durable, but no Release or advisory points at it. Do not
+  move, delete and re-create, or reuse that tag: any fix after tagging is a new
+  version with a new bump (section 3) and a new tag. Leave the abandoned tag in
+  place, or delete it only if nothing refers to it, and never after a Release
+  or advisory has been published for it.
+- The merge into `main` (section 6) can conflict. Resolve the conflict on the
+  release branch itself by merging `main` into it before the tag is created
+  (section 2), then merge the pull request, so the resolution is reviewed on
+  the branch rather than made inside the pull request's own tooling. If a
+  conflict only appears after the tag exists, the tagged tip is no longer what
+  would land: abandon that tag and release under a new version. If the
+  conflicts are large enough that this is impractical, re-cut the release
+  branch from a current `origin/develop` and start over, rather than forcing a
+  resolution nobody has reviewed.
 - Publishing a security advisory (section 9) is irreversible in the
   disclosure sense: once details are public, they cannot be made
   confidential again. If a defect in the advisory itself is found afterward,
