@@ -176,8 +176,11 @@ class RemoteError(Exception):
             except KeyError:
                 msg = message
             else:
-                args = ', '.join(repr(arg) for arg in exc_args)
-                msg = '%s(%s)' % (exc_type, args)
+                if exc_args is not None:
+                    args = ', '.join(repr(arg) for arg in exc_args)
+                    msg = '%s(%s)' % (exc_type, args)
+                else:
+                    msg = message
         else:
             msg = message
         super(RemoteError, self).__init__(msg)
@@ -212,9 +215,15 @@ class RemoteError(Exception):
 def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
-        return RemoteError(data.get('detail', message),
-                           **data.get('exception.py', {}))
-    elif code == METHOD_NOT_FOUND:
+        try:
+            return RemoteError((data or {}).get('detail', message),
+                               **(data or {}).get('exception.py', {}))
+        except Exception:
+            # Malformed exception.py keys (e.g. null exc_args, conflicting
+            # 'message' key) should not break error dispatch. Fall back to
+            # a plain Error so the caller receives the error instead of timing out.
+            pass
+    if code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
 
