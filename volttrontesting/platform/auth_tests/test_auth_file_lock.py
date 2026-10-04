@@ -683,3 +683,29 @@ def test_nothing_yields_while_the_lock_is_held(auth_path, monkeypatch,
     {**MUTATIONS, **READS}[operation](auth_file)
 
     assert yields_under_lock == []
+
+
+@pytest.mark.auth
+def test_upgrade_tool_keeps_an_entry_another_writer_added(auth_path,
+                                                          monkeypatch):
+    from volttron.platform.upgrade import update_auth_file
+    _seed(auth_path, [_entry("agent", "A")])
+
+    class RacedAuthFile(AuthFile):
+        """Another writer adds an entry once this object has read the
+        file, as a platform or vctl process could."""
+        def __init__(self, *args, **kwargs):
+            super().__init__(auth_path)
+            AuthFile(auth_path).add(_entry("added", "D"))
+
+    monkeypatch.setattr(update_auth_file, "AuthFile", RacedAuthFile)
+    monkeypatch.setattr(gevent, "sleep", lambda *args, **kwargs: None)
+
+    update_auth_file.set_auth_identities({_key("A"): "agent.identity"})
+
+    disk = {e["user_id"]: e for e in _disk_allow(auth_path)}
+    assert set(disk) == {"agent", "added"}
+    assert disk["agent"]["identity"] == "agent.identity"
+    assert disk["agent"]["credentials"] == _key("A")
+    assert disk["added"]["credentials"] == _key("D")
+
