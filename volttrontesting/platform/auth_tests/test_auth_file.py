@@ -545,7 +545,8 @@ def test_add_capabilities_writes_matched_entry_only(tmp_path):
     # this shape (two entries sharing a user_id, differing by key) is
     # seeded with a direct write, bypassing that check.
     seed = AuthFile(auth_path)
-    seed._write([entry_a, entry_b], [], {}, {})
+    with seed._transaction():
+        seed._write([entry_a, entry_b], [], {}, {})
 
     wrapper = PlatformWrapper.__new__(PlatformWrapper)
     wrapper.auth_enabled = True

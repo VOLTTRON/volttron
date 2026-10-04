@@ -59,6 +59,8 @@ class AuthFile(object):
     # Seconds to wait for the lock before refusing. Agents give their
     # start-time authorization call 4 seconds, so this stays well under it.
     lock_timeout = 2.0
+    # The greenlet inside _transaction, the only caller _write accepts.
+    _writer = None
 
     def __init__(self, auth_file=None):
         self.auth_data = {}
@@ -138,7 +140,11 @@ class AuthFile(object):
         applied to the file as it is now, not to what this object last saw."""
         with self._locked(exclusive=True):
             self.auth_data = self._read_locked()
-            yield
+            self._writer = gevent.getcurrent()
+            try:
+                yield
+            finally:
+                self._writer = None
 
     def _check_for_upgrade(self):
         with self._transaction():
@@ -750,6 +756,12 @@ class AuthFile(object):
         return False
 
     def _write(self, allow_entries, deny_entries, groups, roles):
+        # RuntimeError, not AuthException: callers that log and carry on
+        # after an AuthException must not hide an unlocked write.
+        if self._writer is not gevent.getcurrent():
+            raise RuntimeError(
+                f"refusing to write {self.auth_file} outside a locked "
+                f"transaction")
         auth = {
             "allow": [vars(x) for x in allow_entries],
             "deny": [vars(x) for x in deny_entries],

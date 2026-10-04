@@ -686,6 +686,47 @@ def test_nothing_yields_while_the_lock_is_held(auth_path, monkeypatch,
 
 
 @pytest.mark.auth
+def test_write_outside_a_transaction_is_refused(auth_path):
+    _seed(auth_path, [_entry("x", "X")])
+    auth_file = AuthFile(auth_path)
+    before = _bytes(auth_path)
+
+    with pytest.raises(RuntimeError):
+        auth_file._write([], [], {}, {})
+
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_write_after_a_failed_transaction_is_refused(auth_path):
+    _seed(auth_path, [_entry("x", "X")])
+    auth_file = AuthFile(auth_path)
+    before = _bytes(auth_path)
+
+    with pytest.raises(ValueError):
+        with auth_file._transaction():
+            raise ValueError("change failed")
+    with pytest.raises(RuntimeError):
+        auth_file._write([], [], {}, {})
+
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_write_from_another_greenlet_during_a_transaction_is_refused(
+        auth_path):
+    _seed(auth_path, [_entry("x", "X")])
+    auth_file = AuthFile(auth_path)
+    before = _bytes(auth_path)
+
+    with auth_file._transaction():
+        writer = gevent.spawn(auth_file._write, [], [], {}, {})
+        writer.join()
+
+    assert isinstance(writer.exception, RuntimeError)
+    assert _bytes(auth_path) == before
+
+@pytest.mark.auth
 def test_upgrade_tool_keeps_an_entry_another_writer_added(auth_path,
                                                           monkeypatch):
     from volttron.platform.upgrade import update_auth_file
