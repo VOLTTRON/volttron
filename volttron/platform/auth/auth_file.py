@@ -53,6 +53,8 @@ from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
 _log = logging.getLogger(__name__)
 
 _LOCK_RETRY_INTERVAL = 0.01
+# Written first over the old text, so a write stopped partway never parses.
+_UNPARSEABLE = b"\0"
 # A field of another type would be read as no entries and written back so.
 _FIELD_TYPES = {"allow": list, "deny": list, "groups": dict, "roles": dict,
                 "version": dict}
@@ -173,16 +175,13 @@ class AuthFile(object):
     def _read_locked(self):
         """Reads the file with plain blocking I/O, since the caller holds the
         lock. An unreadable file raises rather than reading as empty, so a
-        later write cannot replace it with an empty list.
-
-        _write truncates and then writes in place, so a write that fails
-        partway leaves a strict prefix of a JSON object, never a valid one.
-        A new file starts as "{}", so an empty file is such a prefix too."""
+        later write cannot replace it with an empty list. An empty file has
+        no entries; _write never leaves one behind."""
         try:
-            create_file_if_missing(self.auth_file, contents="{}")
+            create_file_if_missing(self.auth_file)
             with open(self.auth_file) as fil:
                 data = strip_comments(fil.read())
-            file_data = jsonapi.loads(data)
+            file_data = jsonapi.loads(data) if data else {}
         except (OSError, ValueError) as err:
             raise AuthFileReadError(
                 f"cannot read {self.auth_file}: {err}") from err
@@ -783,13 +782,28 @@ class AuthFile(object):
         }
 
         text = jsonapi.dumps(auth, indent=2)
-        with open(self.auth_file, "w") as file_pointer:
-            file_pointer.write(text)
+        self._write_in_place(text.encode("utf-8"))
 
         # Mutators build their writes from auth_data, so it must match what
         # was just written. Parsed from the written text, not re-read from
         # disk, so a concurrent writer's partial file cannot replace it.
         self.auth_data = self._to_auth_data(jsonapi.loads(text))
+
+    def _write_in_place(self, data):
+        """Overwrites auth.json without truncating first, keeping its inode,
+        owner and mode for the file watcher. Until the first byte is written
+        last, the file does not parse, so a write that stops partway (a full
+        disk) is refused by the next read, never read as empty or mixed."""
+        with open(self.auth_file, "r+b") as fil:
+            for offset, chunk in ((0, _UNPARSEABLE), (1, data[1:]),
+                                  (0, data[:1])):
+                fil.seek(offset)
+                fil.write(chunk)
+                fil.flush()
+                os.fsync(fil.fileno())
+            # Any old text past the new end would follow the closing brace,
+            # which no JSON parser accepts, so a failure here is refused too.
+            fil.truncate(len(data))
 
 
 class AuthFileIndexError(AuthException, IndexError):

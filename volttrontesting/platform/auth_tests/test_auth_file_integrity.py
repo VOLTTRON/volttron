@@ -29,6 +29,7 @@ import contextlib
 import errno
 import fcntl
 import os
+import stat
 import time
 
 import gevent
@@ -112,12 +113,14 @@ def test_reload_cannot_replace_the_data_a_change_is_built_from(auth_path,
 
 
 class _FailingWrite:
-    """A file whose write puts the first `written` bytes on disk and then
-    fails, as a full disk does."""
+    """A file that takes `budget` bytes across all writes and then fails
+    partway through the next one, as a full disk does. With
+    fail_truncate, every write succeeds and the truncate fails."""
 
-    def __init__(self, fil, written):
+    def __init__(self, fil, budget, fail_truncate):
         self.fil = fil
-        self.written = written
+        self.budget = budget
+        self.fail_truncate = fail_truncate
 
     def __enter__(self):
         return self
@@ -125,36 +128,103 @@ class _FailingWrite:
     def __exit__(self, *exc_info):
         self.fil.close()
 
-    def write(self, text):
-        self.fil.write(text[:self.written])
-        self.fil.flush()
-        raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
+    def __getattr__(self, name):
+        return getattr(self.fil, name)
+
+    def write(self, data):
+        if self.budget is not None and len(data) > self.budget:
+            self.fil.write(data[:self.budget])
+            self.fil.flush()
+            self.budget = 0
+            raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
+        if self.budget is not None:
+            self.budget -= len(data)
+        return self.fil.write(data)
+
+    def truncate(self, *args):
+        if self.fail_truncate:
+            raise OSError(errno.EIO, os.strerror(errno.EIO))
+        return self.fil.truncate(*args)
+
+
+def _edit_comment(auth_file):
+    auth_file.update_by_index(_entry("x", "X", comments="bbbbbbbb"), 0)
+
+
+def _stop_inside_comment(old_text):
+    # The edit keeps every length, so the new text matches the old one up
+    # to the comment; stop two bytes into it.
+    return old_text.index(b"aaaaaaaa") + 2
+
+
+TORN_WRITES = {
+    "add-nothing-written": (lambda f: f.add(_entry("y", "Y")),
+                            lambda old: 0, False),
+    "add-some-written": (lambda f: f.add(_entry("y", "Y")),
+                         lambda old: 10, False),
+    "edit-stops-inside-a-string": (_edit_comment, _stop_inside_comment,
+                                   False),
+    "remove-truncate-fails": (lambda f: f.remove_by_index(1),
+                              lambda old: None, True),
+}
 
 
 @pytest.mark.auth
-@pytest.mark.parametrize("written", [0, 10])
-def test_failed_write_leaves_a_file_the_next_change_refuses(auth_path,
-                                                             monkeypatch,
-                                                             written):
-    _seed(auth_path, [_entry("x", "X")])
+@pytest.mark.parametrize("case", sorted(TORN_WRITES))
+def test_failed_write_never_leaves_other_valid_data(auth_path, monkeypatch,
+                                                    case):
+    _seed(auth_path, [_entry("x", "X", comments="aaaaaaaa"),
+                      _entry("w", "W")])
     writer = AuthFile(auth_path)
+    change, budget, fail_truncate = TORN_WRITES[case]
+    old_text = _bytes(auth_path)
+    old_allow = AuthFile(auth_path).auth_data["allow_list"]
 
     def failing_open(path, mode="r", *args, **kwargs):
         fil = open(path, mode, *args, **kwargs)
-        return _FailingWrite(fil, written) if "w" in mode else fil
+        if "w" in mode or "+" in mode:
+            return _FailingWrite(fil, budget(old_text), fail_truncate)
+        return fil
 
     monkeypatch.setattr(auth_file_module, "open", failing_open,
                         raising=False)
     with pytest.raises(OSError):
-        writer.add(_entry("y", "Y"))
+        change(writer)
     monkeypatch.delattr(auth_file_module, "open")
-    torn = _bytes(auth_path)
 
-    with pytest.raises(AuthFileReadError):
-        AuthFile(auth_path).add(_entry("z", "Z"))
+    # Refused, or still the data from before the change: never a mix of
+    # old and new, and never an empty file read as no entries.
+    try:
+        after = AuthFile(auth_path).auth_data["allow_list"]
+    except AuthFileReadError:
+        after = None
+    assert after in (None, old_allow)
 
-    assert len(torn) == written
-    assert _bytes(auth_path) == torn
+
+@pytest.mark.auth
+def test_empty_file_reads_as_no_entries_and_takes_a_change(auth_path):
+    open(auth_path, "w").close()
+    auth_file = AuthFile(auth_path)
+
+    assert auth_file.read_allow_entries() == []
+
+    auth_file.add(_entry("x", "X"))
+
+    assert _users(auth_path) == ["x"]
+
+
+@pytest.mark.auth
+def test_write_keeps_the_inode_and_mode(auth_path):
+    _seed(auth_path, [_entry("x", "X"), _entry("w", "W")])
+    os.chmod(auth_path, 0o640)
+    before = os.stat(auth_path)
+
+    AuthFile(auth_path).remove_by_index(1)
+
+    after = os.stat(auth_path)
+    assert (after.st_ino, stat.S_IMODE(after.st_mode)) == (
+        before.st_ino, 0o640)
+    assert _users(auth_path) == ["x"]
 
 
 @pytest.mark.auth
