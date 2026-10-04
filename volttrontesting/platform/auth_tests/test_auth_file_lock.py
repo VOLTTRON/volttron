@@ -709,3 +709,54 @@ def test_upgrade_tool_keeps_an_entry_another_writer_added(auth_path,
     assert disk["agent"]["credentials"] == _key("A")
     assert disk["added"]["credentials"] == _key("D")
 
+
+def _wrapper_for(auth_path):
+    from volttrontesting.utils.platformwrapper import PlatformWrapper
+    wrapper = PlatformWrapper.__new__(PlatformWrapper)
+    wrapper.volttron_home = os.path.dirname(auth_path)
+    return wrapper
+
+
+@pytest.mark.auth
+def test_platformwrapper_set_auth_dict_replaces_the_file(auth_path):
+    _seed(auth_path, [_entry("x", "X")])
+    auth_dict = {"allow": [vars(_entry("y", "Y"))], "deny": [],
+                 "groups": {}, "roles": {},
+                 "version": {"major": 1, "minor": 4}}
+
+    _wrapper_for(auth_path).set_auth_dict(auth_dict)
+
+    with open(auth_path) as fil:
+        assert jsonapi.load(fil) == auth_dict
+
+
+@pytest.mark.auth
+def test_platformwrapper_set_auth_dict_waits_for_the_lock(auth_path,
+                                                          short_lock):
+    _seed(auth_path, [_entry("x", "X")])
+    before = _bytes(auth_path)
+
+    with _hold_lock(auth_path):
+        with pytest.raises(AuthFileLockTimeout):
+            _wrapper_for(auth_path).set_auth_dict({"allow": []})
+
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_platformwrapper_set_auth_dict_writes_under_the_lock(auth_path,
+                                                             monkeypatch):
+    from volttrontesting.utils import platformwrapper
+    _seed(auth_path, [_entry("x", "X")])
+    held = []
+
+    def dumps(data):
+        held.append(_lock_is_held(auth_path))
+        return jsonapi.dumps(data)
+
+    monkeypatch.setattr(platformwrapper, "jsonapi",
+                        SimpleNamespace(dumps=dumps))
+
+    _wrapper_for(auth_path).set_auth_dict({"allow": []})
+
+    assert held == [True]

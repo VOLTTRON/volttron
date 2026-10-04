@@ -802,8 +802,12 @@ class PlatformWrapper:
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
-            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
-                fd.write(jsonapi.dumps(auth_dict))
+            # Written as given, but under the auth file lock, so it cannot
+            # interleave with a running platform's own change.
+            authfile = AuthFile(os.path.join(self.volttron_home, 'auth.json'))
+            with authfile._transaction():
+                with open(authfile.auth_file, 'w') as fd:
+                    fd.write(jsonapi.dumps(auth_dict))
 
     def initialize_web_certs(self):
         cert_dir = os.path.join(self.volttron_home, "certificates")
