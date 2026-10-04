@@ -53,6 +53,9 @@ from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
 _log = logging.getLogger(__name__)
 
 _LOCK_RETRY_INTERVAL = 0.01
+# A field of another type would be read as no entries and written back so.
+_FIELD_TYPES = {"allow": list, "deny": list, "groups": dict, "roles": dict,
+                "version": dict}
 
 
 class AuthFile(object):
@@ -192,6 +195,11 @@ class AuthFile(object):
         if not isinstance(file_data, dict):
             raise AuthFileReadError(
                 f"cannot read {self.auth_file}: not a JSON object")
+        for field, kind in _FIELD_TYPES.items():
+            if not isinstance(file_data.get(field, kind()), kind):
+                raise AuthFileReadError(
+                    f"cannot read {self.auth_file}: {field} is not a JSON "
+                    f"{'array' if kind is list else 'object'}")
         return self._to_auth_data(file_data)
 
     @staticmethod

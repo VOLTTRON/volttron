@@ -27,7 +27,9 @@ what a later change is built from, older or emptier than the file was
 
 import contextlib
 import errno
+import fcntl
 import os
+import time
 
 import gevent
 import gevent.event
@@ -36,7 +38,8 @@ import pytest
 from volttron.platform import jsonapi
 from volttron.platform.auth import AuthFile
 from volttron.platform.auth import auth_file as auth_file_module
-from volttron.platform.auth.auth_file import (AuthFileLockTimeout,
+from volttron.platform.auth.auth_file import (AuthFileLockError,
+                                              AuthFileLockTimeout,
                                               AuthFileReadError)
 from volttrontesting.platform.auth_tests.test_auth_file_lock import (
     _bytes, _entry, _hold_lock, _key, _seed, _service, _users)
@@ -217,3 +220,81 @@ def test_zmq_decision_that_cannot_be_written_keeps_it_pending(
         disk = jsonapi.load(fil)
     decided = disk["allow"] if approve else disk["deny"]
     assert [e["credentials"] for e in decided] == [_key("P")]
+
+
+@pytest.mark.auth
+def test_lock_file_owned_by_another_user_is_refused(auth_path, monkeypatch):
+    _seed(auth_path, [_entry("x", "X")])
+    auth_file = AuthFile(auth_path)
+    before = _bytes(auth_path)
+    uid = os.geteuid()
+    monkeypatch.setattr(os, "geteuid", lambda: uid + 1)
+
+    with pytest.raises(AuthFileLockError, match="owned by this user"):
+        auth_file.add(_entry("y", "Y"))
+
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("reload", ["load", "load_allow_snapshot"])
+def test_reads_share_the_lock_and_writes_do_not(auth_path, monkeypatch,
+                                                reload):
+    monkeypatch.setattr(AuthFile, "lock_timeout", 0.2)
+    _seed(auth_path, [_entry("x", "X")])
+    auth_file = AuthFile(auth_path)
+    before = _bytes(auth_path)
+
+    with _hold_lock(auth_path, fcntl.LOCK_SH):
+        getattr(auth_file, reload)()
+        with pytest.raises(AuthFileLockTimeout):
+            auth_file.add(_entry("y", "Y"))
+
+    assert [e["user_id"] for e in auth_file.auth_data["allow_list"]] == ["x"]
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_lock_wait_is_bounded_at_two_seconds(auth_path):
+    _seed(auth_path)
+    auth_file = AuthFile(auth_path)
+
+    with _hold_lock(auth_path):
+        start = time.monotonic()
+        with pytest.raises(AuthFileLockTimeout):
+            auth_file.add(_entry("y", "Y"))
+        elapsed = time.monotonic() - start
+
+    assert AuthFile.lock_timeout == 2.0
+    assert 2.0 <= elapsed < 2.5
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("field, value", [
+    ("allow", {"x": {}}), ("deny", "x"), ("groups", ["g"]), ("roles", "r"),
+    ("version", "1.4")])
+def test_field_of_the_wrong_type_refuses_the_write(auth_path, field, value):
+    _seed(auth_path, [_entry("x", "X")])
+    auth_file = AuthFile(auth_path)
+    with open(auth_path) as fil:
+        data = jsonapi.load(fil)
+    data[field] = value
+    with open(auth_path, "w") as fil:
+        fil.write(jsonapi.dumps(data))
+    before = _bytes(auth_path)
+
+    with pytest.raises(AuthFileReadError, match=field):
+        auth_file.add(_entry("y", "Y"))
+
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_agent_start_for_an_unknown_identity_returns_none(auth_path):
+    _seed(auth_path, [_entry("x", "X", identity="x")])
+    service = _service(auth_path)
+    before = _bytes(auth_path)
+
+    assert service.update_id_rpc_authorizations("unknown",
+                                                {"m": ["c"]}) is None
+    assert _bytes(auth_path) == before
