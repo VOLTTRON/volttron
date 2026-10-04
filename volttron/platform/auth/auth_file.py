@@ -23,16 +23,19 @@
 # }}}
 
 
+import contextlib
 import copy
+import fcntl
 import logging
 import os
 import re
 import shutil
+import stat
+import time
 import uuid
 
 import gevent
 import gevent.core
-from gevent.fileobject import FileObject
 
 from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.known_identities import (
@@ -49,8 +52,14 @@ from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
 
 _log = logging.getLogger(__name__)
 
+_LOCK_RETRY_INTERVAL = 0.01
+
 
 class AuthFile(object):
+    # Seconds to wait for the lock before refusing. Agents give their
+    # start-time authorization call 4 seconds, so this stays well under it.
+    lock_timeout = 2.0
+
     def __init__(self, auth_file=None):
         self.auth_data = {}
         if auth_file is None:
@@ -58,15 +67,84 @@ class AuthFile(object):
             auth_file = os.path.join(auth_file_dir, "auth.json")
         self.auth_file = auth_file
         self._check_for_upgrade()
-        self.load()
 
     @property
     def version(self):
         return {"major": 1, "minor": 4}
 
+    @property
+    def lock_file(self):
+        return self.auth_file + ".lock"
+
+    def _open_lock_file(self):
+        """Opens the lock file, refusing one that another user could hold or
+        replace. O_NONBLOCK keeps a FIFO planted there from blocking the open."""
+        os.makedirs(os.path.dirname(self.auth_file) or ".", exist_ok=True)
+        flags = (os.O_RDONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC
+                 | os.O_NONBLOCK)
+        try:
+            fd = os.open(self.lock_file, flags, 0o600)
+        except OSError as err:
+            raise AuthFileLockError(
+                f"cannot open lock file {self.lock_file}: {err}") from err
+        try:
+            lock_stat = os.fstat(fd)
+            if (not stat.S_ISREG(lock_stat.st_mode)
+                    or lock_stat.st_uid != os.geteuid()
+                    or lock_stat.st_mode & 0o077):
+                raise AuthFileLockError(
+                    f"lock file {self.lock_file} must be a regular file "
+                    f"owned by this user with no group or other access")
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
+
+    def _acquire(self, fd, exclusive):
+        """Polls instead of blocking in flock, so a greenlet waiting here
+        lets the hub run, and gives up after lock_timeout."""
+        operation = (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) \
+            | fcntl.LOCK_NB
+        deadline = time.monotonic() + self.lock_timeout
+        while True:
+            try:
+                fcntl.flock(fd, operation)
+                return
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise AuthFileLockTimeout(
+                        f"timed out after {self.lock_timeout}s waiting for "
+                        f"{self.lock_file}; {self.auth_file} not changed")
+            except OSError as err:
+                raise AuthFileLockError(
+                    f"cannot lock {self.lock_file}: {err}") from err
+            gevent.sleep(_LOCK_RETRY_INTERVAL)
+
+    @contextlib.contextmanager
+    def _locked(self, exclusive):
+        """Holds the lock shared (reads) or exclusive (writes) across
+        processes and greenlets. Nothing inside may yield to the hub, or
+        another greenlet could wait on a lock that is never released."""
+        fd = self._open_lock_file()
+        try:
+            self._acquire(fd, exclusive)
+            yield
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def _transaction(self):
+        """Holds the write lock with auth_data read from disk, so a change is
+        applied to the file as it is now, not to what this object last saw."""
+        with self._locked(exclusive=True):
+            self.auth_data = self._read_locked()
+            yield
+
     def _check_for_upgrade(self):
-        auth_data = self._read()
-        if auth_data["version"] != self.version:
+        with self._transaction():
+            auth_data = self.auth_data
+            if auth_data["version"] == self.version:
+                return
             if auth_data["version"]["major"] <= self.version["major"]:
                 self._upgrade(
                     auth_data["allow_list"],
@@ -84,22 +162,25 @@ class AuthFile(object):
                 )
 
     def _read(self):
-        auth_data = {}
+        with self._locked(exclusive=False):
+            return self._read_locked()
+
+    def _read_locked(self):
+        """Reads the file with plain blocking I/O, since the caller holds the
+        lock. An unreadable file raises rather than reading as empty, so a
+        later write cannot replace it with an empty list."""
         try:
             create_file_if_missing(self.auth_file)
             with open(self.auth_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                before_strip_comments = FileObject(fil, close=False).read()
-                if isinstance(before_strip_comments, bytes):
-                    before_strip_comments = before_strip_comments.decode(
-                        "utf-8"
-                    )
-                data = strip_comments(before_strip_comments)
-                if data:
-                    auth_data = jsonapi.loads(data)
-        except Exception:
-            _log.exception("error loading %s", self.auth_file)
-        return self._to_auth_data(auth_data)
+                data = strip_comments(fil.read())
+            file_data = jsonapi.loads(data) if data else {}
+        except (OSError, ValueError) as err:
+            raise AuthFileReadError(
+                f"cannot read {self.auth_file}: {err}") from err
+        if not isinstance(file_data, dict):
+            raise AuthFileReadError(
+                f"cannot read {self.auth_file}: not a JSON object")
+        return self._to_auth_data(file_data)
 
     @staticmethod
     def _to_auth_data(file_data):
@@ -409,7 +490,7 @@ class AuthFile(object):
     def _update_by_indices(self, auth_entry, indices, is_allow=True):
         """Updates all entries at given indices with auth_entry."""
         for index in indices:
-            self.update_by_index(auth_entry, index, is_allow)
+            self._update_by_index_locked(auth_entry, index, is_allow)
 
     def add(self, auth_entry, overwrite=False, no_error=False, is_allow=True):
         """
@@ -429,6 +510,11 @@ class AuthFile(object):
                      existing entry then this method will raise
                      AuthFileEntryAlreadyExists unless no_error is set to true
         """
+        with self._transaction():
+            self._add_locked(auth_entry, overwrite, no_error, is_allow)
+        gevent.sleep(1)
+
+    def _add_locked(self, auth_entry, overwrite, no_error, is_allow):
         try:
             self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
@@ -446,7 +532,6 @@ class AuthFile(object):
                 deny_entries.append(auth_entry)
             self._write(allow_entries, deny_entries, groups, roles)
             _log.debug("Added auth entry {} ".format(auth_entry))
-        gevent.sleep(1)
 
     def approve_deny_credential(self, user_id, is_approved=True):
         """
@@ -462,6 +547,11 @@ class AuthFile(object):
         :type user_id: str
         :type is_approved: bool
         """
+        with self._transaction():
+            self._approve_deny_credential_locked(user_id, is_approved)
+        gevent.sleep(1)
+
+    def _approve_deny_credential_locked(self, user_id, is_approved):
         allow_entries, deny_entries, groups, roles = self.read()
         if is_approved:
             for entry in deny_entries:
@@ -501,7 +591,6 @@ class AuthFile(object):
             ]
 
         self._write(allow_entries, deny_entries, groups, roles)
-        gevent.sleep(1)
 
     def remove_by_credentials(self, credentials, is_allow=True):
         """
@@ -510,18 +599,19 @@ class AuthFile(object):
         :param credentials: entries with these credentials will be removed
         :type credentials: str
         """
-        allow_entries, deny_entries, groups, roles = self.read()
-        if is_allow:
-            entries = allow_entries
-        else:
-            entries = deny_entries
-        entries = [
-            entry for entry in entries if entry.credentials != credentials
-        ]
-        if is_allow:
-            self._write(entries, deny_entries, groups, roles)
-        else:
-            self._write(allow_entries, entries, groups, roles)
+        with self._transaction():
+            allow_entries, deny_entries, groups, roles = self.read()
+            if is_allow:
+                entries = allow_entries
+            else:
+                entries = deny_entries
+            entries = [
+                entry for entry in entries if entry.credentials != credentials
+            ]
+            if is_allow:
+                self._write(entries, deny_entries, groups, roles)
+            else:
+                self._write(allow_entries, entries, groups, roles)
 
     def remove_by_index(self, index, is_allow=True):
         """
@@ -547,20 +637,21 @@ class AuthFile(object):
         """
         indices = list(set(indices))
         indices.sort(reverse=True)
-        allow_entries, deny_entries, groups, roles = self.read()
-        if is_allow:
-            entries = allow_entries
-        else:
-            entries = deny_entries
-        for index in indices:
-            try:
-                del entries[index]
-            except IndexError:
-                raise AuthFileIndexError(index)
-        if is_allow:
-            self._write(entries, deny_entries, groups, roles)
-        else:
-            self._write(allow_entries, entries, groups, roles)
+        with self._transaction():
+            allow_entries, deny_entries, groups, roles = self.read()
+            if is_allow:
+                entries = allow_entries
+            else:
+                entries = deny_entries
+            for index in indices:
+                try:
+                    del entries[index]
+                except IndexError:
+                    raise AuthFileIndexError(index)
+            if is_allow:
+                self._write(entries, deny_entries, groups, roles)
+            else:
+                self._write(allow_entries, entries, groups, roles)
 
     def _set_groups_or_roles(self, groups_or_roles, is_group=True):
         param_name = "groups" if is_group else "roles"
@@ -572,12 +663,13 @@ class AuthFile(object):
                     "each value of the {} dict must be "
                     "a list".format(param_name)
                 )
-        allow_entries, deny_entries, groups, roles = self.read()
-        if is_group:
-            groups = groups_or_roles
-        else:
-            roles = groups_or_roles
-        self._write(allow_entries, deny_entries, groups, roles)
+        with self._transaction():
+            allow_entries, deny_entries, groups, roles = self.read()
+            if is_group:
+                groups = groups_or_roles
+            else:
+                roles = groups_or_roles
+            self._write(allow_entries, deny_entries, groups, roles)
 
     def set_groups(self, groups):
         """
@@ -615,6 +707,10 @@ class AuthFile(object):
         .. warning:: Calling with out-of-range index will raise
                      AuthFileIndexError
         """
+        with self._transaction():
+            self._update_by_index_locked(auth_entry, index, is_allow)
+
+    def _update_by_index_locked(self, auth_entry, index, is_allow):
         allow_entries, deny_entries, groups, roles = self.read()
         if is_allow:
             entries = allow_entries
@@ -628,6 +724,30 @@ class AuthFile(object):
             self._write(entries, deny_entries, groups, roles)
         else:
             self._write(allow_entries, entries, groups, roles)
+
+    def modify_rpc_method_authorizations(self, identity, edit):
+        """
+        Changes the rpc_method_authorizations of the first allow entry with
+        the given identity, as the file holds it now.
+
+        :param identity: agent identity of the entry
+        :param edit: called with a copy of the entry's
+            rpc_method_authorizations; returns the new dict, or None to leave
+            the file unchanged
+        :returns: False if no allow entry has the identity, else True
+        :rtype: bool
+        """
+        with self._transaction():
+            allow_entries, deny_entries, groups, roles = self.read()
+            for entry in allow_entries:
+                if entry.identity == identity:
+                    updated = edit(
+                        copy.deepcopy(entry.rpc_method_authorizations))
+                    if updated is not None:
+                        entry.rpc_method_authorizations = updated
+                        self._write(allow_entries, deny_entries, groups, roles)
+                    return True
+        return False
 
     def _write(self, allow_entries, deny_entries, groups, roles):
         auth = {
@@ -691,3 +811,19 @@ class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
                 user_id, indicies
             )
         super(AuthFileUserIdAlreadyExists, self).__init__(indicies, message)
+
+
+class AuthFileUnavailable(AuthException):
+    """The auth file could not be locked or read; nothing was written."""
+
+
+class AuthFileLockError(AuthFileUnavailable):
+    """The lock file could not be opened or locked, or is not safe to use."""
+
+
+class AuthFileLockTimeout(AuthFileLockError):
+    """Another holder kept the lock past lock_timeout."""
+
+
+class AuthFileReadError(AuthFileUnavailable):
+    """The auth file is not readable as a JSON object."""
