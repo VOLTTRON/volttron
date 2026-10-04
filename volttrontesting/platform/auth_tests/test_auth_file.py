@@ -656,12 +656,18 @@ def test_write_does_not_read_back(tmp_path, monkeypatch):
     auth_file = AuthFile(auth_path)
     empty = {"allow_list": [], "deny_list": [], "groups": {}, "roles": {},
              "version": {"major": 0, "minor": 0}}
-    monkeypatch.setattr(auth_file, "_read", lambda: empty)
+    read_locked = auth_file._read_locked
+    # A read once the change has loaded the file is a read-back.
+    monkeypatch.setattr(
+        auth_file, "_read_locked",
+        lambda: empty if auth_file._writer else read_locked())
 
     auth_file.add(AuthEntry(user_id="first", credentials=_curve_key("F")))
     auth_file.add(AuthEntry(user_id="second", credentials=_curve_key("S")))
 
     assert [e["user_id"] for e in _disk_allow(auth_path)] == [
+        "first", "second"]
+    assert [e["user_id"] for e in auth_file.auth_data["allow_list"]] == [
         "first", "second"]
 
 
