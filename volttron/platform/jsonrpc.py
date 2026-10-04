@@ -176,11 +176,13 @@ class RemoteError(Exception):
             except KeyError:
                 msg = message
             else:
-                if exc_args is not None:
+                try:
                     args = ', '.join(repr(arg) for arg in exc_args)
-                    msg = '%s(%s)' % (exc_type, args)
-                else:
+                except TypeError:
+                    # exc_args is None or not iterable.
                     msg = message
+                else:
+                    msg = '%s(%s)' % (exc_type, args)
         else:
             msg = message
         super(RemoteError, self).__init__(msg)
@@ -218,22 +220,24 @@ class RemoteError(Exception):
 def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
-        exc_info = (data or {}).get('exception.py')
+        if not isinstance(data, dict):
+            data = {}
+        exc_info = data.get('exception.py')
         if not isinstance(exc_info, dict):
             exc_info = {}
         # Drop a conflicting 'message' key so it doesn't shadow the
         # positional message argument passed to RemoteError.__init__.
         exc_info = {k: v for k, v in exc_info.items() if k != 'message'}
         try:
-            return RemoteError((data or {}).get('detail', message), **exc_info)
+            return RemoteError(data.get('detail', message), **exc_info)
         except Exception:
-            # Malformed exception.py keys (e.g. null exc_args) should not
-            # break error dispatch. Fall back to a plain Error so the
-            # caller receives the error instead of timing out.
+            # Malformed exception.py content must still reach the caller
+            # as a RemoteError rather than leave the request to time out.
             import logging
             logging.getLogger(__name__).debug(
                 'Failed to build RemoteError from exception.py=%r', exc_info,
                 exc_info=True)
+            return RemoteError(message)
     if code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
