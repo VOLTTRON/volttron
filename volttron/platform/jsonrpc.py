@@ -27,6 +27,7 @@
 See http://www.jsonrpc.org/specification for the complete specification.
 """
 
+import logging
 import sys
 from contextlib import contextmanager
 
@@ -34,6 +35,8 @@ from volttron.platform import jsonapi
 
 __all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher',
            'json_result', 'json_validate_request', 'json_validate_response']
+
+_log = logging.getLogger(__name__)
 
 
 PARSE_ERROR = -32700
@@ -221,6 +224,10 @@ def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
         if not isinstance(data, dict):
+            if data is not None:
+                _log.warning(
+                    'Ignoring error reply data of type %s; expected an object',
+                    type(data).__name__)
             data = {}
         exc_info = data.get('exception.py')
         if not isinstance(exc_info, dict):
@@ -230,14 +237,18 @@ def exception_from_json(code, message, data=None):
         exc_info = {k: v for k, v in exc_info.items() if k != 'message'}
         try:
             return RemoteError(data.get('detail', message), **exc_info)
-        except Exception:
+        except Exception as exc:
             # Malformed exception.py content must still reach the caller
             # as a RemoteError rather than leave the request to time out.
-            import logging
-            logging.getLogger(__name__).debug(
+            # Only the exception type is logged at WARNING: its text can
+            # carry peer-supplied key names.
+            _log.warning(
+                'Error reply exception.py could not build a RemoteError (%s); '
+                'falling back to a plain RemoteError', type(exc).__name__)
+            _log.debug(
                 'Failed to build RemoteError from exception.py=%r', exc_info,
                 exc_info=True)
-            return RemoteError(message)
+            return RemoteError(data.get('detail', message))
     if code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
