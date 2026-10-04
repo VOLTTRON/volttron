@@ -203,16 +203,20 @@ class AuthFile(object):
 
     def load(self):
         """Reads in auth_file.json and stores it in auth_data."""
-        self.auth_data = self._read()
+        # Replaced under the lock: a change holds the write lock from its
+        # read to its write, so a reload cannot swap in older data between.
+        with self._locked(exclusive=False):
+            self.auth_data = self._read_locked()
 
     def load_allow_snapshot(self):
         """Loads the file as load() does and returns allow entries built from
         a deep copy of the parsed data, taken before auth_data is replaced so
         no other caller can be editing what is copied."""
-        auth_data = self._read()
-        snapshot, _ = self._get_entries(
-            copy.deepcopy(auth_data["allow_list"]), [])
-        self.auth_data = auth_data
+        with self._locked(exclusive=False):
+            auth_data = self._read_locked()
+            snapshot, _ = self._get_entries(
+                copy.deepcopy(auth_data["allow_list"]), [])
+            self.auth_data = auth_data
         return snapshot
 
     def read(self):
