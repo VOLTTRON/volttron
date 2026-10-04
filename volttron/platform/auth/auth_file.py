@@ -174,12 +174,18 @@ class AuthFile(object):
     def _read_locked(self):
         """Reads the file with plain blocking I/O, since the caller holds the
         lock. An unreadable file raises rather than reading as empty, so a
-        later write cannot replace it with an empty list."""
+        later write cannot replace it with an empty list.
+
+        _write truncates and then writes in place, so a write that fails
+        partway leaves a strict prefix of a JSON object, never a valid one.
+        A new file starts as "{}", so an empty file is such a prefix too."""
         try:
-            create_file_if_missing(self.auth_file)
+            create_file_if_missing(self.auth_file, contents="{}")
             with open(self.auth_file) as fil:
                 data = strip_comments(fil.read())
-            file_data = jsonapi.loads(data) if data else {}
+            if not data:
+                raise ValueError("file is empty")
+            file_data = jsonapi.loads(data)
         except (OSError, ValueError) as err:
             raise AuthFileReadError(
                 f"cannot read {self.auth_file}: {err}") from err

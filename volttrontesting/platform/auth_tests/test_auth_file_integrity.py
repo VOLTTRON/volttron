@@ -25,13 +25,18 @@
 what a later change is built from, older or emptier than the file was
 (#3320)."""
 
+import errno
+import os
+
 import gevent
 import gevent.event
 import pytest
 
 from volttron.platform.auth import AuthFile
+from volttron.platform.auth import auth_file as auth_file_module
+from volttron.platform.auth.auth_file import AuthFileReadError
 from volttrontesting.platform.auth_tests.test_auth_file_lock import (
-    _entry, _seed, _users)
+    _bytes, _entry, _seed, _users)
 
 
 @pytest.fixture
@@ -98,3 +103,56 @@ def test_reload_cannot_replace_the_data_a_change_is_built_from(auth_path,
 
     assert other.successful()
     assert set(_users(auth_path)) == {"x", "y"}
+
+
+class _FailingWrite:
+    """A file whose write puts the first `written` bytes on disk and then
+    fails, as a full disk does."""
+
+    def __init__(self, fil, written):
+        self.fil = fil
+        self.written = written
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self.fil.close()
+
+    def write(self, text):
+        self.fil.write(text[:self.written])
+        self.fil.flush()
+        raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("written", [0, 10])
+def test_failed_write_leaves_a_file_the_next_change_refuses(auth_path,
+                                                             monkeypatch,
+                                                             written):
+    _seed(auth_path, [_entry("x", "X")])
+    writer = AuthFile(auth_path)
+
+    def failing_open(path, mode="r", *args, **kwargs):
+        fil = open(path, mode, *args, **kwargs)
+        return _FailingWrite(fil, written) if "w" in mode else fil
+
+    monkeypatch.setattr(auth_file_module, "open", failing_open,
+                        raising=False)
+    with pytest.raises(OSError):
+        writer.add(_entry("y", "Y"))
+    monkeypatch.delattr(auth_file_module, "open")
+    torn = _bytes(auth_path)
+
+    with pytest.raises(AuthFileReadError):
+        AuthFile(auth_path).add(_entry("z", "Z"))
+
+    assert len(torn) == written
+    assert _bytes(auth_path) == torn
+
+
+@pytest.mark.auth
+def test_missing_file_is_created_and_takes_a_change(auth_path):
+    AuthFile(auth_path).add(_entry("x", "X"))
+
+    assert _users(auth_path) == ["x"]
