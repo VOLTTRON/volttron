@@ -232,6 +232,30 @@ def test_writer_waits_for_the_lock_then_writes(auth_path):
 
 
 @pytest.mark.auth
+def test_waiting_for_the_lock_polls_through_the_hub(auth_path, short_lock,
+                                                    monkeypatch):
+    # The platform does not patch time, so a wait that slept outside gevent
+    # would stall every greenlet. Under pytest it is patched, so the call
+    # itself is what is checked.
+    _seed(auth_path)
+    writer = AuthFile(auth_path)
+    sleeps = []
+    sleep = gevent.sleep
+
+    def counting_sleep(*args, **kwargs):
+        sleeps.append(args)
+        return sleep(*args, **kwargs)
+
+    monkeypatch.setattr(gevent, "sleep", counting_sleep)
+
+    with _hold_lock(auth_path):
+        with pytest.raises(AuthFileLockTimeout):
+            writer.add(_entry("y", "Y"))
+
+    assert sleeps
+
+
+@pytest.mark.auth
 def test_reader_never_takes_a_file_mid_write(auth_path):
     _seed(auth_path, [_entry("x", "X")])
     full = _bytes(auth_path)
