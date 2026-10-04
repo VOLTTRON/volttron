@@ -170,10 +170,6 @@ class AuthFile(object):
                     self.auth_file
                 )
 
-    def _read(self):
-        with self._locked(exclusive=False):
-            return self._read_locked()
-
     def _read_locked(self):
         """Reads the file with plain blocking I/O, since the caller holds the
         lock. An unreadable file raises rather than reading as empty, so a
@@ -186,8 +182,6 @@ class AuthFile(object):
             create_file_if_missing(self.auth_file, contents="{}")
             with open(self.auth_file) as fil:
                 data = strip_comments(fil.read())
-            if not data:
-                raise ValueError("file is empty")
             file_data = jsonapi.loads(data)
         except (OSError, ValueError) as err:
             raise AuthFileReadError(
