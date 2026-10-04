@@ -33,7 +33,7 @@ from gevent.fileobject import FileObject
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.agent.utils import create_file_if_missing, get_messagebus, watch_file
 from volttron.platform.auth.auth_entry import AuthEntry
-from volttron.platform.auth.auth_file import AuthFile
+from volttron.platform.auth.auth_file import AuthFile, AuthFileUnavailable
 from volttron.platform.auth.auth_utils import load_user
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent import RPC, Agent, Core
@@ -41,6 +41,19 @@ from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 
 _log = logging.getLogger(__name__)
+
+
+def _merge_agent_rpc_methods(authorizations, rpc_methods):
+    """Returns the entry's authorizations with each of the agent's methods
+    filled in where the entry has none, and the authorizations the agent
+    should enforce. A non-empty entry in the file is never replaced."""
+    merged = dict(authorizations)
+    enforced = {}
+    for method, capabilities in rpc_methods.items():
+        if not merged.get(method):
+            merged[method] = capabilities
+        enforced[method] = merged[method]
+    return merged, enforced
 
 
 class AuthService(Agent):
@@ -181,39 +194,29 @@ class AuthService(Agent):
             {rpc_method_name: [allowed_rpc_capability_1, ...]}
         :return: updated_rpc_methods or None
         """
-        entries = self.auth_file.read_allow_entries()
-        for entry in entries:
+        enforced = {}
+
+        def fill_missing(authorizations):
+            merged, enforced_now = _merge_agent_rpc_methods(authorizations,
+                                                            rpc_methods)
+            enforced.update(enforced_now)
+            return merged if merged != authorizations else None
+
+        try:
+            found = self.auth_file.modify_rpc_method_authorizations(
+                identity, fill_missing)
+        except AuthFileUnavailable as err:
+            # The agent waits only a few seconds for this answer, then keeps
+            # its own defaults, so answer from the last load instead.
+            _log.error("auth file not updated for %s: %s", identity, err)
+            return self._cached_rpc_authorizations(identity, rpc_methods)
+        return enforced if found else None
+
+    def _cached_rpc_authorizations(self, identity, rpc_methods):
+        for entry in self.auth_file.read_allow_entries():
             if entry.identity == identity:
-                updated_rpc_methods = {}
-                # Only update auth_file if changed
-                is_updated = False
-                for method in rpc_methods:
-                    updated_rpc_methods[method] = rpc_methods[method]
-                    # Check if the rpc method exists in the auth file entry
-                    if method not in entry.rpc_method_authorizations:
-                        # Create it and set it to have the provided
-                        # rpc capabilities
-                        entry.rpc_method_authorizations[method] = rpc_methods[
-                            method]
-                        is_updated = True
-                    # Check if the rpc method does not have any
-                    # rpc capabilities
-                    if not entry.rpc_method_authorizations[method]:
-                        # Set it to have the provided rpc capabilities
-                        entry.rpc_method_authorizations[method] = rpc_methods[
-                            method]
-                        is_updated = True
-                    # Check if the rpc method's capabilities match
-                    # what have been provided
-                    if (entry.rpc_method_authorizations[method]
-                            != rpc_methods[method]):
-                        # Update rpc_methods based on auth entries
-                        updated_rpc_methods[
-                            method] = entry.rpc_method_authorizations[method]
-                # Update auth file if changed and return rpc_methods
-                if is_updated:
-                    self.auth_file.update_by_index(entry, entries.index(entry))
-                return updated_rpc_methods
+                return _merge_agent_rpc_methods(
+                    entry.rpc_method_authorizations, rpc_methods)[1]
         return None
 
     def get_entry_authorizations(self, identity):
@@ -306,23 +309,20 @@ class AuthService(Agent):
         if identity in PROCESS_IDENTITIES or identity == CONTROL_CONNECTION:
             _log.error(f"{identity} cannot be modified using this command!")
             return
-        entries = copy.deepcopy(self.auth_file.read_allow_entries())
-        for entry in entries:
-            if entry.identity == identity:
-                if method not in entry.rpc_method_authorizations:
-                    entry.rpc_method_authorizations[method] = authorizations
-                elif not entry.rpc_method_authorizations[method]:
-                    entry.rpc_method_authorizations[method] = authorizations
-                else:
-                    entry.rpc_method_authorizations[method].extend([
-                        rpc_auth for rpc_auth in authorizations
-                        if rpc_auth in authorizations and rpc_auth not in
-                        entry.rpc_method_authorizations[method]
-                    ])
-                self.auth_file.update_by_index(entry, entries.index(entry))
-                return
-        _log.error("Agent identity not found in auth file!")
-        return
+
+        def add_capabilities(rpc_method_authorizations):
+            if not rpc_method_authorizations.get(method):
+                rpc_method_authorizations[method] = authorizations
+            else:
+                rpc_method_authorizations[method].extend([
+                    rpc_auth for rpc_auth in authorizations
+                    if rpc_auth not in rpc_method_authorizations[method]
+                ])
+            return rpc_method_authorizations
+
+        if not self.auth_file.modify_rpc_method_authorizations(
+                identity, add_capabilities):
+            _log.error("Agent identity not found in auth file!")
 
     @RPC.export
     def delete_rpc_authorizations(self, identity, method,
@@ -339,43 +339,36 @@ class AuthService(Agent):
         if identity in PROCESS_IDENTITIES or identity == CONTROL_CONNECTION:
             _log.error(f"{identity} cannot be modified using this command!")
             return
-        entries = copy.deepcopy(self.auth_file.read_allow_entries())
-        for entry in entries:
-            if entry.identity == identity:
-                if method not in entry.rpc_method_authorizations:
-                    _log.error(
-                        f"{entry.identity} does not have a method called "
-                        f"{method}")
-                elif not entry.rpc_method_authorizations[method]:
-                    _log.error(f"{entry.identity}.{method} does not have any "
-                               f"authorized capabilities.")
+
+        def remove_capabilities(rpc_method_authorizations):
+            if method not in rpc_method_authorizations:
+                _log.error(f"{identity} does not have a method called "
+                           f"{method}")
+                return None
+            if not rpc_method_authorizations[method]:
+                _log.error(f"{identity}.{method} does not have any "
+                           f"authorized capabilities.")
+                return None
+            any_match = False
+            for rpc_auth in denied_authorizations:
+                if rpc_auth not in rpc_method_authorizations[method]:
+                    _log.error(f"{rpc_auth} is not an authorized capability "
+                               f"for {method}")
                 else:
-                    any_match = False
-                    for rpc_auth in denied_authorizations:
-                        if (rpc_auth not in
-                                entry.rpc_method_authorizations[method]):
-                            _log.error(
-                                f"{rpc_auth} is not an authorized capability "
-                                f"for {method}")
-                        else:
-                            any_match = True
-                    if any_match:
-                        entry.rpc_method_authorizations[method] = [
-                            rpc_auth for rpc_auth in
-                            entry.rpc_method_authorizations[method]
-                            if rpc_auth not in denied_authorizations
-                        ]
-                        if not entry.rpc_method_authorizations[method]:
-                            entry.rpc_method_authorizations[method] = [""]
-                        self.auth_file.update_by_index(entry,
-                                                       entries.index(entry))
-                    else:
-                        _log.error(
-                            f"No matching authorized capabilities provided "
-                            f"for {method}")
-                return
-        _log.error("Agent identity not found in auth file!")
-        return
+                    any_match = True
+            if not any_match:
+                _log.error(f"No matching authorized capabilities provided "
+                           f"for {method}")
+                return None
+            rpc_method_authorizations[method] = [
+                rpc_auth for rpc_auth in rpc_method_authorizations[method]
+                if rpc_auth not in denied_authorizations
+            ] or [""]
+            return rpc_method_authorizations
+
+        if not self.auth_file.modify_rpc_method_authorizations(
+                identity, remove_capabilities):
+            _log.error("Agent identity not found in auth file!")
 
     def _update_auth_lists(self, entries, is_allow=True):
         auth_list = []
