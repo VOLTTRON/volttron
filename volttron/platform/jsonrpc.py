@@ -176,8 +176,11 @@ class RemoteError(Exception):
             except KeyError:
                 msg = message
             else:
-                args = ', '.join(repr(arg) for arg in exc_args)
-                msg = '%s(%s)' % (exc_type, args)
+                if exc_args is not None:
+                    args = ', '.join(repr(arg) for arg in exc_args)
+                    msg = '%s(%s)' % (exc_type, args)
+                else:
+                    msg = message
         else:
             msg = message
         super(RemoteError, self).__init__(msg)
@@ -186,11 +189,14 @@ class RemoteError(Exception):
 
     def __repr__(self):
         exc_type = self.exc_info.get('exc_type', '<unknown>')
-        try:
-            exc_args = ', '.join(repr(arg) for arg in
-                                 self.exc_info['exc_args'])
-        except KeyError:
+        exc_args_raw = self.exc_info.get('exc_args')
+        if exc_args_raw is None:
             exc_args = '...'
+        else:
+            try:
+                exc_args = ', '.join(repr(arg) for arg in exc_args_raw)
+            except TypeError:
+                exc_args = '...'
         if exc_type == '<unknown>':
             return '%s: %s' % (exc_type, self.message)
         return '%s(%s)' % (exc_type, exc_args)
@@ -212,9 +218,23 @@ class RemoteError(Exception):
 def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
-        return RemoteError(data.get('detail', message),
-                           **data.get('exception.py', {}))
-    elif code == METHOD_NOT_FOUND:
+        exc_info = (data or {}).get('exception.py')
+        if not isinstance(exc_info, dict):
+            exc_info = {}
+        # Drop a conflicting 'message' key so it doesn't shadow the
+        # positional message argument passed to RemoteError.__init__.
+        exc_info = {k: v for k, v in exc_info.items() if k != 'message'}
+        try:
+            return RemoteError((data or {}).get('detail', message), **exc_info)
+        except Exception:
+            # Malformed exception.py keys (e.g. null exc_args) should not
+            # break error dispatch. Fall back to a plain Error so the
+            # caller receives the error instead of timing out.
+            import logging
+            logging.getLogger(__name__).debug(
+                'Failed to build RemoteError from exception.py=%r', exc_info,
+                exc_info=True)
+    if code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
 
