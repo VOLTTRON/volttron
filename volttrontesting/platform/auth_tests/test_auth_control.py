@@ -248,8 +248,8 @@ def auth_instance(volttron_instance):
         yield volttron_instance
     finally:
         with with_os_environ(volttron_instance.env):
-            with open(os.path.join(volttron_instance.volttron_home, "auth.json"), 'w') as f:
-                jsonapi.dump(auth_file, f)
+            # Restored under the auth file lock, since the platform is running.
+            volttron_instance.set_auth_dict(auth_file)
 
 
 # Number of tries to check if auth file is updated properly
