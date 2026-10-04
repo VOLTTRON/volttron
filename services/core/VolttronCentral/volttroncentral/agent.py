@@ -64,7 +64,7 @@ from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT, INTERNAL_ERROR)
+    UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
 from volttron.platform.vip.agent import Agent, RPC, Unreachable
 from .platforms import Platforms, PlatformHandler
 from .sessions import SessionHandler
@@ -714,7 +714,14 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to disable setup mode")
-        self.vip.rpc.call(AUTH, "auth_file.remove_by_credentials", "/.*/")
+        try:
+            self.vip.rpc.call(AUTH, "auth_file.remove_by_credentials",
+                              "/.*/").get(timeout=30)
+        except (RemoteError, Unreachable, gevent.Timeout) as err:
+            _log.error("disable setup mode failed: %s", err)
+            return jsonrpc.json_error(
+                id, INTERNAL_ERROR,
+                "Setup mode could not be confirmed disabled")
         return "SUCCESS"
 
     def _handle_management_endpoint(self, session_user, params):

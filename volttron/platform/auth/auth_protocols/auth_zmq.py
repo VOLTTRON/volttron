@@ -36,6 +36,7 @@ from volttron.platform import get_home
 from volttron.platform import jsonapi
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_exception import AuthException
+from volttron.platform.auth.auth_file import AuthFileUnavailable
 from volttron.platform.auth.auth_protocols import (
     BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization)
 from volttron.platform.auth.auth_utils import dump_user
@@ -540,6 +541,10 @@ class ZMQAuthorization(BaseServerAuthorization):
     def _remove_auth_entry(self, credential, is_allow=True):
         try:
             self.auth_service.auth_file.remove_by_credentials(credential, is_allow=is_allow)
+        except AuthFileUnavailable:
+            # The entry is still in the file; the caller must not report
+            # the removal as done.
+            raise
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 
