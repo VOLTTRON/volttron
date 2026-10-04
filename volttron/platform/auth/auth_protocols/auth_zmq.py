@@ -535,6 +535,9 @@ class ZMQAuthorization(BaseServerAuthorization):
 
         try:
             self.auth_service.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
+        except AuthFileUnavailable:
+            # Nothing was written; the caller keeps the credential pending.
+            raise
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 

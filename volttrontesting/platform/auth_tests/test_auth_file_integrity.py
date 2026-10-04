@@ -25,6 +25,7 @@
 what a later change is built from, older or emptier than the file was
 (#3320)."""
 
+import contextlib
 import errno
 import os
 
@@ -32,11 +33,13 @@ import gevent
 import gevent.event
 import pytest
 
+from volttron.platform import jsonapi
 from volttron.platform.auth import AuthFile
 from volttron.platform.auth import auth_file as auth_file_module
-from volttron.platform.auth.auth_file import AuthFileReadError
+from volttron.platform.auth.auth_file import (AuthFileLockTimeout,
+                                              AuthFileReadError)
 from volttrontesting.platform.auth_tests.test_auth_file_lock import (
-    _bytes, _entry, _seed, _users)
+    _bytes, _entry, _hold_lock, _key, _seed, _service, _users)
 
 
 @pytest.fixture
@@ -156,3 +159,61 @@ def test_missing_file_is_created_and_takes_a_change(auth_path):
     AuthFile(auth_path).add(_entry("x", "X"))
 
     assert _users(auth_path) == ["x"]
+
+
+def _pending_authorization(auth_path):
+    from volttron.platform.auth.auth_protocols.auth_zmq import \
+        ZMQAuthorization
+
+    service = _service(auth_path)
+    service._auth_pending = [{"domain": "vip", "address": "127.0.0.1",
+                              "mechanism": "CURVE", "credentials": _key("P"),
+                              "user_id": "pending", "retries": 1}]
+    return service, ZMQAuthorization(auth_service=service)
+
+
+@contextlib.contextmanager
+def _unreadable(auth_path):
+    full = _bytes(auth_path)
+    with open(auth_path, "w") as fil:
+        fil.write('{"allow": [')
+    try:
+        yield
+    finally:
+        with open(auth_path, "wb") as fil:
+            fil.write(full)
+
+
+FAILURES = {
+    "lock": (_hold_lock, AuthFileLockTimeout),
+    "read": (_unreadable, AuthFileReadError),
+}
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("failure", sorted(FAILURES))
+@pytest.mark.parametrize("approve", [True, False])
+def test_zmq_decision_that_cannot_be_written_keeps_it_pending(
+        auth_path, monkeypatch, failure, approve):
+    monkeypatch.setattr(AuthFile, "lock_timeout", 0.2)
+    monkeypatch.setattr(gevent, "sleep", lambda *args, **kwargs: None)
+    _seed(auth_path)
+    service, authorization = _pending_authorization(auth_path)
+    decide = (authorization.approve_authorization if approve
+              else authorization.deny_authorization)
+    condition, error = FAILURES[failure]
+
+    with condition(auth_path):
+        with pytest.raises(error):
+            decide("pending")
+
+    assert [p["user_id"] for p in service._auth_pending] == ["pending"]
+    assert _users(auth_path) == []
+
+    decide("pending")
+
+    assert service._auth_pending == []
+    with open(auth_path) as fil:
+        disk = jsonapi.load(fil)
+    decided = disk["allow"] if approve else disk["deny"]
+    assert [e["credentials"] for e in decided] == [_key("P")]
