@@ -28,7 +28,6 @@ on disk (#3320, #3338)."""
 import contextlib
 import copy
 import fcntl
-import inspect
 import os
 import stat
 import threading
@@ -576,8 +575,10 @@ def test_watcher_reload_under_a_held_lock_gives_up_and_keeps_entries(
 
 
 def _rpc_exports(service):
+    # Only AuthService's own methods: another test may have swapped its
+    # base class for a mock whose members carry no export annotations.
     names = set()
-    for _, member in inspect.getmembers(type(service)):
+    for member in vars(AuthService).values():
         names |= annotations(member, set, "rpc.exports")
     service.vip = SimpleNamespace(rpc=SimpleNamespace(
         export=lambda method, name=None: names.add(name or method.__name__)))
