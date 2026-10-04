@@ -1,4 +1,4 @@
-"""Unit tests for malformed JSON-RPC error replies (#3324).
+"""Unit tests for malformed JSON-RPC error replies (#3324, #3341).
 
 Only a peer outside this repository can send these shapes, so they are
 built by hand rather than through a platform.
@@ -23,6 +23,12 @@ SHAPES = {
     "null_exception_py": ({"exception.py": None}, MESSAGE),
     "message_key_in_exception_py": (
         {"exception.py": dict(EXC, message="clash")},
+        MESSAGE,
+    ),
+    "string_data": ("oops", MESSAGE),
+    "list_data": ([1, 2], MESSAGE),
+    "non_iterable_exc_args": (
+        {"exception.py": {"exc_type": "ValueError", "exc_args": 5}},
         MESSAGE,
     ),
 }
