@@ -27,6 +27,7 @@ import os
 import stat
 from urllib.parse import urlencode
 
+import gevent
 import pytest
 from mock import patch
 from passlib.hash import argon2
@@ -316,6 +317,74 @@ def test_setup_token_path_that_is_not_a_regular_file_is_refused(kind):
 
         assert 503 == response.status_code
         assert {} == _stored_users(vhome)
+
+
+@pytest.mark.web
+def test_first_admin_not_created_when_a_user_is_written_during_setup():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        real_read = AdminEndpoints._read_setup_token
+
+        def read_after_another_user_is_written(self):
+            AdminEndpoints().add_user('other', 'other-pw', ['admin'])
+            return real_read(self)
+
+        with patch.object(AdminEndpoints, '_read_setup_token', read_after_another_user_is_written):
+            response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 403 == response.status_code
+        users = _stored_users(vhome)
+        assert ['other'] == list(users)
+        assert argon2.verify('other-pw', users['other']['hashed_password'])
+
+
+@pytest.mark.web
+def test_setup_token_used_by_another_request_is_refused():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        real_read = AdminEndpoints._read_setup_token
+
+        def read_then_lose_the_token(self):
+            value = real_read(self)
+            os.remove(os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+            return value
+
+        with patch.object(AdminEndpoints, '_read_setup_token', read_then_lose_the_token):
+            response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 403 == response.status_code
+        assert {} == _stored_users(vhome)
+        assert {} == adminep._userdict
+
+
+@pytest.mark.web
+def test_concurrent_first_admin_posts_create_one_admin():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        real_read = AdminEndpoints._read_setup_token
+
+        # Both requests pass the token check before either one consumes it.
+        def read_then_yield(self):
+            value = real_read(self)
+            gevent.sleep(0.01)
+            return value
+
+        with patch.object(AdminEndpoints, '_read_setup_token', read_then_yield):
+            jobs = {name: gevent.spawn(_request, adminep, 'POST',
+                                       _admin_form(token, username=name, password=name + '-pw'))
+                    for name in ('alice', 'bob')}
+            gevent.joinall(list(jobs.values()), timeout=10, raise_error=True)
+
+        statuses = {name: job.value.status_code for name, job in jobs.items()}
+        assert [302, 403] == sorted(statuses.values())
+        winner = next(name for name, code in statuses.items() if code == 302)
+        users = _stored_users(vhome)
+        assert [winner] == list(users)
+        assert ['admin', 'vui'] == users[winner]['groups']
+        assert argon2.verify(winner + '-pw', users[winner]['hashed_password'])
 
 
 @pytest.mark.web

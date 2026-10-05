@@ -217,15 +217,26 @@ class AdminEndpoints:
         if pass1 != pass2:
             return self._setup_page(env)
 
-        # The token is consumed before any credential is written.
+        # Only one request can win this removal, so it precedes any write; nothing
+        # between it and add_user yields to another greenlet.
         try:
             os.remove(token_path)
+        except FileNotFoundError:
+            _log.warning("Web setup refused: the setup token was already used, request from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
         except OSError as exc:
             _log.error("Web setup refused: cannot remove the setup token file %s: %s", token_path, exc)
             return self._setup_unavailable()
 
+        # Another request or process may have written a user since this one
+        # entered setup; writing now would replace that file.
+        self.reload_userdict()
+        if self._userdict:
+            _log.warning("Web setup refused: a web user already exists, request from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+
         _log.debug("Setting administrator password")
-        self.add_user(username, pass1, groups=['admin', 'vui'])
+        self.add_user(username, pass1, groups=['admin', 'vui'], overwrite=False)
         return Response('', status='302', headers={'Location': '/admin/login.html'})
 
     def admin(self, env, data):
