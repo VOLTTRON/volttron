@@ -916,6 +916,24 @@ def test_hypertable_creation_receives_the_configured_table(live_db):
     assert recorded == expected
 
 
+def test_manual_table_rebuild_commits_and_releases_the_table(live_db):
+    conn, make_functs, _ = live_db
+    functs = make_functs("odd_hist_f")
+    _create_data_table(conn, "odd_hist_f", rows=3)
+
+    assert functs.manual_table_rebuild() is True
+
+    _run(conn, "BEGIN")
+    try:
+        _run(conn, "LOCK TABLE odd_hist_f IN ACCESS EXCLUSIVE MODE NOWAIT")
+    finally:
+        _run(conn, "ROLLBACK")
+    assert _row_count(conn, "odd_hist_f") == 3
+    # Only the rebuilt table carries an index on ts; the original had none.
+    assert _run(conn, "SELECT count(*) FROM pg_indexes WHERE tablename = 'odd_hist_f' "
+                      "AND indexdef LIKE '%%(ts)'")[0][0] == 1
+
+
 @pytest.mark.parametrize("bad_name", [
     'data"; x', "data'; x", "my table", "data-table", "1data", "data;x", "public.data",
 ])

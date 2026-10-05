@@ -787,8 +787,9 @@ class PostgreSqlFuncts(DbDriver):
                 SQL("ALTER TABLE {} RENAME TO {}").format(schema_tbl_new_id, tbl_id)
             )
 
-            # Commit: new table is now live
-            self.commit()
+            # Commit: new table is now live. The connection is in autocommit
+            # mode, so only an explicit COMMIT ends the BEGIN above.
+            self.execute_stmt("COMMIT")
 
             # Drop old table and its indexes (outside txn to minimize lock time)
             try:
