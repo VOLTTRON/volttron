@@ -22,9 +22,11 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import hmac
 import logging
 import os
 import re
+import secrets
 from urllib.parse import parse_qs
 
 from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
@@ -49,6 +51,8 @@ from volttron.utils import VolttronHomeFileReloader
 
 
 _log = logging.getLogger(__name__)
+
+SETUP_TOKEN_FILE = 'web-setup-token'
 
 
 def template_env(env):
@@ -115,22 +119,108 @@ class AdminEndpoints:
             (re.compile('^/admin.*'), 'callable', self.admin)
         ]
 
+    @staticmethod
+    def _setup_token_path() -> str:
+        return os.path.join(get_home(), SETUP_TOKEN_FILE)
+
+    def _ensure_setup_token(self) -> bool:
+        """Create the one-time setup token file when it does not exist yet.
+
+        Returns False when the file cannot be created, so setup is refused
+        instead of left open without a token.
+        """
+        token_path = self._setup_token_path()
+        if os.path.lexists(token_path):
+            return True
+        try:
+            fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        except FileExistsError:
+            return True
+        except OSError as exc:
+            _log.error("Web setup refused: cannot create the setup token file %s: %s", token_path, exc)
+            return False
+        try:
+            with os.fdopen(fd, 'w') as fp:
+                fp.write(secrets.token_urlsafe(32))
+        except OSError as exc:
+            _log.error("Web setup refused: cannot write the setup token file %s: %s", token_path, exc)
+            try:
+                os.remove(token_path)
+            except OSError as remove_exc:
+                _log.error("Cannot remove the incomplete setup token file %s: %s", token_path, remove_exc)
+            return False
+        _log.warning("No web users exist. Create the first administrator with the setup token in %s",
+                     token_path)
+        return True
+
+    def _read_setup_token(self) -> str:
+        with open(self._setup_token_path()) as fp:
+            return fp.read().strip()
+
+    @staticmethod
+    def _setup_page(env, status='200 OK'):
+        template = template_env(env).get_template('first.html')
+        return Response(template.render(), status=status, content_type="text/html")
+
+    @staticmethod
+    def _setup_unavailable():
+        return Response('Service temporarily unavailable', status='503 Service Unavailable',
+                        content_type='text/plain')
+
+    def _create_first_admin(self, env, data):
+        form = parse_qs(data)
+
+        def field(name: str) -> str:
+            # A repeated field is treated as absent rather than guessed at.
+            values = form.get(name, [])
+            return values[0] if len(values) == 1 else ''
+
+        submitted_token = field('setup_token')
+        username = field('username')
+        pass1 = field('password1')
+        pass2 = field('password2')
+        remote = env.get('REMOTE_ADDR', 'unknown')
+        token_path = self._setup_token_path()
+
+        try:
+            stored_token = self._read_setup_token()
+        except FileNotFoundError:
+            stored_token = ''
+        except (OSError, ValueError) as exc:
+            _log.error("Web setup refused: the setup token file %s is unusable: %s", token_path, exc)
+            return self._setup_unavailable()
+
+        # compare_digest('', '') is True, so both sides must be non-empty.
+        if not (submitted_token and stored_token
+                and hmac.compare_digest(submitted_token.encode('utf-8'), stored_token.encode('utf-8'))):
+            _log.warning("Web setup refused: missing or wrong setup token from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+
+        if not username.strip() or not pass1:
+            _log.warning("Web setup refused: blank username or password from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+
+        if pass1 != pass2:
+            return self._setup_page(env)
+
+        # The token is consumed before any credential is written.
+        try:
+            os.remove(token_path)
+        except OSError as exc:
+            _log.error("Web setup refused: cannot remove the setup token file %s: %s", token_path, exc)
+            return self._setup_unavailable()
+
+        _log.debug("Setting administrator password")
+        self.add_user(username, pass1, groups=['admin', 'vui'])
+        return Response('', status='302', headers={'Location': '/admin/login.html'})
+
     def admin(self, env, data):
         if len(self._userdict) == 0:
+            if not self._ensure_setup_token():
+                return self._setup_unavailable()
             if env.get('REQUEST_METHOD') == 'POST':
-                decoded = dict((k, v if len(v) > 1 else v[0])
-                               for k, v in parse_qs(data).items())
-                username = decoded.get('username')
-                pass1 = decoded.get('password1')
-                pass2 = decoded.get('password2')
-
-                if pass1 == pass2 and pass1 is not None:
-                    _log.debug("Setting administrator password")
-                    self.add_user(username, pass1, groups=['admin', 'vui'])
-                    return Response('', status='302', headers={'Location': '/admin/login.html'})
-
-            template = template_env(env).get_template('first.html')
-            return Response(template.render(), content_type="text/html")
+                return self._create_first_admin(env, data)
+            return self._setup_page(env)
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')

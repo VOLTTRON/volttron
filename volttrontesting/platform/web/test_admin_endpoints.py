@@ -23,21 +23,50 @@
 # }}}
 
 
+import os
+import stat
+from urllib.parse import urlencode
+
 import pytest
+from mock import patch
+from passlib.hash import argon2
+
+from volttron.platform import jsonapi
+from volttron.platform.web import admin_endpoints
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.utils import get_random_key
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from mock import patch
-from urllib.parse import urlencode
-from volttrontesting.utils.web_utils import get_test_web_env
 from volttrontesting.fixtures.volttron_platform_fixtures import \
     get_test_volttron_home, rmq_skipif
-
-from volttron.platform import jsonapi
-from passlib.hash import argon2
-import os
+from volttrontesting.utils.web_utils import get_test_web_env
 
 ___WEB_USER_FILE_NAME__ = 'web-users.json'
+SETUP_TOKEN_FILE_NAME = 'web-setup-token'
+SETUP_PAGE = 'first-page'
+
+
+def _request(adminep, method, form=None):
+    env = get_test_web_env('/admin/setpassword', method=method)
+    env['JINJA2_TEMPLATE_ENV'].get_template.return_value.render.return_value = SETUP_PAGE
+    return adminep.admin(env, urlencode(form or {}))
+
+
+def _issue_setup_token(adminep, vhome):
+    _request(adminep, 'GET')
+    with open(os.path.join(vhome, SETUP_TOKEN_FILE_NAME)) as fp:
+        return fp.read()
+
+
+def _stored_users(vhome):
+    path = os.path.join(vhome, ___WEB_USER_FILE_NAME__)
+    if not os.path.exists(path):
+        return {}
+    with open(path) as fp:
+        return jsonapi.load(fp)
+
+
+def _admin_form(token, username='bart', password='wowsa'):
+    return dict(username=username, password1=password, password2=password, setup_token=token)
 
 
 @pytest.mark.web
@@ -59,42 +88,155 @@ def test_admin_unauthorized():
 @pytest.mark.web
 def test_set_platform_password_setup():
     with get_test_volttron_home(messagebus='zmq') as vhome:
-        # Note these passwords are not right so we expect to be redirected back to the
-        # first.html
-        params = urlencode(dict(username='bart', password1='goodwin', password2='wowsa'))
-        env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-        jinja_mock = env['JINJA2_TEMPLATE_ENV']
         adminep = AdminEndpoints()
-        response = adminep.admin(env, params)
+        token = _issue_setup_token(adminep, vhome)
 
+        # Mismatched passwords return the setup page again.
+        response = _request(adminep, 'POST', dict(username='bart', password1='goodwin',
+                                                  password2='wowsa', setup_token=token))
         assert 'Location' not in response.headers
         assert 200 == response.status_code
         assert 'text/html' == response.headers.get('Content-Type')
+        assert SETUP_PAGE.encode() == response.get_data()
+        assert {} == _stored_users(vhome)
 
-        assert 1 == jinja_mock.get_template.call_count
-        assert ('first.html',) == jinja_mock.get_template.call_args[0]
-        assert 1 == jinja_mock.get_template.return_value.render.call_count
-        jinja_mock.reset_mock()
-
-        # Now we have the correct password1 and password2 set we expect to redirected to
-        # /admin/login.html
-        params = urlencode(dict(username='bart', password1='wowsa', password2='wowsa'))
-        env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-
-        # expect Location and Content-Type headers to be set
-        response = adminep.admin(env, params)
+        response = _request(adminep, 'POST', _admin_form(token))
         assert 3 == len(response.headers)
-        assert 'Location' in response.headers
         assert '/admin/login.html' == response.headers.get('Location')
         assert 302 == response.status_code
 
-        webuserpath = os.path.join(vhome, 'web-users.json')
-        with open(webuserpath) as wup:
-            users = jsonapi.load(wup)
-        assert users.get('bart') is not None
-        user = users.get('bart')
-        assert user['hashed_password'] is not None
+        user = _stored_users(vhome).get('bart')
+        assert user is not None
         assert argon2.verify("wowsa", user['hashed_password'])
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('form', [
+    dict(username='bart', password1='wowsa', password2='wowsa'),
+    dict(username='bart', password1='wowsa', password2='wowsa', setup_token=''),
+    dict(username='bart', password1='wowsa', password2='wowsa', setup_token='not-the-token'),
+])
+def test_first_admin_refused_without_the_setup_token(form):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+
+        response = _request(adminep, 'POST', form)
+
+        assert 403 == response.status_code
+        assert SETUP_PAGE.encode() == response.get_data()
+        assert not os.path.exists(os.path.join(vhome, ___WEB_USER_FILE_NAME__))
+        assert {} == adminep._userdict
+        with open(os.path.join(vhome, SETUP_TOKEN_FILE_NAME)) as fp:
+            assert token == fp.read()
+
+
+@pytest.mark.web
+def test_first_admin_created_with_the_setup_token_which_is_then_removed():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        assert len(token) >= 43
+
+        with patch.object(admin_endpoints.hmac, 'compare_digest',
+                          wraps=admin_endpoints.hmac.compare_digest) as compare:
+            response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 302 == response.status_code
+        assert '/admin/login.html' == response.headers.get('Location')
+        assert 1 == compare.call_count
+        users = _stored_users(vhome)
+        assert ['bart'] == list(users)
+        assert ['admin', 'vui'] == users['bart']['groups']
+        assert argon2.verify('wowsa', users['bart']['hashed_password'])
+        assert not os.path.lexists(os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+
+
+@pytest.mark.web
+def test_setup_token_is_single_use():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        assert 302 == _request(adminep, 'POST', _admin_form(token)).status_code
+
+        # A fresh endpoint with no users loaded still enters the setup branch.
+        replay = AdminEndpoints()
+        replay._userdict = {}
+        response = _request(replay, 'POST', _admin_form(token, password='other'))
+
+        assert 403 == response.status_code
+        users = _stored_users(vhome)
+        assert ['bart'] == list(users)
+        assert argon2.verify('wowsa', users['bart']['hashed_password'])
+
+
+@pytest.mark.web
+def test_setup_token_file_is_owner_only_and_token_is_not_logged(caplog):
+    caplog.set_level('DEBUG')
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+
+        st = os.lstat(token_path)
+        assert stat.S_ISREG(st.st_mode)
+        assert 0o600 == stat.S_IMODE(st.st_mode)
+        assert os.geteuid() == st.st_uid
+
+        _request(adminep, 'POST', _admin_form('not-the-token'))
+        _request(adminep, 'POST', _admin_form(token))
+
+        assert any(token_path in r.getMessage() for r in caplog.records
+                   if r.levelname == 'WARNING')
+        assert not any(token in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.web
+def test_empty_setup_token_file_never_matches():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.close(fd)
+
+        response = _request(adminep, 'POST', _admin_form(''))
+
+        assert 403 == response.status_code
+        assert {} == _stored_users(vhome)
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('username, password', [('', 'wowsa'), ('   ', 'wowsa'), ('bart', ''), (None, 'wowsa')])
+def test_first_admin_refused_with_blank_username_or_password(username, password):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        form = _admin_form(token, username=username, password=password)
+        if username is None:
+            del form['username']
+
+        response = _request(adminep, 'POST', form)
+
+        assert 403 == response.status_code
+        assert {} == _stored_users(vhome)
+        assert {} == adminep._userdict
+        assert os.path.exists(os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('method', ['GET', 'POST'])
+def test_setup_refused_when_the_token_file_cannot_be_written(method):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        os.chmod(vhome, 0o500)
+        try:
+            response = _request(adminep, method, _admin_form(''))
+        finally:
+            os.chmod(vhome, 0o700)
+
+        assert 503 == response.status_code
+        assert {} == _stored_users(vhome)
+        assert not os.path.lexists(os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
 
 
 @pytest.mark.web
