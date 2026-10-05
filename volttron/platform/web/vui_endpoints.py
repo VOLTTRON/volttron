@@ -71,32 +71,46 @@ def endpoint(func=None, *, admin_post=False):
 def _refuse_request(agent, env, admin_request):
     """Return the refusal Response for a VUI request, or None to proceed.
 
-    Every request needs a valid token in the ``vui`` group. An admin request
-    also needs the ``admin`` group, a token from the Authorization header
-    (never the cookie, which a browser sends on requests other sites make)
-    and a JSON content type.
+    Every request needs a valid token in the ``vui`` group. Any request other
+    than GET takes the token from the Authorization header, never the cookie,
+    which a browser sends on requests other sites make. An admin request also
+    needs the ``admin`` group and a JSON content type.
     """
-    from volttron.platform.web import get_authorization_bearer, get_bearer, get_claim_groups
+    from volttron.platform.web import (get_authorization_bearer, get_bearer, get_claim_groups,
+                                       printable_text)
+    path = printable_text(env.get('PATH_INFO'))
+    header_only = admin_request or env.get('REQUEST_METHOD') != 'GET'
     try:
-        bearer = get_authorization_bearer(env) if admin_request else get_bearer(env)
+        bearer = get_authorization_bearer(env) if header_only else get_bearer(env)
         if not bearer:
             raise ValueError('no bearer token')
         claims = agent.get_user_claims(bearer)
     except Exception as e:
-        _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
+        _log.warning(f"Unauthorized user attempted to connect to {path}. Caught Exception: {e}")
         return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
 
     groups = get_claim_groups(claims)
     if groups is None or 'vui' not in groups:
-        _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
+        _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {path}.")
         return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
     if admin_request and 'admin' not in groups:
-        _log.warning(f"Non-admin user attempted an admin request at {env.get('PATH_INFO')}.")
+        _log.warning(f"Non-admin user attempted an admin request at {path}.")
         return _forbidden()
     if admin_request and _media_type(env) != 'application/json':
         return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
                         content_type='application/json')
     return None
+
+
+def _same_origin(env):
+    # A browser sends the cookie on a websocket opened by any site, so a
+    # cookie-authenticated upgrade must come from a page served by this host.
+    from urllib.parse import urlparse
+    origin, host = env.get('HTTP_ORIGIN'), env.get('HTTP_HOST')
+    if not origin or not host:
+        return False
+    parsed = urlparse(origin)
+    return parsed.scheme in ('http', 'https') and parsed.netloc.lower() == host.lower()
 
 
 def _media_type(env):
@@ -805,7 +819,7 @@ class VUIEndpoints:
         # Not wrapped by @endpoint because the websocket upgrade needs
         # start_response; it applies the same checks, and publishing is held to
         # the rules for invoking an agent method.
-        from volttron.platform.web import describe_call_error, get_bearer
+        from volttron.platform.web import describe_call_error, get_authorization_bearer, get_bearer
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         refusal = _refuse_request(self._agent, env, admin_request=request_method in ('PUT', 'POST'))
@@ -827,13 +841,16 @@ class VUIEndpoints:
                 response = Response(json.dumps(ret_dict), 200, content_type='application/json')
                 return response
             else:
+                if get_authorization_bearer(env) is None and not _same_origin(env):
+                    _log.warning('Refused a cookie-authenticated pubsub subscription from another origin.')
+                    return _forbidden()
                 ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
                 env['ws4py.app'] = self.pubsub_manager
                 return [ws(env, start_response)]
 
         elif request_method == 'PUT':
             # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-            if type(data) is not dict:
+            if not topic or type(data) is not dict:
                 return Response(json.dumps({'error': 'malformed request body'}), 400,
                                 content_type='application/json')
             try:

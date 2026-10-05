@@ -108,7 +108,7 @@ def test_admin_publish_publishes_once():
 def test_vui_subscribe_opens_one_socket():
     vui, agent = _vui(claims=VUI_ONLY)
     response = _send(vui, TOPIC_PATH, 'GET', token=None, content_type=None,
-                     HTTP_COOKIE='Bearer=tok')
+                     HTTP_COOKIE='Bearer=tok', HTTP_ORIGIN='http://v2:8080')
     assert isinstance(response, list)
     vui.pubsub_manager.open_subscription_socket.assert_called_once_with(
         'tok', 'devices/campus/building/point')
@@ -215,3 +215,55 @@ def test_manager_does_not_log_tokens(caplog):
         manager.get_socket_routes('TOKEN-MARK')
     assert caplog.records
     assert 'TOKEN-MARK' not in caplog.text
+
+
+def _subscribe(vui, token=None, **env_kwargs):
+    kwargs = {'HTTP_HOST': 'v2:8080'}
+    kwargs.update(env_kwargs)
+    if token is None:
+        kwargs.setdefault('HTTP_COOKIE', 'Bearer=tok')
+    return _send(vui, TOPIC_PATH, 'GET', token=token, content_type=None, **kwargs)
+
+
+@pytest.mark.parametrize('origin', ['http://v2:8080', 'https://V2:8080'])
+def test_cookie_subscribe_from_the_same_origin_opens_a_socket(origin):
+    vui, agent = _vui(claims=VUI_ONLY)
+    response = _subscribe(vui, HTTP_ORIGIN=origin)
+    assert isinstance(response, list)
+    vui.pubsub_manager.open_subscription_socket.assert_called_once()
+
+
+@pytest.mark.parametrize('origin', ['http://other.example', 'http://v2:8081', 'http://v2:8080.other.example', 'ftp://v2:8080',
+                                    'null', '', None])
+def test_cookie_subscribe_from_another_or_no_origin_is_forbidden(origin):
+    vui, agent = _vui(claims=VUI_ONLY)
+    kwargs = {} if origin is None else {'HTTP_ORIGIN': origin}
+    response = _subscribe(vui, **kwargs)
+    assert response.status_code == 403
+    assert _nothing_done(vui, agent)
+
+
+def test_header_token_subscribe_is_not_origin_checked():
+    vui, agent = _vui(claims=VUI_ONLY)
+    response = _subscribe(vui, token='Bearer tok', HTTP_ORIGIN='http://other.example')
+    assert isinstance(response, list)
+    vui.pubsub_manager.open_subscription_socket.assert_called_once()
+
+
+def test_publish_to_an_empty_topic_is_rejected():
+    vui, agent = _vui()
+    response = _send(vui, f'/vui/platforms/{LOCAL}/pubsub//', 'PUT')
+    assert response.status_code == 400
+    assert _nothing_done(vui, agent)
+
+
+def test_publish_failure_is_logged_with_topic_and_type_only(caplog):
+    from volttron.platform.jsonrpc import RemoteError
+    vui, agent = _vui(real_manager=True)
+    agent.vip.pubsub.publish.return_value.get.side_effect = RemoteError(
+        'SECRET-MARK', exc_type='KeyError', exc_args=['SECRET-MARK'])
+    with caplog.at_level('INFO'):
+        response = _send(vui, TOPIC_PATH, 'PUT')
+    assert response.status_code == 500
+    assert "VUI publish to 'devices/campus/building/point' failed: KeyError" in caplog.text
+    assert 'SECRET-MARK' not in caplog.text
