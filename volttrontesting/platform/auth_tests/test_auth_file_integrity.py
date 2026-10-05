@@ -219,6 +219,32 @@ def test_empty_file_reads_as_no_entries_and_takes_a_change(auth_path):
 
 
 @pytest.mark.auth
+@pytest.mark.parametrize("text", ["\n", "  \n\t",
+                                  "# none yet\n// none\n/* none */\n"])
+def test_blank_or_comment_only_file_reads_as_no_entries(auth_path, text):
+    with open(auth_path, "w") as fil:
+        fil.write(text)
+    auth_file = AuthFile(auth_path)
+
+    assert auth_file.read_allow_entries() == []
+
+    auth_file.add(_entry("x", "X"))
+
+    assert _users(auth_path) == ["x"]
+
+
+@pytest.mark.auth
+def test_file_led_by_the_torn_write_marker_is_refused(auth_path):
+    with open(auth_path, "wb") as fil:
+        fil.write(b"\0 \n")
+
+    with pytest.raises(AuthFileReadError):
+        AuthFile(auth_path)
+
+    assert _bytes(auth_path) == b"\0 \n"
+
+
+@pytest.mark.auth
 def test_write_keeps_the_inode_and_mode(auth_path):
     _seed(auth_path, [_entry("x", "X"), _entry("w", "W")])
     os.chmod(auth_path, 0o640)
