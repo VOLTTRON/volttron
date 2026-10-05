@@ -24,6 +24,7 @@
 
 
 import os
+import re
 import stat
 from urllib.parse import urlencode
 
@@ -42,7 +43,7 @@ from volttrontesting.fixtures.volttron_platform_fixtures import \
 from volttrontesting.utils.web_utils import get_test_web_env
 
 ___WEB_USER_FILE_NAME__ = 'web-users.json'
-SETUP_TOKEN_FILE_NAME = 'web-setup-token'
+SETUP_TOKEN_FILE_NAME = admin_endpoints.SETUP_TOKEN_FILE
 SETUP_PAGE = 'first-page'
 
 
@@ -195,10 +196,10 @@ def test_setup_token_file_is_owner_only_and_token_is_not_logged(caplog):
 @pytest.mark.web
 def test_empty_setup_token_file_never_matches():
     with get_test_volttron_home(messagebus='zmq') as vhome:
-        adminep = AdminEndpoints()
         token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
         fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         os.close(fd)
+        adminep = AdminEndpoints()
 
         response = _request(adminep, 'POST', _admin_form(''))
 
@@ -228,9 +229,9 @@ def test_first_admin_refused_with_blank_username_or_password(username, password)
 @pytest.mark.parametrize('method', ['GET', 'POST'])
 def test_setup_refused_when_the_token_file_cannot_be_written(method):
     with get_test_volttron_home(messagebus='zmq') as vhome:
-        adminep = AdminEndpoints()
         os.chmod(vhome, 0o500)
         try:
+            adminep = AdminEndpoints()
             response = _request(adminep, method, _admin_form(''))
         finally:
             os.chmod(vhome, 0o700)
@@ -249,10 +250,10 @@ def _write_owner_only(path, content):
 @pytest.mark.web
 def test_symlinked_setup_token_file_is_refused():
     with get_test_volttron_home(messagebus='zmq') as vhome:
-        adminep = AdminEndpoints()
         target = os.path.join(vhome, 'elsewhere')
         _write_owner_only(target, 'known-token')
         os.symlink(target, os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+        adminep = AdminEndpoints()
 
         response = _request(adminep, 'POST', _admin_form('known-token'))
 
@@ -263,9 +264,9 @@ def test_symlinked_setup_token_file_is_refused():
 @pytest.mark.web
 def test_dangling_setup_token_symlink_target_is_not_created():
     with get_test_volttron_home(messagebus='zmq') as vhome:
-        adminep = AdminEndpoints()
         target = os.path.join(vhome, 'elsewhere')
         os.symlink(target, os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+        adminep = AdminEndpoints()
 
         _request(adminep, 'GET')
         response = _request(adminep, 'POST', _admin_form(''))
@@ -306,12 +307,12 @@ def test_setup_token_file_owned_by_another_user_is_refused():
 @pytest.mark.parametrize('kind', ['fifo', 'directory'])
 def test_setup_token_path_that_is_not_a_regular_file_is_refused(kind):
     with get_test_volttron_home(messagebus='zmq') as vhome:
-        adminep = AdminEndpoints()
         token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
         if kind == 'fifo':
             os.mkfifo(token_path, 0o600)
         else:
             os.mkdir(token_path, 0o700)
+        adminep = AdminEndpoints()
 
         response = _request(adminep, 'POST', _admin_form('anything'))
 
@@ -395,6 +396,88 @@ def test_unreadable_users_file_is_reported_as_unsupported_format():
 
         with pytest.raises(ValueError, match="File not in a supported format"):
             AdminEndpoints()
+
+
+@pytest.mark.web
+def test_setup_token_created_when_endpoints_start_without_users(caplog):
+    caplog.set_level('DEBUG')
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        AdminEndpoints()
+
+        st = os.lstat(token_path)
+        assert stat.S_ISREG(st.st_mode)
+        assert 0o600 == stat.S_IMODE(st.st_mode)
+        assert any(token_path in r.getMessage() for r in caplog.records if r.levelname == 'WARNING')
+
+
+@pytest.mark.web
+def test_existing_setup_token_is_reused_and_announced_at_each_start(caplog):
+    caplog.set_level('DEBUG')
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        AdminEndpoints()
+        with open(token_path) as fp:
+            first = fp.read()
+        caplog.clear()
+
+        AdminEndpoints()
+
+        with open(token_path) as fp:
+            assert first == fp.read()
+        assert any(token_path in r.getMessage() for r in caplog.records if r.levelname == 'WARNING')
+        assert not any(first in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.web
+def test_no_setup_token_created_when_users_exist():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        AdminEndpoints().add_user('bart', 'wowsa', ['admin'])
+        if os.path.lexists(token_path):
+            os.remove(token_path)
+
+        AdminEndpoints()
+
+        assert not os.path.lexists(token_path)
+
+
+@pytest.mark.web
+def test_setup_token_file_is_0600_under_a_restrictive_umask():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        previous = os.umask(0o277)
+        try:
+            adminep = AdminEndpoints()
+        finally:
+            os.umask(previous)
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        assert 0o600 == stat.S_IMODE(os.lstat(token_path).st_mode)
+        with open(token_path) as fp:
+            token = fp.read()
+
+        assert 302 == _request(adminep, 'POST', _admin_form(token)).status_code
+
+
+@pytest.mark.web
+def test_setup_page_template_posts_the_fields_the_handler_reads():
+    from volttron.platform.web.platform_web_service import tplenv
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        env = get_test_web_env('/admin/', method='GET', JINJA2_TEMPLATE_ENV=tplenv)
+        page = adminep.admin(env, '').get_data(as_text=True)
+
+        assert SETUP_TOKEN_FILE_NAME in page
+        names = re.findall(r'<input[^>]*\bname="([^"]+)"', page)
+        assert sorted(names) == ['password1', 'password2', 'setup_token', 'username']
+
+        with open(os.path.join(vhome, SETUP_TOKEN_FILE_NAME)) as fp:
+            token = fp.read()
+        values = dict(username='bart', password1='wowsa', password2='wowsa', setup_token=token)
+        env = get_test_web_env('/admin/setpassword', method='POST', JINJA2_TEMPLATE_ENV=tplenv)
+        response = adminep.admin(env, urlencode({name: values[name] for name in names}))
+
+        assert 302 == response.status_code
+        assert ['bart'] == list(_stored_users(vhome))
 
 
 @pytest.mark.web

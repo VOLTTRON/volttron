@@ -91,6 +91,8 @@ class AdminEndpoints:
 
         self._userdict = {}
         self.reload_userdict()
+        if not self._userdict:
+            self._prepare_setup_token()
 
         self._observer = Observer()
         self._observer.schedule(
@@ -125,6 +127,18 @@ class AdminEndpoints:
     def _setup_token_path() -> str:
         return os.path.join(get_home(), SETUP_TOKEN_FILE)
 
+    @staticmethod
+    def _announce_setup_token(token_path: str):
+        _log.warning("No web users exist. Create the first administrator with the setup token in %s",
+                     token_path)
+
+    def _prepare_setup_token(self):
+        """Create the setup token at start, or announce the one already there."""
+        token_path = self._setup_token_path()
+        existed = os.path.lexists(token_path)
+        if self._ensure_setup_token() and existed:
+            self._announce_setup_token(token_path)
+
     def _ensure_setup_token(self) -> bool:
         """Create the one-time setup token file when it does not exist yet.
 
@@ -142,8 +156,10 @@ class AdminEndpoints:
             _log.error("Web setup refused: cannot create the setup token file %s: %s", token_path, exc)
             return False
         try:
-            with os.fdopen(fd, 'w') as fp:
-                fp.write(secrets.token_urlsafe(32))
+            # The create mode is filtered by the umask; set it explicitly so the
+            # read-side 0600 check accepts the file.
+            os.fchmod(fd, 0o600)
+            os.write(fd, secrets.token_urlsafe(32).encode('ascii'))
         except OSError as exc:
             _log.error("Web setup refused: cannot write the setup token file %s: %s", token_path, exc)
             try:
@@ -151,8 +167,9 @@ class AdminEndpoints:
             except OSError as remove_exc:
                 _log.error("Cannot remove the incomplete setup token file %s: %s", token_path, remove_exc)
             return False
-        _log.warning("No web users exist. Create the first administrator with the setup token in %s",
-                     token_path)
+        finally:
+            os.close(fd)
+        self._announce_setup_token(token_path)
         return True
 
     def _read_setup_token(self) -> str:
