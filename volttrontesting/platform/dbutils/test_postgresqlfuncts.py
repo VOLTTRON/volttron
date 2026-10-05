@@ -1151,3 +1151,25 @@ def test_cleanup_drops_only_the_derived_leftover_tables(live_db):
 
     assert _table_exists(conn, "odd_cz_canary")
     assert not _table_exists(conn, f"{data_table}_old")
+
+
+def _clipped(name, max_bytes):
+    return name.encode()[:max_bytes].decode("utf-8", "ignore")
+
+
+@pytest.mark.parametrize("length", [49, 50, 63])
+def test_manual_table_rebuild_twice_with_long_table_names(live_db, length):
+    conn, make_functs, _ = live_db
+    data_table = "odd_long_" + "x" * (length - 9)
+    functs = make_functs(data_table)
+    _create_data_table(conn, data_table, rows=3)
+
+    assert functs.manual_table_rebuild() is True
+    assert functs.manual_table_rebuild() is True
+
+    # PostgreSQL keeps 63 bytes of a name; the table part is shortened so the
+    # suffix that tells the names apart survives.
+    unique_key = _clipped(data_table, 63 - len("_topic_id_ts_key")) + "_topic_id_ts_key"
+    assert _row_count(conn, data_table) == 3
+    assert _index_names(conn, data_table) == {_clipped("idx_" + data_table, 63), unique_key}
+    assert _unique_constraint_names(conn, data_table) == {unique_key}

@@ -61,6 +61,16 @@ def _check_configured_name(field, name):
     return name
 
 
+# PostgreSQL keeps the first 63 bytes of an identifier and drops the rest.
+_MAX_IDENTIFIER_BYTES = 63
+
+
+def _derived_name(base, prefix='', suffix=''):
+    """Return prefix + base + suffix, shortening base so the whole name fits in 63 bytes."""
+    room = _MAX_IDENTIFIER_BYTES - len((prefix + suffix).encode())
+    return prefix + base.encode()[:room].decode('utf-8', 'ignore') + suffix
+
+
 def _quote_identifier(name):
     return '"' + name.replace('"', '""') + '"'
 
@@ -681,7 +691,7 @@ class PostgreSqlFuncts(DbDriver):
         """Clean up any temporary tables left from failed operations"""
         try:
             # Clean up potential leftover tables
-            cleanup_tables = [f'{self.data_table}_new', f'{self.data_table}_temp', f'{self.data_table}_old']
+            cleanup_tables = [_derived_name(self.data_table, suffix=s) for s in ('_new', '_temp', '_old')]
             for table in cleanup_tables:
                 try:
                     self.execute_stmt(
@@ -698,7 +708,8 @@ class PostgreSqlFuncts(DbDriver):
         """Return the (ts index, unique constraint) names for the data table."""
         # Named after the table, as setup_historian_tables names its ts index,
         # so data tables sharing a schema never compete for one index name.
-        return f"idx_{self.data_table}", f"{self.data_table}_topic_id_ts_key"
+        return (_derived_name(self.data_table, prefix='idx_'),
+                _derived_name(self.data_table, suffix='_topic_id_ts_key'))
 
     def _verify_post_rebuild_schema(self):
         """Raise RuntimeError unless the data table has its unique constraint and ts index."""
@@ -742,8 +753,8 @@ class PostgreSqlFuncts(DbDriver):
 
             # Names
             tbl_id = Identifier(self.data_table)
-            tbl_new_id = Identifier(f"{self.data_table}_new")
-            tbl_old_id = Identifier(f"{self.data_table}_old")
+            tbl_new_id = Identifier(_derived_name(self.data_table, suffix="_new"))
+            tbl_old_id = Identifier(_derived_name(self.data_table, suffix="_old"))
             schema_tbl_id = SQL("public.{}").format(tbl_id)
             schema_tbl_new_id = SQL("public.{}").format(tbl_new_id)
             schema_tbl_old_id = SQL("public.{}").format(tbl_old_id)
@@ -753,8 +764,8 @@ class PostgreSqlFuncts(DbDriver):
 
             # Temp names for constraint and indexes
             tmp_con_name = f"data_topic_id_ts_key_{suf}"
-            uniq_idx_name = f"{self.data_table}_topic_id_ts_{suf}"
-            ts_idx_name = f"{self.data_table}_ts_{suf}"
+            uniq_idx_name = f"tmp_{suf}_topic_id_ts"
+            ts_idx_name = f"tmp_{suf}_ts"
             tmp_con_id = Identifier(tmp_con_name)
             uniq_idx_id = Identifier(uniq_idx_name)
             ts_idx_id = Identifier(ts_idx_name)
