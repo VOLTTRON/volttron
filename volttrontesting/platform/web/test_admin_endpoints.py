@@ -388,6 +388,16 @@ def test_concurrent_first_admin_posts_create_one_admin():
 
 
 @pytest.mark.web
+def test_unreadable_users_file_is_reported_as_unsupported_format():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        with open(os.path.join(vhome, ___WEB_USER_FILE_NAME__), 'w') as fp:
+            fp.write('{not json')
+
+        with pytest.raises(ValueError, match="File not in a supported format"):
+            AdminEndpoints()
+
+
+@pytest.mark.web
 def test_admin_login_page():
     with get_test_volttron_home(messagebus='zmq'):
         username_test = "mytest"
