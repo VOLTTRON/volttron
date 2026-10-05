@@ -239,6 +239,85 @@ def test_setup_refused_when_the_token_file_cannot_be_written(method):
         assert not os.path.lexists(os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
 
 
+def _write_owner_only(path, content):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'w') as fp:
+        fp.write(content)
+
+
+@pytest.mark.web
+def test_symlinked_setup_token_file_is_refused():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        target = os.path.join(vhome, 'elsewhere')
+        _write_owner_only(target, 'known-token')
+        os.symlink(target, os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+
+        response = _request(adminep, 'POST', _admin_form('known-token'))
+
+        assert 503 == response.status_code
+        assert {} == _stored_users(vhome)
+
+
+@pytest.mark.web
+def test_dangling_setup_token_symlink_target_is_not_created():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        target = os.path.join(vhome, 'elsewhere')
+        os.symlink(target, os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+
+        _request(adminep, 'GET')
+        response = _request(adminep, 'POST', _admin_form(''))
+
+        assert not os.path.lexists(target)
+        assert response.status_code in (403, 503)
+        assert {} == _stored_users(vhome)
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('mode', [0o400, 0o640, 0o644, 0o660, 0o606])
+def test_setup_token_file_must_be_mode_0600(mode):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        os.chmod(os.path.join(vhome, SETUP_TOKEN_FILE_NAME), mode)
+
+        response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 503 == response.status_code
+        assert {} == _stored_users(vhome)
+
+
+@pytest.mark.web
+def test_setup_token_file_owned_by_another_user_is_refused():
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+
+        with patch.object(admin_endpoints.os, 'geteuid', return_value=os.geteuid() + 1):
+            response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 503 == response.status_code
+        assert {} == _stored_users(vhome)
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('kind', ['fifo', 'directory'])
+def test_setup_token_path_that_is_not_a_regular_file_is_refused(kind):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        if kind == 'fifo':
+            os.mkfifo(token_path, 0o600)
+        else:
+            os.mkdir(token_path, 0o700)
+
+        response = _request(adminep, 'POST', _admin_form('anything'))
+
+        assert 503 == response.status_code
+        assert {} == _stored_users(vhome)
+
+
 @pytest.mark.web
 def test_admin_login_page():
     with get_test_volttron_home(messagebus='zmq'):

@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import secrets
+import stat
 from urllib.parse import parse_qs
 
 from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
@@ -154,8 +155,21 @@ class AdminEndpoints:
         return True
 
     def _read_setup_token(self) -> str:
-        with open(self._setup_token_path()) as fp:
-            return fp.read().strip()
+        """Read the setup token, refusing any file the platform user does not solely own.
+
+        O_NONBLOCK keeps a FIFO planted at the path from blocking the server.
+        Raises OSError or ValueError when the file must not be trusted.
+        """
+        fd = os.open(self._setup_token_path(), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as fp:
+            st = os.fstat(fp.fileno())
+            if not stat.S_ISREG(st.st_mode):
+                raise ValueError("not a regular file")
+            if st.st_uid != os.geteuid():
+                raise ValueError("not owned by the platform user")
+            if stat.S_IMODE(st.st_mode) != 0o600:
+                raise ValueError(f"mode is {stat.S_IMODE(st.st_mode):o}, not 600")
+            return fp.read().decode('ascii').strip()
 
     @staticmethod
     def _setup_page(env, status='200 OK'):
