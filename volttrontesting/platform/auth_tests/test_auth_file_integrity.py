@@ -28,13 +28,17 @@ what a later change is built from, older or emptier than the file was
 import contextlib
 import errno
 import fcntl
+import logging
 import os
 import stat
 import time
+import uuid
+from types import SimpleNamespace
 
 import gevent
 import gevent.event
 import pytest
+from zmq import green as zmq
 
 from volttron.platform import jsonapi
 from volttron.platform.auth import AuthFile
@@ -42,8 +46,9 @@ from volttron.platform.auth import auth_file as auth_file_module
 from volttron.platform.auth.auth_file import (AuthFileLockError,
                                               AuthFileLockTimeout,
                                               AuthFileReadError)
+from volttron.platform.vip.socket import encode_key
 from volttrontesting.platform.auth_tests.test_auth_file_lock import (
-    _bytes, _entry, _hold_lock, _key, _seed, _service, _users)
+    _bytes, _disk_allow, _entry, _hold_lock, _key, _seed, _service, _users)
 
 
 @pytest.fixture
@@ -290,6 +295,71 @@ def test_zmq_decision_that_cannot_be_written_keeps_it_pending(
         disk = jsonapi.load(fil)
     decided = disk["allow"] if approve else disk["deny"]
     assert [e["credentials"] for e in decided] == [_key("P")]
+
+
+@contextlib.contextmanager
+def _zap_loop(auth_path):
+    """Runs the ZAP loop in setup mode on its own inproc socket and yields
+    the loop greenlet and a function sending one CURVE request."""
+    from volttron.platform.auth.auth_protocols.auth_zmq import \
+        ZMQServerAuthentication
+
+    service = _service(auth_path)
+    service._setup_mode = True
+    service.allow_any = False
+    service.core = SimpleNamespace(socket=SimpleNamespace(
+        send_vip=lambda *args, **kwargs: None))
+    server = ZMQServerAuthentication(service)
+    context = zmq.Context()
+    address = "inproc://zap-{}".format(uuid.uuid4())
+    server.zap_socket = context.socket(zmq.ROUTER)
+    server.zap_socket.bind(address)
+    client = context.socket(zmq.DEALER)
+    client.connect(address)
+
+    def request(request_id, raw_key):
+        client.send_multipart([b"", b"1.0", request_id, b"vip",
+                               b"127.0.0.1", b"", b"CURVE", raw_key])
+        if not client.poll(5000):
+            return None
+        return client.recv_multipart()
+
+    loop = gevent.spawn(server.handle_authentication, {})
+    try:
+        yield loop, request
+    finally:
+        loop.kill()
+        client.close(linger=0)
+        server.zap_socket.close(linger=0)
+        context.term()
+
+
+def _zap_success(request_id):
+    return [b"", b"1.0", request_id, b"200", b"SUCCESS", b"", b""]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("failure", sorted(FAILURES))
+def test_setup_mode_answers_a_request_it_cannot_record(auth_path, monkeypatch,
+                                                       caplog, failure):
+    monkeypatch.setattr(AuthFile, "lock_timeout", 0.2)
+    _seed(auth_path)
+    condition, _ = FAILURES[failure]
+
+    with _zap_loop(auth_path) as (loop, request):
+        with caplog.at_level(logging.ERROR):
+            with condition(auth_path):
+                replies = [request(b"1", b"A" * 32), request(b"2", b"B" * 32)]
+        assert replies == [_zap_success(b"1"), _zap_success(b"2")]
+        assert not loop.dead
+        assert _users(auth_path) == []
+        assert [r for r in caplog.records if r.levelno == logging.ERROR
+                and "not recorded" in r.getMessage()]
+
+        assert request(b"3", b"C" * 32) == _zap_success(b"3")
+
+    assert [e["credentials"] for e in _disk_allow(auth_path)] == [
+        encode_key(b"C" * 32)]
 
 
 @pytest.mark.auth

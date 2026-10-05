@@ -273,18 +273,33 @@ class ZMQServerAuthentication(BaseServerAuthentication):
                     )
                     # If in setup mode, add/update auth entry
                     if self.auth_service._setup_mode:
-                        self.authorization._update_auth_entry(
-                            domain, address, kind, credentials[0], userid)
-                        _log.info(
-                            "new authentication entry added in setup mode: "
-                            "domain=%r, address=%r, "
-                            "mechanism=%r, credentials=%r, user_id=%r",
-                            domain,
-                            address,
-                            kind,
-                            credentials[:1],
-                            userid,
-                        )
+                        # The reply does not depend on the write, and an
+                        # exception here would end this loop, leaving every
+                        # later connection unanswered.
+                        try:
+                            self.authorization._update_auth_entry(
+                                domain, address, kind, credentials[0], userid)
+                        except Exception:
+                            _log.exception(
+                                "authentication entry not recorded in setup "
+                                "mode: domain=%r, address=%r, mechanism=%r, "
+                                "credentials=%r",
+                                domain,
+                                address,
+                                kind,
+                                credentials[:1],
+                            )
+                        else:
+                            _log.info(
+                                "new authentication entry added in setup "
+                                "mode: domain=%r, address=%r, "
+                                "mechanism=%r, credentials=%r, user_id=%r",
+                                domain,
+                                address,
+                                kind,
+                                credentials[:1],
+                                userid,
+                            )
                         response.extend([b"200", b"SUCCESS", b"", b""])
                         _log.debug("AUTH response: {}".format(response))
                         sock.send_multipart(response)
