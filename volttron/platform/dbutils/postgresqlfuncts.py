@@ -50,15 +50,31 @@ Implementation of PostgreSQL database operation for
 For method details please refer to base class
 :py:class:`volttron.platform.dbutils.basedb.DbDriver`
 """
+
+
+def _check_configured_name(field, name):
+    """Raise ValueError if a configured database or table name holds '%' or a control character."""
+    # psycopg2 formats '%' placeholders anywhere in the statement text, quoted
+    # identifiers included, so such a name could take on a bound value.
+    if isinstance(name, str) and any(c == '%' or ord(c) < 32 or ord(c) == 127 for c in name):
+        raise ValueError(f"PostgreSQL {field} {name!r} must not contain '%' or control characters")
+    return name
+
+
+def _quote_identifier(name):
+    return '"' + name.replace('"', '""') + '"'
+
+
 class PostgreSqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
-        self.db_name = connect_params.get('dbname')
+        self.db_name = _check_configured_name('dbname', connect_params.get('dbname'))
         if table_names:
-            self.data_table = table_names['data_table']
-            self.topics_table = table_names['topics_table']
-            self.meta_table = table_names['meta_table']
-            self.agg_topics_table = table_names.get('agg_topics_table')
-            self.agg_meta_table = table_names.get('agg_meta_table')
+            self.data_table = _check_configured_name('data_table', table_names['data_table'])
+            self.topics_table = _check_configured_name('topics_table', table_names['topics_table'])
+            self.meta_table = _check_configured_name('meta_table', table_names['meta_table'])
+            self.agg_topics_table = _check_configured_name(
+                'agg_topics_table', table_names.get('agg_topics_table'))
+            self.agg_meta_table = _check_configured_name('agg_meta_table', table_names.get('agg_meta_table'))
         self.connect_params = copy.deepcopy(connect_params)
         if "timescale_dialect" in connect_params:
             self.timescale_dialect = connect_params.get("timescale_dialect", False)
@@ -496,7 +512,7 @@ class PostgreSqlFuncts(DbDriver):
         # except Exception as e:
         #     return False, f"pg_repack check failed: {e}"
 
-    _TABLE_NAME_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+    _TABLE_NAME_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 
     @classmethod
     def _validate_table_name_for_argv(cls, name: str) -> str:
@@ -504,7 +520,7 @@ class PostgreSqlFuncts(DbDriver):
 
         pg_repack parses --table itself, so SQL quoting cannot protect it there.
         """
-        if not cls._TABLE_NAME_RE.match(name):
+        if not cls._TABLE_NAME_RE.fullmatch(name):
             raise ValueError(
                 f"data_table name {name!r} contains characters that are not "
                 "permitted in an unquoted PostgreSQL identifier. Only ASCII "
@@ -815,6 +831,7 @@ class PostgreSqlFuncts(DbDriver):
             # mode, so only an explicit COMMIT ends the BEGIN above.
             self.execute_stmt("COMMIT")
 
+            # Autocommit again from here: the commit() calls below are no-ops kept for a non-autocommit connection.
             # Drop old table and its indexes (outside txn to minimize lock time)
             try:
                 self.execute_stmt(
@@ -893,22 +910,21 @@ class PostgreSqlFuncts(DbDriver):
     def delete_rows_by_chunks(self, rows_to_delete, chunk_size=5000):
         """Delete rows in fixed chunks using ctid with improved performance"""
         total_deleted = 0
+        tbl_id = SQL("public.{}").format(Identifier(self.data_table))
+        delete_query = SQL("""
+           WITH del AS (
+               SELECT ctid
+               FROM {}
+               ORDER BY ts ASC
+               LIMIT %s
+           )
+           DELETE FROM {} d
+           USING del
+           WHERE d.ctid = del.ctid
+           """).format(tbl_id, tbl_id)
 
         while total_deleted < rows_to_delete:
             remaining = min(chunk_size, rows_to_delete - total_deleted)
-
-            tbl_id = SQL("public.{}").format(Identifier(self.data_table))
-            delete_query = SQL("""
-               WITH del AS (
-                   SELECT ctid
-                   FROM {}
-                   ORDER BY ts ASC
-                   LIMIT %s
-               )
-               DELETE FROM {} d
-               USING del
-               WHERE d.ctid = del.ctid
-               """).format(tbl_id, tbl_id)
 
             deleted_count = self.execute_stmt(delete_query, (remaining,))
             if deleted_count == 0:
@@ -937,7 +953,8 @@ class PostgreSqlFuncts(DbDriver):
         _log.warning("Space will NOT be fully reclaimed with this deletion method.")
         _log.warning("")
         _log.warning("MANUAL CLEANUP REQUIRED:")
-        _log.warning(f"Run 'VACUUM FULL {self.data_table};' during scheduled downtime to reclaim disk space.")
+        _log.warning(f"Run 'VACUUM FULL public.{_quote_identifier(self.data_table)};' "
+                     "during scheduled downtime to reclaim disk space.")
         _log.warning(f"WARNING: VACUUM FULL will lock table for ~{estimated_vacuum_time} minutes")
         _log.warning("During this time, table will be UNAVAILABLE for reads and writes.")
         _log.warning("=" * 60)

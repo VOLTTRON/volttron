@@ -1011,7 +1011,7 @@ def test_manual_table_rebuild_commits_and_releases_the_table(live_db):
 
 
 @pytest.mark.parametrize("bad_name", [
-    'data"; x', "data'; x", "my table", "data-table", "1data", "data;x", "public.data",
+    'data"; x', "data'; x", "my table", "data-table", "1data", "data;x", "public.data", "data\n",
 ])
 def test_pg_repack_table_argument_refuses_names_outside_plain_identifiers(bad_name):
     with pytest.raises(ValueError, match="data_table name"):
@@ -1021,3 +1021,66 @@ def test_pg_repack_table_argument_refuses_names_outside_plain_identifiers(bad_na
 @pytest.mark.parametrize("good_name", ["data", "_private", "sensor_data_2024", "Data"])
 def test_pg_repack_table_argument_accepts_plain_identifiers(good_name):
     assert PostgreSqlFuncts._validate_table_name_for_argv(good_name) == good_name
+
+
+_NAMED_TABLES = {
+    "data_table": "data",
+    "topics_table": "topics",
+    "meta_table": "meta",
+    "agg_topics_table": "aggregate_topics",
+    "agg_meta_table": "aggregate_meta",
+}
+
+
+@pytest.mark.parametrize("bad_char", ["%", "\x00", "\n", "\x1f", "\x7f"])
+@pytest.mark.parametrize("field", ["dbname"] + list(_NAMED_TABLES))
+def test_configured_names_refuse_percent_and_control_characters(field, bad_char):
+    params = {"dbname": "test_historian"}
+    names = dict(_NAMED_TABLES)
+    bad_name = f"odd{bad_char}name"
+    if field == "dbname":
+        params["dbname"] = bad_name
+    else:
+        names[field] = bad_name
+
+    with pytest.raises(ValueError, match=field):
+        PostgreSqlFuncts(params, names)
+
+
+def test_configured_names_accept_plain_and_quoted_names():
+    names = dict(_NAMED_TABLES, data_table=ODD_DATA_TABLE, topics_table=ODD_TOPICS_TABLE)
+    functs = PostgreSqlFuncts({"dbname": "test_historian"}, names)
+    assert functs.data_table == ODD_DATA_TABLE
+    assert functs.topics_table == ODD_TOPICS_TABLE
+
+
+def test_topic_value_cannot_reach_the_topics_table_name(live_db):
+    conn, make_functs, drop_later = live_db
+    # psycopg2 formats %(topic)s anywhere in the statement text, including
+    # inside a quoted identifier, so this decoy would receive the insert.
+    decoy = "odd_t'dev'"
+    drop_later(decoy)
+    _run(conn, SQL("CREATE TABLE {} (topic_id SERIAL PRIMARY KEY, topic_name VARCHAR(512))").format(
+        Identifier(decoy)))
+
+    error = None
+    try:
+        functs = make_functs("odd_data_t", topics_table="odd_t%(topic)s")
+        functs.insert_topic("dev")
+    except (ValueError, psycopg2.Error) as exc:
+        error = exc
+    assert _row_count(conn, decoy) == 0
+    assert isinstance(error, ValueError)
+
+
+def test_vacuum_advice_names_the_table_as_a_quoted_identifier(caplog):
+    functs = PostgreSqlFuncts.__new__(PostgreSqlFuncts)
+    functs.data_table = ODD_DATA_TABLE
+    functs.delete_rows_by_chunks = lambda rows, chunk_size=5000: 0
+    functs.execute_stmt = lambda *args, **kwargs: 0
+    metrics = {"total_bytes": 2048, "reltuples": 2}
+
+    with caplog.at_level(logging.WARNING, logger="volttron.platform.dbutils.postgresqlfuncts"):
+        functs.delete_without_rebuild(metrics, 1024)
+
+    assert "Run 'VACUUM FULL public.\"Odd\"\"Da'ta; --\";'" in caplog.text
