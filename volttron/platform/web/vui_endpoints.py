@@ -488,9 +488,9 @@ class VUIEndpoints:
         if _rpc_target_refused(vip_identity):
             return _forbidden()
         if request_method == 'GET':
-            method_dict = self._rpc(vip_identity, 'inspect', external_platform=platform)
-            response = self._links(path_info, method_dict.get('methods'))
-            return Response(json.dumps(response), 200, content_type='application/json')
+            return self._agent_rpc_response(
+                vip_identity, 'inspect', [], {}, platform,
+                lambda method_dict: self._links(path_info, method_dict.get('methods')))
 
     @endpoint(admin_post=True)
     def handle_platforms_agents_rpc_method(self, env: dict, data: Union[dict, List]) -> Response:
@@ -522,16 +522,20 @@ class VUIEndpoints:
                                 content_type='application/json')
             return self._agent_rpc_response(vip_identity, method_name, args, kwargs, platform)
 
-    def _agent_rpc_response(self, vip_identity, method_name, args, kwargs, platform):
+    def _agent_rpc_response(self, vip_identity, method_name, args, kwargs, platform, shape=None):
         # Fixed error bodies: exception text can carry remote detail.
+        from volttron.platform.web import describe_call_error
         try:
             result = self._rpc(vip_identity, method_name, *args, **kwargs, external_platform=platform)
+            if shape is not None:
+                result = shape(result)
         except (MethodNotFound, ValueError):
             return Response(json.dumps({'error': 'method not found'}), 400, content_type='application/json')
         except Timeout:
+            _log.error(f'Agent RPC {vip_identity!r} {method_name!r} timed out')
             return Response(json.dumps({'error': 'timed out'}), 504, content_type='application/json')
         except Exception as e:
-            _log.error(f'Agent RPC {vip_identity!r} {method_name!r} failed: {type(e).__name__}')
+            _log.error(f'Agent RPC {vip_identity!r} {method_name!r} failed: {describe_call_error(e)}')
             return Response(json.dumps({'error': 'call failed'}), 500, content_type='application/json')
         return Response(json.dumps(result), 200, content_type='application/json')
 
@@ -784,9 +788,6 @@ class VUIEndpoints:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
-        _log.debug('VUI.handle_platforms_pubsub -- env is: ')
-        _log.debug({k: str(v) for k, v in env.items()})
-        _log.debug(f'HTTP_AUTHORIZATION is: {env["HTTP_AUTHORIZATION"]}')
         access_token = get_bearer(env)
 
         no_topic = re.match('^/vui/platforms/([^/]+)/pubsub/?$', path_info)
@@ -805,8 +806,6 @@ class VUIEndpoints:
             else:
                 ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
                 env['ws4py.app'] = self.pubsub_manager
-                _log.debug('ENV is:')
-                _log.debug(env)
                 return [ws(env, start_response)]
 
         elif request_method == 'PUT':

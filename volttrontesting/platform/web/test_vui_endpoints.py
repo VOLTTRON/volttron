@@ -973,6 +973,20 @@ def test_handle_platforms_devices_delete_response(mock_platform_web_service, top
 
 def test_handle_platforms_pubsub(mock_platform_web_service):
     pass
+
+
+def test_handle_platforms_pubsub_does_not_log_the_token(mock_platform_web_service, caplog):
+    vui_endpoints = VUIEndpoints(mock_platform_web_service)
+    vui_endpoints.pubsub_manager = MagicMock()
+    vui_endpoints.pubsub_manager.get_socket_routes.return_value = {}
+    env = get_test_web_env('/vui/platforms/my_instance_name/pubsub', method='GET',
+                           HTTP_AUTHORIZATION='Bearer TOKEN-MARK', HTTP_COOKIE='Bearer=COOKIE-MARK')
+    with caplog.at_level('DEBUG'):
+        response = vui_endpoints.handle_platforms_pubsub(env, MagicMock(), {})
+    assert response.status_code == 200
+    vui_endpoints.pubsub_manager.get_socket_routes.assert_called_once_with('TOKEN-MARK', '')
+    assert 'TOKEN-MARK' not in caplog.text
+    assert 'COOKIE-MARK' not in caplog.text
 # TODO: handle_platforms_pubsub
 
 

@@ -33,7 +33,7 @@ import gevent
 import pytest
 
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
-from volttron.platform.jsonrpc import MethodNotFound
+from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform.web.vui_endpoints import VUIEndpoints
 from volttrontesting.utils.web_utils import get_test_web_env
@@ -178,6 +178,17 @@ def test_missing_or_malformed_groups_is_forbidden(claims, method):
     assert _calls(agent) == []
 
 
+@pytest.mark.parametrize('groups', [['admin'], []], ids=['admin-only', 'empty'])
+@pytest.mark.parametrize('method', ['GET', 'POST'])
+def test_vui_group_is_required(groups, method):
+    vui, agent = _vui(claims={'groups': groups})
+    env = _env(_method_path('some.agent', 'do_thing'), method=method)
+    assert vui.handle_platforms_agents_rpc_method(env, {}).status_code == 403
+    env = _env(f'/vui/platforms/{LOCAL}/agents/some.agent/rpc/', method='GET')
+    assert vui.handle_platforms_agents_rpc(env, {}).status_code == 403
+    assert _calls(agent) == []
+
+
 def test_cookie_token_does_not_authorize_a_post():
     vui, agent = _vui()
     status, _ = _invoke(vui, _method_path('some.agent', 'do_thing'), {}, token=None,
@@ -191,7 +202,7 @@ def test_cookie_post_with_a_disguised_json_type_is_refused():
     vui, agent = _vui()
     status, _ = _invoke(vui, _method_path('some.agent', 'do_thing'), {}, token=None,
                         HTTP_COOKIE='Bearer=tok', content_type='text/plain; x=application/json')
-    assert 400 <= status < 500
+    assert status == 401
     assert _calls(agent) == []
 
 
@@ -231,6 +242,42 @@ def test_call_errors_return_fixed_bodies(error, expected):
     status, raw = _invoke(vui, _method_path('some.agent', 'do_thing'), {})
     assert status == expected
     assert b'SECRET-MARK' not in raw
+
+
+@pytest.mark.parametrize('error, expected', [
+    (RuntimeError('SECRET-MARK'), 500),
+    (MethodNotFound(-32601, 'SECRET-MARK'), 400),
+    (gevent.Timeout(), 504),
+])
+def test_method_listing_errors_return_fixed_bodies(error, expected):
+    vui, agent = _vui()
+    agent.vip.rpc.call.return_value.get.side_effect = error
+    env = _env(f'/vui/platforms/{LOCAL}/agents/some.agent/rpc/', method='GET')
+    response = vui.handle_platforms_agents_rpc(env, {})
+    assert response.status_code == expected
+    assert b'SECRET-MARK' not in response.get_data()
+
+
+def test_method_listing_returns_links():
+    vui, agent = _vui(result={'methods': ['do_thing']})
+    path = f'/vui/platforms/{LOCAL}/agents/some.agent/rpc'
+    response = vui.handle_platforms_agents_rpc(_env(path, method='GET'), {})
+    assert response.status_code == 200
+    assert json.loads(response.get_data()) == {'links': {'do_thing': f'{path}/do_thing'}}
+    assert agent.vip.rpc.call.call_args[0][:2] == ('some.agent', 'inspect')
+
+
+def test_timeouts_and_failures_are_logged_without_detail(caplog):
+    vui, agent = _vui()
+    with caplog.at_level('INFO'):
+        agent.vip.rpc.call.return_value.get.side_effect = gevent.Timeout()
+        _invoke(vui, _method_path('some.agent', 'do_thing'), {})
+        agent.vip.rpc.call.return_value.get.side_effect = RemoteError(
+            'SECRET-MARK', exc_type='KeyError', exc_args=['SECRET-MARK'])
+        _invoke(vui, _method_path('some.agent', 'do_thing'), {})
+    assert 'timed out' in caplog.text
+    assert 'KeyError' in caplog.text
+    assert 'SECRET-MARK' not in caplog.text
 
 
 def test_malformed_body_returns_a_fixed_error():
