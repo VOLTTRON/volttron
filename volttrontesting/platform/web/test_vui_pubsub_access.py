@@ -267,3 +267,60 @@ def test_publish_failure_is_logged_with_topic_and_type_only(caplog):
     assert response.status_code == 500
     assert "VUI publish to 'devices/campus/building/point' failed: KeyError" in caplog.text
     assert 'SECRET-MARK' not in caplog.text
+
+
+@pytest.mark.parametrize('path', [f'/vui/platforms/{LOCAL}/pubsub///', f'/vui/platforms/{LOCAL}/pubsub/ ',
+                                  f'/vui/platforms/{LOCAL}/pubsub/ / /'])
+def test_publish_to_a_blank_topic_is_rejected(path):
+    vui, agent = _vui()
+    response = _send(vui, path, 'PUT')
+    assert response.status_code == 400
+    assert _nothing_done(vui, agent)
+
+
+def test_cookie_subscribe_without_a_host_header_is_forbidden():
+    vui, agent = _vui(claims=VUI_ONLY)
+    env = _env(TOPIC_PATH, 'GET', token=None, content_type=None, HTTP_COOKIE='Bearer=tok',
+               HTTP_ORIGIN='http://v2:8080')
+    del env['HTTP_HOST']
+    response = vui.handle_platforms_pubsub(env, MagicMock(), {})
+    assert response.status_code == 403
+    assert _nothing_done(vui, agent)
+
+
+def test_cookie_subscribe_with_an_upper_case_host_header_is_allowed():
+    vui, agent = _vui(claims=VUI_ONLY)
+    response = _subscribe(vui, HTTP_HOST='V2:8080', HTTP_ORIGIN='http://v2:8080')
+    assert isinstance(response, list)
+    vui.pubsub_manager.open_subscription_socket.assert_called_once()
+
+
+@pytest.mark.parametrize('origin', ['http://[::1', 'http://[v2:8080'])
+def test_malformed_origin_is_forbidden(origin):
+    vui, agent = _vui(claims=VUI_ONLY)
+    response = _subscribe(vui, HTTP_ORIGIN=origin)
+    assert response.status_code == 403
+    assert _nothing_done(vui, agent)
+
+
+def test_origin_refusal_log_names_printable_origin_and_host(caplog):
+    vui, agent = _vui(claims=VUI_ONLY)
+    with caplog.at_level('WARNING'):
+        _subscribe(vui, HTTP_ORIGIN='http://other.example\nEXTRA', HTTP_HOST='v2:8080')
+    assert "http://other.exampleEXTRA" in caplog.text
+    assert 'v2:8080' in caplog.text
+    for record in caplog.records:
+        assert record.getMessage().isprintable()
+
+
+def test_manager_topic_log_lines_stay_printable(caplog):
+    from volttron.platform.web.vui_pubsub import VUIWebSocket
+    manager = VUIPubsubManager(MagicMock())
+    topic = 'devices/x\nEXTRA\x1b[2J'
+    with caplog.at_level('DEBUG'):
+        manager.open_subscription_socket('tok', topic)
+        manager.client_opened(MagicMock(), topic, 'tok')
+        VUIWebSocket.on_topic(MagicMock(terminated=True), 'peer', 'sender', 'pubsub', topic, {}, 'm')
+    assert len(caplog.records) >= 3
+    for record in caplog.records:
+        assert record.getMessage().isprintable(), record.getMessage()

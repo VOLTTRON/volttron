@@ -1,4 +1,5 @@
 import functools
+import string
 import os
 import re
 import json
@@ -77,7 +78,7 @@ def _refuse_request(agent, env, admin_request):
     needs the ``admin`` group and a JSON content type.
     """
     from volttron.platform.web import (get_authorization_bearer, get_bearer, get_claim_groups,
-                                       printable_text)
+                                       get_media_type, printable_text)
     path = printable_text(env.get('PATH_INFO'))
     header_only = admin_request or env.get('REQUEST_METHOD') != 'GET'
     try:
@@ -96,7 +97,7 @@ def _refuse_request(agent, env, admin_request):
     if admin_request and 'admin' not in groups:
         _log.warning(f"Non-admin user attempted an admin request at {path}.")
         return _forbidden()
-    if admin_request and _media_type(env) != 'application/json':
+    if admin_request and get_media_type(env) != 'application/json':
         return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
                         content_type='application/json')
     return None
@@ -109,12 +110,11 @@ def _same_origin(env):
     origin, host = env.get('HTTP_ORIGIN'), env.get('HTTP_HOST')
     if not origin or not host:
         return False
-    parsed = urlparse(origin)
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return False
     return parsed.scheme in ('http', 'https') and parsed.netloc.lower() == host.lower()
-
-
-def _media_type(env):
-    return (env.get('CONTENT_TYPE') or '').split(';')[0].strip().lower()
 
 
 def _forbidden():
@@ -819,7 +819,8 @@ class VUIEndpoints:
         # Not wrapped by @endpoint because the websocket upgrade needs
         # start_response; it applies the same checks, and publishing is held to
         # the rules for invoking an agent method.
-        from volttron.platform.web import describe_call_error, get_authorization_bearer, get_bearer
+        from volttron.platform.web import (describe_call_error, get_authorization_bearer, get_bearer,
+                                           printable_text)
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         refusal = _refuse_request(self._agent, env, admin_request=request_method in ('PUT', 'POST'))
@@ -842,7 +843,9 @@ class VUIEndpoints:
                 return response
             else:
                 if get_authorization_bearer(env) is None and not _same_origin(env):
-                    _log.warning('Refused a cookie-authenticated pubsub subscription from another origin.')
+                    _log.warning('Refused a cookie-authenticated pubsub subscription: origin '
+                                 f"{printable_text(env.get('HTTP_ORIGIN'))!r}, "
+                                 f"host {printable_text(env.get('HTTP_HOST'))!r}")
                     return _forbidden()
                 ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
                 env['ws4py.app'] = self.pubsub_manager
@@ -850,7 +853,7 @@ class VUIEndpoints:
 
         elif request_method == 'PUT':
             # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-            if not topic or type(data) is not dict:
+            if not topic.strip('/' + string.whitespace) or type(data) is not dict:
                 return Response(json.dumps({'error': 'malformed request body'}), 400,
                                 content_type='application/json')
             try:
