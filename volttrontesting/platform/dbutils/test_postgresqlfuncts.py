@@ -1,6 +1,7 @@
 import datetime
 import os
 import logging
+from collections import namedtuple
 
 import gevent
 import pytest
@@ -691,3 +692,238 @@ def seed_database(sql):
         print(e)
     cursor.close()
     db_connection.commit()
+
+
+# Configured table names that must reach PostgreSQL as names, never as SQL
+# text. Kept short so the rebuild's suffixed index names stay under 63 bytes.
+ODD_DATA_TABLE = 'Odd"Da\'ta; --'
+ODD_TOPICS_TABLE = 'Odd"Top\'ics'
+DiskUsage = namedtuple("DiskUsage", "total used free")
+
+
+def _live_connect_params():
+    params = dict(historian_config["connection"]["params"])
+    params["port"] = os.environ.get("POSTGRES_PORT", 5432)
+    return params
+
+
+@pytest.fixture()
+def live_db():
+    """Yield (connection, make_functs); drop every table the test names."""
+    conn = psycopg2.connect(**_live_connect_params())
+    conn.autocommit = True
+    tables = []
+    functs_made = []
+
+    def make_functs(data_table, topics_table="odd_topics", meta_table="odd_meta"):
+        tables.extend([data_table, topics_table, meta_table,
+                       f"{data_table}_new", f"{data_table}_old"])
+        functs = PostgreSqlFuncts(_live_connect_params(), {
+            "data_table": data_table,
+            "topics_table": topics_table,
+            "meta_table": meta_table,
+        })
+        functs_made.append(functs)
+        return functs
+
+    def drop_later(*names):
+        tables.extend(names)
+
+    yield conn, make_functs, drop_later
+    for functs in functs_made:
+        functs.close()
+    with conn.cursor() as cursor:
+        for name in tables:
+            cursor.execute(SQL("DROP TABLE IF EXISTS {} CASCADE").format(Identifier(name)))
+    conn.close()
+
+
+def _run(conn, query, args=None):
+    with conn.cursor() as cursor:
+        cursor.execute(query, args)
+        if cursor.description is not None:
+            return cursor.fetchall()
+    return None
+
+
+def _table_exists(conn, name):
+    return bool(_run(conn, "SELECT 1 FROM information_schema.tables "
+                           "WHERE table_schema = 'public' AND table_name = %s", (name,)))
+
+
+def _row_count(conn, name):
+    return _run(conn, SQL("SELECT COUNT(*) FROM {}").format(Identifier(name)))[0][0]
+
+
+def _index_names(conn, name):
+    rows = _run(conn, "SELECT indexname FROM pg_indexes "
+                      "WHERE schemaname = 'public' AND tablename = %s", (name,))
+    return {row[0] for row in rows}
+
+
+def _unique_constraint_names(conn, name):
+    rows = _run(conn, "SELECT con.conname FROM pg_constraint con "
+                      "JOIN pg_class rel ON rel.oid = con.conrelid "
+                      "JOIN pg_namespace ns ON ns.oid = rel.relnamespace "
+                      "WHERE ns.nspname = 'public' AND rel.relname = %s "
+                      "AND con.contype = 'u'", (name,))
+    return {row[0] for row in rows}
+
+
+def _create_data_table(conn, name, rows):
+    """Create a data table with the pre-4.0 layout and insert rows topic ids 1..rows."""
+    _run(conn, SQL("CREATE TABLE {} (ts TIMESTAMP NOT NULL, topic_id INTEGER NOT NULL, "
+                   "value_string TEXT NOT NULL, UNIQUE (topic_id, ts))").format(Identifier(name)))
+    for topic_id in range(1, rows + 1):
+        _run(conn, SQL("INSERT INTO {} VALUES (now(), %s, '1')").format(Identifier(name)),
+             (topic_id,))
+    _run(conn, SQL("ANALYZE {}").format(Identifier(name)))
+
+
+def test_setup_historian_tables_sends_configured_names_as_parameters():
+    functs = PostgreSqlFuncts.__new__(PostgreSqlFuncts)
+    functs.db_name = "db'name"
+    functs.data_table = "data'table"
+    functs.topics_table = "topics'table"
+    functs.meta_table = "meta"
+    calls = []
+
+    def fake_select(query, args=None, fetch_all=True):
+        calls.append((query, args))
+        return [("row",)]
+
+    functs.select = fake_select
+    functs.setup_historian_tables()
+
+    assert len(calls) == 2
+    for query, args in calls:
+        for name in (functs.db_name, functs.data_table, functs.topics_table):
+            assert name not in str(query)
+    assert calls[0][1] == (functs.db_name, functs.data_table)
+    assert calls[1][1] == (functs.topics_table,)
+
+
+def test_setup_historian_tables_creates_tables_with_odd_names(live_db):
+    conn, make_functs, _ = live_db
+    functs = make_functs(ODD_DATA_TABLE, ODD_TOPICS_TABLE)
+
+    functs.setup_historian_tables()
+
+    assert _table_exists(conn, ODD_DATA_TABLE)
+    assert _table_exists(conn, ODD_TOPICS_TABLE)
+    assert f"idx_{ODD_DATA_TABLE}" in _index_names(conn, ODD_DATA_TABLE)
+
+    # A second agent start takes the "table exists" branch and must find the
+    # metadata column in the oddly named topics table.
+    restarted = make_functs(ODD_DATA_TABLE, ODD_TOPICS_TABLE)
+    restarted.setup_historian_tables()
+    assert restarted.meta_table == ODD_TOPICS_TABLE
+
+
+def test_setup_historian_tables_matches_only_the_configured_table(live_db):
+    conn, make_functs, drop_later = live_db
+    drop_later("odd_canary")
+    _create_data_table(conn, "odd_canary", rows=0)
+    data_table = "odd_missing' OR table_name = 'odd_canary"
+    functs = make_functs(data_table)
+
+    functs.setup_historian_tables()
+
+    assert _table_exists(conn, data_table)
+    assert _table_exists(conn, "odd_topics")
+
+
+def test_manage_db_size_treats_data_table_as_a_name(live_db):
+    conn, make_functs, drop_later = live_db
+    drop_later("odd_cx")
+    _create_data_table(conn, "odd_cx", rows=1)
+    data_table = "odd_cx; DROP TABLE odd_cx; --"
+    functs = make_functs(data_table)
+    functs.setup_historian_tables()
+    topic_id = functs.insert_topic("device/point")
+    functs.insert_data(datetime.datetime(2020, 1, 1), topic_id, 42)
+    functs.commit()
+
+    error = None
+    try:
+        functs.manage_db_size(None, None)
+    except psycopg2.Error as exc:
+        error = exc
+    assert _table_exists(conn, "odd_cx")
+    assert error is None
+    assert _row_count(conn, data_table) == 1
+
+    functs.manage_db_size(datetime.datetime(2030, 1, 1), None)
+    assert _row_count(conn, data_table) == 0
+    assert _row_count(conn, "odd_cx") == 1
+
+
+@pytest.mark.parametrize("data_table, decoy", [
+    (ODD_DATA_TABLE, None),
+    ("OddCase", "oddcase"),
+])
+def test_table_metrics_read_the_configured_table(live_db, data_table, decoy):
+    conn, make_functs, drop_later = live_db
+    functs = make_functs(data_table)
+    _create_data_table(conn, data_table, rows=3)
+    if decoy:
+        # An unquoted name folds to lower case and would measure this table.
+        drop_later(decoy)
+        _create_data_table(conn, decoy, rows=1)
+
+    metrics = functs.get_table_metrics(need_exact_count=True)
+
+    expected_bytes = _run(conn, "SELECT pg_total_relation_size(c.oid) FROM pg_class c "
+                                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                                "WHERE n.nspname = 'public' AND c.relname = %s", (data_table,))[0][0]
+    assert metrics["reltuples"] == 3
+    assert metrics["actual_count"] == 3
+    assert metrics["total_bytes"] == expected_bytes
+
+
+def test_disk_space_check_reads_the_configured_table(live_db, monkeypatch):
+    conn, make_functs, _ = live_db
+    functs = make_functs(ODD_DATA_TABLE)
+    _create_data_table(conn, ODD_DATA_TABLE, rows=1)
+    # The server's data directory is not on this host; report a fixed free size.
+    usage = DiskUsage(total=10 ** 13, used=0, free=10 ** 12)
+    monkeypatch.setattr("volttron.platform.dbutils.postgresqlfuncts.shutil.disk_usage",
+                        lambda path: usage)
+
+    assert functs.check_disk_space_for_repack(1000) == (True, 10 ** 12, 0, 1200)
+
+
+def test_hypertable_creation_receives_the_configured_table(live_db):
+    conn, make_functs, drop_later = live_db
+    if _run(conn, "SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'"):
+        pytest.skip("needs a server without timescaledb to stand in create_hypertable")
+    drop_later("odd_hypertable_calls")
+    _run(conn, "CREATE TABLE odd_hypertable_calls (rel regclass)")
+    _run(conn, "CREATE FUNCTION public.create_hypertable(relation regclass, time_column_name name, "
+               "if_not_exists boolean DEFAULT false) RETURNS void LANGUAGE sql "
+               "AS 'INSERT INTO odd_hypertable_calls VALUES ($1)'")
+    try:
+        functs = make_functs(ODD_DATA_TABLE, ODD_TOPICS_TABLE)
+        functs.timescale_dialect = True
+        functs.setup_historian_tables()
+    finally:
+        _run(conn, "DROP FUNCTION public.create_hypertable(regclass, name, boolean)")
+
+    recorded = _run(conn, "SELECT rel::oid FROM odd_hypertable_calls")
+    expected = _run(conn, "SELECT c.oid FROM pg_class c JOIN pg_namespace n "
+                          "ON n.oid = c.relnamespace WHERE n.nspname = 'public' "
+                          "AND c.relname = %s", (ODD_DATA_TABLE,))
+    assert recorded == expected
+
+
+@pytest.mark.parametrize("bad_name", [
+    'data"; x', "data'; x", "my table", "data-table", "1data", "data;x", "public.data",
+])
+def test_pg_repack_table_argument_refuses_names_outside_plain_identifiers(bad_name):
+    with pytest.raises(ValueError, match="data_table name"):
+        PostgreSqlFuncts._validate_table_name_for_argv(bad_name)
+
+
+@pytest.mark.parametrize("good_name", ["data", "_private", "sensor_data_2024", "Data"])
+def test_pg_repack_table_argument_accepts_plain_identifiers(good_name):
+    assert PostgreSqlFuncts._validate_table_name_for_argv(good_name) == good_name

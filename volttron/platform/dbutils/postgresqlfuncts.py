@@ -20,6 +20,7 @@ import ast
 import contextlib
 import logging
 import copy
+import re
 import subprocess
 import shutil
 import os
@@ -153,14 +154,14 @@ class PostgreSqlFuncts(DbDriver):
             return False
 
     def setup_historian_tables(self):
-        rows = self.select(f"""SELECT table_name FROM information_schema.tables
-                            WHERE table_catalog = '{self.db_name}' and table_schema = 'public'
-                            AND table_name = '{self.data_table}'""")
+        rows = self.select("""SELECT table_name FROM information_schema.tables
+                            WHERE table_catalog = %s and table_schema = 'public'
+                            AND table_name = %s""", (self.db_name, self.data_table))
         if rows:
             _log.debug("Found table {}. Historian table exists".format(
                 self.data_table))
-            rows = self.select(f"""SELECT column_name FROM information_schema.columns
-                                WHERE table_name = '{self.topics_table}' and column_name = 'metadata'""")
+            rows = self.select("""SELECT column_name FROM information_schema.columns
+                                WHERE table_name = %s and column_name = 'metadata'""", (self.topics_table,))
             if rows:
                 # metadata is in topics table
                 self.meta_table = self.topics_table
@@ -175,7 +176,7 @@ class PostgreSqlFuncts(DbDriver):
             if self.timescale_dialect:
                 _log.debug("trying to create hypertable")
                 self.execute_stmt(SQL(
-                    "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
+                    "SELECT create_hypertable(quote_ident({})::regclass, 'ts', if_not_exists => true)").format(
                     Literal(self.data_table)))
             else:
                 self.execute_stmt(SQL(
@@ -495,6 +496,22 @@ class PostgreSqlFuncts(DbDriver):
         # except Exception as e:
         #     return False, f"pg_repack check failed: {e}"
 
+    _TABLE_NAME_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+
+    @classmethod
+    def _validate_table_name_for_argv(cls, name: str) -> str:
+        """Return name unchanged if it is a plain identifier, else raise ValueError.
+
+        pg_repack parses --table itself, so SQL quoting cannot protect it there.
+        """
+        if not cls._TABLE_NAME_RE.match(name):
+            raise ValueError(
+                f"data_table name {name!r} contains characters that are not "
+                "permitted in an unquoted PostgreSQL identifier. Only ASCII "
+                "letters, digits, and underscores are accepted."
+            )
+        return name
+
     def run_pg_repack(self, connection_params):
         """Run pg_repack on data table"""
 
@@ -507,7 +524,7 @@ class PostgreSqlFuncts(DbDriver):
                     f"--port={connection_params.get('port', 5432)}",
                     f"--username={connection_params['user']}",
                     f"--dbname={connection_params['database']}",
-                    f'--table=public.{self.data_table}',
+                    f'--table=public.{self._validate_table_name_for_argv(self.data_table)}',
                     '--wait-timeout=3600',
                     '--no-order',
                     '--jobs=2'
@@ -562,21 +579,31 @@ class PostgreSqlFuncts(DbDriver):
         return float(size_gb)
 
 
+    def _data_table_regclass(self):
+        # regclass parses its text input as an SQL name, so quote the configured
+        # name server-side; unquoted, upper case folds and quotes break the cast.
+        return SQL("(quote_ident('public') || '.' || quote_ident({}))::regclass").format(
+            Literal(self.data_table))
+
     def get_table_metrics(self, need_exact_count=False):
         """Get comprehensive table size metrics"""
-        query = f"""
-           SELECT  
-               pg_total_relation_size('public.{self.data_table}')::bigint AS total_bytes,  
-               pg_relation_size('public.{self.data_table}')::bigint AS heap_bytes,  
-               pg_indexes_size('public.{self.data_table}')::bigint AS idx_bytes,  
-               (SELECT reltuples FROM pg_class WHERE oid = 'public.{self.data_table}'::regclass) AS reltuples
-           """
+        tbl_ref = self._data_table_regclass()
+        query = SQL("""
+           SELECT
+               pg_total_relation_size({tbl})::bigint AS total_bytes,
+               pg_relation_size({tbl})::bigint AS heap_bytes,
+               pg_indexes_size({tbl})::bigint AS idx_bytes,
+               (SELECT reltuples FROM pg_class WHERE oid = {tbl}) AS reltuples
+           """).format(tbl=tbl_ref)
         result = self.select(query, fetch_all=True)[0]
 
         # Only do COUNT(*) when explicitly needed to avoid full table scans
         actual_count = None
         if need_exact_count:
-            count_result = self.select(f"SELECT COUNT(*) FROM {self.data_table}", fetch_all=True)
+            count_result = self.select(
+                SQL("SELECT COUNT(*) FROM {}").format(Identifier(self.data_table)),
+                fetch_all=True,
+            )
             actual_count = count_result[0][0]
 
         return {
@@ -597,7 +624,10 @@ class PostgreSqlFuncts(DbDriver):
 
             # Get tablespace for data table
             tbl_tsp_result = self.select(
-                f"SELECT reltablespace FROM pg_class WHERE oid = 'public.{self.data_table}'::regclass", fetch_all=True)
+                SQL("SELECT reltablespace FROM pg_class WHERE oid = {}").format(
+                    self._data_table_regclass()),
+                fetch_all=True,
+            )
             tbl_tsp_oid = tbl_tsp_result[0][0]
 
             # Get tablespace location
@@ -638,10 +668,12 @@ class PostgreSqlFuncts(DbDriver):
             cleanup_tables = [f'{self.data_table}_new', f'{self.data_table}_temp', f'{self.data_table}_old']
             for table in cleanup_tables:
                 try:
-                    self.execute_stmt(f"DROP TABLE IF EXISTS public.{table}")
+                    self.execute_stmt(
+                        SQL("DROP TABLE IF EXISTS public.{}").format(Identifier(table))
+                    )
                     _log.debug(f"Cleaned up table: {table}")
-                except:
-                    pass
+                except psycopg2.Error as e:
+                    _log.warning(f"Could not drop leftover table {table}: {e}")
             self.commit()
         except Exception as e:
             _log.warning(f"Error during resource cleanup: {e}")
@@ -669,9 +701,12 @@ class PostgreSqlFuncts(DbDriver):
             self.cleanup_temp_resources()
 
             # Names
-            tbl = f"public.{self.data_table}"
-            tbl_new = f"public.{self.data_table}_new"
-            tbl_old = f"public.{self.data_table}_old"
+            tbl_id = Identifier(self.data_table)
+            tbl_new_id = Identifier(f"{self.data_table}_new")
+            tbl_old_id = Identifier(f"{self.data_table}_old")
+            schema_tbl_id = SQL("public.{}").format(tbl_id)
+            schema_tbl_new_id = SQL("public.{}").format(tbl_new_id)
+            schema_tbl_old_id = SQL("public.{}").format(tbl_old_id)
 
             # Unique suffix for temp names to avoid collisions
             suf = uuid.uuid4().hex  # e.g., 'a1b2c3...'
@@ -680,58 +715,86 @@ class PostgreSqlFuncts(DbDriver):
             tmp_con_name = f"data_topic_id_ts_key_{suf}"
             uniq_idx_name = f"{self.data_table}_topic_id_ts_{suf}"
             ts_idx_name = f"{self.data_table}_ts_{suf}"
+            tmp_con_id = Identifier(tmp_con_name)
+            uniq_idx_id = Identifier(uniq_idx_name)
+            ts_idx_id = Identifier(ts_idx_name)
+            canonical_idx_id = Identifier("idx_data")
+            canonical_con_id = Identifier("data_topic_id_ts_key")
 
             # Begin transactional rebuild
             self.execute_stmt("BEGIN")
 
             # Block writers, keep readers
-            self.execute_stmt(f"LOCK TABLE {tbl} IN SHARE MODE")
+            self.execute_stmt(
+                SQL("LOCK TABLE {} IN SHARE MODE").format(schema_tbl_id)
+            )
 
             # Copy schema without table-level constraints/indexes
             # (NOT NULL and defaults are preserved as part of column definitions)
             self.execute_stmt(
-                f"CREATE TABLE {tbl_new} "
-                f"(LIKE {tbl} INCLUDING DEFAULTS INCLUDING STORAGE "
-                f"EXCLUDING CONSTRAINTS EXCLUDING INDEXES)"
+                SQL(
+                    "CREATE TABLE {} "
+                    "(LIKE {} INCLUDING DEFAULTS INCLUDING STORAGE "
+                    "EXCLUDING CONSTRAINTS EXCLUDING INDEXES)"
+                ).format(schema_tbl_new_id, schema_tbl_id)
             )
 
             # Copy rows to keep
             if keep_cutoff_timestamp is not None:
                 self.execute_stmt(
-                    f"INSERT INTO {tbl_new} SELECT * FROM {tbl} WHERE ts >= %s",
+                    SQL("INSERT INTO {} SELECT * FROM {} WHERE ts >= %s").format(
+                        schema_tbl_new_id, schema_tbl_id
+                    ),
                     (keep_cutoff_timestamp,),
                 )
             else:
-                self.execute_stmt(f"INSERT INTO {tbl_new} SELECT * FROM {tbl}")
+                self.execute_stmt(
+                    SQL("INSERT INTO {} SELECT * FROM {}").format(
+                        schema_tbl_new_id, schema_tbl_id
+                    )
+                )
 
             # Build a unique index on (topic_id, ts) with a TEMP name
             self.execute_stmt(
-                f"CREATE UNIQUE INDEX {uniq_idx_name} ON {tbl_new} (topic_id, ts)"
+                SQL("CREATE UNIQUE INDEX {} ON {} (topic_id, ts)").format(
+                    uniq_idx_id, schema_tbl_new_id
+                )
             )
 
             # Attach a TEMP-NAMED UNIQUE constraint using that index.
             # IMPORTANT: Use a temp constraint name to avoid a collision with the live table's index name.
             self.execute_stmt(
-                f"ALTER TABLE {tbl_new} "
-                f"ADD CONSTRAINT {tmp_con_name} UNIQUE USING INDEX {uniq_idx_name}"
+                SQL("ALTER TABLE {} ADD CONSTRAINT {} UNIQUE USING INDEX {}").format(
+                    schema_tbl_new_id, tmp_con_id, uniq_idx_id
+                )
             )
             # Note: Postgres will typically rename the index to match the constraint name
             # (i.e., uniq_idx_name -> tmp_con_name). We handle both names later when renaming.
 
             # Build the secondary index on ts (temp name)
-            self.execute_stmt(f"CREATE INDEX {ts_idx_name} ON {tbl_new} (ts)")
+            self.execute_stmt(
+                SQL("CREATE INDEX {} ON {} (ts)").format(ts_idx_id, schema_tbl_new_id)
+            )
 
             # Brief exclusive lock to swap tables atomically
-            self.execute_stmt(f"LOCK TABLE {tbl} IN ACCESS EXCLUSIVE MODE")
-            self.execute_stmt(f"ALTER TABLE {tbl} RENAME TO {self.data_table}_old")
-            self.execute_stmt(f"ALTER TABLE {tbl_new} RENAME TO {self.data_table}")
+            self.execute_stmt(
+                SQL("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE").format(schema_tbl_id)
+            )
+            self.execute_stmt(
+                SQL("ALTER TABLE {} RENAME TO {}").format(schema_tbl_id, tbl_old_id)
+            )
+            self.execute_stmt(
+                SQL("ALTER TABLE {} RENAME TO {}").format(schema_tbl_new_id, tbl_id)
+            )
 
             # Commit: new table is now live
             self.commit()
 
             # Drop old table and its indexes (outside txn to minimize lock time)
             try:
-                self.execute_stmt(f"DROP TABLE {tbl_old}")
+                self.execute_stmt(
+                    SQL("DROP TABLE {}").format(schema_tbl_old_id)
+                )
                 self.commit()
             except Exception as e:
                 _log.warning(f"Failed to drop old table (rebuild still successful): {e}")
@@ -742,7 +805,9 @@ class PostgreSqlFuncts(DbDriver):
             try:
                 # Most likely name is ts_idx_name; if not found, nothing happens
                 self.execute_stmt(
-                    f'ALTER INDEX IF EXISTS public."{ts_idx_name}" RENAME TO "idx_data"'
+                    SQL("ALTER INDEX IF EXISTS public.{} RENAME TO {}").format(
+                        ts_idx_id, canonical_idx_id
+                    )
                 )
                 self.commit()
             except Exception as e:
@@ -751,8 +816,9 @@ class PostgreSqlFuncts(DbDriver):
             # 2) Rename the UNIQUE constraint to canonical name
             try:
                 self.execute_stmt(
-                    f'ALTER TABLE public."{self.data_table}" '
-                    f'RENAME CONSTRAINT "{tmp_con_name}" TO "data_topic_id_ts_key"'
+                    SQL("ALTER TABLE public.{} RENAME CONSTRAINT {} TO {}").format(
+                        tbl_id, tmp_con_id, canonical_con_id
+                    )
                 )
                 self.commit()
             except Exception as e:
@@ -764,14 +830,18 @@ class PostgreSqlFuncts(DbDriver):
             # The index name is either uniq_idx_name or (more likely) tmp_con_name (if PG auto-renamed it).
             try:
                 self.execute_stmt(
-                    f'ALTER INDEX IF EXISTS public."{tmp_con_name}" RENAME TO "data_topic_id_ts_key"'
+                    SQL("ALTER INDEX IF EXISTS public.{} RENAME TO {}").format(
+                        tmp_con_id, canonical_con_id
+                    )
                 )
                 self.commit()
             except Exception:
                 # If it wasn't auto-renamed to tmp_con_name, try the original uniq_idx_name
                 try:
                     self.execute_stmt(
-                        f'ALTER INDEX IF EXISTS public."{uniq_idx_name}" RENAME TO "data_topic_id_ts_key"'
+                        SQL("ALTER INDEX IF EXISTS public.{} RENAME TO {}").format(
+                            uniq_idx_id, canonical_con_id
+                        )
                     )
                     self.commit()
                 except Exception as e2:
@@ -800,17 +870,18 @@ class PostgreSqlFuncts(DbDriver):
         while total_deleted < rows_to_delete:
             remaining = min(chunk_size, rows_to_delete - total_deleted)
 
-            delete_query = f"""
+            tbl_id = SQL("public.{}").format(Identifier(self.data_table))
+            delete_query = SQL("""
                WITH del AS (
                    SELECT ctid
-                   FROM public.{self.data_table}
+                   FROM {}
                    ORDER BY ts ASC
                    LIMIT %s
                )
-               DELETE FROM public.{self.data_table} d
+               DELETE FROM {} d
                USING del
                WHERE d.ctid = del.ctid
-               """
+               """).format(tbl_id, tbl_id)
 
             deleted_count = self.execute_stmt(delete_query, (remaining,))
             if deleted_count == 0:
@@ -854,8 +925,16 @@ class PostgreSqlFuncts(DbDriver):
         # Try to reclaim index space with REINDEX CONCURRENTLY on known indexes
         _log.info("Attempting to reclaim index space with REINDEX CONCURRENTLY...")
         try:
-            self.execute_stmt(f'REINDEX (VERBOSE) INDEX CONCURRENTLY public."{self.data_table}_topic_id_ts_key"')
-            self.execute_stmt(f'REINDEX (VERBOSE) INDEX CONCURRENTLY public."idx_{self.data_table}"')
+            self.execute_stmt(
+                SQL("REINDEX (VERBOSE) INDEX CONCURRENTLY public.{}").format(
+                    Identifier(f"{self.data_table}_topic_id_ts_key")
+                )
+            )
+            self.execute_stmt(
+                SQL("REINDEX (VERBOSE) INDEX CONCURRENTLY public.{}").format(
+                    Identifier(f"idx_{self.data_table}")
+                )
+            )
             _log.info("Successfully reindexed both indexes - index space reclaimed")
         except Exception as e:
             _log.warning(f"REINDEX CONCURRENTLY failed: {e}")
@@ -878,7 +957,9 @@ class PostgreSqlFuncts(DbDriver):
 
         try:
             # Keep stats fresh for estimates
-            self.execute_stmt(f"ANALYZE public.{self.data_table}")
+            self.execute_stmt(
+                SQL("ANALYZE public.{}").format(Identifier(self.data_table))
+            )
 
             # Initial metrics (no COUNT to avoid full scan)
             initial_metrics = self.get_table_metrics(need_exact_count=False)
@@ -894,7 +975,9 @@ class PostgreSqlFuncts(DbDriver):
             # Step 1: Age-based cleanup (simple DELETE; use chunked if you expect very large ranges)
             if history_limit_timestamp is not None:
                 deleted_age = self.execute_stmt(
-                    f"DELETE FROM public.{self.data_table} WHERE ts < %s",
+                    SQL("DELETE FROM public.{} WHERE ts < %s").format(
+                        Identifier(self.data_table)
+                    ),
                     (history_limit_timestamp,)
                 )
                 if deleted_age:
@@ -1010,7 +1093,11 @@ class PostgreSqlFuncts(DbDriver):
                     if cooldown_active:
                         # Optional: reclaim index space only
                         try:
-                            self.execute_stmt(f'REINDEX CONCURRENTLY TABLE public."{self.data_table}"')
+                            self.execute_stmt(
+                                SQL("REINDEX CONCURRENTLY TABLE public.{}").format(
+                                    Identifier(self.data_table)
+                                )
+                            )
                             _log.info("Reindexed indexes concurrently (cooldown mode)")
                         except Exception as e:
                             _log.warning(f"REINDEX CONCURRENTLY TABLE failed: {e}")
