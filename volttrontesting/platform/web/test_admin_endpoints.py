@@ -23,6 +23,7 @@
 # }}}
 
 
+import errno
 import os
 import re
 import stat
@@ -478,6 +479,39 @@ def test_setup_page_template_posts_the_fields_the_handler_reads():
 
         assert 302 == response.status_code
         assert ['bart'] == list(_stored_users(vhome))
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('error, leaves_empty_file', [(errno.ENOSPC, True), (errno.EACCES, False)])
+def test_setup_stays_recoverable_when_saving_the_first_admin_fails(caplog, error, leaves_empty_file):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+        users_path = os.path.join(vhome, ___WEB_USER_FILE_NAME__)
+        real_open = open
+
+        def failing_open(path, mode='r', *args, **kwargs):
+            if path == users_path and 'w' in mode:
+                if leaves_empty_file:
+                    real_open(path, 'w').close()
+                raise OSError(error, os.strerror(error))
+            return real_open(path, mode, *args, **kwargs)
+
+        with patch('volttron.platform.web.admin_endpoints.open', failing_open, create=True):
+            response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 503 == response.status_code
+        assert {} == adminep._userdict
+        assert not os.path.exists(users_path)
+        assert any(r.levelname == 'ERROR' and os.strerror(error) in r.getMessage()
+                   for r in caplog.records)
+        with open(os.path.join(vhome, SETUP_TOKEN_FILE_NAME)) as fp:
+            new_token = fp.read()
+
+        assert 302 == _request(adminep, 'POST', _admin_form(new_token)).status_code
+        users = _stored_users(vhome)
+        assert ['bart'] == list(users)
+        assert argon2.verify('wowsa', users['bart']['hashed_password'])
 
 
 @pytest.mark.web

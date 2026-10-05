@@ -254,8 +254,29 @@ class AdminEndpoints:
             return self._setup_page(env, '403 Forbidden')
 
         _log.debug("Setting administrator password")
-        self.add_user(username, pass1, groups=['admin', 'vui'], overwrite=False)
+        try:
+            self.add_user(username, pass1, groups=['admin', 'vui'], overwrite=False)
+        except OSError as exc:
+            _log.error("Web setup failed: cannot save the first administrator: %s", exc)
+            self._reopen_setup()
+            return self._setup_unavailable()
         return Response('', status='302', headers={'Location': '/admin/login.html'})
+
+    def _reopen_setup(self):
+        """Undo a failed first-administrator save so setup can be retried with a new token.
+
+        The re-check above found no users, so a users file present now holds
+        only the failed write and is removed.
+        """
+        self._userdict = {}
+        users_path = os.path.join(get_home(), 'web-users.json')
+        try:
+            os.remove(users_path)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            _log.error("Cannot remove the incomplete web users file %s: %s", users_path, exc)
+        self._ensure_setup_token()
 
     def admin(self, env, data):
         if len(self._userdict) == 0:
