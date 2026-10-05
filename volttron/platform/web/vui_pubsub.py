@@ -17,15 +17,12 @@ class VUIPubsubManager:
         self.user_websockets = defaultdict(dict)  # References to all websockets for each user access_token.
 
     def get_socket_routes(self, access_token, topic=None):
-        _log.debug('In get_socket_routes. User_websockets is: ')
-        _log.debug(self.user_websockets)
         _log.debug('In get_socket_routes. subscription_websockets is: ')
         _log.debug(self.subscription_websockets)
         return {t: str(w) for t, w in self.user_websockets[access_token].items()}
 
     def open_subscription_socket(self, access_token, topic):
         _log.debug('In open_subscription_socket:')
-        _log.debug((f'access_token: {access_token}'))
         _log.debug(f'topic: {topic}')
         ws = self.subscription_websockets.get(topic)
         _log.debug(f'subscription_websockets has: {ws}')

@@ -267,6 +267,17 @@ def test_method_listing_returns_links():
     assert agent.vip.rpc.call.call_args[0][:2] == ('some.agent', 'inspect')
 
 
+def test_unexpected_listing_result_is_logged_as_a_local_error(caplog):
+    vui, agent = _vui(result={'methods': 5})
+    env = _env(f'/vui/platforms/{LOCAL}/agents/some.agent/rpc/', method='GET')
+    with caplog.at_level('INFO'):
+        response = vui.handle_platforms_agents_rpc(env, {})
+    assert response.status_code == 500
+    assert json.loads(response.get_data()) == {'error': 'call failed'}
+    assert 'unexpected result' in caplog.text
+    assert 'failed' not in caplog.text
+
+
 def test_timeouts_and_failures_are_logged_without_detail(caplog):
     vui, agent = _vui()
     with caplog.at_level('INFO'):

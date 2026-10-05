@@ -48,28 +48,10 @@ def endpoint(func=None, *, admin_post=False):
 
     @functools.wraps(func)
     def verify_and_dispatch(self, env, data):
-        from volttron.platform.web import get_authorization_bearer, get_bearer, get_claim_groups
         admin_request = admin_post and env.get('REQUEST_METHOD') == 'POST'
-        try:
-            bearer = get_authorization_bearer(env) if admin_request else get_bearer(env)
-            if admin_request and bearer is None:
-                raise ValueError('no Authorization header')
-            claims = self._agent.get_user_claims(bearer)
-        except Exception as e:
-            _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
-            return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
-
-        # Only allow only users with API permissions:
-        groups = get_claim_groups(claims)
-        if groups is None or 'vui' not in groups:
-            _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
-            return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
-        if admin_request and 'admin' not in groups:
-            _log.warning(f"Non-admin user attempted to invoke an agent method at {env.get('PATH_INFO')}.")
-            return _forbidden()
-        if admin_request and _media_type(env) != 'application/json':
-            return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
-                            content_type='application/json')
+        refusal = _refuse_request(self._agent, env, admin_request)
+        if refusal is not None:
+            return refusal
 
         # Dispatch endpoint:
         try:
@@ -84,6 +66,37 @@ def endpoint(func=None, *, admin_post=False):
         except Exception as e:
             return Response(json.dumps({'error': f'Unexpected Error: {e}'}), 500, content_type='application/json')
     return verify_and_dispatch
+
+
+def _refuse_request(agent, env, admin_request):
+    """Return the refusal Response for a VUI request, or None to proceed.
+
+    Every request needs a valid token in the ``vui`` group. An admin request
+    also needs the ``admin`` group, a token from the Authorization header
+    (never the cookie, which a browser sends on requests other sites make)
+    and a JSON content type.
+    """
+    from volttron.platform.web import get_authorization_bearer, get_bearer, get_claim_groups
+    try:
+        bearer = get_authorization_bearer(env) if admin_request else get_bearer(env)
+        if not bearer:
+            raise ValueError('no bearer token')
+        claims = agent.get_user_claims(bearer)
+    except Exception as e:
+        _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
+        return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+
+    groups = get_claim_groups(claims)
+    if groups is None or 'vui' not in groups:
+        _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
+        return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
+    if admin_request and 'admin' not in groups:
+        _log.warning(f"Non-admin user attempted an admin request at {env.get('PATH_INFO')}.")
+        return _forbidden()
+    if admin_request and _media_type(env) != 'application/json':
+        return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
+                        content_type='application/json')
+    return None
 
 
 def _media_type(env):
@@ -527,8 +540,6 @@ class VUIEndpoints:
         from volttron.platform.web import describe_call_error
         try:
             result = self._rpc(vip_identity, method_name, *args, **kwargs, external_platform=platform)
-            if shape is not None:
-                result = shape(result)
         except (MethodNotFound, ValueError):
             return Response(json.dumps({'error': 'method not found'}), 400, content_type='application/json')
         except Timeout:
@@ -537,6 +548,13 @@ class VUIEndpoints:
         except Exception as e:
             _log.error(f'Agent RPC {vip_identity!r} {method_name!r} failed: {describe_call_error(e)}')
             return Response(json.dumps({'error': 'call failed'}), 500, content_type='application/json')
+        if shape is not None:
+            try:
+                result = shape(result)
+            except Exception as e:
+                _log.error(f'Agent RPC {vip_identity!r} {method_name!r} returned an unexpected result: '
+                           f'{type(e).__name__}')
+                return Response(json.dumps({'error': 'call failed'}), 500, content_type='application/json')
         return Response(json.dumps(result), 200, content_type='application/json')
 
     @endpoint
@@ -784,10 +802,15 @@ class VUIEndpoints:
                             status=501, content_type='text/plain')
 
     def handle_platforms_pubsub(self, env: dict, start_response, data: dict):
-        from volttron.platform.web import get_bearer  # TODO: Is this necessary, with bearer imported in decorator?
+        # Not wrapped by @endpoint because the websocket upgrade needs
+        # start_response; it applies the same checks, and publishing is held to
+        # the rules for invoking an agent method.
+        from volttron.platform.web import describe_call_error, get_bearer
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
-        query_params = url_decode(env['QUERY_STRING'])
+        refusal = _refuse_request(self._agent, env, admin_request=request_method in ('PUT', 'POST'))
+        if refusal is not None:
+            return refusal
         access_token = get_bearer(env)
 
         no_topic = re.match('^/vui/platforms/([^/]+)/pubsub/?$', path_info)
@@ -810,15 +833,26 @@ class VUIEndpoints:
 
         elif request_method == 'PUT':
             # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-            message = data.get('message')
-            headers = data.get('headers')
-            subscriber_count = self.pubsub_manager.publish(topic, headers, message)
+            if type(data) is not dict:
+                return Response(json.dumps({'error': 'malformed request body'}), 400,
+                                content_type='application/json')
+            try:
+                subscriber_count = self.pubsub_manager.publish(topic, data.get('headers'), data.get('message'))
+            except Timeout:
+                _log.error(f'VUI publish to {topic!r} timed out')
+                return Response(json.dumps({'error': 'timed out'}), 504, content_type='application/json')
+            except Exception as e:
+                _log.error(f'VUI publish to {topic!r} failed: {describe_call_error(e)}')
+                return Response(json.dumps({'error': 'publish failed'}), 500, content_type='application/json')
             return Response(json.dumps(subscriber_count), 200, content_type='application/json')
 
         # elif request_method == 'DELETE':
         #     # DELETE -- For ../pubsub and /pubsub/:topic, Close open web sockets and subscriptions for this user.
         #     self.pubsub_manager.close_socket(access_token, topic)
         #     return Response(status=204)
+
+        return Response(json.dumps({'error': f'Endpoint {request_method} is not implemented.'}), 501,
+                        content_type='application/json')
 
     @endpoint
     def handle_platforms_historians(self, env: dict, data: dict) -> Response:
