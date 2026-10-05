@@ -89,6 +89,15 @@ def get_claim_groups(claims):
     return groups
 
 
+def describe_call_error(error):
+    """Name an RPC failure for a log line: the remote exception type for a
+    RemoteError, else the local type. Never the message, which can carry data."""
+    exc_info = getattr(error, 'exc_info', None)
+    if isinstance(exc_info, dict) and isinstance(exc_info.get('exc_type'), str):
+        return exc_info['exc_type']
+    return type(error).__name__
+
+
 def get_user_claims(env, ssl_public_key):
     algorithm, encode_key = __get_key_and_algorithm__(env, ssl_public_key)
     bearer = get_bearer(env)

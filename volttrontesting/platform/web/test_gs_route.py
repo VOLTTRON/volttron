@@ -25,7 +25,6 @@
 fixed set of read-only control queries, and calls nothing on any refusal."""
 
 import json
-import re
 from unittest.mock import MagicMock
 
 import gevent
@@ -48,7 +47,9 @@ def _service(claims=ADMIN, result=None):
     svc = PlatformWebService.__new__(PlatformWebService)
     svc.vip = MagicMock()
     value = result if result is not None else ['an-agent']
-    svc.vip.rpc.call.return_value.get.return_value = value
+    pending = svc.vip.rpc.call.return_value
+    pending.ready.return_value = True
+    pending.get.return_value = value
     svc.vip.rpc.return_value.get.return_value = value
     if isinstance(claims, BaseException):
         svc.get_user_claims = MagicMock(side_effect=claims)
@@ -91,7 +92,8 @@ def test_admin_allowed_query_makes_exactly_one_call():
     args, kwargs = svc.vip.rpc.call.call_args
     assert args == ('control', 'list_agents')
     assert kwargs == {}
-    svc.vip.rpc.call.return_value.get.assert_called_once_with(timeout=10)
+    svc.vip.rpc.call.return_value.wait.assert_called_once_with(10)
+    svc.vip.rpc.call.return_value.get.assert_called_once_with(block=False)
     svc.get_user_claims.assert_called_once_with(TOKEN)
 
 
@@ -116,10 +118,11 @@ def test_body_as_json_string_is_accepted():
     {'groups': None},
     {'groups': 'admin'},
     {'groups': [['admin']]},
+    {'groups': ['admin', 5]},
     'admin',
     None,
-], ids=['vui-only', 'no-groups', 'groups-none', 'groups-str', 'groups-nested', 'claims-str',
-        'claims-none'])
+], ids=['vui-only', 'no-groups', 'groups-none', 'groups-str', 'groups-nested', 'groups-mixed',
+        'claims-str', 'claims-none'])
 def test_non_admin_claims_are_forbidden(claims):
     svc = _service(claims=claims)
     status, raw = _post(svc, _body())
@@ -128,9 +131,8 @@ def test_non_admin_claims_are_forbidden(claims):
     assert _calls(svc) == []
 
 
-@pytest.mark.parametrize('error', [NotAuthorized(), gevent.Timeout(), ValueError('bad'),
-                                   Exception('expired')],
-                         ids=['not-authorized', 'timeout', 'value-error', 'other'])
+@pytest.mark.parametrize('error', [NotAuthorized(), ValueError('bad'), Exception('expired')],
+                         ids=['not-authorized', 'value-error', 'other'])
 def test_unresolvable_token_is_unauthorized(error):
     svc = _service(claims=error)
     status, raw = _post(svc, _body())
@@ -212,6 +214,24 @@ def test_malformed_requests_are_rejected(body):
     assert _calls(svc) == []
 
 
+def test_bad_request_answers_with_the_request_id_when_it_is_a_string():
+    svc = _service()
+    status, raw = _post(svc, {'jsonrpc': '2.0', 'id': 'control', 'method': 5, 'params': {}})
+    assert status == 400
+    assert json.loads(raw)['id'] == 'control'
+    status, raw = _post(svc, {'jsonrpc': '2.0', 'id': 7, 'method': 'list_agents', 'params': {}})
+    assert status == 400
+    assert json.loads(raw)['id'] is None
+
+
+def test_null_params_are_read_as_empty():
+    svc = _service()
+    status, raw = _post(svc, {'jsonrpc': '2.0', 'id': 'control', 'method': 'list_agents',
+                              'params': None})
+    assert status == 401
+    assert _calls(svc) == []
+
+
 def test_non_string_param_keys_are_rejected():
     svc = _service()
     body = _body()
@@ -234,7 +254,6 @@ def test_only_post_is_accepted(http_method):
     (RuntimeError('SECRET-MARK'), 500),
     (RemoteError('SECRET-MARK', exc_type='x'), 500),
     (Unreachable(113, 'SECRET-MARK', 'control', 'RPC'), 502),
-    (gevent.Timeout(), 504),
 ])
 def test_error_bodies_carry_no_request_or_exception_text(error, expected):
     svc = _service()
@@ -244,6 +263,49 @@ def test_error_bodies_carry_no_request_or_exception_text(error, expected):
     assert b'SECRET-MARK' not in raw
     assert TOKEN.encode() not in raw
     assert json.loads(raw)['id'] == 'control'
+
+
+def test_unreachable_when_sending_is_bad_gateway():
+    svc = _service()
+    svc.vip.rpc.call.side_effect = Unreachable(113, 'SECRET-MARK', 'control', 'RPC')
+    status, raw = _post(svc, _body())
+    assert status == 502
+    assert b'SECRET-MARK' not in raw
+
+
+def test_call_that_does_not_finish_in_time_is_gateway_timeout(caplog):
+    svc = _service()
+    svc.vip.rpc.call.return_value.ready.return_value = False
+    with caplog.at_level('INFO'):
+        status, raw = _post(svc, _body())
+    assert status == 504
+    assert json.loads(raw)['error']['message'] == 'timed out'
+    svc.vip.rpc.call.return_value.wait.assert_called_once_with(10)
+    assert 'timeout' in caplog.text
+
+
+def test_outer_timeout_during_the_call_is_not_swallowed():
+    svc = _service()
+    svc.vip.rpc.call.return_value.wait.side_effect = gevent.Timeout()
+    with pytest.raises(gevent.Timeout):
+        _post(svc, _body())
+
+
+def test_outer_timeout_while_resolving_claims_is_not_swallowed():
+    svc = _service(claims=gevent.Timeout())
+    with pytest.raises(gevent.Timeout):
+        _post(svc, _body())
+
+
+def test_failed_call_logs_the_remote_error_type_not_params(caplog):
+    svc = _service()
+    svc.vip.rpc.call.return_value.get.side_effect = RemoteError('SECRET-MARK', exc_type='KeyError',
+                                                                exc_args=['SECRET-MARK'])
+    with caplog.at_level('DEBUG'):
+        _post(svc, _body())
+    assert 'KeyError' in caplog.text
+    assert 'SECRET-MARK' not in caplog.text
+    assert TOKEN not in caplog.text
 
 
 def test_refusal_bodies_do_not_echo_the_token():
@@ -320,3 +382,25 @@ def _assert_ungated_export(method):
 def test_gated_export_fails_the_allow_list_check():
     with pytest.raises(AssertionError):
         _assert_ungated_export('stop_agent')
+
+
+def test_timeout_semantics_with_a_real_async_result(monkeypatch):
+    from volttron.platform.vip.agent.results import AsyncResult
+    from volttron.platform.web import platform_web_service
+    monkeypatch.setattr(platform_web_service, 'GS_CALL_TIMEOUT', 0.05)
+    svc = _service()
+    svc.vip.rpc.call.return_value = AsyncResult()
+    status, _ = _post(svc, _body())
+    assert status == 504
+
+    svc.vip.rpc.call.return_value = AsyncResult()
+    with pytest.raises(gevent.Timeout):
+        with gevent.Timeout(0.01):
+            _post(svc, _body())
+
+    done = AsyncResult()
+    done.set(['an-agent'])
+    svc.vip.rpc.call.return_value = done
+    status, raw = _post(svc, _body())
+    assert status == 200
+    assert json.loads(raw)['result'] == ['an-agent']

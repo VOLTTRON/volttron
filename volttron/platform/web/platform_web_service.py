@@ -691,13 +691,6 @@ class PlatformWebService(Agent):
 
         return FileWrapper(open(filename, 'rb'))
 
-    def _to_jsonrpc_obj(self, jsonrpcstr):
-        """ Convert data string into a JsonRpcData named tuple.
-
-        :param object data: Either a string or a dictionary representing a json document.
-        """
-        return jsonrpc.JsonRpcData.parse(jsonrpcstr)
-
     def register_gs_route(self):
         self.registeredroutes.append((GS_ROUTE, 'callable', self.jsonrpc))
 
@@ -735,9 +728,6 @@ class PlatformWebService(Agent):
             # Fail closed: any failure to resolve the token denies the call.
             _log.error('/gs could not resolve claims: %s', type(e).__name__)
             return self._gs_refuse(ident, 401, UNAUTHORIZED, 'not authorized', 'bad token')
-        except gevent.Timeout:
-            _log.error('/gs timed out resolving claims')
-            return self._gs_refuse(ident, 401, UNAUTHORIZED, 'not authorized', 'bad token')
 
         from volttron.platform.web import get_claim_groups
         groups = get_claim_groups(claims)
@@ -752,15 +742,20 @@ class PlatformWebService(Agent):
             return self._gs_refuse(ident, 403, UNAUTHORIZED, 'forbidden', 'params not allowed',
                                    method)
 
+        from volttron.platform.web import describe_call_error
         try:
-            result = self.vip.rpc.call(ident, method, **params).get(timeout=GS_CALL_TIMEOUT)
+            pending = self.vip.rpc.call(ident, method, **params)
+            # wait() rather than get(timeout=...): catching gevent.Timeout here
+            # would also swallow a timeout set by an enclosing greenlet.
+            pending.wait(GS_CALL_TIMEOUT)
+            if not pending.ready():
+                return self._gs_refuse(ident, 504, INTERNAL_ERROR, 'timed out', 'timeout', method)
+            result = pending.get(block=False)
         except Unreachable:
             return self._gs_refuse(ident, 502, UNAVAILABLE_AGENT, 'agent unavailable',
                                    'unreachable', method)
-        except gevent.Timeout:
-            return self._gs_refuse(ident, 504, INTERNAL_ERROR, 'timed out', 'timeout', method)
         except Exception as e:
-            _log.error('/gs call %r %r failed: %s', ident, method, type(e).__name__)
+            _log.error('/gs call %r %r failed: %s', ident, method, describe_call_error(e))
             return self._gs_refuse(ident, 500, INTERNAL_ERROR, 'call failed', 'failed', method)
 
         _log.info('/gs call %r %r allowed', ident, method)
@@ -795,24 +790,6 @@ class PlatformWebService(Agent):
             _log.info('/gs call %r %r refused: %s', ident, method, reason)
         return Response(jsonapi.dumps(jsonrpc.json_error(ident, code, message)), status,
                         content_type='application/json')
-
-    def _get_jsonrpc_response(self, id, result_or_error):
-        """ Wrap the response in either a json-rpc error or result.
-
-        :param id:
-        :param result_or_error:
-        :return:
-        """
-        if isinstance(result_or_error, dict):
-            if 'jsonrpc' in result_or_error:
-                return result_or_error
-
-        if result_or_error is not None and isinstance(result_or_error, dict):
-            if 'error' in result_or_error:
-                error = result_or_error['error']
-                _log.debug("RPC RESPONSE ERROR: {}".format(error))
-                return jsonrpc.json_error(id, error['code'], error['message'])
-        return jsonrpc.json_result(id, result_or_error)
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
