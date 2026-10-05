@@ -174,9 +174,9 @@ class AuthEntry(object):
             "Invalid capability value: {} of type {}. Capability "
             "entries can only be a string or "
             "dictionary or list containing string/dictionary. "
-            "dictionaries should be of the format {"
-            "'capability_name':None} or "
-            "{'capability_name':{'arg1':'value',...}"
+            "dictionaries should be of the format {{"
+            "'capability_name':None}} or "
+            "{{'capability_name':{{'arg1':'value',...}}"
         )
         if isinstance(value, str):
             return {value: None}

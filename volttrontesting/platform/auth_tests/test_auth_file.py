@@ -832,3 +832,63 @@ def test_upgrade_to_1_5_grants_web_routes_to_volttron_central_only(tmp_path, cap
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING
                 and "register_web_routes" in r.getMessage()]
     assert len(warnings) == 1
+
+
+def _write_1_4(auth_path, allow):
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": allow, "deny": [], "groups": {},
+                                "roles": {}, "version": {"major": 1, "minor": 4}}))
+
+
+def _disk_version(auth_path):
+    with open(auth_path) as fp:
+        return jsonapi.loads(fp.read())["version"]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("capabilities", [None, {}, []])
+def test_upgrade_to_1_5_grants_web_routes_when_vc_has_no_capabilities(tmp_path, capabilities):
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [_version_1_4_entry("volttron.central", "volttron.central",
+                                              capabilities)])
+
+    entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.capabilities for e in entries] == [{"register_web_routes": None}]
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_leaves_an_existing_grant_alone(tmp_path, caplog):
+    caps = {"register_web_routes": {"note": "kept"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [_version_1_4_entry("volttron.central", "volttron.central", caps)])
+
+    with caplog.at_level(logging.WARNING):
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.capabilities for e in entries] == [caps]
+    assert not [r for r in caplog.records if "register_web_routes" in r.getMessage()]
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_skips_entries_it_cannot_read(tmp_path, caplog):
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [
+        "junk",
+        _version_1_4_entry("volttron.central", "volttron.central", 5),
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps),
+    ])
+
+    with caplog.at_level(logging.WARNING):
+        AuthFile(auth_path)
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    assert [e.capabilities for e in entries] == [
+        {"edit_config_store": {"identity": "volttron.central"}, "register_web_routes": None}]
+    skipped = [r for r in caplog.records if r.levelno == logging.WARNING
+               and "not upgraded" in r.getMessage()]
+    assert len(skipped) == 2
+    assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1

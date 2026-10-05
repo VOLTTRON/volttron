@@ -364,11 +364,20 @@ class AuthFile(object):
             """Grants route registration to the VolttronCentral entry that an
             install made before registration required a capability."""
             for entry in allow_list:
+                # An unreadable entry must not stop the upgrade: the file
+                # would stay at 1.4 and fail to load on every start.
+                if not isinstance(entry, dict):
+                    warn_invalid(entry, "not upgraded: not an object")
+                    continue
                 if (entry.get("user_id") != VOLTTRON_CENTRAL
                         or entry.get("identity") != VOLTTRON_CENTRAL):
                     continue
-                capabilities = AuthEntry.build_capabilities_field(
-                    entry.get("capabilities")) or {}
+                try:
+                    capabilities = AuthEntry.build_capabilities_field(
+                        entry.get("capabilities")) or {}
+                except AuthEntryInvalid as err:
+                    warn_invalid(entry, f"not upgraded: {err}")
+                    continue
                 if REGISTER_WEB_ROUTES in capabilities:
                     continue
                 capabilities[REGISTER_WEB_ROUTES] = None
