@@ -872,21 +872,6 @@ class PlatformWebService(Agent):
             svr = WSGIServer((hostname, port), self.appContainer)
         self._server_greenlet = gevent.spawn(svr.serve_forever)
 
-    def _authenticate_route(self, env, start_response, data):
-        scheme = env.get('wsgi.url_scheme')
-
-        if scheme != 'https':
-            _log.warning("Authentication should be through https")
-            start_response("401 Unauthorized", [('Content-Type', 'text/html')])
-            return "<html><body><h1>401 Unauthorized</h1></body></html>"
-
-        from pprint import pprint
-        pprint(env)
-
-        import jwt
-
-        jwt.encode()
-
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
         _log.debug("Stopping web agent.")

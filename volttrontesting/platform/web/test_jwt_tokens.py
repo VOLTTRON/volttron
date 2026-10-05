@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import volttron.platform.web as web
-from volttron.platform.web import get_user_claim_from_bearer
+from volttron.platform.web import PlatformWebService, get_user_claim_from_bearer
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttron.utils import get_random_key
@@ -165,6 +165,7 @@ def test_bearer_decode_passes_server_algorithm_list(server, monkeypatch):
 def test_unused_claim_helpers_are_removed():
     assert not hasattr(web, "get_user_claims")
     assert not hasattr(web, "__get_key_and_algorithm__")
+    assert not hasattr(PlatformWebService, "_authenticate_route")
 
 
 _IMPORT_WEB = """
