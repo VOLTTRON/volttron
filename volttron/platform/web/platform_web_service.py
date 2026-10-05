@@ -28,6 +28,7 @@ import mimetypes
 import os
 from pathlib import Path
 import re
+from types import MappingProxyType
 from urllib.parse import urlparse, parse_qs
 import zlib
 from collections import defaultdict
@@ -70,6 +71,18 @@ from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
 
 _log = logging.getLogger(__name__)
+
+# Calls the /gs gateway forwards, each mapped to the param keys it accepts.
+# Every entry is an ungated, read-only ControlService export; there is no
+# configuration hook, so widening the list is a reviewed code change.
+GS_ALLOWED_CALLS = MappingProxyType({
+    (CONTROL, 'list_agents'): frozenset(),
+    (CONTROL, 'status_agents'): frozenset(),
+    (CONTROL, 'peerlist'): frozenset(),
+})
+GS_CALL_TIMEOUT = 10
+# \Z rather than $, which also matches before a trailing newline.
+GS_ROUTE = re.compile(r'^/gs/?\Z')
 
 
 class CouldNotRegister(Exception):
@@ -685,64 +698,103 @@ class PlatformWebService(Agent):
         """
         return jsonrpc.JsonRpcData.parse(jsonrpcstr)
 
-    def jsonrpc(self, env, data):
-        """ The main entry point for ^jsonrpc data
+    def register_gs_route(self):
+        self.registeredroutes.append((GS_ROUTE, 'callable', self.jsonrpc))
 
-        This method will only accept rpcdata.  The first time this method
-        is called, per session, it must be using get_authorization.  That
-        will return a session token that must be included in every
-        subsequent request.  The session is tied to the ip address
-        of the caller.
+    def jsonrpc(self, env, data):
+        """ Handle a JSON-RPC 2.0 request to /gs.
+
+        The request ``id`` names the target identity and ``method`` the call;
+        the admin token travels in ``params.authentication``. Only POST from
+        an admin, for a pair in GS_ALLOWED_CALLS, reaches the bus.
+
+        The (env, data) signature matters: app_routing retries a callable with
+        these two arguments after a TypeError, and a handler taking three
+        would run twice.
 
         :param object env: Environment dictionary for the request.
-        :param object data: The JSON-RPC 2.0 method to call.
-        :return object: An JSON-RPC 2.0 response.
+        :param object data: The request body, as a str or decoded JSON.
+        :return object: A JSON-RPC 2.0 response.
         """
         if env['REQUEST_METHOD'].upper() != 'POST':
-            return JsonResponse(jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
-                                      'Invalid request method, only POST allowed')))
+            return self._gs_refuse(None, 405, INVALID_REQUEST, 'only POST is allowed', 'method')
+
+        request = self._gs_parse(data)
+        if request is None:
+            ident = data.get('id') if isinstance(data, dict) else None
+            return self._gs_refuse(ident if isinstance(ident, str) else None, 400,
+                                   INVALID_REQUEST, 'invalid request', 'malformed')
+        ident, method, params = request
+
+        token = params.pop('authentication', None)
+        if not isinstance(token, str) or not token:
+            return self._gs_refuse(ident, 401, UNAUTHORIZED, 'not authorized', 'no token')
+        try:
+            claims = self.get_user_claims(token)
+        except Exception as e:
+            # Fail closed: any failure to resolve the token denies the call.
+            _log.error('/gs could not resolve claims: %s', type(e).__name__)
+            return self._gs_refuse(ident, 401, UNAUTHORIZED, 'not authorized', 'bad token')
+        except gevent.Timeout:
+            _log.error('/gs timed out resolving claims')
+            return self._gs_refuse(ident, 401, UNAUTHORIZED, 'not authorized', 'bad token')
+
+        from volttron.platform.web import get_claim_groups
+        groups = get_claim_groups(claims)
+        if groups is None or 'admin' not in groups:
+            return self._gs_refuse(ident, 403, UNAUTHORIZED, 'forbidden', 'not admin')
+
+        allowed_params = GS_ALLOWED_CALLS.get((ident, method))
+        if allowed_params is None:
+            return self._gs_refuse(ident, 403, UNAUTHORIZED, 'forbidden', 'call not allowed',
+                                   method)
+        if not set(params) <= allowed_params:
+            return self._gs_refuse(ident, 403, UNAUTHORIZED, 'forbidden', 'params not allowed',
+                                   method)
 
         try:
-            rpcdata = self._to_jsonrpc_obj(data)
-            _log.info('rpc method: {}'.format(rpcdata.method))
-
-            # Authenticate rpc call
-            if 'authentication' in rpcdata.params:
-                if self.jsonrpc_verify_and_dispatch(rpcdata.params['authentication']):
-                    del rpcdata.params['authentication']
-                else:
-                    return JsonResponse(jsonapi.dumps(jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
-                                                           "Invalid username/password specified.")))
-            else:
-                return JsonResponse(jsonapi.dumps(jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
-                                                       "Authentication parameter missing.")))
-
-            _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
-            if not rpcdata.method:
-                return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
-                    'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))))
-            else:
-                if rpcdata.params:
-                    result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method, **rpcdata.params).get()
-                else:
-                    result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method).get()
-
-        except AssertionError:
-            return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
-                'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))))
+            result = self.vip.rpc.call(ident, method, **params).get(timeout=GS_CALL_TIMEOUT)
         except Unreachable:
-            return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
-                rpcdata.id, UNAVAILABLE_PLATFORM,
-                "Couldn't reach platform with method {} params: {}".format(
-                    rpcdata.method,
-                    rpcdata.params))))
+            return self._gs_refuse(ident, 502, UNAVAILABLE_AGENT, 'agent unavailable',
+                                   'unreachable', method)
+        except gevent.Timeout:
+            return self._gs_refuse(ident, 504, INTERNAL_ERROR, 'timed out', 'timeout', method)
         except Exception as e:
+            _log.error('/gs call %r %r failed: %s', ident, method, type(e).__name__)
+            return self._gs_refuse(ident, 500, INTERNAL_ERROR, 'call failed', 'failed', method)
 
-            return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
-                'NA', UNHANDLED_EXCEPTION, e
-            )))
+        _log.info('/gs call %r %r allowed', ident, method)
+        return Response(jsonapi.dumps(jsonrpc.json_result(ident, result)), 200,
+                        content_type='application/json')
 
-        return JsonResponse(jsonapi.dumps(self._get_jsonrpc_response(rpcdata.id, result_or_error)))
+    @staticmethod
+    def _gs_parse(data):
+        """Return (id, method, params) for a well-formed request, else None."""
+        if isinstance(data, (str, bytes)):
+            try:
+                data = jsonapi.loads(data)
+            except ValueError:
+                return None
+        if not isinstance(data, dict) or data.get('jsonrpc') != '2.0':
+            return None
+        ident, method, params = data.get('id'), data.get('method'), data.get('params', {})
+        if params is None:
+            params = {}
+        if not isinstance(ident, str) or not isinstance(method, str) or not isinstance(params, dict):
+            return None
+        if not all(isinstance(k, str) for k in params):
+            return None
+        return ident, method, dict(params)
+
+    @staticmethod
+    def _gs_refuse(ident, status, code, message, reason, method=None):
+        # Fixed messages only: never the body, params, token or exception text.
+        if method is None:
+            _log.info('/gs request refused: %s', reason)
+        else:
+            _log.info('/gs call %r %r refused: %s', ident, method, reason)
+        return Response(jsonapi.dumps(jsonrpc.json_error(ident, code, message)), status,
+                        content_type='application/json')
 
     def _get_jsonrpc_response(self, id, result_or_error):
         """ Wrap the response in either a json-rpc error or result.
@@ -761,26 +813,6 @@ class PlatformWebService(Agent):
                 _log.debug("RPC RESPONSE ERROR: {}".format(error))
                 return jsonrpc.json_error(id, error['code'], error['message'])
         return jsonrpc.json_result(id, result_or_error)
-
-    def jsonrpc_verify_and_dispatch(self, authentication):
-        """ Verify that the user is an admin
-
-        :param authentication: authentication generated by successful authentication
-        :return: Boolean
-        """
-        from volttron.platform.web import NotAuthorized
-        try:
-            claims = self.get_user_claims(authentication)
-        except NotAuthorized:
-            _log.error("Unauthorized user attempted to connect to platform.")
-            return False
-        except jwt.ExpiredSignatureError:
-            _log.error("User attempted to connect with an expired signature.")
-            return False
-
-        return True
-
-
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
@@ -823,7 +855,7 @@ class PlatformWebService(Agent):
         # Handle the platform.web routes here.
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable', self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'), 'callable', self._allow))
-        self.registeredroutes.append((re.compile(r'/gs'), 'callable', self.jsonrpc))
+        self.register_gs_route()
         # these routes are only available for rmq based message bus
         # at present.
         if self.core.messagebus == 'rmq':

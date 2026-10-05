@@ -67,6 +67,28 @@ def get_bearer(env):
             return None
 
 
+def get_authorization_bearer(env):
+    """Return the token from an ``Authorization: Bearer`` header, or None.
+
+    Unlike get_bearer this never reads the cookie, which a browser attaches
+    to requests that another site makes.
+    """
+    parts = (env.get('HTTP_AUTHORIZATION') or '').split(' ')
+    if len(parts) != 2 or parts[0].upper() != 'BEARER' or not parts[1]:
+        return None
+    return parts[1]
+
+
+def get_claim_groups(claims):
+    """Return the ``groups`` claim when it is a list of str, else None."""
+    if not isinstance(claims, dict):
+        return None
+    groups = claims.get('groups')
+    if not isinstance(groups, list) or not all(isinstance(g, str) for g in groups):
+        return None
+    return groups
+
+
 def get_user_claims(env, ssl_public_key):
     algorithm, encode_key = __get_key_and_algorithm__(env, ssl_public_key)
     bearer = get_bearer(env)
