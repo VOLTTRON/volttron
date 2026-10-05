@@ -1173,3 +1173,37 @@ def test_manual_table_rebuild_twice_with_long_table_names(live_db, length):
     assert _row_count(conn, data_table) == 3
     assert _index_names(conn, data_table) == {_clipped("idx_" + data_table, 63), unique_key}
     assert _unique_constraint_names(conn, data_table) == {unique_key}
+
+
+def test_cooldown_reindexes_the_data_table_concurrently(live_db, caplog):
+    conn, make_functs, _ = live_db
+    functs = make_functs("odd_hist_cd")
+    _create_data_table(conn, "odd_hist_cd", rows=3)
+    _run(conn, "CREATE INDEX idx_odd_hist_cd ON odd_hist_cd (ts)")
+    index_oids = "SELECT indexrelid FROM pg_index WHERE indrelid = 'odd_hist_cd'::regclass ORDER BY 1"
+    before = _run(conn, index_oids)
+
+    # Sizes chosen so the storage branch deletes rows and reaches the cooldown
+    # check; row deletion and both rebuild paths are replaced.
+    gb = 1024.0 ** 3
+    functs.get_database_size_gb = lambda: 1.0
+    functs.get_table_metrics = lambda need_exact_count=False: {
+        "total_bytes": 100 * 1024 * 1024, "heap_bytes": 0, "idx_bytes": 0,
+        "reltuples": 1000, "actual_count": None}
+    functs.delete_rows_by_chunks = lambda rows, chunk_size=5000: rows
+
+    def no_rebuild(*args, **kwargs):
+        raise AssertionError("a heap rewrite ran during cooldown")
+
+    functs.run_pg_repack = no_rebuild
+    functs.manual_table_rebuild = no_rebuild
+    functs._last_heap_rewrite_ts = datetime.datetime.now(datetime.timezone.utc)
+
+    with caplog.at_level(logging.INFO, logger="volttron.platform.dbutils.postgresqlfuncts"):
+        functs.manage_db_size(None, (gb - 60 * 1024 * 1024) / gb,
+                              min_rows_floor=0, min_bytes_floor=0, cooldown_minutes=60)
+
+    after = _run(conn, index_oids)
+    assert "Reindexed indexes concurrently (cooldown mode)" in caplog.text
+    assert len(before) == len(after) == 2
+    assert not set(before) & set(after)

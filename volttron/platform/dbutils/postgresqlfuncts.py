@@ -1153,13 +1153,13 @@ class PostgreSqlFuncts(DbDriver):
                         # Optional: reclaim index space only
                         try:
                             self.execute_stmt(
-                                SQL("REINDEX CONCURRENTLY TABLE public.{}").format(
+                                SQL("REINDEX TABLE CONCURRENTLY public.{}").format(
                                     Identifier(self.data_table)
                                 )
                             )
                             _log.info("Reindexed indexes concurrently (cooldown mode)")
                         except Exception as e:
-                            _log.warning(f"REINDEX CONCURRENTLY TABLE failed: {e}")
+                            _log.warning(f"REINDEX TABLE CONCURRENTLY failed: {e}")
                     else:
                         # Try pg_repack; else CTAS+swap
                         rebuilt = False
