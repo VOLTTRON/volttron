@@ -791,10 +791,9 @@ class AuthFile(object):
         self.auth_data = self._to_auth_data(jsonapi.loads(text))
 
     def _write_in_place(self, data):
-        """Overwrites auth.json without truncating first, keeping its inode,
-        owner and mode for the file watcher. Until the first byte is written
-        last, the file does not parse, so a write that stops partway (a full
-        disk) is refused by the next read, never read as empty or mixed."""
+        """Overwrites auth.json in place, keeping its inode, owner and mode for
+        the file watcher. The first byte is a NUL until the rest is written,
+        so a write that stops partway is refused by the next read."""
         with open(self.auth_file, "r+b") as fil:
             for offset, chunk in ((0, _UNPARSEABLE), (1, data[1:]),
                                   (0, data[:1])):
