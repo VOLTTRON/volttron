@@ -485,7 +485,8 @@ class PlatformWebService(Agent):
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
 
-        _log.debug('path_info is: {}'.format(path_info))
+        from volttron.platform.web import printable_text
+        _log.debug('path_info is: {}'.format(printable_text(path_info)))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
         (peer, res_type) = self.endpoints.get(path_info, (None, None))
@@ -506,7 +507,7 @@ class PlatformWebService(Agent):
         # callback to perform whatever is required of the method.
         if peer:
             # Not the env or body: they carry the Authorization header, cookie and form data.
-            _log.debug('Calling peer {} back for {}'.format(peer, path_info))
+            _log.debug('Calling peer {} back for {}'.format(peer, printable_text(path_info)))
             res = self.vip.rpc.call(peer, 'route.callback',
                                     passenv, data).get(timeout=60)
 
@@ -525,8 +526,8 @@ class PlatformWebService(Agent):
 
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
-                _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
-                           .format(k.pattern, path_info, v))
+                _log.debug("MATCHED: pattern: {}, path_info: {}, v: {}"
+                           .format(k.pattern, printable_text(path_info), v))
                 _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
                     # Changing signature of the "locally" called points to return
@@ -560,7 +561,7 @@ class PlatformWebService(Agent):
                         return self._redirect_index(env, start_response)
                     server_path = v + path_info  # os.path.join(v, path_info)
                     server_path = str(Path(server_path).resolve())
-                    _log.debug('Serverpath: {}'.format(server_path))
+                    _log.debug('Serverpath: {}'.format(printable_text(server_path)))
                     # protects against relative server traversal.
                     if not server_path.startswith(v):
                         start_response('403 Forbidden', [('Content-Type', 'text/html')])
@@ -667,7 +668,8 @@ class PlatformWebService(Agent):
     def _sendfile(self, env, start_response, filename):
         from wsgiref.util import FileWrapper
         status = '200 OK'
-        _log.debug('SENDING FILE: {}'.format(filename))
+        from volttron.platform.web import printable_text
+        _log.debug('SENDING FILE: {}'.format(printable_text(filename)))
         guess = mimetypes.guess_type(filename)[0]
         _log.debug('MIME GUESS: {}'.format(guess))
 

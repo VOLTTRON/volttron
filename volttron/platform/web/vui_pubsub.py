@@ -23,7 +23,7 @@ class VUIPubsubManager:
 
     def open_subscription_socket(self, access_token, topic):
         _log.debug('In open_subscription_socket:')
-        _log.debug(f'topic: {topic}')
+        _log.debug(f'topic: {topic!r}')
         ws = self.subscription_websockets.get(topic)
         _log.debug(f'subscription_websockets has: {ws}')
         if not ws:
@@ -54,7 +54,7 @@ class VUIPubsubManager:
         return ws_app
 
     def client_opened(self, ws, topic, access_token):
-        _log.debug(f'VUIPubsubManager: Subscribing to {topic}')
+        _log.debug(f'VUIPubsubManager: Subscribing to {topic!r}')
         self._agent.vip.pubsub.subscribe('pubsub', topic, ws.on_topic)
         self.user_websockets[access_token][topic] = ws
 
@@ -131,7 +131,7 @@ class VUIWebSocket(WebSocket):
 
     def on_topic(self, peer, sender, bus, topic, headers, message):
         _log.debug('VUIWebSocket: in _on_topic')
-        _log.debug(f'topic is: {topic}')
+        _log.debug(f'topic is: {topic!r}')
         _log.debug(f'message is: {message}')
         if not self.terminated:
             try:

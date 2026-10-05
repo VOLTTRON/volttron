@@ -89,13 +89,18 @@ def get_claim_groups(claims):
     return groups
 
 
+def printable_text(text, limit=200):
+    """Reduce request-supplied text to one printable log line of at most limit chars."""
+    return ''.join(c for c in str(text) if c.isprintable())[:limit]
+
+
 def describe_call_error(error):
     """Name an RPC failure for a log line: the remote exception type for a
     RemoteError, else the local type. Never the message, which can carry data."""
     exc_info = getattr(error, 'exc_info', None)
     if isinstance(exc_info, dict) and isinstance(exc_info.get('exc_type'), str):
         # The remote side chooses this text: keep it to one printable line.
-        return ''.join(c for c in exc_info['exc_type'] if c.isprintable())[:100]
+        return printable_text(exc_info['exc_type'], 100)
     return type(error).__name__
 
 

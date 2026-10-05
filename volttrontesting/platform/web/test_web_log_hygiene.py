@@ -68,3 +68,30 @@ def test_remote_error_type_is_kept_when_safe():
     assert describe_call_error(RemoteError('m', exc_type='builtins.KeyError', exc_args=[])) == \
         'builtins.KeyError'
     assert describe_call_error(ValueError('SECRET')) == 'ValueError'
+
+
+@pytest.mark.parametrize('exc_type', [5, None, b'KeyError', ['KeyError']])
+def test_remote_error_type_that_is_not_text_names_the_local_type(exc_type):
+    from volttron.platform.web import describe_call_error
+    assert describe_call_error(RemoteError('m', exc_type=exc_type, exc_args=[])) == 'RemoteError'
+
+
+def test_routing_log_lines_stay_on_one_line(caplog):
+    import re
+    from volttron.platform.agent.web import Response
+    svc = PlatformWebService.__new__(PlatformWebService)
+    svc.vip = MagicMock()
+    svc.core = MagicMock()
+    svc.core.messagebus = 'zmq'
+    svc.endpoints = {}
+    svc.registeredroutes = [
+        (re.compile('^/x'), 'callable', lambda env, data: Response('ok', 200)),
+        (re.compile('^/static'), 'path', '/nonexistent-root'),
+    ]
+    with caplog.at_level('DEBUG'):
+        for path in ('/x\nFORGED line', '/static/../y\nFORGED\x1b[2J'):
+            env = get_test_web_env(path, method='GET')
+            svc.app_routing(env, MagicMock())
+    assert len(caplog.records) >= 3
+    for record in caplog.records:
+        assert record.getMessage().isprintable(), record.getMessage()
