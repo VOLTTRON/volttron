@@ -16,7 +16,7 @@ except ImportError:
         allow_module_level=True,
     )
 from volttron.platform import jsonapi
-from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
+from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts, _derived_name
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
@@ -719,7 +719,7 @@ def live_db():
 
     def make_functs(data_table, topics_table="odd_topics", meta_table="odd_meta"):
         tables.extend([data_table, topics_table, meta_table,
-                       f"{data_table}_new", f"{data_table}_old"])
+                       _derived_name(data_table, suffix="_new"), _derived_name(data_table, suffix="_old")])
         functs = PostgreSqlFuncts(_live_connect_params(), {
             "data_table": data_table,
             "topics_table": topics_table,
@@ -1244,3 +1244,36 @@ def test_cleanup_never_drops_the_data_table(live_db):
     assert _table_exists(conn, data_table)
     assert _row_count(conn, data_table) == 3
     assert isinstance(error, ValueError)
+
+
+def test_reindex_without_rebuild_finds_indexes_of_an_odd_table(live_db):
+    conn, make_functs, _ = live_db
+    functs = make_functs(ODD_DATA_TABLE)
+    _create_data_table(conn, ODD_DATA_TABLE, rows=2)
+    assert functs.manual_table_rebuild() is True
+    index_oids = ("SELECT i.indexrelid FROM pg_index i JOIN pg_class c ON c.oid = i.indrelid "
+                  "WHERE c.relname = %s ORDER BY 1")
+    before = _run(conn, index_oids, (ODD_DATA_TABLE,))
+
+    metrics = functs.get_table_metrics()
+    functs.delete_without_rebuild(metrics, metrics["total_bytes"])
+
+    after = _run(conn, index_oids, (ODD_DATA_TABLE,))
+    assert len(before) == len(after) == 2
+    assert not set(before) & set(after)
+
+
+def test_rebuild_names_shorten_multibyte_table_names_on_a_character_boundary(live_db):
+    conn, make_functs, _ = live_db
+    # 62 bytes; both index names must cut inside a two-byte character.
+    data_table = "oo" + "\u00e9" * 30
+    functs = make_functs(data_table)
+    _create_data_table(conn, data_table, rows=2)
+
+    assert functs.manual_table_rebuild() is True
+    assert functs.manual_table_rebuild() is True
+
+    unique_key = "oo" + "\u00e9" * 22 + "_topic_id_ts_key"
+    ts_index = "idx_oo" + "\u00e9" * 28
+    assert _index_names(conn, data_table) == {ts_index, unique_key}
+    assert _row_count(conn, data_table) == 2
