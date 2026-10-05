@@ -4,12 +4,14 @@ and that no platform route uses; the platform's own routes always answer."""
 import logging
 import os
 import re
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL
 from volttron.platform.web import platform_web_service
+from volttron.platform.web.platform_web_service import PlatformWebService
 from volttrontesting.platform.web.conftest import build_web_service, set_caller
 from volttrontesting.utils.web_utils import get_test_web_env
 
@@ -29,7 +31,8 @@ def _register(service, kind, path, root):
 
 def _tables(service):
     return (list(service.registeredroutes), dict(service.endpoints),
-            dict(service.appContainer._wsregistry))
+            dict(service.appContainer._wsregistry), dict(service.peerroutes),
+            dict(service.pathroutes), dict(getattr(service, '_namespace_owners', {})))
 
 
 def _builtin_segments(service):
@@ -110,6 +113,18 @@ def test_exact_paths_must_start_with_a_namespace(web_service, tmp_path, kind, pa
     with pytest.raises(PermissionError):
         _register(web_service, kind, path, tmp_path)
     assert _tables(web_service) == before
+
+
+@pytest.mark.parametrize('kind', KINDS)
+def test_gs_stays_reserved_without_its_route(tmp_path, monkeypatch, kind):
+    with mock.patch.object(PlatformWebService, 'register_gs_route'):
+        service = build_web_service(tmp_path, monkeypatch)
+    assert 'gs' not in {e[0].pattern.split('/')[1].rstrip('?') for e in service.registeredroutes}
+    set_caller(service, 'a')
+    before = _tables(service)
+    with pytest.raises(PermissionError):
+        _register(service, kind, '/gs', tmp_path)
+    assert _tables(service) == before
 
 
 def test_endpoint_cannot_take_a_platform_route(web_service):
