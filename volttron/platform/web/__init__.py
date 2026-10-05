@@ -26,12 +26,19 @@ from http.cookies import SimpleCookie
 import logging
 
 from datetime import datetime
-from volttron.platform import get_platform_config
+
+_PYJWT_REQUIRED = "volttron.platform.web requires PyJWT 2"
+_PYJWT_INSTALL = "install the web libraries with python3 bootstrap.py --web"
 
 try:
     import jwt
-except ImportError:
-    pass
+except ImportError as exc:
+    raise ImportError(f"{_PYJWT_REQUIRED}; {_PYJWT_INSTALL}") from exc
+
+# PyJWT 1.x returns bytes from encode and decodes without an algorithm list,
+# so the token code in this package is correct only on 2.x.
+if int(jwt.__version__.split('.')[0]) < 2:
+    raise ImportError(f"{_PYJWT_REQUIRED}, found {jwt.__version__}; {_PYJWT_INSTALL}")
 
 from . discovery import DiscoveryInfo, DiscoveryError
 
@@ -67,35 +74,6 @@ def get_bearer(env):
             return None
 
 
-def get_user_claims(env, ssl_public_key):
-    algorithm, encode_key = __get_key_and_algorithm__(env, ssl_public_key)
-    bearer = get_bearer(env)
-    return jwt.decode(bearer, encode_key, algorithm=algorithm)
-
-
-
-def __get_key_and_algorithm__(env, ssl_public_key):
-    config = get_platform_config()
-    publickey = env.get("WEB_PUBLIC_KEY")
-    if publickey is not None or ssl_public_key is not None:
-        algorithm = 'RS256'
-    else:
-        algorithm = 'HS256'
-
-    if algorithm == 'HS256':
-        if config.get('web-secret-key') is None:
-            raise ValueError("invalid configuration detected web_secret_key must be set!")
-
-    if algorithm == 'RS256' and ssl_public_key is None:
-        encode_key = publickey
-    elif algorithm == 'RS256' and ssl_public_key:
-        encode_key = ssl_public_key
-    else:
-        encode_key = config.get('web-secret-key')
-
-    return algorithm, encode_key
-
-
 def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None):
     if web_secret_key is None and tls_public_key is None:
         raise ValueError("web_secret_key or tls_public_key must be set")
@@ -111,5 +89,5 @@ def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None)
         # if isinstance(tls_public_key, str):
         #     pubkey = CertWrapper.load_cert(tls_public_key)
 
-    claims = jwt.decode(bearer, pubkey, algorithms=algorithm)
+    claims = jwt.decode(bearer, pubkey, algorithms=[algorithm])
     return claims

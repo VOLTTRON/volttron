@@ -163,7 +163,7 @@ class AuthenticateEndpoints:
         claims['exp'] = now + timedelta(minutes=self.refresh_token_timeout)
         claims['grant_type'] = 'refresh_token'
         refresh_token = jwt.encode(claims, encode_key, algorithm=algorithm)
-        return access_token.decode('utf-8'), refresh_token.decode('utf8')
+        return access_token, refresh_token
 
     def renew_auth_token(self, env, data):
         """
@@ -192,6 +192,10 @@ class AuthenticateEndpoints:
 
         except jwt.ExpiredSignatureError:
             _log.error("User attempted to connect to {} with an expired signature".format(env.get('PATH_INFO')))
+            return Response('Unauthorized User', status="401 Unauthorized")
+
+        except jwt.PyJWTError:
+            _log.error("Invalid refresh token presented to {}".format(env.get('PATH_INFO')))
             return Response('Unauthorized User', status="401 Unauthorized")
 
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):
