@@ -1137,3 +1137,17 @@ def test_cleanup_logs_a_leftover_it_cannot_drop(live_db, caplog):
 
     assert "Could not drop leftover table odd_hist_t_new" in caplog.text
     assert not _table_exists(conn, "odd_hist_t_old")
+
+
+def test_cleanup_drops_only_the_derived_leftover_tables(live_db):
+    conn, make_functs, drop_later = live_db
+    drop_later("odd_cz_canary")
+    _create_data_table(conn, "odd_cz_canary", rows=1)
+    data_table = "odd_cz; DROP TABLE odd_cz_canary; --"
+    functs = make_functs(data_table)
+    _run(conn, SQL("CREATE TABLE {} (ts TIMESTAMP)").format(Identifier(f"{data_table}_old")))
+
+    functs.cleanup_temp_resources()
+
+    assert _table_exists(conn, "odd_cz_canary")
+    assert not _table_exists(conn, f"{data_table}_old")
