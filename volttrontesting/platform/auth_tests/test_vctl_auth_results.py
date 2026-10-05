@@ -49,7 +49,7 @@ def _seed(auth_path):
                       rpc_method_authorizations={"m": ["c"]})
     data = {"allow": [vars(entry)], "deny": [],
             "groups": {"g": ["r"]}, "roles": {"r": ["c"]},
-            "version": {"major": 1, "minor": 4}}
+            "version": {"major": 1, "minor": 5}}
     with open(auth_path, "w") as fil:
         fil.write(jsonapi.dumps(data, indent=2))
 

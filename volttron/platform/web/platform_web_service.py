@@ -84,8 +84,8 @@ GS_CALL_TIMEOUT = 10
 # \Z rather than $, which also matches before a trailing newline.
 GS_ROUTE = re.compile(r'^/gs/?\Z')
 
-# Kept from agents even if no platform route answers there: /gs clients send
-# an admin token in the request body.
+# Kept from agents even when the /gs route is disabled; its clients expect the
+# platform to answer.
 ALWAYS_RESERVED_NAMESPACES = frozenset({'gs'})
 # Held for the agent that serves them, so no other agent can claim them first.
 IDENTITY_NAMESPACES = MappingProxyType({'vc': VOLTTRON_CENTRAL})

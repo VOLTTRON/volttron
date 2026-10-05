@@ -66,7 +66,7 @@ def _seed(auth_path, allow=(), deny=(), version=None):
     data = {"allow": [vars(e) for e in allow],
             "deny": [vars(e) for e in deny],
             "groups": {}, "roles": {},
-            "version": version or {"major": 1, "minor": 4}}
+            "version": version or {"major": 1, "minor": 5}}
     with open(auth_path, "w") as fil:
         fil.write(jsonapi.dumps(data, indent=2))
 
@@ -764,7 +764,7 @@ def test_platformwrapper_set_auth_dict_replaces_the_file(auth_path):
     _seed(auth_path, [_entry("x", "X")])
     auth_dict = {"allow": [vars(_entry("y", "Y"))], "deny": [],
                  "groups": {}, "roles": {},
-                 "version": {"major": 1, "minor": 4}}
+                 "version": {"major": 1, "minor": 5}}
 
     _wrapper_for(auth_path).set_auth_dict(auth_dict)
 
