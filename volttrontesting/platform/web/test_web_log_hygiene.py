@@ -95,3 +95,41 @@ def test_routing_log_lines_stay_on_one_line(caplog):
     assert len(caplog.records) >= 3
     for record in caplog.records:
         assert record.getMessage().isprintable(), record.getMessage()
+
+
+def test_printable_text_is_bounded():
+    from volttron.platform.web import printable_text
+    assert printable_text('a' * 500) == 'a' * 200
+    assert printable_text('a\nb' * 100, 7) == 'abababa'
+    assert printable_text(None) == 'None'
+
+
+def test_admin_and_login_log_lines_stay_on_one_line(caplog):
+    from volttron.platform.web.admin_endpoints import AdminEndpoints
+    rpc = MagicMock()
+    rpc.return_value.get.return_value = {'groups': ['admin']}
+    admin = AdminEndpoints.__new__(AdminEndpoints)
+    admin._rpc_caller = rpc
+    admin._userdict = {'admin': {}}
+    with caplog.at_level('DEBUG'):
+        admin.admin(get_test_web_env('/admin/login.html\nEXTRA', method='GET'), '')
+        admin.admin(get_test_web_env('/admin/api/approve_credential/u\nEXTRA', method='GET',
+                                     HTTP_AUTHORIZATION='Bearer tok'), '')
+    assert len(caplog.records) >= 2
+    for record in caplog.records:
+        assert record.getMessage().isprintable(), record.getMessage()
+
+
+def test_login_log_lines_stay_on_one_line(caplog):
+    from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
+    auth = AuthenticateEndpoints.__new__(AuthenticateEndpoints)
+    auth._userdict = {'admin': {'hashed_password': 'x', 'groups': ['admin']}}
+    auth._web_secret_key = 'k'
+    auth._tls_public_key = None
+    with caplog.at_level('DEBUG'):
+        auth.handle_authenticate(get_test_web_env('/authenticate', method='POST'),
+                                 {'username': 'u\nEXTRA', 'password': 'p'})
+        auth.handle_authenticate(get_test_web_env('/authenticate\nEXTRA', method='PUT'), {})
+    assert sum('EXTRA' in r.getMessage() for r in caplog.records) >= 3
+    for record in caplog.records:
+        assert record.getMessage().isprintable(), record.getMessage()

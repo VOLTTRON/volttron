@@ -18,6 +18,12 @@ from volttron.utils.persistance import PersistentDict
 _log = logging.getLogger(__name__)
 
 
+def printable_text(text):
+    # Imported lazily: volttron.platform.web imports this module.
+    from volttron.platform.web import printable_text as _printable_text
+    return _printable_text(text)
+
+
 __PACKAGE_DIR__ = os.path.dirname(os.path.abspath(__file__))
 __TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
 __STATIC_DIR__ = os.path.join(__PACKAGE_DIR__, "static")
@@ -130,7 +136,7 @@ class AuthenticateEndpoints:
             username = data.get('username')
             password = data.get('password')
 
-        _log.debug("Username is: {}".format(username))
+        _log.debug("Username is: {}".format(printable_text(username)))
 
         error = ""
         if username is None:
@@ -139,12 +145,12 @@ class AuthenticateEndpoints:
             error += "Invalid password passed"
 
         if error:
-            _log.error("Invalid parameters passed: {}".format(error))
+            _log.error("Invalid parameters passed: {}".format(printable_text(error)))
             return Response(error, status='401')
 
         user = self.__get_user(username, password)
         if user is None:
-            _log.error("No matching user for passed username: {}".format(username))
+            _log.error("No matching user for passed username: {}".format(printable_text(username)))
             return Response('', status='401')
         access_token, refresh_token = self._get_tokens(user)
         response = Response(json.dumps({"refresh_token": refresh_token, "access_token": access_token}),
@@ -187,11 +193,12 @@ class AuthenticateEndpoints:
             claims = get_user_claim_from_bearer(current_refresh_token, web_secret_key=self._web_secret_key,
                                                 tls_public_key=self._tls_public_key)
         except NotAuthorized:
-            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
+            _log.error("Unauthorized user attempted to connect to {}".format(printable_text(env.get('PATH_INFO'))))
             return Response('Unauthorized User', status="401 Unauthorized")
 
         except jwt.ExpiredSignatureError:
-            _log.error("User attempted to connect to {} with an expired signature".format(env.get('PATH_INFO')))
+            _log.error("User attempted to connect to {} with an expired signature".format(
+                printable_text(env.get('PATH_INFO'))))
             return Response('Unauthorized User', status="401 Unauthorized")
 
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):

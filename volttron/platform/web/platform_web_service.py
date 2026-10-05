@@ -349,15 +349,11 @@ class PlatformWebService(Agent):
         string (``'401 Unauthorized'`` / ``'403 Forbidden'``) when the caller
         must be rejected. Fail-closed: a missing/invalid token, an
         indeterminate claims set, or a missing ``groups`` claim all deny.
+        The token is read from the Authorization header only, never the
+        cookie, which a browser sends on requests other sites make.
         """
-        from volttron.platform.web import get_bearer, NotAuthorized
-        try:
-            bearer = get_bearer(environ)
-        except (NotAuthorized, ValueError):
-            # ValueError: a malformed Authorization header (e.g. "Bearer"
-            # with no token) makes get_bearer's split-unpack raise; fail
-            # closed with an explicit 401, not an uncaught 500.
-            return '401 Unauthorized'
+        from volttron.platform.web import get_authorization_bearer, NotAuthorized
+        bearer = get_authorization_bearer(environ)
         if not bearer:
             return '401 Unauthorized'
         try:
@@ -391,7 +387,11 @@ class PlatformWebService(Agent):
         gate = self._require_admin(environ)
         if isinstance(gate, str):
             return self._unauthorized(environ, start_response, gate)
-        jsondata = jsonapi.loads(data)
+        from volttron.platform.web import get_media_type
+        if get_media_type(environ) != 'application/json':
+            return self._unauthorized(environ, start_response, '415 Unsupported Media Type')
+        # app_routing has already decoded a JSON body.
+        jsondata = data if isinstance(data, dict) else jsonapi.loads(data)
         json_validate_request(jsondata)
 
         assert jsondata.get('method') == 'allowvc'

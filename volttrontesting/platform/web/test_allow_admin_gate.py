@@ -147,7 +147,8 @@ def test_allow_rejects_when_groups_claim_missing_fail_closed():
 def test_allow_accepts_admin_jwt_and_adds_auth_entry():
     svc = _make_service(claims={"groups": ["admin", "vui"]})
     env = get_test_web_env('/discovery/allow', method='POST',
-                           HTTP_AUTHORIZATION='Bearer admintoken')
+                           HTTP_AUTHORIZATION='Bearer admintoken',
+                           CONTENT_TYPE='application/json')
 
     start_response, body = _call_allow(svc, env)
 
@@ -219,7 +220,8 @@ def test_allow_admin_with_malformed_key_still_rejected_by_validation():
     # rejected, and no bad entry is written to the auth file.
     svc = _make_service(claims={"groups": ["admin", "vui"]})
     env = get_test_web_env('/discovery/allow', method='POST',
-                           HTTP_AUTHORIZATION='Bearer admintoken')
+                           HTTP_AUTHORIZATION='Bearer admintoken',
+                           CONTENT_TYPE='application/json')
     bad_body = jsonapi.dumpb({
         "jsonrpc": "2.0",
         "id": "vo-001-test",

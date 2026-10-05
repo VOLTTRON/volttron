@@ -89,6 +89,11 @@ def get_claim_groups(claims):
     return groups
 
 
+def get_media_type(env):
+    """Return the request's media type, lower-cased, without parameters."""
+    return (env.get('CONTENT_TYPE') or '').split(';')[0].strip().lower()
+
+
 def printable_text(text, limit=200):
     """Reduce request-supplied text to one printable log line of at most limit chars."""
     return ''.join(c for c in str(text) if c.isprintable())[:limit]
