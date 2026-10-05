@@ -733,6 +733,7 @@ class PostgreSqlFuncts(DbDriver):
 
         Readers remain online; writers are blocked during copy (SHARE lock) and briefly during swap.
         """
+        swapped = False
         try:
             _log.info("Starting manual table rebuild (CTAS + swap, temp constraint/index names)")
 
@@ -830,6 +831,7 @@ class PostgreSqlFuncts(DbDriver):
             # Commit: new table is now live. The connection is in autocommit
             # mode, so only an explicit COMMIT ends the BEGIN above.
             self.execute_stmt("COMMIT")
+            swapped = True
 
             # Autocommit again from here: the commit() calls below are no-ops kept for a non-autocommit connection.
             # Drop old table and its indexes (outside txn to minimize lock time)
@@ -877,7 +879,8 @@ class PostgreSqlFuncts(DbDriver):
                     )
                 )
                 self.commit()
-            except psycopg2.Error:
+            except psycopg2.Error as e:
+                _log.warning(f'Renaming index "{tmp_con_name}" -> "{unique_key_name}" failed: {e}')
                 # If it wasn't auto-renamed to tmp_con_name, try the original uniq_idx_name
                 try:
                     self.execute_stmt(
@@ -897,11 +900,15 @@ class PostgreSqlFuncts(DbDriver):
             return True
 
         except Exception as e:
-            _log.error(f"Manual table rebuild failed: {e}")
-            try:
-                self.execute_stmt("ROLLBACK")
-            except Exception:
-                pass
+            if swapped:
+                _log.error(f"Manual table rebuild failed after the swap; the rebuilt table is already in place: {e}")
+            else:
+                _log.error(f"Manual table rebuild failed: {e}")
+                # The connection is shared; without this ROLLBACK every later statement fails.
+                try:
+                    self.execute_stmt("ROLLBACK")
+                except psycopg2.Error as rollback_error:
+                    _log.error(f"ROLLBACK after failed rebuild of {self.data_table!r} failed: {rollback_error}")
             # Clean up any partial resources
             self.cleanup_temp_resources()
             return False

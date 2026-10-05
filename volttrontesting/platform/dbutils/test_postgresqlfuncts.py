@@ -960,7 +960,7 @@ def test_manual_table_rebuild_of_two_tables_keeps_index_names_unique(live_db):
 
 
 @pytest.mark.parametrize("taken_name", ["idx_odd_hist_d", "odd_hist_d_topic_id_ts_key"])
-def test_manual_table_rebuild_reports_failure_when_an_index_name_is_taken(live_db, taken_name):
+def test_manual_table_rebuild_reports_failure_when_an_index_name_is_taken(live_db, taken_name, caplog):
     conn, make_functs, drop_later = live_db
     drop_later("odd_other")
     _run(conn, "CREATE TABLE odd_other (ts TIMESTAMP)")
@@ -968,8 +968,12 @@ def test_manual_table_rebuild_reports_failure_when_an_index_name_is_taken(live_d
     functs = make_functs("odd_hist_d")
     _create_data_table(conn, "odd_hist_d", rows=2)
 
-    assert functs.manual_table_rebuild() is False
+    with caplog.at_level(logging.WARNING, logger="volttron.platform.dbutils.postgresqlfuncts"):
+        assert functs.manual_table_rebuild() is False
     assert _row_count(conn, "odd_hist_d") == 2
+    assert "the rebuilt table is already in place" in caplog.text
+    if taken_name.endswith("_key"):
+        assert 'Renaming index "data_topic_id_ts_key_' in caplog.text
 
 
 def test_reindex_after_rebuild_finds_the_rebuilt_indexes(live_db, caplog):
@@ -1084,3 +1088,52 @@ def test_vacuum_advice_names_the_table_as_a_quoted_identifier(caplog):
         functs.delete_without_rebuild(metrics, 1024)
 
     assert "Run 'VACUUM FULL public.\"Odd\"\"Da'ta; --\";'" in caplog.text
+
+
+def test_failed_rebuild_leaves_the_connection_usable(live_db, caplog):
+    conn, make_functs, _ = live_db
+    functs = make_functs("odd_hist_r")
+    _create_data_table(conn, "odd_hist_r", rows=3)
+
+    # An unparseable cutoff fails the copy inside the rebuild's transaction.
+    with caplog.at_level(logging.WARNING, logger="volttron.platform.dbutils.postgresqlfuncts"):
+        assert functs.manual_table_rebuild(keep_cutoff_timestamp="not a timestamp") is False
+
+    assert functs.get_table_metrics(need_exact_count=True)["actual_count"] == 3
+    assert not _table_exists(conn, "odd_hist_r_new")
+    assert "already in place" not in caplog.text
+
+
+def test_failed_rollback_after_a_failed_rebuild_is_logged(caplog):
+    functs = PostgreSqlFuncts.__new__(PostgreSqlFuncts)
+    functs.data_table = "odd_hist_s"
+    functs.cleanup_temp_resources = lambda: None
+
+    def execute_stmt(stmt, args=None, commit=False):
+        if stmt in ("BEGIN", "ROLLBACK"):
+            raise psycopg2.OperationalError(f"{stmt} refused")
+        return 0
+
+    functs.execute_stmt = execute_stmt
+
+    with caplog.at_level(logging.ERROR, logger="volttron.platform.dbutils.postgresqlfuncts"):
+        assert functs.manual_table_rebuild() is False
+
+    assert "ROLLBACK refused" in caplog.text
+
+
+def test_cleanup_logs_a_leftover_it_cannot_drop(live_db, caplog):
+    conn, make_functs, drop_later = live_db
+    functs = make_functs("odd_hist_t")
+    drop_later("odd_hist_t_temp")
+    _run(conn, "CREATE TABLE odd_hist_t_old (ts TIMESTAMP)")
+    # DROP TABLE refuses a view, so this leftover name cannot be dropped.
+    _run(conn, "CREATE VIEW odd_hist_t_new AS SELECT 1 AS x")
+    try:
+        with caplog.at_level(logging.WARNING, logger="volttron.platform.dbutils.postgresqlfuncts"):
+            functs.cleanup_temp_resources()
+    finally:
+        _run(conn, "DROP VIEW IF EXISTS odd_hist_t_new")
+
+    assert "Could not drop leftover table odd_hist_t_new" in caplog.text
+    assert not _table_exists(conn, "odd_hist_t_old")
