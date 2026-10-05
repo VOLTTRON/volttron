@@ -187,7 +187,10 @@ class AdminEndpoints:
                 raise ValueError("not owned by the platform user")
             if stat.S_IMODE(st.st_mode) != 0o600:
                 raise ValueError(f"mode is {stat.S_IMODE(st.st_mode):o}, not 600")
-            return fp.read().decode('ascii').strip()
+            token = fp.read().decode('ascii').strip()
+        if not token:
+            raise ValueError("empty token file")
+        return token
 
     @staticmethod
     def _setup_page(env, status='200 OK'):

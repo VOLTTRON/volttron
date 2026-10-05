@@ -195,17 +195,22 @@ def test_setup_token_file_is_owner_only_and_token_is_not_logged(caplog):
 
 
 @pytest.mark.web
-def test_empty_setup_token_file_never_matches():
+@pytest.mark.parametrize('submitted', ['', 'anything'])
+def test_empty_setup_token_file_is_reported_and_never_matches(caplog, submitted):
     with get_test_volttron_home(messagebus='zmq') as vhome:
         token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
         fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         os.close(fd)
         adminep = AdminEndpoints()
+        caplog.clear()
 
-        response = _request(adminep, 'POST', _admin_form(''))
+        response = _request(adminep, 'POST', _admin_form(submitted))
 
-        assert 403 == response.status_code
+        assert 503 == response.status_code
         assert {} == _stored_users(vhome)
+        errors = [r.getMessage() for r in caplog.records if r.levelname == 'ERROR']
+        assert any(token_path in m and 'empty' in m for m in errors)
+        assert not any('missing or wrong' in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.web
@@ -227,6 +232,7 @@ def test_first_admin_refused_with_blank_username_or_password(username, password)
 
 
 @pytest.mark.web
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the directory permission this test relies on")
 @pytest.mark.parametrize('method', ['GET', 'POST'])
 def test_setup_refused_when_the_token_file_cannot_be_written(method):
     with get_test_volttron_home(messagebus='zmq') as vhome:
@@ -273,7 +279,7 @@ def test_dangling_setup_token_symlink_target_is_not_created():
         response = _request(adminep, 'POST', _admin_form(''))
 
         assert not os.path.lexists(target)
-        assert response.status_code in (403, 503)
+        assert 503 == response.status_code
         assert {} == _stored_users(vhome)
 
 
@@ -305,6 +311,7 @@ def test_setup_token_file_owned_by_another_user_is_refused():
 
 
 @pytest.mark.web
+@pytest.mark.timeout(10)
 @pytest.mark.parametrize('kind', ['fifo', 'directory'])
 def test_setup_token_path_that_is_not_a_regular_file_is_refused(kind):
     with get_test_volttron_home(messagebus='zmq') as vhome:
@@ -512,6 +519,49 @@ def test_setup_stays_recoverable_when_saving_the_first_admin_fails(caplog, error
         users = _stored_users(vhome)
         assert ['bart'] == list(users)
         assert argon2.verify('wowsa', users['bart']['hashed_password'])
+
+
+@pytest.mark.web
+@pytest.mark.parametrize('remove_fails', [False, True])
+def test_setup_token_write_failure_is_logged_and_setup_refused(caplog, remove_fails):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        token_path = os.path.join(vhome, SETUP_TOKEN_FILE_NAME)
+        remove = PermissionError(errno.EACCES, 'denied') if remove_fails else None
+        with patch.object(admin_endpoints.os, 'write', side_effect=OSError(errno.ENOSPC, 'no space')), \
+                patch.object(admin_endpoints.os, 'remove', side_effect=remove, wraps=os.remove):
+            adminep = AdminEndpoints()
+            response = _request(adminep, 'GET')
+
+        errors = [r.getMessage() for r in caplog.records if r.levelname == 'ERROR']
+        assert any('cannot write the setup token file' in m and token_path in m for m in errors)
+        if remove_fails:
+            # The empty file left behind is refused, never matched.
+            assert any('incomplete setup token file' in m for m in errors)
+            assert 503 == _request(adminep, 'POST', _admin_form('anything')).status_code
+            assert {} == _stored_users(vhome)
+        else:
+            assert 503 == response.status_code
+            assert not os.path.lexists(token_path)
+            assert 200 == _request(adminep, 'GET').status_code
+            with open(token_path) as fp:
+                assert len(fp.read()) >= 43
+
+
+@pytest.mark.web
+def test_setup_answers_503_when_the_token_cannot_be_removed(caplog):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
+        adminep = AdminEndpoints()
+        token = _issue_setup_token(adminep, vhome)
+
+        with patch.object(admin_endpoints.os, 'remove', side_effect=PermissionError(errno.EACCES, 'denied')):
+            response = _request(adminep, 'POST', _admin_form(token))
+
+        assert 503 == response.status_code
+        assert {} == _stored_users(vhome)
+        assert {} == adminep._userdict
+        assert os.path.exists(os.path.join(vhome, SETUP_TOKEN_FILE_NAME))
+        assert any(r.levelname == 'ERROR' and 'cannot remove the setup token file' in r.getMessage()
+                   for r in caplog.records)
 
 
 @pytest.mark.web
