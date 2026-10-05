@@ -79,8 +79,17 @@ from volttron.platform.vip.tracking import Tracker
 try:
     from .web import PlatformWebService
     HAS_WEB = True
-except ImportError:
+    _WEB_IMPORT_ERROR = None
+except ImportError as _exc:
     HAS_WEB = False
+    _WEB_IMPORT_ERROR = str(_exc)
+
+
+def web_unavailable_message():
+    return (f"Web service unavailable ({_WEB_IMPORT_ERROR}), but bind web address specified\n"
+            "Please install web libraries using python3 bootstrap.py --web\n")
+
+
 from zmq import green as _green
 
 from volttron.platform import is_rabbitmq_available
@@ -1025,15 +1034,8 @@ def start_volttron_process(opts):
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if not HAS_WEB:
-                _log.info(
-                    f"Web libraries not installed, but bind web address specified\n"
-                )
-                sys.stderr.write(
-                    "Web libraries not installed, but bind web address specified\n"
-                )
-                sys.stderr.write(
-                    "Please install web libraries using python3 bootstrap.py --web\n"
-                )
+                _log.info(web_unavailable_message())
+                sys.stderr.write(web_unavailable_message())
                 sys.exit(-1)
 
             if opts.instance_name is None:

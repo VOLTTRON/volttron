@@ -26,19 +26,10 @@ from http.cookies import SimpleCookie
 import logging
 
 from datetime import datetime
+from volttron.platform import check_pyjwt
 
-_PYJWT_REQUIRED = "volttron.platform.web requires PyJWT 2"
-_PYJWT_INSTALL = "install the web libraries with python3 bootstrap.py --web"
-
-try:
-    import jwt
-except ImportError as exc:
-    raise ImportError(f"{_PYJWT_REQUIRED}; {_PYJWT_INSTALL}") from exc
-
-# PyJWT 1.x returns bytes from encode and decodes without an algorithm list,
-# so the token code in this package is correct only on 2.x.
-if int(jwt.__version__.split('.')[0]) < 2:
-    raise ImportError(f"{_PYJWT_REQUIRED}, found {jwt.__version__}; {_PYJWT_INSTALL}")
+check_pyjwt()
+import jwt
 
 from . discovery import DiscoveryInfo, DiscoveryError
 

@@ -4,6 +4,7 @@ import hmac
 import json
 import subprocess
 import sys
+import types
 
 import jwt
 import pytest
@@ -11,6 +12,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import volttron.platform.web as web
+from volttron.platform import is_web_available
 from volttron.platform.web import PlatformWebService, get_user_claim_from_bearer
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
@@ -173,9 +175,10 @@ import sys, types
 mode = sys.argv[1]
 if mode == "missing":
     sys.modules["jwt"] = None
-elif mode == "old":
+elif mode != "installed":
     fake = types.ModuleType("jwt")
-    fake.__version__ = "1.7.1"
+    if mode != "noversion":
+        fake.__version__ = {"old": "1.7.1", "badversion": "two.0"}[mode]
     sys.modules["jwt"] = fake
 try:
     import volttron.platform.web
@@ -189,6 +192,8 @@ except ImportError as exc:
     ("installed", 0, ""),
     ("missing", 3, "requires PyJWT 2"),
     ("old", 3, "requires PyJWT 2, found 1.7.1"),
+    ("noversion", 3, "requires PyJWT 2, found an unknown version"),
+    ("badversion", 3, "requires PyJWT 2, found an unknown version"),
 ])
 def test_web_import_names_pyjwt_requirement(mode, returncode, message):
     result = subprocess.run([sys.executable, "-c", _IMPORT_WEB, mode],
@@ -196,3 +201,44 @@ def test_web_import_names_pyjwt_requirement(mode, returncode, message):
 
     assert result.returncode == returncode, result.stdout + result.stderr
     assert message in result.stdout
+
+
+def _fake_jwt(version):
+    fake = types.ModuleType("jwt")
+    fake.__version__ = version
+    return fake
+
+
+@pytest.mark.parametrize("module, expected", [
+    ("installed", True),
+    (None, False),
+    ("1.7.1", False),
+    ("2.0.0", True),
+])
+def test_is_web_available_requires_pyjwt_2(monkeypatch, module, expected):
+    if module != "installed":
+        monkeypatch.setitem(sys.modules, "jwt", None if module is None else _fake_jwt(module))
+
+    assert is_web_available() is expected
+
+
+_MAIN_WEB_MESSAGE = """
+import sys, types
+fake = types.ModuleType("jwt")
+fake.__version__ = "1.7.1"
+sys.modules["jwt"] = fake
+import volttron.platform.main as main
+print(main.HAS_WEB)
+print(main.web_unavailable_message())
+"""
+
+
+def test_platform_start_message_names_pyjwt_requirement():
+    result = subprocess.run([sys.executable, "-c", _MAIN_WEB_MESSAGE],
+                            capture_output=True, text=True, timeout=60)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    has_web, message = result.stdout.split("\n", 1)
+    assert has_web == "False"
+    assert "requires PyJWT 2, found 1.7.1" in message
+    assert "bootstrap.py --web" in message
