@@ -1207,3 +1207,40 @@ def test_cooldown_reindexes_the_data_table_concurrently(live_db, caplog):
     assert "Reindexed indexes concurrently (cooldown mode)" in caplog.text
     assert len(before) == len(after) == 2
     assert not set(before) & set(after)
+
+
+@pytest.mark.parametrize("names", [
+    {"data_table": "p" * 59 + "_old"},
+    {"data_table": "p" * 59 + "_new"},
+    {"data_table": "p" * 58 + "_temp"},
+    {"data_table": "p" * 59 + "_old" + "_tail"},
+    {"data_table": "p5d", "topics_table": "p5d_old"},
+    {"data_table": "p5d", "meta_table": "p5d_new"},
+    {"data_table": "p5d", "agg_topics_table": "p5d_temp"},
+    {"data_table": "p5d", "agg_meta_table": "p5d_old"},
+])
+def test_configuration_whose_leftover_names_match_a_table_is_refused(names):
+    with pytest.raises(ValueError, match="leftover"):
+        PostgreSqlFuncts({"dbname": "test_historian"}, dict(_NAMED_TABLES, **names))
+
+
+def test_long_table_name_with_distinct_leftover_names_is_accepted():
+    functs = PostgreSqlFuncts({"dbname": "test_historian"}, dict(_NAMED_TABLES, data_table="q" * 63))
+    assert functs.data_table == "q" * 63
+
+
+def test_cleanup_never_drops_the_data_table(live_db):
+    conn, make_functs, drop_later = live_db
+    data_table = "p" * 59 + "_old"
+    drop_later(data_table)
+    _create_data_table(conn, data_table, rows=3)
+
+    error = None
+    try:
+        functs = make_functs(data_table)
+        functs.cleanup_temp_resources()
+    except ValueError as exc:
+        error = exc
+    assert _table_exists(conn, data_table)
+    assert _row_count(conn, data_table) == 3
+    assert isinstance(error, ValueError)

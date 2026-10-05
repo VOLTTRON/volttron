@@ -71,6 +71,23 @@ def _derived_name(base, prefix='', suffix=''):
     return prefix + base.encode()[:room].decode('utf-8', 'ignore') + suffix
 
 
+_LEFTOVER_SUFFIXES = ('_new', '_temp', '_old')
+
+
+def _check_leftover_names(table_names):
+    """Raise ValueError if a leftover name the rebuild drops would name a configured table."""
+    # Refused at start rather than skipped later: cleanup and the rebuild DROP
+    # these names, and PostgreSQL compares names after cutting them to 63 bytes.
+    configured = {field: _derived_name(name) for field, name in table_names.items()
+                  if isinstance(name, str)}
+    for suffix in _LEFTOVER_SUFFIXES:
+        leftover = _derived_name(table_names['data_table'], suffix=suffix)
+        for field, name in configured.items():
+            if leftover == name:
+                raise ValueError(f"PostgreSQL leftover table name {leftover!r} used by the rebuild "
+                                 f"would be the {field} table; choose names that do not collide")
+
+
 def _quote_identifier(name):
     return '"' + name.replace('"', '""') + '"'
 
@@ -85,6 +102,13 @@ class PostgreSqlFuncts(DbDriver):
             self.agg_topics_table = _check_configured_name(
                 'agg_topics_table', table_names.get('agg_topics_table'))
             self.agg_meta_table = _check_configured_name('agg_meta_table', table_names.get('agg_meta_table'))
+            _check_leftover_names({
+                'data_table': self.data_table,
+                'topics_table': self.topics_table,
+                'meta_table': self.meta_table,
+                'agg_topics_table': self.agg_topics_table,
+                'agg_meta_table': self.agg_meta_table,
+            })
         self.connect_params = copy.deepcopy(connect_params)
         if "timescale_dialect" in connect_params:
             self.timescale_dialect = connect_params.get("timescale_dialect", False)
@@ -691,7 +715,7 @@ class PostgreSqlFuncts(DbDriver):
         """Clean up any temporary tables left from failed operations"""
         try:
             # Clean up potential leftover tables
-            cleanup_tables = [_derived_name(self.data_table, suffix=s) for s in ('_new', '_temp', '_old')]
+            cleanup_tables = [_derived_name(self.data_table, suffix=s) for s in _LEFTOVER_SUFFIXES]
             for table in cleanup_tables:
                 try:
                     self.execute_stmt(
