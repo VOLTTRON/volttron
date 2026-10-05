@@ -686,17 +686,18 @@ def test_update_dynamic_agent_capabilities_matches_by_index_not_first_user_id():
             impostor_ks = KeyStore(KeyStore.get_agent_keystore_path("impostor"))
             foreign_capabilities = dict(edit_config_store=dict(identity="/.*/"))
             authfile = AuthFile()
-            authfile._write(
-                [AuthEntry(user_id="dynamic_agent", identity="dynamic_agent",
-                          credentials=impostor_ks.public,
-                          capabilities=dict(foreign_capabilities),
-                          comments="foreign entry, seeded first"),
-                 AuthEntry(user_id="dynamic_agent", identity="dynamic_agent",
-                          credentials=ks.public,
-                          capabilities=dict(edit_config_store=dict(identity="/.*/"),
-                                            allow_auth_modifications=None),
-                          comments="harness entry, seeded second")],
-                [], {}, {})
+            with authfile._transaction():
+                authfile._write(
+                    [AuthEntry(user_id="dynamic_agent", identity="dynamic_agent",
+                              credentials=impostor_ks.public,
+                              capabilities=dict(foreign_capabilities),
+                              comments="foreign entry, seeded first"),
+                     AuthEntry(user_id="dynamic_agent", identity="dynamic_agent",
+                              credentials=ks.public,
+                              capabilities=dict(edit_config_store=dict(identity="/.*/"),
+                                                allow_auth_modifications=None),
+                              comments="harness entry, seeded second")],
+                    [], {}, {})
 
             p._update_dynamic_agent_capabilities()
 

@@ -27,8 +27,8 @@ def auth_instance(volttron_instance):
         yield volttron_instance
     finally:
         with with_os_environ(volttron_instance.env):
-            with open(os.path.join(volttron_instance.volttron_home, "auth.json"), 'w') as f:
-                jsonapi.dump(auth_file, f)
+            # Restored under the auth file lock, since the platform is running.
+            volttron_instance.set_auth_dict(auth_file)
 
 
 def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
