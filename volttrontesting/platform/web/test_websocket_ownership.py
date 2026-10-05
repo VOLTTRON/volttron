@@ -1,6 +1,7 @@
 """Only the agent that registered a websocket can replace, remove or send on it,
 and removing an agent's routes also removes its websockets."""
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -107,3 +108,12 @@ def test_unregister_all_removes_only_the_callers_websockets(owned):
     assert service.appContainer._wsregistry == {'/other/ws': 'b'}
     client.close.assert_called_once()
     assert other_client.close.call_count == 0
+
+
+def test_removing_an_unknown_websocket_is_logged(owned, caplog):
+    service, _ = owned
+    with caplog.at_level(logging.DEBUG, logger='volttron.platform.web.webapp'):
+        service.unregister_websocket('iam/token')
+    assert [r.levelno for r in caplog.records
+            if r.name == 'volttron.platform.web.webapp' and 'iam/token' in r.getMessage()] \
+        == [logging.DEBUG]

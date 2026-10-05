@@ -11,6 +11,7 @@ import pytest
 
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL
 from volttron.platform.web import platform_web_service
+from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.platform_web_service import PlatformWebService
 from volttrontesting.platform.web.conftest import build_web_service, set_caller
 from volttrontesting.utils.web_utils import get_test_web_env
@@ -185,6 +186,79 @@ def test_volttron_central_namespace_is_held_for_volttron_central(web_service, tm
     assert web_service.appContainer._wsregistry == {'/vc/ws/token/management': VOLTTRON_CENTRAL}
 
 
+@pytest.mark.parametrize('kind', KINDS)
+def test_every_registration_needs_the_user_to_be_the_peer(web_service, tmp_path, kind):
+    set_caller(web_service, 'a', peer='b')
+    before = _tables(web_service)
+    with pytest.raises(PermissionError):
+        _register(web_service, kind, '/probe/x', tmp_path)
+    assert _tables(web_service) == before
+    set_caller(web_service, 'b', peer='b')
+    _register(web_service, kind, '/probe/x', tmp_path)
+    assert _tables(web_service) != before
+
+
+def test_path_route_is_only_consulted_in_its_own_namespace(web_service, tmp_path):
+    (tmp_path / 'index.html').write_text('AGENT-ROOT-MARK')
+    (tmp_path / 'probe').mkdir()
+    (tmp_path / 'probe' / 'index.html').write_text('AGENT-PROBE-MARK')
+    set_caller(web_service, 'a')
+    web_service.register_path_route('^/probe/|/index.html', str(tmp_path))
+
+    def get(path):
+        status = []
+        body = web_service.app_routing(get_test_web_env(path), lambda s, h: status.append(s))
+        return status[0], b''.join(body)
+
+    status, body = get('/index.html')
+    assert status.startswith('200')
+    assert b'AGENT-' not in body
+    status, body = get('/probe/index.html')
+    assert status.startswith('200')
+    assert body == b'AGENT-PROBE-MARK'
+
+
+def _with_extra_platform_route(pattern):
+    original = AdminEndpoints.get_routes
+
+    def get_routes(self):
+        return original(self) + [(re.compile(pattern), 'callable', lambda env, data: None)]
+    return mock.patch.object(AdminEndpoints, 'get_routes', get_routes)
+
+
+def test_a_platform_route_added_at_startup_reserves_its_segment(tmp_path, monkeypatch):
+    with _with_extra_platform_route('^/extra/only$'):
+        service = build_web_service(tmp_path, monkeypatch)
+    set_caller(service, 'a')
+    with pytest.raises(PermissionError):
+        service.register_endpoint('/extra/x', 'jsonrpc')
+    assert service.endpoints == {}
+
+
+def test_a_segment_no_platform_route_uses_is_free(web_service):
+    set_caller(web_service, 'a')
+    web_service.register_endpoint('/extra/x', 'jsonrpc')
+    assert web_service.endpoints == {'/extra/x': ('a', 'jsonrpc')}
+
+
+def test_startup_stops_loudly_on_a_platform_route_without_a_first_segment(tmp_path, monkeypatch,
+                                                                          caplog):
+    with _with_extra_platform_route('(?:/x|/y)'), caplog.at_level(logging.ERROR):
+        with pytest.raises(ValueError):
+            build_web_service(tmp_path, monkeypatch)
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    assert '(?:/x|/y)' in errors[0].getMessage()
+
+
+@pytest.mark.parametrize('kind', KINDS)
+def test_csr_is_reserved_where_no_csr_route_is_served(web_service, tmp_path, kind):
+    assert not any(e[0].pattern.startswith('^/csr') for e in web_service.registeredroutes)
+    set_caller(web_service, 'a')
+    with pytest.raises(PermissionError):
+        _register(web_service, kind, '/csr/create', tmp_path)
+
+
 def test_user_must_be_the_peer_when_auth_is_enabled(web_service):
     set_caller(web_service, 'a', peer='b')
     with pytest.raises(PermissionError):
@@ -233,10 +307,8 @@ def test_unregister_keeps_platform_routes(web_service):
     assert len(builtin) == 1
 
     set_caller(web_service, 'a')
-    try:
+    with pytest.raises(PermissionError):
         web_service.register_agent_route('^/discovery/$', 'route_fn')
-    except PermissionError:
-        pass
     web_service.register_agent_route('^/probe/', 'route_fn')
     web_service.unregister_all_agent_routes()
 

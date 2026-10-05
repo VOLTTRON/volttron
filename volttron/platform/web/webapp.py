@@ -102,6 +102,7 @@ class WebApplicationWrapper:
     def destroy_ws_endpoint(self, endpoint, identity):
         """Close and remove identity's websocket; an unknown endpoint is ignored."""
         if self._check_owner(endpoint, identity) is None:
+            _log.debug('no websocket registered at %r; nothing removed', endpoint)
             return
         for _, client in list(self.endpoint_clients.get(endpoint, ())):
             client.close(reason="Endpoint closed.")

@@ -84,9 +84,9 @@ GS_CALL_TIMEOUT = 10
 # \Z rather than $, which also matches before a trailing newline.
 GS_ROUTE = re.compile(r'^/gs/?\Z')
 
-# Kept from agents even when the /gs route is disabled; its clients expect the
-# platform to answer.
-ALWAYS_RESERVED_NAMESPACES = frozenset({'gs'})
+# Kept from agents even where their routes are not served (/csr runs only on
+# some platforms); their clients expect the platform to answer.
+ALWAYS_RESERVED_NAMESPACES = frozenset({'gs', 'csr'})
 # Held for the agent that serves them, so no other agent can claim them first.
 IDENTITY_NAMESPACES = MappingProxyType({'vc': VOLTTRON_CENTRAL})
 # The platform login pages keep the token in this cookie.
@@ -1012,8 +1012,13 @@ class PlatformWebService(Agent):
 
         static_dir = os.path.join(os.path.dirname(__file__), "static")
         self._builtin_patterns = tuple(pattern for pattern, _, _ in self.registeredroutes)
+        try:
+            builtin = builtin_namespaces(self._builtin_patterns)
+        except ValueError as err:
+            _log.error('web server not started: %s', err)
+            raise
         self._reserved_namespaces = frozenset(
-            builtin_namespaces(self._builtin_patterns)
+            builtin
             | {name.casefold() for name in os.listdir(static_dir)}
             | {'favicon.ico'} | ALWAYS_RESERVED_NAMESPACES)
         self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
