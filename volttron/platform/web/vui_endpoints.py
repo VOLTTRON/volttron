@@ -10,6 +10,7 @@ from typing import List, Union
 from werkzeug import Response
 from werkzeug.urls import url_decode
 
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
@@ -18,6 +19,10 @@ from volttron.platform.web.vui_pubsub import VUIPubsubManager
 
 import logging
 _log = logging.getLogger(__name__)
+
+# Generic agent RPC never reaches a platform service, on any platform. The
+# dedicated endpoints serve control and config store operations instead.
+RPC_REFUSED_IDENTITIES = frozenset(PROCESS_IDENTITIES) | {CONTROL_CONNECTION}
 
 
 class OverrideError(Exception):
@@ -31,20 +36,40 @@ class LockError(Exception):
     pass
 
 
-def endpoint(func):
+def endpoint(func=None, *, admin_post=False):
+    """Require a ``vui`` token for a VUI handler.
+
+    With admin_post, a POST also requires the ``admin`` group, a token from the
+    Authorization header (never the cookie, which a browser sends on requests
+    other sites make) and a JSON content type.
+    """
+    if func is None:
+        return functools.partial(endpoint, admin_post=admin_post)
+
     @functools.wraps(func)
     def verify_and_dispatch(self, env, data):
-        from volttron.platform.web import get_bearer
+        from volttron.platform.web import get_authorization_bearer, get_bearer, get_claim_groups
+        admin_request = admin_post and env.get('REQUEST_METHOD') == 'POST'
         try:
-            claims = self._agent.get_user_claims(get_bearer(env))
+            bearer = get_authorization_bearer(env) if admin_request else get_bearer(env)
+            if admin_request and bearer is None:
+                raise ValueError('no Authorization header')
+            claims = self._agent.get_user_claims(bearer)
         except Exception as e:
             _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
             return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
 
         # Only allow only users with API permissions:
-        if 'vui' not in claims.get('groups'):
+        groups = get_claim_groups(claims)
+        if groups is None or 'vui' not in groups:
             _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
             return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
+        if admin_request and 'admin' not in groups:
+            _log.warning(f"Non-admin user attempted to invoke an agent method at {env.get('PATH_INFO')}.")
+            return _forbidden()
+        if admin_request and _media_type(env) != 'application/json':
+            return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
+                            content_type='application/json')
 
         # Dispatch endpoint:
         try:
@@ -59,6 +84,20 @@ def endpoint(func):
         except Exception as e:
             return Response(json.dumps({'error': f'Unexpected Error: {e}'}), 500, content_type='application/json')
     return verify_and_dispatch
+
+
+def _media_type(env):
+    return (env.get('CONTENT_TYPE') or '').split(';')[0].strip().lower()
+
+
+def _forbidden():
+    return Response(json.dumps({'error': 'Forbidden'}), 403, content_type='application/json')
+
+
+def _rpc_target_refused(vip_identity, method_name=None):
+    # Exact, case-sensitive comparison: VIP identities are case-sensitive.
+    # A dotted name is a subsystem or alias export such as auth.update.
+    return vip_identity in RPC_REFUSED_IDENTITIES or (method_name is not None and '.' in method_name)
 
 
 class VUIEndpoints:
@@ -446,15 +485,17 @@ class VUIEndpoints:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/?$', path_info).groups()
+        if _rpc_target_refused(vip_identity):
+            return _forbidden()
         if request_method == 'GET':
             method_dict = self._rpc(vip_identity, 'inspect', external_platform=platform)
             response = self._links(path_info, method_dict.get('methods'))
             return Response(json.dumps(response), 200, content_type='application/json')
 
-    @endpoint
+    @endpoint(admin_post=True)
     def handle_platforms_agents_rpc_method(self, env: dict, data: Union[dict, List]) -> Response:
         """
-        Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/
+        Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/:method_name
         :param env:
         :param data:
         :return:
@@ -463,30 +504,36 @@ class VUIEndpoints:
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity, method_name = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/([^/]+)/?$',
                                                        path_info).groups()
+        if _rpc_target_refused(vip_identity, method_name):
+            return _forbidden()
         if request_method == 'GET':
-            try:
-                method_dict = self._rpc(vip_identity, method_name + '.inspect', external_platform=platform)
-            except MethodNotFound as e:
-                return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
-                                400, content_type='application/json')
-            return Response(json.dumps(method_dict), 200, content_type='application/json')
+            return self._agent_rpc_response(vip_identity, method_name + '.inspect', [], {}, platform)
 
         elif request_method == 'POST':
-            try:
-                if type(data) is dict:
-                    if 'args' in data.keys() and type(data['args']) is list:
-                        args = data.pop('args')
-                        result = self._rpc(vip_identity, method_name, *args, **data, external_platform=platform)
-                    else:
-                        result = self._rpc(vip_identity, method_name, **data, external_platform=platform)
-                elif type(data) is list:
-                    result = self._rpc(vip_identity, method_name, *data, external_platform=platform)
-                else:
-                    raise ValueError(f'Malformed message body: {data}')
-            except MethodNotFound or ValueError as e:
-                return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
-                                400, content_type='application/json')
-            return Response(json.dumps(result), 200, content_type='application/json')
+            if type(data) is dict:
+                if 'external_platform' in data or not all(isinstance(k, str) for k in data):
+                    return _forbidden()
+                kwargs = dict(data)
+                args = kwargs.pop('args') if type(kwargs.get('args')) is list else []
+            elif type(data) is list:
+                args, kwargs = data, {}
+            else:
+                return Response(json.dumps({'error': 'malformed request body'}), 400,
+                                content_type='application/json')
+            return self._agent_rpc_response(vip_identity, method_name, args, kwargs, platform)
+
+    def _agent_rpc_response(self, vip_identity, method_name, args, kwargs, platform):
+        # Fixed error bodies: exception text can carry remote detail.
+        try:
+            result = self._rpc(vip_identity, method_name, *args, **kwargs, external_platform=platform)
+        except (MethodNotFound, ValueError):
+            return Response(json.dumps({'error': 'method not found'}), 400, content_type='application/json')
+        except Timeout:
+            return Response(json.dumps({'error': 'timed out'}), 504, content_type='application/json')
+        except Exception as e:
+            _log.error(f'Agent RPC {vip_identity!r} {method_name!r} failed: {type(e).__name__}')
+            return Response(json.dumps({'error': 'call failed'}), 500, content_type='application/json')
+        return Response(json.dumps(result), 200, content_type='application/json')
 
     @endpoint
     def handle_platforms_agents_status(self, env: dict, data: dict) -> Response:

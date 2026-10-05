@@ -301,6 +301,10 @@ def _mock_agents_rpc(peer, meth, *args, external_platform=None, **kwargs):
         return {'methods': ['list_agents', 'peerlist', 'status_agents']}
     elif peer == 'control' and meth == 'status_agents.inspect':
         return {'params': {}}
+    elif peer == 'agents_rpc' and meth == 'inspect':
+        return {'methods': ['args_and_kw', 'args_only', 'kw_only']}
+    elif peer == 'agents_rpc' and meth == 'args_only.inspect':
+        return {'params': {}}
     elif peer == 'agents_rpc' and meth == 'kw_only':
         return [kwargs['foo'], kwargs['bar']]
     elif peer == 'agents_rpc' and meth == 'args_and_kw':
@@ -600,18 +604,19 @@ def test_handle_platforms_agents_rpc_status_code(mock_platform_web_service, meth
 
 
 def test_handle_platforms_agents_rpc_response(mock_platform_web_service):
-    path = f'/vui/platforms/my_instance_name/agents/control/rpc'
+    path = f'/vui/platforms/my_instance_name/agents/agents_rpc/rpc'
     env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc(env, {})
-    check_links_return(response, ['list_agents', 'peerlist', 'status_agents'], leading_path=path)
+    check_links_return(response, ['args_and_kw', 'args_only', 'kw_only'], leading_path=path)
 
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET', 'POST']))
 def test_handle_platforms_agents_rpc_method_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method=method,
-                           HTTP_AUTHORIZATION='BEARER foo')
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
+    mock_platform_web_service.get_user_claims = lambda x: {'groups': ['vui', 'admin']}
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {})
@@ -619,7 +624,7 @@ def test_handle_platforms_agents_rpc_method_status_code(mock_platform_web_servic
 
 
 def test_handle_platforms_rpc_method_get_response(mock_platform_web_service):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method='GET',
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method='GET',
                            HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
@@ -630,20 +635,21 @@ def test_handle_platforms_rpc_method_get_response(mock_platform_web_service):
 
 
 def test_handle_platforms_rpc_method_post_response(mock_platform_web_service):
+    mock_platform_web_service.get_user_claims = lambda x: {'groups': ['vui', 'admin']}
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/kw_only', method='POST',
-                           HTTP_AUTHORIZATION='BEARER foo')
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {'foo': 1, 'bar': 2})
     body = json.loads(response.response[0])
     assert body == [1, 2]
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_and_kw', method='POST',
-                           HTTP_AUTHORIZATION='BEARER foo')
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {'args': [1, 2], 'foo': 3, 'bar': 4})
     body = json.loads(response.response[0])
     assert body == [1, 2, 3, 4]
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method='POST',
-                           HTTP_AUTHORIZATION='BEARER foo')
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, [1, 2])
     body = json.loads(response.response[0])
     assert body == [1, 2]
