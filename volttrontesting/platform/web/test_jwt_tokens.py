@@ -2,12 +2,14 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import subprocess
 import sys
 import types
 
 import jwt
 import pytest
+from mock import MagicMock
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -75,10 +77,15 @@ def _login(endpoints):
     return json.loads(response.response[0].decode("utf-8"))
 
 
-def _renew(endpoints, refresh_token):
+def _renew(endpoints, refresh_token, data=None, authorization=None):
     env = get_test_web_env("/authenticate", method="PUT")
-    env["HTTP_AUTHORIZATION"] = "BEARER " + refresh_token
-    return endpoints.handle_authenticate(env, data={})
+    env["HTTP_AUTHORIZATION"] = authorization if authorization is not None else "BEARER " + refresh_token
+    return endpoints.handle_authenticate(env, data={} if data is None else data)
+
+
+def _assert_refused(response, label):
+    assert response.status.startswith("401"), (label, response.status)
+    assert "access_token" not in response.response[0].decode("utf-8"), label
 
 
 def test_get_tokens_returns_str_tokens_signed_with_server_key(server):
@@ -108,7 +115,7 @@ def test_login_and_renew_return_str_tokens(server):
 
     assert "200 OK" in response.status
     renewed = json.loads(response.response[0].decode("utf-8"))["access_token"]
-    assert type(renewed) is str
+    assert jwt.get_unverified_header(renewed)["alg"] == algorithm
     claims = jwt.decode(renewed, verify_key, algorithms=[algorithm])
     assert claims["grant_type"] == "access_token"
     assert claims["groups"] == ["admin"]
@@ -129,20 +136,75 @@ def _other_algorithm_tokens(algorithm, verify_key):
 def test_renew_refuses_refresh_token_with_other_algorithm(server):
     endpoints, algorithm, verify_key = server
 
-    for alg, token in _other_algorithm_tokens(algorithm, verify_key).items():
-        response = _renew(endpoints, token)
+    tokens = _other_algorithm_tokens(algorithm, verify_key)
+    assert len(tokens) == 2
 
-        assert response.status.startswith("401"), alg
-        assert "access_token" not in response.response[0].decode("utf-8")
+    for alg, token in tokens.items():
+        _assert_refused(_renew(endpoints, token), alg)
 
 
 def test_bearer_decode_refuses_other_algorithm(server):
     _, algorithm, verify_key = server
     kwargs = {"web_secret_key": verify_key} if algorithm == "HS256" else {"tls_public_key": verify_key}
 
-    for alg, token in _other_algorithm_tokens(algorithm, verify_key).items():
+    tokens = _other_algorithm_tokens(algorithm, verify_key)
+    assert len(tokens) == 2
+
+    for alg, token in tokens.items():
         with pytest.raises(jwt.InvalidAlgorithmError):
             get_user_claim_from_bearer(token, **kwargs)
+
+
+def test_renew_refuses_wrong_key_and_malformed_refresh_tokens(server):
+    endpoints, algorithm, _ = server
+    claims = {"groups": ["admin"], "grant_type": "refresh_token"}
+    if algorithm == "HS256":
+        wrong_key = get_random_key()
+    else:
+        wrong_key, _ = _rsa_pem_pair()
+    tokens = {"wrong key": jwt.encode(claims, wrong_key, algorithm=algorithm),
+              "malformed": "not.a.jwt"}
+
+    for label, token in tokens.items():
+        _assert_refused(_renew(endpoints, token), label)
+
+
+@pytest.mark.parametrize("authorization", ["Bearer", "Bearer two tokens", ""])
+def test_renew_refuses_malformed_authorization_header(server, authorization):
+    endpoints, _, _ = server
+    refresh_token = _login(endpoints)["refresh_token"]
+
+    _assert_refused(_renew(endpoints, refresh_token, authorization=authorization), authorization)
+
+
+@pytest.mark.parametrize("body", ["not json", "[1, 2]", "\"text\""])
+def test_renew_refuses_body_that_is_not_a_json_object(server, body):
+    endpoints, _, _ = server
+    refresh_token = _login(endpoints)["refresh_token"]
+
+    _assert_refused(_renew(endpoints, refresh_token, data=body), body)
+
+
+@pytest.mark.parametrize("body", ["", '{"current_access_token": "x"}', {}])
+def test_renew_accepts_empty_or_json_object_body(server, body):
+    endpoints, algorithm, verify_key = server
+    refresh_token = _login(endpoints)["refresh_token"]
+
+    response = _renew(endpoints, refresh_token, data=body)
+
+    assert "200 OK" in response.status
+    renewed = json.loads(response.response[0].decode("utf-8"))["access_token"]
+    assert jwt.decode(renewed, verify_key, algorithms=[algorithm])["grant_type"] == "access_token"
+
+
+@pytest.mark.parametrize("error", [jwt.InvalidSignatureError("bad"), jwt.DecodeError("bad")])
+def test_jsonrpc_authentication_refuses_undecodable_token(error, caplog):
+    svc = PlatformWebService.__new__(PlatformWebService)
+    svc.get_user_claims = MagicMock(side_effect=error)
+
+    with caplog.at_level(logging.ERROR):
+        assert svc.jsonrpc_verify_and_dispatch("token") is False
+    assert any("invalid token" in r.getMessage() for r in caplog.records)
 
 
 def test_bearer_decode_passes_server_algorithm_list(server, monkeypatch):

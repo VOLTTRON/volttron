@@ -777,6 +777,9 @@ class PlatformWebService(Agent):
         except jwt.ExpiredSignatureError:
             _log.error("User attempted to connect with an expired signature.")
             return False
+        except jwt.PyJWTError:
+            _log.error("User attempted to connect with an invalid token.")
+            return False
 
         return True
 
