@@ -273,9 +273,14 @@ class PlatformWebService(Agent):
 
     @RPC.export
     def websocket_send(self, endpoint, message):
+        identity = self._caller('websocket_send', endpoint)
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
-        self.appContainer.websocket_send(endpoint, message)
+        try:
+            self.appContainer.websocket_send(endpoint, message, identity)
+        except PermissionError:
+            self._refuse('websocket_send', identity, endpoint,
+                         'the websocket belongs to another agent')
 
     @RPC.export
     def print_websocket_clients(self):
@@ -348,18 +353,17 @@ class PlatformWebService(Agent):
 
     @RPC.export
     def unregister_all_agent_routes(self):
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('unregister_all_agent_routes', None)
 
         _log.info('Unregistering agent routes for: {}'.format(identity))
-        for regex in self.peerroutes[identity]:
-            out = [cp for cp in self.registeredroutes if cp[0] != regex]
-            self.registeredroutes = out
-        del self.peerroutes[identity]
-        for regex in self.pathroutes[identity]:
-            out = [cp for cp in self.registeredroutes if cp[0] != regex]
-            self.registeredroutes = out
-        del self.pathroutes[identity]
+        # By owner, never by pattern: re.compile hands back one cached object
+        # for equal pattern strings, including those of platform routes.
+        self.registeredroutes = [entry for entry in self.registeredroutes
+                                 if getattr(entry, 'owner', None) != identity]
+        self.peerroutes.pop(identity, None)
+        self.pathroutes.pop(identity, None)
+        if self.appContainer:
+            self.appContainer.destroy_owner_endpoints(identity)
 
         _log.debug(self.endpoints)
         endpoints = self.endpoints.copy()
@@ -400,7 +404,11 @@ class PlatformWebService(Agent):
         _log.debug('Caller identity: {}'.format(identity))
         _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
         if self.appContainer:
-            self.appContainer.create_ws_endpoint(endpoint, identity)
+            try:
+                self.appContainer.create_ws_endpoint(endpoint, identity)
+            except PermissionError:
+                self._refuse('register_websocket', identity, endpoint,
+                             'the websocket belongs to another agent')
             self._namespace_owners[namespace] = identity
         else:
             _log.error('Attempting to register endpoint without web'
@@ -410,11 +418,14 @@ class PlatformWebService(Agent):
 
     @RPC.export
     def unregister_websocket(self, endpoint):
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('unregister_websocket', endpoint)
 
         _log.debug('Caller identity: {}'.format(identity))
-        self.appContainer.destroy_ws_endpoint(endpoint)
+        try:
+            self.appContainer.destroy_ws_endpoint(endpoint, identity)
+        except PermissionError:
+            self._refuse('unregister_websocket', identity, endpoint,
+                         'the websocket belongs to another agent')
 
     def _caller(self, action, path):
         """Return the identity of the agent calling an export.

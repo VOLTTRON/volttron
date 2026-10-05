@@ -229,6 +229,23 @@ def test_unregister_keeps_platform_routes(web_service):
     assert not any(e[2] == ('a', 'route_fn') for e in web_service.registeredroutes)
 
 
+def test_unregister_matches_owner_not_pattern(web_service):
+    # An owned entry whose pattern is the very object a platform route uses.
+    discovery = re.compile('^/discovery/$')
+    set_caller(web_service, 'a')
+    web_service.register_agent_route('^/probe/', 'route_fn')
+    owned = platform_web_service.AgentRoute(discovery, 'peer_route', ('a', 'route_fn'),
+                                            owner='a', namespace='probe')
+    web_service.registeredroutes.insert(0, owned)
+
+    web_service.unregister_all_agent_routes()
+
+    remaining = [e for e in web_service.registeredroutes if e[0] is discovery]
+    assert len(remaining) == 1
+    assert remaining[0][1] == 'callable'
+    assert getattr(remaining[0], 'owner', None) is None
+
+
 def test_login_cookie_is_not_forwarded_to_agents(web_service):
     set_caller(web_service, 'a')
     web_service.register_endpoint('/probe/x', 'jsonrpc')
