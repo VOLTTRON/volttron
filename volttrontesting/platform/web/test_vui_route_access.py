@@ -148,7 +148,7 @@ def test_empty_cookie_token_is_unauthorized():
 def test_request_path_cannot_add_log_lines(caplog):
     svc = _platform()
     with caplog.at_level('DEBUG'):
-        _status(svc, '/vui/platforms/x\nFORGED line\r\x1b[2J', 'GET')
+        _status(svc, '/vui/platforms/x\nEXTRA line\r\x1b[2J', 'GET')
     assert caplog.records
     for record in caplog.records:
         assert record.getMessage().isprintable(), record.getMessage()

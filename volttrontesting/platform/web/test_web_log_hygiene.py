@@ -54,7 +54,7 @@ def test_peer_endpoint_forwarding_logs_no_credentials_or_body(caplog):
         assert marker not in caplog.text
 
 
-@pytest.mark.parametrize('exc_type', ['KeyError\nFORGED line', 'KeyError\r\x1b[2J', 'K' * 500])
+@pytest.mark.parametrize('exc_type', ['KeyError\nEXTRA line', 'KeyError\r\x1b[2J', 'K' * 500])
 def test_remote_error_type_is_made_safe_for_one_log_line(exc_type):
     from volttron.platform.web import describe_call_error
     described = describe_call_error(RemoteError('m', exc_type=exc_type, exc_args=[]))
@@ -89,7 +89,7 @@ def test_routing_log_lines_stay_on_one_line(caplog):
         (re.compile('^/static'), 'path', '/nonexistent-root'),
     ]
     with caplog.at_level('DEBUG'):
-        for path in ('/x\nFORGED line', '/static/../y\nFORGED\x1b[2J'):
+        for path in ('/x\nEXTRA line', '/static/../y\nEXTRA\x1b[2J'):
             env = get_test_web_env(path, method='GET')
             svc.app_routing(env, MagicMock())
     assert len(caplog.records) >= 3
