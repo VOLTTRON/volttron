@@ -678,6 +678,28 @@ class PostgreSqlFuncts(DbDriver):
         except Exception as e:
             _log.warning(f"Error during resource cleanup: {e}")
 
+    def _rebuilt_index_names(self):
+        """Return the (ts index, unique constraint) names for the data table."""
+        # Named after the table, as setup_historian_tables names its ts index,
+        # so data tables sharing a schema never compete for one index name.
+        return f"idx_{self.data_table}", f"{self.data_table}_topic_id_ts_key"
+
+    def _verify_post_rebuild_schema(self):
+        """Raise RuntimeError unless the data table has its unique constraint and ts index."""
+        ts_index, unique_key = self._rebuilt_index_names()
+        # ::name truncates to the server's identifier length, as CREATE and RENAME do.
+        constraint_rows = self.select(SQL(
+            "SELECT 1 FROM pg_constraint WHERE conrelid = {} AND conname = {}::name AND contype = 'u'"
+        ).format(self._data_table_regclass(), Literal(unique_key)))
+        if not constraint_rows:
+            raise RuntimeError(f"Rebuilt table {self.data_table!r} has no unique constraint {unique_key!r}")
+        index_rows = self.select(SQL(
+            "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' "
+            "AND tablename = {}::name AND indexname = {}::name"
+        ).format(Literal(self.data_table), Literal(ts_index)))
+        if not index_rows:
+            raise RuntimeError(f"Rebuilt table {self.data_table!r} has no index {ts_index!r}")
+
     def manual_table_rebuild(self, keep_cutoff_timestamp=None):
         """
         Rebuild public.{self.data_table} using CTAS + swap.
@@ -688,9 +710,10 @@ class PostgreSqlFuncts(DbDriver):
           - Build temp-named ts index
           - Swap, drop old table (drops its indexes)
           - Rename the new indexes/constraint to canonical names:
-              * UNIQUE constraint -> data_topic_id_ts_key
-              * unique index     -> data_topic_id_ts_key (same name as constraint is OK)
-              * ts index         -> idx_data
+              * UNIQUE constraint -> <data_table>_topic_id_ts_key
+              * unique index     -> <data_table>_topic_id_ts_key (same name as constraint is OK)
+              * ts index         -> idx_<data_table>
+          - Return False unless the constraint and ts index exist under those names
 
         Readers remain online; writers are blocked during copy (SHARE lock) and briefly during swap.
         """
@@ -718,8 +741,9 @@ class PostgreSqlFuncts(DbDriver):
             tmp_con_id = Identifier(tmp_con_name)
             uniq_idx_id = Identifier(uniq_idx_name)
             ts_idx_id = Identifier(ts_idx_name)
-            canonical_idx_id = Identifier("idx_data")
-            canonical_con_id = Identifier("data_topic_id_ts_key")
+            ts_index_name, unique_key_name = self._rebuilt_index_names()
+            canonical_idx_id = Identifier(ts_index_name)
+            canonical_con_id = Identifier(unique_key_name)
 
             # Begin transactional rebuild
             self.execute_stmt("BEGIN")
@@ -797,12 +821,12 @@ class PostgreSqlFuncts(DbDriver):
                     SQL("DROP TABLE {}").format(schema_tbl_old_id)
                 )
                 self.commit()
-            except Exception as e:
+            except psycopg2.Error as e:
                 _log.warning(f"Failed to drop old table (rebuild still successful): {e}")
 
             # Rename the new indexes/constraint to canonical names (now that old names are free)
 
-            # 1) Rename the ts index to idx_data
+            # 1) Rename the ts index to its canonical name
             try:
                 # Most likely name is ts_idx_name; if not found, nothing happens
                 self.execute_stmt(
@@ -811,8 +835,8 @@ class PostgreSqlFuncts(DbDriver):
                     )
                 )
                 self.commit()
-            except Exception as e:
-                _log.warning(f'Renaming ts index "{ts_idx_name}" -> "idx_data" failed: {e}')
+            except psycopg2.Error as e:
+                _log.warning(f'Renaming ts index "{ts_idx_name}" -> "{ts_index_name}" failed: {e}')
 
             # 2) Rename the UNIQUE constraint to canonical name
             try:
@@ -822,9 +846,9 @@ class PostgreSqlFuncts(DbDriver):
                     )
                 )
                 self.commit()
-            except Exception as e:
+            except psycopg2.Error as e:
                 _log.warning(
-                    f'Renaming constraint "{tmp_con_name}" -> "data_topic_id_ts_key" failed: {e}'
+                    f'Renaming constraint "{tmp_con_name}" -> "{unique_key_name}" failed: {e}'
                 )
 
             # 3) Rename the underlying unique index to canonical name
@@ -836,7 +860,7 @@ class PostgreSqlFuncts(DbDriver):
                     )
                 )
                 self.commit()
-            except Exception:
+            except psycopg2.Error:
                 # If it wasn't auto-renamed to tmp_con_name, try the original uniq_idx_name
                 try:
                     self.execute_stmt(
@@ -845,10 +869,12 @@ class PostgreSqlFuncts(DbDriver):
                         )
                     )
                     self.commit()
-                except Exception as e2:
+                except psycopg2.Error as e2:
                     _log.warning(
-                        f'Renaming unique index to "data_topic_id_ts_key" failed: {e2}'
+                        f'Renaming unique index to "{unique_key_name}" failed: {e2}'
                     )
+
+            self._verify_post_rebuild_schema()
 
             _log.info("Manual table rebuild completed successfully")
             return True
@@ -926,16 +952,13 @@ class PostgreSqlFuncts(DbDriver):
         # Try to reclaim index space with REINDEX CONCURRENTLY on known indexes
         _log.info("Attempting to reclaim index space with REINDEX CONCURRENTLY...")
         try:
-            self.execute_stmt(
-                SQL("REINDEX (VERBOSE) INDEX CONCURRENTLY public.{}").format(
-                    Identifier(f"{self.data_table}_topic_id_ts_key")
+            ts_index_name, unique_key_name = self._rebuilt_index_names()
+            for index_name in (unique_key_name, ts_index_name):
+                self.execute_stmt(
+                    SQL("REINDEX (VERBOSE) INDEX CONCURRENTLY public.{}").format(
+                        Identifier(index_name)
+                    )
                 )
-            )
-            self.execute_stmt(
-                SQL("REINDEX (VERBOSE) INDEX CONCURRENTLY public.{}").format(
-                    Identifier(f"idx_{self.data_table}")
-                )
-            )
             _log.info("Successfully reindexed both indexes - index space reclaimed")
         except Exception as e:
             _log.warning(f"REINDEX CONCURRENTLY failed: {e}")

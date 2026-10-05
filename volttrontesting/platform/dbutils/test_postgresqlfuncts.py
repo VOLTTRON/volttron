@@ -712,6 +712,8 @@ def live_db():
     """Yield (connection, make_functs); drop every table the test names."""
     conn = psycopg2.connect(**_live_connect_params())
     conn.autocommit = True
+    # A rebuild that leaves its transaction open would block these reads forever.
+    _run(conn, "SET statement_timeout = 10000")
     tables = []
     functs_made = []
 
@@ -833,6 +835,20 @@ def test_setup_historian_tables_matches_only_the_configured_table(live_db):
     assert _table_exists(conn, "odd_topics")
 
 
+def test_delete_rows_by_chunks_deletes_oldest_rows_of_the_configured_table(live_db):
+    conn, make_functs, drop_later = live_db
+    drop_later("odd_cy")
+    _create_data_table(conn, "odd_cy", rows=1)
+    data_table = "odd_cy; DROP TABLE odd_cy; --"
+    functs = make_functs(data_table)
+    _create_data_table(conn, data_table, rows=3)
+
+    assert functs.delete_rows_by_chunks(2, chunk_size=1) == 2
+
+    assert _row_count(conn, data_table) == 1
+    assert _row_count(conn, "odd_cy") == 1
+
+
 def test_manage_db_size_treats_data_table_as_a_name(live_db):
     conn, make_functs, drop_later = live_db
     drop_later("odd_cx")
@@ -914,6 +930,66 @@ def test_hypertable_creation_receives_the_configured_table(live_db):
                           "ON n.oid = c.relnamespace WHERE n.nspname = 'public' "
                           "AND c.relname = %s", (ODD_DATA_TABLE,))
     assert recorded == expected
+
+
+@pytest.mark.parametrize("data_table", [ODD_DATA_TABLE, "odd_hist_a"])
+def test_manual_table_rebuild_keeps_rows_and_names_indexes_after_the_table(live_db, data_table):
+    conn, make_functs, _ = live_db
+    functs = make_functs(data_table)
+    _create_data_table(conn, data_table, rows=3)
+
+    assert functs.manual_table_rebuild() is True
+
+    assert _row_count(conn, data_table) == 3
+    assert _index_names(conn, data_table) == {f"idx_{data_table}", f"{data_table}_topic_id_ts_key"}
+    assert _unique_constraint_names(conn, data_table) == {f"{data_table}_topic_id_ts_key"}
+
+
+def test_manual_table_rebuild_of_two_tables_keeps_index_names_unique(live_db):
+    conn, make_functs, _ = live_db
+    first = make_functs("odd_hist_b")
+    second = make_functs("odd_hist_c")
+    _create_data_table(conn, "odd_hist_b", rows=2)
+    _create_data_table(conn, "odd_hist_c", rows=2)
+
+    assert first.manual_table_rebuild() is True
+    assert second.manual_table_rebuild() is True
+
+    assert _index_names(conn, "odd_hist_b") == {"idx_odd_hist_b", "odd_hist_b_topic_id_ts_key"}
+    assert _index_names(conn, "odd_hist_c") == {"idx_odd_hist_c", "odd_hist_c_topic_id_ts_key"}
+
+
+@pytest.mark.parametrize("taken_name", ["idx_odd_hist_d", "odd_hist_d_topic_id_ts_key"])
+def test_manual_table_rebuild_reports_failure_when_an_index_name_is_taken(live_db, taken_name):
+    conn, make_functs, drop_later = live_db
+    drop_later("odd_other")
+    _run(conn, "CREATE TABLE odd_other (ts TIMESTAMP)")
+    _run(conn, SQL("CREATE INDEX {} ON odd_other (ts)").format(Identifier(taken_name)))
+    functs = make_functs("odd_hist_d")
+    _create_data_table(conn, "odd_hist_d", rows=2)
+
+    assert functs.manual_table_rebuild() is False
+    assert _row_count(conn, "odd_hist_d") == 2
+
+
+def test_reindex_after_rebuild_finds_the_rebuilt_indexes(live_db, caplog):
+    conn, make_functs, _ = live_db
+    functs = make_functs("odd_hist_e")
+    _create_data_table(conn, "odd_hist_e", rows=2)
+    assert functs.manual_table_rebuild() is True
+    metrics = functs.get_table_metrics()
+    index_oids = "SELECT indexrelid FROM pg_index WHERE indrelid = 'odd_hist_e'::regclass ORDER BY 1"
+    before = _run(conn, index_oids)
+
+    with caplog.at_level(logging.INFO, logger="volttron.platform.dbutils.postgresqlfuncts"):
+        functs.delete_without_rebuild(metrics, metrics["total_bytes"])
+
+    # REINDEX CONCURRENTLY builds each index anew, so both index oids change.
+    after = _run(conn, index_oids)
+    assert len(before) == len(after) == 2
+    assert not set(before) & set(after)
+    assert "Successfully reindexed both indexes" in caplog.text
+    assert _row_count(conn, "odd_hist_e") == 2
 
 
 def test_manual_table_rebuild_commits_and_releases_the_table(live_db):
