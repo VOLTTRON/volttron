@@ -505,9 +505,8 @@ class PlatformWebService(Agent):
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
         if peer:
-            _log.debug('Calling peer {} back with env={} data={}'.format(
-                peer, passenv, data
-            ))
+            # Not the env or body: they carry the Authorization header, cookie and form data.
+            _log.debug('Calling peer {} back for {}'.format(peer, path_info))
             res = self.vip.rpc.call(peer, 'route.callback',
                                     passenv, data).get(timeout=60)
 

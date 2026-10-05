@@ -94,7 +94,8 @@ def describe_call_error(error):
     RemoteError, else the local type. Never the message, which can carry data."""
     exc_info = getattr(error, 'exc_info', None)
     if isinstance(exc_info, dict) and isinstance(exc_info.get('exc_type'), str):
-        return exc_info['exc_type']
+        # The remote side chooses this text: keep it to one printable line.
+        return ''.join(c for c in exc_info['exc_type'] if c.isprintable())[:100]
     return type(error).__name__
 
 
