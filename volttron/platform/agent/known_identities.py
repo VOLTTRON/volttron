@@ -54,6 +54,10 @@ TAG_AGENTS = 'tag_agents'
 CLEAR_AGENT_STATUS = 'clear_agent_status'
 DRIVER_OVERRIDES = 'driver_override'
 DRIVER_WRITES = 'driver_write'
+# Required to register web endpoints, routes, static paths and websockets with
+# platform_web. A holder serves requests under its own path namespace, so grant
+# it with the same care as admin access.
+REGISTER_WEB_ROUTES = 'register_web_routes'
 
 CONFIGURATION_STORE = 'config.store'
 KEY_DISCOVERY = 'keydiscovery'

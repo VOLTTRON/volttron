@@ -236,11 +236,15 @@ def test_register_path_route(volttron_instance_web):
         assert vi.is_running()
         gevent.sleep(1)
 
-        webdir, index_html = _build_web_dir(vi.volttron_home)
-        agent = vi.build_agent(use_ipc=True)
+        # Files are served from <root>/<request path>, so the namespace
+        # webdir maps to <root>/webdir.
+        root = os.path.join(vi.volttron_home, "site")
+        _, index_html = _build_web_dir(root)
+        agent = vi.build_agent(use_ipc=True, identity="web.path.agent",
+                               capabilities={"register_web_routes": None})
         agent.vip.rpc.call(PLATFORM_WEB,
-                           'register_path_route', '', webdir).get(timeout=5)
-        response = requests.get(vi.bind_web_address + "/index.html")
+                           'register_path_route', '^/webdir/', root).get(timeout=5)
+        response = requests.get(vi.bind_web_address + "/webdir/index.html")
         assert index_html == response.text
 
 

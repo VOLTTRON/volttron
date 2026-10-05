@@ -793,3 +793,42 @@ def test_watcher_survives_a_failed_push(tmp_path, monkeypatch, caplog):
         "InotifyObserver"]
     assert any(r.levelno == logging.ERROR and r.exc_info
                for r in caplog.records)
+
+
+def _version_1_4_entry(user_id, identity, capabilities):
+    return {"domain": "vip", "address": "127.0.0.1", "mechanism": "CURVE",
+            "credentials": "A" * 43, "user_id": user_id, "identity": identity,
+            "groups": [], "roles": [], "capabilities": capabilities,
+            "rpc_method_authorizations": {}, "comments": None, "enabled": True}
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_grants_web_routes_to_volttron_central_only(tmp_path, caplog):
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    entries = [
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps),
+        _version_1_4_entry("volttron.central", "other.agent", {}),
+        _version_1_4_entry("some.user", "volttron.central", {}),
+        _version_1_4_entry("platform.agent", "platform.agent", {}),
+        _version_1_4_entry("Volttron.Central", "Volttron.Central", {}),
+    ]
+    auth_path = str(tmp_path / "auth.json")
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": entries, "deny": [], "groups": {},
+                                "roles": {}, "version": {"major": 1, "minor": 4}}))
+
+    with caplog.at_level(logging.WARNING):
+        AuthFile(auth_path)
+
+    read_back = AuthFile(auth_path).read_allow_entries()
+    granted = [(e.user_id, e.identity) for e in read_back
+               if "register_web_routes" in e.capabilities]
+    assert granted == [("volttron.central", "volttron.central")]
+    assert read_back[0].capabilities == {
+        "edit_config_store": {"identity": "volttron.central"},
+        "register_web_routes": None}
+    with open(auth_path) as fp:
+        assert jsonapi.loads(fp.read())["version"] == {"major": 1, "minor": 5}
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING
+                and "register_web_routes" in r.getMessage()]
+    assert len(warnings) == 1

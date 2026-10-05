@@ -49,7 +49,7 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from volttron.platform.agent.known_identities import \
-    CONTROL, VOLTTRON_CENTRAL, AUTH
+    CONTROL, VOLTTRON_CENTRAL, AUTH, REGISTER_WEB_ROUTES
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
 from volttron.platform.auth.auth_entry import AuthEntry
@@ -230,6 +230,7 @@ class PlatformWebService(Agent):
         return self.volttron_central_address
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_endpoint(self, endpoint, res_type):
         """
         RPC method to register a dynamic route.
@@ -251,6 +252,7 @@ class PlatformWebService(Agent):
         self.endpoints[endpoint] = (identity, res_type)
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_agent_route(self, regex, fn):
         """ Register an agent route to an exported function.
 
@@ -292,6 +294,7 @@ class PlatformWebService(Agent):
         self.endpoints = endpoints
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_path_route(self, regex, root_dir):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -309,6 +312,7 @@ class PlatformWebService(Agent):
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer

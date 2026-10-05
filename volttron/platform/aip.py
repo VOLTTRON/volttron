@@ -41,7 +41,8 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, DRIVER_WRITES
+from volttron.platform.agent.known_identities import (VOLTTRON_CENTRAL_PLATFORM, DRIVER_WRITES,
+                                                      VOLTTRON_CENTRAL, REGISTER_WEB_ROUTES)
 from volttron.platform.agent.utils import get_fq_identity, is_secure_mode
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform import jsonapi
@@ -582,6 +583,9 @@ class AIPplatform:
 
         if identity == VOLTTRON_CENTRAL_PLATFORM:
             capabilities = {'edit_config_store': {'identity': '/.*/'}}
+        elif identity == VOLTTRON_CENTRAL:
+            # Every other web agent is granted this by the operator.
+            capabilities[REGISTER_WEB_ROUTES] = None
 
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           identity=identity,

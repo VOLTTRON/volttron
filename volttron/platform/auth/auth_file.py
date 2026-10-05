@@ -40,6 +40,8 @@ import gevent.core
 from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL_PLATFORM,
+    VOLTTRON_CENTRAL,
+    REGISTER_WEB_ROUTES,
     CONTROL)
 from volttron.platform.agent.utils import (
     strip_comments,
@@ -77,7 +79,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {"major": 1, "minor": 4}
+        return {"major": 1, "minor": 5}
 
     @property
     def lock_file(self):
@@ -358,6 +360,25 @@ class AuthFile(object):
                 new_allow_list.append(entry)
             return new_allow_list
 
+        def upgrade_1_4_to_1_5(allow_list):
+            """Grants route registration to the VolttronCentral entry that an
+            install made before registration required a capability."""
+            for entry in allow_list:
+                if (entry.get("user_id") != VOLTTRON_CENTRAL
+                        or entry.get("identity") != VOLTTRON_CENTRAL):
+                    continue
+                capabilities = AuthEntry.build_capabilities_field(
+                    entry.get("capabilities")) or {}
+                if REGISTER_WEB_ROUTES in capabilities:
+                    continue
+                capabilities[REGISTER_WEB_ROUTES] = None
+                entry["capabilities"] = capabilities
+                _log.warning(
+                    "granted %s to the %s entry in %s: registering web "
+                    "routes now requires it",
+                    REGISTER_WEB_ROUTES, VOLTTRON_CENTRAL, self.auth_file)
+            return allow_list
+
         if version["major"] == 0:
             allow_list = upgrade_0_to_1(allow_list)
             version["major"] = 1
@@ -375,6 +396,9 @@ class AuthFile(object):
             # on start a new entry for config.store should have got created automatically
             # so just update version
             version["minor"] = 4
+        if version["major"] == 1 and version["minor"] == 4:
+            allow_list = upgrade_1_4_to_1_5(allow_list)
+            version["minor"] = 5
 
         allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
         self._write(allow_entries, deny_entries, groups, roles)
