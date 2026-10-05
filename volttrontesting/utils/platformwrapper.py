@@ -1842,28 +1842,26 @@ class WebAdminApi:
     def create_web_admin(self, username, password, messagebus='rmq'):
         """ Creates a global administrator user for the platform https interface.
 
+        Follows the operator's path: request /admin/ so the platform writes its
+        setup token file, read the token from VOLTTRON_HOME, and submit it.
+
         :param username:
         :param password:
         :return:
         """
-        from volttron.platform.web.admin_endpoints import AdminEndpoints
-        from volttrontesting.utils.web_utils import get_test_web_env
-
-        # params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-        # env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-        # adminep = AdminEndpoints()
-        # resp = adminep.admin(env, params)
-        # # else:
-        data = dict(username=username, password1=password, password2=password)
-        url = self.bind_web_address + "/admin/setpassword"
-        # resp = requests.post(url, data=data,
-        # verify=self.certsobj.remote_cert_bundle_file())
-
         if self._wrapper.ssl_auth:
-            resp = grequests.post(url, data=data,
-                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
+            verify = self.certsobj.cert_file(self.certsobj.root_ca_name)
         else:
-            resp = grequests.post(url, data=data, verify=False).send().response
+            verify = False
+
+        grequests.get(self.bind_web_address + "/admin/", verify=verify).send()
+        token_path = os.path.join(self._wrapper.volttron_home, 'web-setup-token')
+        with open(token_path) as fp:
+            setup_token = fp.read().strip()
+
+        data = dict(username=username, password1=password, password2=password, setup_token=setup_token)
+        url = self.bind_web_address + "/admin/setpassword"
+        resp = grequests.post(url, data=data, verify=verify).send().response
         print(f"RESPONSE: {resp}")
         return resp
 
