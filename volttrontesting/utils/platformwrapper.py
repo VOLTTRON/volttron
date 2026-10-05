@@ -1143,7 +1143,12 @@ class PlatformWrapper:
                 # can enable the WebAdminApi.
                 # if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
-                self._web_admin_api.create_web_admin("admin", "admin")
+                try:
+                    self._web_admin_api.create_web_admin("admin", "admin")
+                except Exception:
+                    self.logit("Web admin creation failed; stopping the platform")
+                    self.shutdown_platform()
+                    raise
                 times = 0
                 has_discovery = False
                 error_was = None
@@ -1844,26 +1849,51 @@ class WebAdminApi:
 
         Follows the operator's path: request /admin/ so the platform writes its
         setup token file, read the token from VOLTTRON_HOME, and submit it.
+        Returns None without a request when web users already exist, as after
+        a restart.
 
         :param username:
         :param password:
-        :return:
+        :return: the setup response
+        :raises RuntimeError: when any step fails, with its cause
         """
+        from volttron.platform.web.admin_endpoints import SETUP_TOKEN_FILE
+
+        home = self._wrapper.volttron_home
+        users_path = os.path.join(home, 'web-users.json')
+        if os.path.exists(users_path):
+            with open(users_path) as fp:
+                if jsonapi.load(fp):
+                    return None
+
         if self._wrapper.ssl_auth:
             verify = self.certsobj.cert_file(self.certsobj.root_ca_name)
         else:
             verify = False
 
-        grequests.get(self.bind_web_address + "/admin/", verify=verify).send()
-        token_path = os.path.join(self._wrapper.volttron_home, 'web-setup-token')
-        with open(token_path) as fp:
-            setup_token = fp.read().strip()
+        url = self.bind_web_address + "/admin/"
+        sent = grequests.get(url, verify=verify).send()
+        if sent.response is None:
+            raise RuntimeError(f"Web admin setup: cannot reach {url}: {sent.exception}")
+        if sent.response.status_code != 200:
+            raise RuntimeError(f"Web admin setup: {url} returned {sent.response.status_code}")
+
+        token_path = os.path.join(home, SETUP_TOKEN_FILE)
+        try:
+            with open(token_path) as fp:
+                setup_token = fp.read().strip()
+        except OSError as exc:
+            raise RuntimeError(f"Web admin setup: cannot read the setup token {token_path}: {exc}") from exc
 
         data = dict(username=username, password1=password, password2=password, setup_token=setup_token)
         url = self.bind_web_address + "/admin/setpassword"
-        resp = grequests.post(url, data=data, verify=verify).send().response
-        print(f"RESPONSE: {resp}")
-        return resp
+        sent = grequests.post(url, data=data, verify=verify, allow_redirects=False).send()
+        if sent.response is None:
+            raise RuntimeError(f"Web admin setup: cannot reach {url}: {sent.exception}")
+        if sent.response.status_code != 302:
+            raise RuntimeError(f"Web admin setup: creating {username} returned "
+                               f"{sent.response.status_code}: {sent.response.text[:200]}")
+        return sent.response
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)
