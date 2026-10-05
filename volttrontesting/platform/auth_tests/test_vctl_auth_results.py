@@ -30,6 +30,7 @@ import io
 import os
 from types import SimpleNamespace
 
+import gevent
 import gevent.event
 import pytest
 
@@ -138,7 +139,8 @@ def vctl(tmp_path, monkeypatch):
             **fields)
         return func(opts)
 
-    return SimpleNamespace(run=run, auth_path=auth_path, stdout=stdout)
+    return SimpleNamespace(run=run, auth_path=auth_path, stdout=stdout,
+                           platform=platform)
 
 
 @pytest.mark.auth
@@ -169,3 +171,42 @@ def test_accepted_change_is_written_and_reported(vctl, command):
     success = COMMANDS[command][2]
     if success:
         assert success in vctl.stdout.getvalue()
+
+
+class _Unanswered:
+    """A call the platform never answers. get() with a timeout times out;
+    get() without one would wait forever, so it fails the test instead."""
+
+    def __init__(self, waits):
+        self.waits = waits
+
+    def get(self, block=True, timeout=None):
+        self.waits.append(timeout)
+        if timeout is None:
+            pytest.fail("vctl waits forever for a change never answered")
+        raise gevent.Timeout(timeout)
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("command", sorted(COMMANDS))
+def test_change_never_answered_is_not_waited_on_forever(vctl, monkeypatch,
+                                                        command):
+    waits = []
+    call = vctl.platform.call
+
+    def answer_reads_only(peer, method, *args):
+        if method == "auth_file.read":
+            return call(peer, method, *args)
+        return _Unanswered(waits)
+
+    monkeypatch.setattr(vctl.platform, "call", answer_reads_only)
+    before = _bytes(vctl.auth_path)
+
+    with pytest.raises(gevent.Timeout):
+        vctl.run(command)
+
+    assert len(waits) == 1 and waits[0] is not None
+    success = COMMANDS[command][2]
+    if success:
+        assert success not in vctl.stdout.getvalue()
+    assert _bytes(vctl.auth_path) == before

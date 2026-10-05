@@ -245,6 +245,30 @@ def test_file_led_by_the_torn_write_marker_is_refused(auth_path):
 
 
 @pytest.mark.auth
+def test_each_step_of_a_write_is_synced_before_the_next(auth_path,
+                                                        monkeypatch):
+    _seed(auth_path, [_entry("x", "X"), _entry("w", "W")])
+    auth_file = AuthFile(auth_path)
+    old = _bytes(auth_path)
+    synced = []
+    fsync = os.fsync
+
+    def recording_fsync(fd):
+        fsync(fd)
+        if os.path.samestat(os.fstat(fd), os.stat(auth_path)):
+            synced.append(_bytes(auth_path))
+
+    monkeypatch.setattr(os, "fsync", recording_fsync)
+
+    auth_file.remove_by_index(1)
+
+    new = _bytes(auth_path)
+    assert len(new) < len(old)
+    tail = old[len(new):]
+    assert synced == [b"\0" + old[1:], b"\0" + new[1:] + tail, new + tail]
+
+
+@pytest.mark.auth
 def test_write_keeps_the_inode_and_mode(auth_path):
     _seed(auth_path, [_entry("x", "X"), _entry("w", "W")])
     os.chmod(auth_path, 0o640)
