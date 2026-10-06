@@ -238,18 +238,36 @@ def xfail_auth_rmq(instance: PlatformWrapper):
         pytest.fail("RMQ creds test must be updated")
 
 
+def start_pending_agent(request, identity):
+    """Start an unauthorized agent, stop it, and register its teardown.
+
+    A stopped agent's connection keeps retrying against later platforms in the
+    same process, so the finalizer kills the greenlet and closes the socket even
+    when an assertion fails first.
+    """
+    agent = Agent(identity=identity)
+    task = gevent.spawn(agent.core.run)
+
+    def close_pending_agent():
+        task.kill()
+        if agent.core.connection is not None:
+            agent.core.connection.close_connection(linger=0)
+
+    request.addfinalizer(close_pending_agent)
+    task.join(timeout=5)
+    agent.core.stop()
+    return agent
+
+
 @pytest.mark.web
-def test_get_credentials(volttron_instance_web: PlatformWrapper):
+def test_get_credentials(request, volttron_instance_web: PlatformWrapper):
     skip_non_auth(volttron_instance_web)
     skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent")
-        task = gevent.spawn(pending_agent.core.run)
-        task.join(timeout=5)
-        pending_agent.core.stop()
+        pending_agent = start_pending_agent(request, "PendingAgent")
 
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     print(f"Auth pending is: {auth_pending}")
@@ -258,17 +276,14 @@ def test_get_credentials(volttron_instance_web: PlatformWrapper):
 
 
 @pytest.mark.web
-def test_accept_credential(volttron_instance_web):
+def test_accept_credential(request, volttron_instance_web):
     skip_non_auth(volttron_instance_web)
     skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent1")
-        task = gevent.spawn(pending_agent.core.run)
-        task.join(timeout=5)
-        pending_agent.core.stop()
+        pending_agent = start_pending_agent(request, "PendingAgent1")
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
         print(f"Auth pending is: {auth_pending}")
@@ -287,17 +302,14 @@ def test_accept_credential(volttron_instance_web):
 
 
 @pytest.mark.web
-def test_deny_credential(volttron_instance_web):
+def test_deny_credential(request, volttron_instance_web):
     skip_non_auth(volttron_instance_web)
     skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent2")
-        task = gevent.spawn(pending_agent.core.run)
-        task.join(timeout=5)
-        pending_agent.core.stop()
+        pending_agent = start_pending_agent(request, "PendingAgent2")
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
         print(f"Auth pending is: {auth_pending}")
@@ -316,7 +328,7 @@ def test_deny_credential(volttron_instance_web):
 
 
 @pytest.mark.web
-def test_delete_credential(volttron_instance_web):
+def test_delete_credential(request, volttron_instance_web):
     skip_non_auth(volttron_instance_web)
     skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
@@ -324,10 +336,7 @@ def test_delete_credential(volttron_instance_web):
     print(f"Auth pending is: {auth_pending}")
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent3")
-        task = gevent.spawn(pending_agent.core.run)
-        task.join(timeout=5)
-        pending_agent.core.stop()
+        pending_agent = start_pending_agent(request, "PendingAgent3")
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
         print(f"Auth pending is: {auth_pending}")
