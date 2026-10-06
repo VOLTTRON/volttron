@@ -445,7 +445,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
@@ -769,6 +769,39 @@ class ActuatorAgent(Agent):
                                      point, headers, error)
         _log.debug('Actuator Agent Error: ' + str(error))
 
+    def _sender_may_write(self, sender):
+        """Whether the pub/sub sender holds the driver_write capability.
+
+        The RPC write and schedule methods are gated on driver_write by
+        @RPC.allow. The pub/sub interface (devices/actuators/set, revert and
+        schedule/request) reaches the same code, so it applies the same rule
+        here. Mirrors the RPC gate: enforcement is skipped when the platform
+        runs with authentication disabled, and fails closed when the auth
+        subsystem is unavailable or the sender's capabilities cannot be read.
+        """
+        if not getattr(self.core, 'enable_auth', True):
+            return True
+        auth = getattr(self.vip, 'auth', None)
+        if auth is None:
+            _log.warning('Refusing pub/sub write from %r: auth subsystem unavailable.', sender)
+            return False
+        try:
+            capabilities = auth.get_capabilities(sender) or {}
+        except Exception as ex:
+            _log.warning('Refusing pub/sub write from %r: capabilities unavailable (%s).',
+                         sender, ex.__class__.__name__)
+            return False
+        if DRIVER_WRITES in capabilities:
+            return True
+        _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, DRIVER_WRITES)
+        return False
+
+    def _refuse_pubsub_write(self, requester, point):
+        headers = self._get_headers(requester)
+        error = {'type': 'Unauthorized',
+                 'value': "requires capability '{}'".format(DRIVER_WRITES)}
+        self._push_result_topic_pair(ERROR_RESPONSE_PREFIX, point, headers, error)
+
     def handle_get(self, peer, sender, bus, topic, headers, message):
         """
         Requests up to date value of a point.
@@ -840,6 +873,8 @@ class ActuatorAgent(Agent):
 
         point = topic.replace(topics.ACTUATOR_SET() + '/', '', 1)
         requester = sender
+        if not self._sender_may_write(requester):
+            return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
         if not message:
             error = {'type': 'ValueError', 'value': 'missing argument'}
@@ -884,6 +919,7 @@ class ActuatorAgent(Agent):
                                  point_name, **kwargs).get()
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def set_point(self, requester_id, topic, value, point=None, **kwargs):
         """RPC method
 
@@ -1002,6 +1038,7 @@ class ActuatorAgent(Agent):
         return results, errors
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def set_multiple_points(self, requester_id, topics_values, **kwargs):
         """RPC method
 
@@ -1080,6 +1117,8 @@ class ActuatorAgent(Agent):
         """
         point = topic.replace(topics.ACTUATOR_REVERT_POINT() + '/', '', 1)
         requester = sender
+        if not self._sender_may_write(requester):
+            return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
 
         try:
@@ -1120,6 +1159,8 @@ class ActuatorAgent(Agent):
         """
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE() + '/', '', 1)
         requester = sender
+        if not self._sender_may_write(requester):
+            return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
 
         try:
@@ -1130,6 +1171,7 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def revert_point(self, requester_id, topic, point=None, **kwargs):
         """
         RPC method
@@ -1172,6 +1214,7 @@ class ActuatorAgent(Agent):
             raise LockError("caller does not have this lock")
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def revert_device(self, requester_id, topic, **kwargs):
         """
         RPC method
@@ -1274,6 +1317,14 @@ class ActuatorAgent(Agent):
         task_id = headers.get('taskID')
         priority = headers.get('priority')
 
+        if not self._sender_may_write(requester_id):
+            results = {'result': SCHEDULE_RESPONSE_FAILURE,
+                       'data': {},
+                       'info': "UNAUTHORIZED: requires capability '{}'".format(DRIVER_WRITES)}
+            self.vip.pubsub.publish('pubsub', topics.ACTUATOR_SCHEDULE_RESULT(),
+                                    headers=headers, message=results)
+            return results
+
         if request_type == SCHEDULE_ACTION_NEW:
             try:
                 if len(message) == 1:
@@ -1302,6 +1353,7 @@ class ActuatorAgent(Agent):
                                      'info': 'INVALID_REQUEST_TYPE'})
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def request_new_schedule(self, requester_id, task_id, priority, requests):
         """
         RPC method
@@ -1407,6 +1459,7 @@ class ActuatorAgent(Agent):
         return results
 
     @RPC.export
+    @RPC.allow(DRIVER_WRITES)
     def request_cancel_schedule(self, requester_id, task_id):
         """RPC method
 
