@@ -118,8 +118,11 @@ PENDING = {"user_id": "pending.user", "credentials": _key("W")}
 
 
 def _seed(auth_path, allow):
+    # Written at the version AuthFile writes, so loading it never upgrades
+    # it and the byte comparisons see only the call under test.
+    version = AuthFile(auth_path).version
     data = {"allow": [vars(e) for e in allow], "deny": [],
-            "groups": {}, "roles": {}, "version": {"major": 1, "minor": 4}}
+            "groups": {}, "roles": {}, "version": version}
     with open(auth_path, "w") as fil:
         fil.write(jsonapi.dumps(data, indent=2))
 
