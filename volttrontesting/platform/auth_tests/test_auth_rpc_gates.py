@@ -47,6 +47,7 @@ from volttron.platform.auth.auth_file import AuthFileUnavailable
 from volttron.platform.auth.auth_protocols import auth_zmq
 from volttron.platform.jsonrpc import INTERNAL_ERROR, RemoteError
 from volttron.platform.vip.agent import Agent, Unreachable
+from volttron.platform.vip.agent.subsystems import auth as auth_subsystem
 from volttron.platform.vip.agent.subsystems.rpc import RPC
 from volttrontesting.utils.platformwrapper import with_os_environ
 
@@ -620,6 +621,31 @@ def test_setup_mode_unanswered_is_an_error_after_a_bounded_wait(
     assert calls.timeouts == [30]
     assert response["error"]["code"] == INTERNAL_ERROR
     assert response["error"]["message"] == NOT_ENABLED
+
+
+@pytest.mark.auth
+def test_agent_start_names_a_refusal_when_nothing_is_recorded(
+        monkeypatch, caplog):
+    """The auth service answers None both when no entry has the identity
+    and when it refuses the caller; the agent's warning names both."""
+    from volttron.platform.agent import utils
+    monkeypatch.setattr(utils, "load_platform_config", lambda: {})
+    core = MagicMock(identity="some.agent", address="ipc://@/unused")
+    rpc = MagicMock()
+    rpc.get_exports.return_value = []
+    rpc.call.return_value.get.return_value = None
+    subsystem = auth_subsystem.Auth(SimpleNamespace(), core, rpc)
+    caplog.set_level(logging.WARNING)
+
+    subsystem.update_rpc_method_capabilities()
+
+    warnings = [r.getMessage() for r in caplog.records
+                if r.name == auth_subsystem.__name__
+                and r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "some.agent" in warnings[0]
+    assert "refused" in warnings[0]
+    assert "decorator defaults" in warnings[0]
 
 
 def _auth_list(platform):
