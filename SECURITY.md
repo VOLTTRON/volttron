@@ -34,11 +34,11 @@ triaged quickly:
 
 | Version | Supported |
 | ------- | --------- |
-| Latest 9.x release | Yes |
-| Older 9.x releases | No |
+| 9.1.x and later | Yes |
+| Earlier than 9.1 | No |
 
-Security fixes ship in the latest 9.x release, as a patch version or, when a
-fix adds a capability, a minor version.
+Security fixes ship in the latest release of a supported line, as a patch
+version or, when a fix adds a capability, a minor version.
 
 ## What to expect
 
