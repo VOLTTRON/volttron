@@ -16,7 +16,8 @@ if HAS_DOCKER:
 
     @contextlib.contextmanager
     def create_container(image_name: str, ports: dict = None, env: dict = None, command: (list, str) = None,
-                         startup_time_seconds: int = 30, hostname: str = 'test_docker_env') -> \
+                         startup_time_seconds: int = 30, hostname: str = 'test_docker_env',
+                         mem_limit: str = '2g') -> \
             (docker.models.containers.Container, None):
         """ Creates a container instance in a context that will clean up after itself.
 
@@ -32,6 +33,8 @@ if HAS_DOCKER:
             with create_container("mysql", {"3306/tcp": 3306}):
                 # connect to localhost:3306 with mysql using connector
 
+        :param mem_limit: Memory cap for the container, in docker's notation (for example '512m' or '2g'). A
+         database server with no cap sizes its buffers against the whole host, so the default is 2g.
         :param hostname: Optional hostname for the container. If tests are run within a docker container,
          this code will automatically detect the test container's network and attache the mysql container to the
          same network.
@@ -69,10 +72,12 @@ if HAS_DOCKER:
 
             if network_name:
                 container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
-                                                  detach=True, network=network_name, hostname=hostname)
+                                                  detach=True, network=network_name, hostname=hostname,
+                                                  command=command, mem_limit=mem_limit)
             else:
                 container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
-                                                  detach=True, hostname=hostname)
+                                                  detach=True, hostname=hostname,
+                                                  command=command, mem_limit=mem_limit)
         except (ImageNotFound, APIError, RuntimeError) as e:
             raise RuntimeError(e)
 
