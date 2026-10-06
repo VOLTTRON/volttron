@@ -504,6 +504,21 @@ def test_a_file_opened_through_a_swapped_directory_is_not_served(served, tmp_pat
     assert _get(service, '/probe/index.html') == FORBIDDEN
 
 
+def test_a_root_two_levels_into_the_install_is_accepted(layout):
+    service, _, owner = layout
+    _accepted(service, OWNER, owner / NAME / 'probeagent')
+
+
+def test_the_root_rules_hold_with_authentication_disabled(tmp_path, monkeypatch):
+    home = tmp_path.with_name(tmp_path.name + '-home')
+    owner = _agent_install(home, 'uuid-owner', OWNER)
+    service = build_web_service(tmp_path, monkeypatch, home=home, enable_auth=False)
+    _refused(service, OTHER, owner / NAME / 'probeagent' / 'webroot')
+    _refused(service, OWNER, owner / NAME / f'{NAME}.dist-info')
+    _refused(service, OWNER, home)
+    _accepted(service, OWNER, owner / NAME / 'probeagent' / 'webroot')
+
+
 @pytest.mark.web
 def test_volttron_central_serves_its_pages(web_instance_with_static_root):
     instance = web_instance_with_static_root
