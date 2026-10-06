@@ -4,6 +4,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from volttron.platform.agent.known_identities import PLATFORM_WEB
+from volttrontesting.fixtures.volttron_platform_fixtures import (build_wrapper, ci_skipif,
+                                                                 cleanup_wrapper)
+from volttrontesting.utils.utils import (get_hostname_and_random_port, get_rand_ip_and_port,
+                                         get_rand_vip)
 from volttron.platform.web.platform_web_service import PlatformWebService
 
 
@@ -14,13 +18,19 @@ def set_caller(service, user, peer=None):
     message.peer = user if peer is None else peer
 
 
-def build_web_service(tmp_path, monkeypatch, start=True, enable_auth=True):
+def build_web_service(tmp_path, monkeypatch, start=True, enable_auth=True, home=None,
+                      static_roots=None):
     """A PlatformWebService whose bus and web server are mocks.
 
     With start, startupagent builds the real built-in route table; nothing
-    listens on a socket and no file watcher runs.
+    listens on a socket and no file watcher runs. VOLTTRON_HOME is home, by
+    default a sibling of tmp_path, and the configured static roots are
+    static_roots, by default tmp_path alone.
     """
-    monkeypatch.setenv('VOLTTRON_HOME', str(tmp_path))
+    if home is None:
+        home = tmp_path.with_name(tmp_path.name + '-home')
+        home.mkdir(exist_ok=True)
+    monkeypatch.setenv('VOLTTRON_HOME', str(home))
     service = PlatformWebService.__new__(PlatformWebService)
     # Some tests in this package replace the class's base with a mock, so
     # patch whichever base is in place rather than Agent itself.
@@ -29,7 +39,9 @@ def build_web_service(tmp_path, monkeypatch, start=True, enable_auth=True):
         PlatformWebService.__init__(service, serverkey='serverkey', identity=PLATFORM_WEB,
                                     address='inproc://web-test',
                                     bind_web_address='http://127.0.0.1:8080',
-                                    web_secret_key='not-a-real-secret')
+                                    web_secret_key='not-a-real-secret',
+                                    web_static_roots=([str(tmp_path)] if static_roots is None
+                                                      else static_roots))
     service.vip = MagicMock()
     service.core = MagicMock()
     service.core.messagebus = 'zmq'
@@ -55,3 +67,23 @@ def start_web_service(service, server=None):
 @pytest.fixture()
 def web_service(tmp_path, monkeypatch):
     return build_web_service(tmp_path, monkeypatch)
+
+
+@pytest.fixture(scope='module', params=[
+    pytest.param(False, id='http'),
+    pytest.param(True, id='https', marks=ci_skipif),
+])
+def web_instance_with_static_root(request, tmp_path_factory):
+    """A web platform with one web-static-roots entry, its
+    web_static_roots[0], outside VOLTTRON_HOME."""
+    if request.param:
+        hostname, port = get_hostname_and_random_port()
+        web_address = f'https://{hostname}:{port}'
+    else:
+        web_address = f'http://{get_rand_ip_and_port()}'
+    root = tmp_path_factory.mktemp('web-static-root')
+    wrapper = build_wrapper(get_rand_vip(), ssl_auth=request.param, bind_web_address=web_address,
+                            volttron_central_address=web_address, instance_name='volttron1',
+                            web_static_roots=[str(root)])
+    yield wrapper
+    cleanup_wrapper(wrapper)

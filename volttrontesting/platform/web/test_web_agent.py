@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from volttrontesting.platform.web.conftest import set_caller
 from volttrontesting.utils.web_utils import get_test_web_env
 
@@ -24,12 +26,13 @@ def test_register_routes(web_service, tmp_path, monkeypatch):
     routes_before = len(pws.registeredroutes)
 
     pws.register_path_route("^/junk/.*", str(html_root))
-    pws.register_path_route("/flubber", ".")
+    with pytest.raises(PermissionError):
+        pws.register_path_route("/flubber", ".")
     # Test to make sure the route is resolved to a full directory so easier
     # to detect chroot for html paths.
     added = pws.registeredroutes[routes_before - 1:-1]
-    assert len(pws.registeredroutes) == routes_before + 2
-    assert [x[2] for x in added] == [str(html_root.resolve()), str(tmp_path.resolve())]
+    assert len(pws.registeredroutes) == routes_before + 1
+    assert [x[2] for x in added] == [str(html_root.resolve())]
     for x in added:
         # x is a tuple regex, 'path', directory
         assert Path(x[2]).is_absolute()

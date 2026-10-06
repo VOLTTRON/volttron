@@ -48,6 +48,7 @@ from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
+from .static_roots import configured_roots, root_refusal
 from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH, REGISTER_WEB_ROUTES
 from ..agent.utils import get_fq_identity
@@ -65,7 +66,7 @@ from ..jsonrpc import (json_result,
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
 from ..vip.socket import encode_key
-from ...platform import jsonapi, jsonrpc
+from ...platform import get_home, jsonapi, jsonrpc
 from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
@@ -179,7 +180,8 @@ class PlatformWebService(Agent):
 
     def __init__(self, serverkey, identity, address, bind_web_address,
                  volttron_central_address=None, volttron_central_rmq_address=None,
-                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None, **kwargs):
+                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None,
+                 web_static_roots=None, **kwargs):
         """
         Initialize the configuration of the base web service integration within the platform.
 
@@ -201,6 +203,7 @@ class PlatformWebService(Agent):
         self.web_ssl_key = web_ssl_key
         self.web_ssl_cert = web_ssl_cert
         self._web_secret_key = web_secret_key
+        self._static_roots = configured_roots(web_static_roots, get_home())
 
         # Maps from endpoint to peer.
         self.endpoints = {}
@@ -386,10 +389,17 @@ class PlatformWebService(Agent):
         _log.info(f'Registering web path route from {identity} regex: {regex} dir: {root_dir}')
 
         compiled = re.compile(regex)
-        assert Path(root_dir).exists()
-        # Make sure we resolve the root directory so its easier to check
-        # later on.
-        root_dir = str(Path(root_dir).resolve(root_dir))
+        if not isinstance(root_dir, str) or not os.path.isabs(root_dir):
+            self._refuse('register_path_route', identity, root_dir,
+                         'the root must be an absolute path')
+        resolved = os.path.realpath(root_dir)
+        if not os.path.isdir(resolved):
+            self._refuse('register_path_route', identity, root_dir, 'the root is not a directory')
+        reason = root_refusal(resolved, identity, get_home(), self._static_roots)
+        if reason:
+            self._refuse('register_path_route', identity, root_dir, reason)
+        # Stored resolved and never re-resolved when serving.
+        root_dir = resolved
         self._namespace_owners[key] = identity
         self.pathroutes[identity].append(compiled)
         # in order for this agent to pass against the default route we want this

@@ -2,6 +2,7 @@
 register_web_routes capability, which only VolttronCentral is given at install."""
 
 import ssl
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import gevent
@@ -129,13 +130,12 @@ def _connect(instance, path):
 
 
 @pytest.mark.web
-def test_routes_paths_and_websockets_need_the_capability(volttron_instance_web, tmp_path):
-    instance = volttron_instance_web
-    if not instance.auth_enabled:
-        pytest.skip('the capability is only enforced with authentication enabled')
+def test_routes_paths_and_websockets_need_the_capability(web_instance_with_static_root):
+    instance = web_instance_with_static_root
+    root = Path(instance.web_static_roots[0])
     for name in ('probe-denied-files', 'probe-allowed-files'):
-        (tmp_path / name).mkdir()
-        (tmp_path / name / 'index.html').write_text(f'{name} page')
+        (root / name).mkdir(exist_ok=True)
+        (root / name / 'index.html').write_text(f'{name} page')
 
     denied = instance.build_agent(identity='probe.denied.kinds', enable_web=True)
     allowed = instance.build_agent(
@@ -148,7 +148,7 @@ def test_routes_paths_and_websockets_need_the_capability(volttron_instance_web, 
         refusals = [
             lambda: denied.vip.rpc.call(PLATFORM_WEB, 'register_agent_route',
                                         '^/probe-denied-route/', 'probe_route').get(timeout=10),
-            lambda: denied.vip.web.register_path('^/probe-denied-files/', str(tmp_path)),
+            lambda: denied.vip.web.register_path('^/probe-denied-files/', str(root)),
             lambda: denied.vip.web.register_websocket('/probe-denied-ws/x',
                                                       lambda ip, endpoint: True),
         ]
@@ -159,7 +159,7 @@ def test_routes_paths_and_websockets_need_the_capability(volttron_instance_web, 
 
         allowed.vip.rpc.call(PLATFORM_WEB, 'register_agent_route',
                              '^/probe-allowed-route/', 'probe_route').get(timeout=10)
-        allowed.vip.web.register_path('^/probe-allowed-files/', str(tmp_path))
+        allowed.vip.web.register_path('^/probe-allowed-files/', str(root))
         allowed.vip.web.register_websocket(
             '/probe-allowed-ws/x', lambda ip, endpoint: opened.append(endpoint) or True)
         gevent.sleep(0.5)
