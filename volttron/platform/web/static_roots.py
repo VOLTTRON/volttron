@@ -7,6 +7,7 @@ inside a configured ``web-static-roots`` entry. Agent package metadata
 """
 import logging
 import os
+import stat
 
 _log = logging.getLogger(__name__)
 
@@ -42,7 +43,9 @@ def configured_roots(entries, home):
     home = os.path.realpath(home)
     kept = []
     for entry in entries or ():
-        if not os.path.isabs(entry):
+        if '\x00' in entry:
+            reason = 'not a valid path'
+        elif not os.path.isabs(entry):
             reason = 'not an absolute path'
         else:
             root = os.path.realpath(entry)
@@ -59,28 +62,50 @@ def configured_roots(entries, home):
     return tuple(kept)
 
 
+def _installed_identity(install):
+    """The whole IDENTITY file of an install directory, or None when it has
+    no IDENTITY file that is a readable regular file."""
+    path = os.path.join(install, 'IDENTITY')
+    try:
+        # Checked on the opened file, so nothing can be swapped in between;
+        # non-blocking, so opening a FIFO cannot stall the platform process.
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    except OSError as err:
+        _log.warning('agent install %r skipped: IDENTITY unreadable: %s', install, err)
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError('not a regular file')
+        with os.fdopen(os.dup(fd), 'rb') as file:
+            # Compared whole, as the platform reads it when starting the agent.
+            return file.read().decode('utf-8')
+    except (OSError, ValueError) as err:
+        _log.warning('agent install %r skipped: IDENTITY unreadable: %s', install, err)
+        return None
+    finally:
+        os.close(fd)
+
+
 def install_dirs(home, identity):
-    """Resolved install directories under <home>/agents whose IDENTITY file
-    names identity. A symlinked install directory is never the caller's."""
+    """Install directories under <home>/agents whose IDENTITY file names
+    identity, or None when <home>/agents cannot be listed. A symlinked
+    install directory is never the caller's."""
     agents = os.path.join(os.path.realpath(home), 'agents')
     try:
         uuids = os.listdir(agents)
     except FileNotFoundError:
         return []
+    except OSError as err:
+        _log.warning('agent install directories %r cannot be read: %s', agents, err)
+        return None
     found = []
     for uuid in uuids:
         install = os.path.join(agents, uuid)
         if os.path.islink(install):
             continue
-        try:
-            with open(os.path.join(install, 'IDENTITY'), 'rt') as file:
-                # Read as the platform reads it (aip.agent_identity).
-                installed = file.readline(64)
-        except OSError:
-            # Not an installed agent's directory, or not one this platform can
-            # read; either way it is not the caller's.
-            continue
-        if installed == identity:
+        if _installed_identity(install) == identity:
             found.append(install)
     return found
 
@@ -91,13 +116,16 @@ def root_refusal(root, identity, home, configured):
     reason = _general_refusal(root, home)
     if reason:
         return reason
-    for install in install_dirs(home, identity):
-        if _within(root, install):
-            # <uuid>/ and <uuid>/<package>/ hold the package metadata and data.
-            if len(os.path.relpath(root, install).split(os.sep)) < 2:
-                return 'the root contains agent package metadata or agent data'
-            return None
     if _within(root, home):
+        installs = install_dirs(home, identity)
+        if installs is None:
+            return 'the agent install directories cannot be read'
+        for install in installs:
+            if _within(root, install):
+                # <uuid>/ and <uuid>/<package>/ hold the package metadata and data.
+                if len(os.path.relpath(root, install).split(os.sep)) < 2:
+                    return 'the root contains agent package metadata or agent data'
+                return None
         return 'the root is inside VOLTTRON_HOME outside the agent install directory'
     if any(_within(root, allowed) for allowed in configured):
         return None

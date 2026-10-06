@@ -320,6 +320,104 @@ def test_agent_files_are_not_served_from_the_packaged_route(web_service, tmp_pat
     assert _get(web_service, '/page.html') == (200, b'PAGE')
 
 
+def _warnings_naming(caplog, text):
+    return [r for r in caplog.records
+            if r.levelno == logging.WARNING and text in r.getMessage()]
+
+
+def _bad_identity(install, kind):
+    install.mkdir(parents=True)
+    identity = install / 'IDENTITY'
+    if kind == 'not-utf-8':
+        identity.write_bytes(b'\xff\xfeprobe.owner')
+    elif kind == 'fifo':
+        os.mkfifo(identity)
+    else:
+        identity.mkdir()
+
+
+@pytest.mark.timeout(20)
+@pytest.mark.parametrize('kind', ['not-utf-8', 'fifo', 'directory'])
+def test_an_unreadable_identity_file_is_skipped_with_a_warning(layout, caplog, kind):
+    service, home, owner = layout
+    _bad_identity(home / 'agents' / 'uuid-bad', kind)
+    with caplog.at_level(logging.WARNING):
+        _accepted(service, OWNER, owner / NAME / 'probeagent' / 'webroot')
+    assert len(_warnings_naming(caplog, "uuid-bad' skipped")) == 1
+
+
+def test_a_symlinked_identity_file_does_not_make_an_owner(layout, caplog):
+    service, home, owner = layout
+    borrowed = _agent_install(home, 'uuid-borrowed', 'probe.unused')
+    (borrowed / 'IDENTITY').unlink()
+    (borrowed / 'IDENTITY').symlink_to(owner / 'IDENTITY')
+    with caplog.at_level(logging.WARNING):
+        _refused(service, OWNER, borrowed / NAME / 'probeagent' / 'webroot')
+    assert len(_warnings_naming(caplog, "uuid-borrowed' skipped")) == 1
+
+
+LONG = 'a' * 70
+
+
+@pytest.mark.parametrize('caller, accepted', [
+    (LONG, True),
+    (LONG[:64], False),
+    (LONG[:10], False),
+])
+def test_the_whole_identity_file_names_the_owner(layout, caller, accepted):
+    service, home, _ = layout
+    install = _agent_install(home, 'uuid-long', LONG)
+    root = install / NAME / 'probeagent' / 'webroot'
+    if accepted:
+        _accepted(service, caller, root)
+    else:
+        _refused(service, caller, root)
+
+
+@pytest.mark.parametrize('caller', ['probe', 'owner', 'robe.own'])
+def test_a_part_of_an_identity_does_not_own_its_install(layout, caller):
+    service, _, owner = layout
+    _refused(service, caller, owner / NAME / 'probeagent' / 'webroot')
+
+
+def test_an_unlistable_agents_directory_refuses_roots_in_volttron_home(layout, caplog):
+    service, home, owner = layout
+    agents = home / 'agents'
+    agents.chmod(0o311)
+    try:
+        with caplog.at_level(logging.WARNING):
+            _refused(service, OWNER, owner / NAME / 'probeagent' / 'webroot',
+                     reason='cannot be read')
+    finally:
+        agents.chmod(0o755)
+    assert len(_warnings_naming(caplog, 'register_path_route refused')) == 1
+
+
+def test_a_root_with_a_nul_byte_is_refused_with_a_warning(layout, tmp_path, caplog):
+    service, _, _ = layout
+    with caplog.at_level(logging.WARNING):
+        _refused(service, OWNER, f'{tmp_path}/www\x00x', reason='not a valid path')
+    assert len(_warnings_naming(caplog, 'register_path_route refused')) == 1
+
+
+def test_a_configured_root_with_a_nul_byte_is_dropped_and_logged(tmp_path, monkeypatch, caplog):
+    good = tmp_path / 'good'
+    good.mkdir()
+    with caplog.at_level(logging.ERROR):
+        service = build_web_service(tmp_path / 'www', monkeypatch, home=tmp_path / 'home',
+                                    static_roots=[f'{good}\x00x', str(good)])
+    errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(errors) == 1 and 'not a valid path' in errors[0]
+    assert service._static_roots == (str(good),)
+
+
+def test_a_refused_request_logs_no_server_path(served, caplog):
+    service, _ = served
+    with caplog.at_level(logging.DEBUG):
+        assert _get(service, '/probe/x.dist-info/f') == FORBIDDEN
+    assert not [r for r in caplog.records if 'Serverpath' in r.getMessage()]
+
+
 @pytest.mark.web
 def test_volttron_central_serves_its_pages(web_instance_with_static_root):
     instance = web_instance_with_static_root

@@ -391,6 +391,8 @@ class PlatformWebService(Agent):
         if not isinstance(root_dir, str) or not os.path.isabs(root_dir):
             self._refuse('register_path_route', identity, root_dir,
                          'the root must be an absolute path')
+        if '\x00' in root_dir:
+            self._refuse('register_path_route', identity, root_dir, 'the root is not a valid path')
         resolved = os.path.realpath(root_dir)
         if not os.path.isdir(resolved):
             self._refuse('register_path_route', identity, root_dir, 'the root is not a directory')
@@ -717,10 +719,10 @@ class PlatformWebService(Agent):
                     if path_info == '/':
                         return self._redirect_index(env, start_response)
                     server_path = file_to_serve(v, path_info)
-                    _log.debug('Serverpath: {}'.format(printable_text(str(server_path))))
                     if server_path is None:
                         start_response('403 Forbidden', [('Content-Type', 'text/html')])
                         return [b'<h1>403 Forbidden</h1>']
+                    _log.debug('Serverpath: {}'.format(printable_text(server_path)))
                     return self._sendfile(env, start_response, server_path)
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
