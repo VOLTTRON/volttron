@@ -79,8 +79,17 @@ from volttron.platform.vip.tracking import Tracker
 try:
     from .web import PlatformWebService
     HAS_WEB = True
-except ImportError:
+    _WEB_IMPORT_ERROR = None
+except ImportError as _exc:
     HAS_WEB = False
+    _WEB_IMPORT_ERROR = str(_exc)
+
+
+def web_unavailable_message():
+    return (f"Web service unavailable ({_WEB_IMPORT_ERROR}), but bind web address specified\n"
+            "Please install web libraries using python3 bootstrap.py --web\n")
+
+
 from zmq import green as _green
 
 from volttron.platform import is_rabbitmq_available
@@ -658,6 +667,12 @@ class GreenRouter(Router):
         self.setup()
 
 
+def parse_web_static_roots(value):
+    """Split the comma-separated web-static-roots option into expanded entries."""
+    return [config.expandall(entry.strip()) for entry in (value or '').split(',')
+            if entry.strip()]
+
+
 def start_volttron_process(opts):
     '''Start the main volttron process.
 
@@ -716,6 +731,7 @@ def start_volttron_process(opts):
         opts.web_ssl_key = config.expandall(opts.web_ssl_key)
     if opts.web_ssl_cert:
         opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
+    opts.web_static_roots = parse_web_static_roots(opts.web_static_roots)
 
     if opts.web_ssl_key and not opts.web_ssl_cert:
         raise Exception(
@@ -1025,15 +1041,8 @@ def start_volttron_process(opts):
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if not HAS_WEB:
-                _log.info(
-                    f"Web libraries not installed, but bind web address specified\n"
-                )
-                sys.stderr.write(
-                    "Web libraries not installed, but bind web address specified\n"
-                )
-                sys.stderr.write(
-                    "Please install web libraries using python3 bootstrap.py --web\n"
-                )
+                _log.info(web_unavailable_message())
+                sys.stderr.write(web_unavailable_message())
                 sys.exit(-1)
 
             if opts.instance_name is None:
@@ -1069,6 +1078,7 @@ def start_volttron_process(opts):
                     web_ssl_key=opts.web_ssl_key,
                     web_ssl_cert=opts.web_ssl_cert,
                     web_secret_key=opts.web_secret_key,
+                    web_static_roots=opts.web_static_roots,
                     enable_auth=opts.allow_auth))
 
         if opts.message_bus == 'zmq':
@@ -1435,6 +1445,12 @@ def main(argv=sys.argv):
         default=None,
         help='ssl certficate file for using https with the volttron server')
     agents.add_argument(
+        '--web-static-roots',
+        metavar='DIRS',
+        default=None,
+        help='comma-separated absolute directories outside VOLTTRON_HOME from which '
+             'agents may serve static files, in addition to their install directories')
+    agents.add_argument(
         '--volttron-central-address',
         default=None,
         help='The web address of a volttron central install instance.')
@@ -1586,6 +1602,7 @@ def main(argv=sys.argv):
         web_ca_cert=None,
         # If we aren't using ssl then we need a secret key available for us to use.
         web_secret_key=None,
+        web_static_roots=None,
         allow_auth='True')
 
     # Parse and expand options

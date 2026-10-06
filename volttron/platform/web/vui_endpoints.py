@@ -1,4 +1,5 @@
 import functools
+import string
 import os
 import re
 import json
@@ -10,6 +11,7 @@ from typing import List, Union
 from werkzeug import Response
 from werkzeug.urls import url_decode
 
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
@@ -18,6 +20,10 @@ from volttron.platform.web.vui_pubsub import VUIPubsubManager
 
 import logging
 _log = logging.getLogger(__name__)
+
+# Generic agent RPC never reaches a platform service, on any platform. The
+# dedicated endpoints serve control and config store operations instead.
+RPC_REFUSED_IDENTITIES = frozenset(PROCESS_IDENTITIES) | {CONTROL_CONNECTION}
 
 
 class OverrideError(Exception):
@@ -31,20 +37,22 @@ class LockError(Exception):
     pass
 
 
-def endpoint(func):
+def endpoint(func=None, *, admin_post=False):
+    """Require a ``vui`` token for a VUI handler.
+
+    With admin_post, a POST also requires the ``admin`` group, a token from the
+    Authorization header (never the cookie, which a browser sends on requests
+    other sites make) and a JSON content type.
+    """
+    if func is None:
+        return functools.partial(endpoint, admin_post=admin_post)
+
     @functools.wraps(func)
     def verify_and_dispatch(self, env, data):
-        from volttron.platform.web import get_bearer
-        try:
-            claims = self._agent.get_user_claims(get_bearer(env))
-        except Exception as e:
-            _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
-            return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
-
-        # Only allow only users with API permissions:
-        if 'vui' not in claims.get('groups'):
-            _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
-            return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
+        admin_request = admin_post and env.get('REQUEST_METHOD') == 'POST'
+        refusal = _refuse_request(self._agent, env, admin_request)
+        if refusal is not None:
+            return refusal
 
         # Dispatch endpoint:
         try:
@@ -59,6 +67,64 @@ def endpoint(func):
         except Exception as e:
             return Response(json.dumps({'error': f'Unexpected Error: {e}'}), 500, content_type='application/json')
     return verify_and_dispatch
+
+
+def _refuse_request(agent, env, admin_request):
+    """Return the refusal Response for a VUI request, or None to proceed.
+
+    Every request needs a valid token in the ``vui`` group. Any request other
+    than GET takes the token from the Authorization header, never the cookie,
+    which a browser sends on requests other sites make. An admin request also
+    needs the ``admin`` group and a JSON content type.
+    """
+    from volttron.platform.web import (get_authorization_bearer, get_bearer, get_claim_groups,
+                                       get_media_type, printable_text)
+    path = printable_text(env.get('PATH_INFO'))
+    header_only = admin_request or env.get('REQUEST_METHOD') != 'GET'
+    try:
+        bearer = get_authorization_bearer(env) if header_only else get_bearer(env)
+        if not bearer:
+            raise ValueError('no bearer token')
+        claims = agent.get_user_claims(bearer)
+    except Exception as e:
+        _log.warning(f"Unauthorized user attempted to connect to {path}. Caught Exception: {e}")
+        return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+
+    groups = get_claim_groups(claims)
+    if groups is None or 'vui' not in groups:
+        _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {path}.")
+        return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
+    if admin_request and 'admin' not in groups:
+        _log.warning(f"Non-admin user attempted an admin request at {path}.")
+        return _forbidden()
+    if admin_request and get_media_type(env) != 'application/json':
+        return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
+                        content_type='application/json')
+    return None
+
+
+def _same_origin(env):
+    # A browser sends the cookie on a websocket opened by any site, so a
+    # cookie-authenticated upgrade must come from a page served by this host.
+    from urllib.parse import urlparse
+    origin, host = env.get('HTTP_ORIGIN'), env.get('HTTP_HOST')
+    if not origin or not host:
+        return False
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return False
+    return parsed.scheme in ('http', 'https') and parsed.netloc.lower() == host.lower()
+
+
+def _forbidden():
+    return Response(json.dumps({'error': 'Forbidden'}), 403, content_type='application/json')
+
+
+def _rpc_target_refused(vip_identity, method_name=None):
+    # Exact, case-sensitive comparison: VIP identities are case-sensitive.
+    # A dotted name is a subsystem or alias export such as auth.update.
+    return vip_identity in RPC_REFUSED_IDENTITIES or (method_name is not None and '.' in method_name)
 
 
 class VUIEndpoints:
@@ -446,15 +512,17 @@ class VUIEndpoints:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/?$', path_info).groups()
+        if _rpc_target_refused(vip_identity):
+            return _forbidden()
         if request_method == 'GET':
-            method_dict = self._rpc(vip_identity, 'inspect', external_platform=platform)
-            response = self._links(path_info, method_dict.get('methods'))
-            return Response(json.dumps(response), 200, content_type='application/json')
+            return self._agent_rpc_response(
+                vip_identity, 'inspect', [], {}, platform,
+                lambda method_dict: self._links(path_info, method_dict.get('methods')))
 
-    @endpoint
+    @endpoint(admin_post=True)
     def handle_platforms_agents_rpc_method(self, env: dict, data: Union[dict, List]) -> Response:
         """
-        Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/
+        Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/:method_name
         :param env:
         :param data:
         :return:
@@ -463,30 +531,45 @@ class VUIEndpoints:
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity, method_name = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/([^/]+)/?$',
                                                        path_info).groups()
+        if _rpc_target_refused(vip_identity, method_name):
+            return _forbidden()
         if request_method == 'GET':
-            try:
-                method_dict = self._rpc(vip_identity, method_name + '.inspect', external_platform=platform)
-            except MethodNotFound as e:
-                return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
-                                400, content_type='application/json')
-            return Response(json.dumps(method_dict), 200, content_type='application/json')
+            return self._agent_rpc_response(vip_identity, method_name + '.inspect', [], {}, platform)
 
         elif request_method == 'POST':
+            if type(data) is dict:
+                if 'external_platform' in data or not all(isinstance(k, str) for k in data):
+                    return _forbidden()
+                kwargs = dict(data)
+                args = kwargs.pop('args') if type(kwargs.get('args')) is list else []
+            elif type(data) is list:
+                args, kwargs = data, {}
+            else:
+                return Response(json.dumps({'error': 'malformed request body'}), 400,
+                                content_type='application/json')
+            return self._agent_rpc_response(vip_identity, method_name, args, kwargs, platform)
+
+    def _agent_rpc_response(self, vip_identity, method_name, args, kwargs, platform, shape=None):
+        # Fixed error bodies: exception text can carry remote detail.
+        from volttron.platform.web import describe_call_error
+        try:
+            result = self._rpc(vip_identity, method_name, *args, **kwargs, external_platform=platform)
+        except (MethodNotFound, ValueError):
+            return Response(json.dumps({'error': 'method not found'}), 400, content_type='application/json')
+        except Timeout:
+            _log.error(f'Agent RPC {vip_identity!r} {method_name!r} timed out')
+            return Response(json.dumps({'error': 'timed out'}), 504, content_type='application/json')
+        except Exception as e:
+            _log.error(f'Agent RPC {vip_identity!r} {method_name!r} failed: {describe_call_error(e)}')
+            return Response(json.dumps({'error': 'call failed'}), 500, content_type='application/json')
+        if shape is not None:
             try:
-                if type(data) is dict:
-                    if 'args' in data.keys() and type(data['args']) is list:
-                        args = data.pop('args')
-                        result = self._rpc(vip_identity, method_name, *args, **data, external_platform=platform)
-                    else:
-                        result = self._rpc(vip_identity, method_name, **data, external_platform=platform)
-                elif type(data) is list:
-                    result = self._rpc(vip_identity, method_name, *data, external_platform=platform)
-                else:
-                    raise ValueError(f'Malformed message body: {data}')
-            except MethodNotFound or ValueError as e:
-                return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
-                                400, content_type='application/json')
-            return Response(json.dumps(result), 200, content_type='application/json')
+                result = shape(result)
+            except Exception as e:
+                _log.error(f'Agent RPC {vip_identity!r} {method_name!r} returned an unexpected result: '
+                           f'{type(e).__name__}')
+                return Response(json.dumps({'error': 'call failed'}), 500, content_type='application/json')
+        return Response(json.dumps(result), 200, content_type='application/json')
 
     @endpoint
     def handle_platforms_agents_status(self, env: dict, data: dict) -> Response:
@@ -733,13 +816,16 @@ class VUIEndpoints:
                             status=501, content_type='text/plain')
 
     def handle_platforms_pubsub(self, env: dict, start_response, data: dict):
-        from volttron.platform.web import get_bearer  # TODO: Is this necessary, with bearer imported in decorator?
+        # Not wrapped by @endpoint because the websocket upgrade needs
+        # start_response; it applies the same checks, and publishing is held to
+        # the rules for invoking an agent method.
+        from volttron.platform.web import (describe_call_error, get_authorization_bearer, get_bearer,
+                                           printable_text)
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
-        query_params = url_decode(env['QUERY_STRING'])
-        _log.debug('VUI.handle_platforms_pubsub -- env is: ')
-        _log.debug({k: str(v) for k, v in env.items()})
-        _log.debug(f'HTTP_AUTHORIZATION is: {env["HTTP_AUTHORIZATION"]}')
+        refusal = _refuse_request(self._agent, env, admin_request=request_method in ('PUT', 'POST'))
+        if refusal is not None:
+            return refusal
         access_token = get_bearer(env)
 
         no_topic = re.match('^/vui/platforms/([^/]+)/pubsub/?$', path_info)
@@ -756,23 +842,37 @@ class VUIEndpoints:
                 response = Response(json.dumps(ret_dict), 200, content_type='application/json')
                 return response
             else:
+                if get_authorization_bearer(env) is None and not _same_origin(env):
+                    _log.warning('Refused a cookie-authenticated pubsub subscription: origin '
+                                 f"{printable_text(env.get('HTTP_ORIGIN'))!r}, "
+                                 f"host {printable_text(env.get('HTTP_HOST'))!r}")
+                    return _forbidden()
                 ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
                 env['ws4py.app'] = self.pubsub_manager
-                _log.debug('ENV is:')
-                _log.debug(env)
                 return [ws(env, start_response)]
 
         elif request_method == 'PUT':
             # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-            message = data.get('message')
-            headers = data.get('headers')
-            subscriber_count = self.pubsub_manager.publish(topic, headers, message)
+            if not topic.strip('/' + string.whitespace) or type(data) is not dict:
+                return Response(json.dumps({'error': 'malformed request body'}), 400,
+                                content_type='application/json')
+            try:
+                subscriber_count = self.pubsub_manager.publish(topic, data.get('headers'), data.get('message'))
+            except Timeout:
+                _log.error(f'VUI publish to {topic!r} timed out')
+                return Response(json.dumps({'error': 'timed out'}), 504, content_type='application/json')
+            except Exception as e:
+                _log.error(f'VUI publish to {topic!r} failed: {describe_call_error(e)}')
+                return Response(json.dumps({'error': 'publish failed'}), 500, content_type='application/json')
             return Response(json.dumps(subscriber_count), 200, content_type='application/json')
 
         # elif request_method == 'DELETE':
         #     # DELETE -- For ../pubsub and /pubsub/:topic, Close open web sockets and subscriptions for this user.
         #     self.pubsub_manager.close_socket(access_token, topic)
         #     return Response(status=204)
+
+        return Response(json.dumps({'error': f'Endpoint {request_method} is not implemented.'}), 501,
+                        content_type='application/json')
 
     @endpoint
     def handle_platforms_historians(self, env: dict, data: dict) -> Response:

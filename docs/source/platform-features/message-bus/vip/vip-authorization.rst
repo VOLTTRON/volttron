@@ -42,6 +42,11 @@ There are two parts to authorization:
 The following example will walk through how to specify required capabilities and grant those capabilities in
 authorization entries.
 
+Reading and changing authorization entries is itself gated: an agent needs ``allow_auth_modifications`` to read
+or change entries, groups or roles over RPC, and ``modify_rpc_method_allowance`` to change another agent's RPC method
+authorizations. See :ref:`Capabilities required to read or change authentication records
+<Auth-Modification-Capabilities>`.
+
 
 Single Capability
 -----------------

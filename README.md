@@ -29,7 +29,7 @@ devices and provides an environment for developing applications which interact
 with that data.
 
 ## Upgrading Pre-8 to VOLTTRON 9.x
-VOLTTRON 9.0.4 requires python 3.10 and was tested on Ubuntu 22.04
+VOLTTRON 9.1.0 requires python 3.10 and was tested on Ubuntu 22.04
 
 VOLTTRON 8 introduces four changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 
@@ -93,7 +93,7 @@ users unfamiliar with those technologies, the following resources are recommende
 ### 1. Install prerequisites
 
 [Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
-From version 9.0.4, VOLTTRON requires python 3.10. And it was tested on Ubuntu 22.04
+From version 9.1.0, VOLTTRON requires python 3.10. And it was tested on Ubuntu 22.04
 From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.10; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
 

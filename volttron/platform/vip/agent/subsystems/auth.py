@@ -308,12 +308,14 @@ class Auth(SubsystemBase):
             _log.exception(f"Exception when calling rpc method update_id_rpc_authorizations for identity: "
                            f"{self._core().identity}  Exception:{e}")
         if updated_rpc_authorizations is None:
+            # The auth service answers None for both causes, so the
+            # warning names both.
             _log.warning(
-                f"Auth entry not found for {self._core().identity}: "
-                f"rpc_method_authorizations not updated. If this agent "
-                f"does have an auth entry, verify that the 'identity' field "
-                f"has been included in the auth entry. This should be set to "
-                f"the identity of the agent"
+                f"rpc_method_authorizations not recorded for "
+                f"{self._core().identity}, keeping the decorator defaults: "
+                f"either no auth entry has this identity, or the auth "
+                f"service refused because the entry's user_id is not the "
+                f"user this agent authenticated as"
             )
             return
         if rpc_method_authorizations != updated_rpc_authorizations and updated_rpc_authorizations is not None:

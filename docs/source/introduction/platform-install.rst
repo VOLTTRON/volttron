@@ -18,7 +18,7 @@ working knowledge of Linux will be helpful for troubleshooting and may improve y
 deployment.
 
 .. note::
-    volttron version 9.0.4 was tested on Ubuntu 22.04 and python 3.10
+    volttron version 9.1.0 was tested on Ubuntu 22.04 and python 3.10
     Volttron version 7.0rc1 is currently tested for Ubuntu versions 18.04 and 18.10 as well as Linux Mint version 19.3.
     Version 6.x is tested for Ubuntu versions 16.04 and 18.04 as well as Linux Mint version 19.1.
 

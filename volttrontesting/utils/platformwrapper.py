@@ -275,11 +275,15 @@ def with_os_environ(update_env: dict):
     :return:
     """
     copy_env = os.environ.copy()
-    os.environ.update(update_env)
     try:
+        os.environ.update(update_env)
         yield
     finally:
-        os.environ = copy_env
+        # Restore in place: rebinding os.environ to a dict would stop it
+        # rejecting non-str values and leave the C-level environment (what
+        # child processes inherit) unrestored.
+        os.environ.clear()
+        os.environ.update(copy_env)
 
 
 class PlatformWrapper:
@@ -341,6 +345,8 @@ class PlatformWrapper:
         self.jsonrpc_endpoint = None
         self.volttron_central_address = None
         self.volttron_central_serverkey = None
+        # Written to the config as web-static-roots; kept across restarts.
+        self.web_static_roots = []
         self.instance_name = instance_name
         self.serverkey = None
 
@@ -802,8 +808,12 @@ class PlatformWrapper:
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
-            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
-                fd.write(jsonapi.dumps(auth_dict))
+            # Written as given, but under the auth file lock, so it cannot
+            # interleave with a running platform's own change.
+            authfile = AuthFile(os.path.join(self.volttron_home, 'auth.json'))
+            with authfile._transaction():
+                with open(authfile.auth_file, 'w') as fd:
+                    fd.write(jsonapi.dumps(auth_dict))
 
     def initialize_web_certs(self):
         cert_dir = os.path.join(self.volttron_home, "certificates")
@@ -855,6 +865,7 @@ class PlatformWrapper:
                          setupmode=False,
                          agent_monitor_frequency=600,
                          timeout=60,
+                         web_static_roots=None,
                          # Allow the AuthFile to be preauthenticated with keys for service agents.
                          perform_preauth_service_agents=True):
 
@@ -873,6 +884,8 @@ class PlatformWrapper:
             self.volttron_central_address = volttron_central_address
             self.volttron_central_serverkey = volttron_central_serverkey
             self.bind_web_address = bind_web_address
+            if web_static_roots is not None:
+                self.web_static_roots = list(web_static_roots)
 
             if perform_preauth_service_agents and self.auth_enabled:
                 authfile = AuthFile()
@@ -1040,6 +1053,8 @@ class PlatformWrapper:
                 parser.set('volttron', 'web-ssl-cert', web_ssl_cert)
             if web_ssl_key:
                 parser.set('volttron', 'web-ssl-key', web_ssl_key)
+            if self.web_static_roots:
+                parser.set('volttron', 'web-static-roots', ','.join(self.web_static_roots))
             if volttron_central_address:
                 parser.set('volttron', 'volttron-central-address',
                            volttron_central_address)
@@ -1139,7 +1154,12 @@ class PlatformWrapper:
                 # can enable the WebAdminApi.
                 # if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
-                self._web_admin_api.create_web_admin("admin", "admin")
+                try:
+                    self._web_admin_api.create_web_admin("admin", "admin")
+                except Exception:
+                    self.logit("Web admin creation failed; stopping the platform")
+                    self.shutdown_platform()
+                    raise
                 times = 0
                 has_discovery = False
                 error_was = None
@@ -1838,30 +1858,53 @@ class WebAdminApi:
     def create_web_admin(self, username, password, messagebus='rmq'):
         """ Creates a global administrator user for the platform https interface.
 
+        Follows the operator's path: request /admin/ so the platform writes its
+        setup token file, read the token from VOLTTRON_HOME, and submit it.
+        Returns None without a request when web users already exist, as after
+        a restart.
+
         :param username:
         :param password:
-        :return:
+        :return: the setup response
+        :raises RuntimeError: when any step fails, with its cause
         """
-        from volttron.platform.web.admin_endpoints import AdminEndpoints
-        from volttrontesting.utils.web_utils import get_test_web_env
+        from volttron.platform.web.admin_endpoints import SETUP_TOKEN_FILE
 
-        # params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-        # env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-        # adminep = AdminEndpoints()
-        # resp = adminep.admin(env, params)
-        # # else:
-        data = dict(username=username, password1=password, password2=password)
-        url = self.bind_web_address + "/admin/setpassword"
-        # resp = requests.post(url, data=data,
-        # verify=self.certsobj.remote_cert_bundle_file())
+        home = self._wrapper.volttron_home
+        users_path = os.path.join(home, 'web-users.json')
+        if os.path.exists(users_path):
+            with open(users_path) as fp:
+                if jsonapi.load(fp):
+                    return None
 
         if self._wrapper.ssl_auth:
-            resp = grequests.post(url, data=data,
-                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
+            verify = self.certsobj.cert_file(self.certsobj.root_ca_name)
         else:
-            resp = grequests.post(url, data=data, verify=False).send().response
-        print(f"RESPONSE: {resp}")
-        return resp
+            verify = False
+
+        url = self.bind_web_address + "/admin/"
+        sent = grequests.get(url, verify=verify).send()
+        if sent.response is None:
+            raise RuntimeError(f"Web admin setup: cannot reach {url}: {sent.exception}")
+        if sent.response.status_code != 200:
+            raise RuntimeError(f"Web admin setup: {url} returned {sent.response.status_code}")
+
+        token_path = os.path.join(home, SETUP_TOKEN_FILE)
+        try:
+            with open(token_path) as fp:
+                setup_token = fp.read().strip()
+        except OSError as exc:
+            raise RuntimeError(f"Web admin setup: cannot read the setup token {token_path}: {exc}") from exc
+
+        data = dict(username=username, password1=password, password2=password, setup_token=setup_token)
+        url = self.bind_web_address + "/admin/setpassword"
+        sent = grequests.post(url, data=data, verify=verify, allow_redirects=False).send()
+        if sent.response is None:
+            raise RuntimeError(f"Web admin setup: cannot reach {url}: {sent.exception}")
+        if sent.response.status_code != 302:
+            raise RuntimeError(f"Web admin setup: creating {username} returned "
+                               f"{sent.response.status_code}: {sent.response.text[:200]}")
+        return sent.response
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)

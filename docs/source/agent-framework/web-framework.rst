@@ -61,8 +61,12 @@ A path-based route that allows the agent to specify a prefix and a static path o
 The prefix can be a regular expression.
 
 .. note::
-    The static path should point to a location within the installed agent's agent-data directory.
-    You MUST have read access to the directory.
+    The static path must be an absolute path to a directory inside the installed agent's own package (for example a
+    ``webroot`` directory next to the agent's code), or inside a directory listed in the platform's ``web-static-roots``
+    option (see :ref:`Platform-Config-File`).  The agent's install directory and package directory themselves, and
+    anything in a ``*.dist-info`` or ``*.agent-data`` directory, are refused, and files under ``*.dist-info`` or
+    ``*.agent-data`` directories or named ``keystore.json`` are never served.  The platform must have read access to
+    the directory.
 
 The below example is based on the registered route in VolttronCentral.
 
@@ -75,7 +79,7 @@ The below example is based on the registered route in VolttronCentral.
         Allow serving of static content from 'webroot'
         """
         # Sets WEB_ROOT to be the path to the webroot directory
-        # in the agent-data directory of the installed agent..
+        # in the package of the installed agent.
         WEB_ROOT = os.path.abspath(p.abspath(p.join(p.dirname(__file__), 'webroot/')))
         # Serves the static content from 'webroot' directory
         self.vip.web.register_path(r'^/vc/.*', WEB_ROOT)

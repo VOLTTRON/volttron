@@ -27,6 +27,7 @@
 See http://www.jsonrpc.org/specification for the complete specification.
 """
 
+import logging
 import sys
 from contextlib import contextmanager
 
@@ -34,6 +35,8 @@ from volttron.platform import jsonapi
 
 __all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher',
            'json_result', 'json_validate_request', 'json_validate_response']
+
+_log = logging.getLogger(__name__)
 
 
 PARSE_ERROR = -32700
@@ -176,8 +179,13 @@ class RemoteError(Exception):
             except KeyError:
                 msg = message
             else:
-                args = ', '.join(repr(arg) for arg in exc_args)
-                msg = '%s(%s)' % (exc_type, args)
+                try:
+                    args = ', '.join(repr(arg) for arg in exc_args)
+                except TypeError:
+                    # exc_args is None or not iterable.
+                    msg = message
+                else:
+                    msg = '%s(%s)' % (exc_type, args)
         else:
             msg = message
         super(RemoteError, self).__init__(msg)
@@ -186,11 +194,14 @@ class RemoteError(Exception):
 
     def __repr__(self):
         exc_type = self.exc_info.get('exc_type', '<unknown>')
-        try:
-            exc_args = ', '.join(repr(arg) for arg in
-                                 self.exc_info['exc_args'])
-        except KeyError:
+        exc_args_raw = self.exc_info.get('exc_args')
+        if exc_args_raw is None:
             exc_args = '...'
+        else:
+            try:
+                exc_args = ', '.join(repr(arg) for arg in exc_args_raw)
+            except TypeError:
+                exc_args = '...'
         if exc_type == '<unknown>':
             return '%s: %s' % (exc_type, self.message)
         return '%s(%s)' % (exc_type, exc_args)
@@ -212,9 +223,33 @@ class RemoteError(Exception):
 def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
-        return RemoteError(data.get('detail', message),
-                           **data.get('exception.py', {}))
-    elif code == METHOD_NOT_FOUND:
+        if not isinstance(data, dict):
+            if data is not None:
+                _log.warning(
+                    'Ignoring error reply data of type %s; expected an object',
+                    type(data).__name__)
+            data = {}
+        exc_info = data.get('exception.py')
+        if not isinstance(exc_info, dict):
+            exc_info = {}
+        # Drop a conflicting 'message' key so it doesn't shadow the
+        # positional message argument passed to RemoteError.__init__.
+        exc_info = {k: v for k, v in exc_info.items() if k != 'message'}
+        try:
+            return RemoteError(data.get('detail', message), **exc_info)
+        except Exception as exc:
+            # Malformed exception.py content must still reach the caller
+            # as a RemoteError rather than leave the request to time out.
+            # Only the exception type is logged at WARNING: its text can
+            # carry peer-supplied key names.
+            _log.warning(
+                'Error reply exception.py could not build a RemoteError (%s); '
+                'falling back to a plain RemoteError', type(exc).__name__)
+            _log.debug(
+                'Failed to build RemoteError from exception.py=%r', exc_info,
+                exc_info=True)
+            return RemoteError(data.get('detail', message))
+    if code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
 

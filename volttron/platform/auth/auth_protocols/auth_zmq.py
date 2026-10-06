@@ -36,6 +36,7 @@ from volttron.platform import get_home
 from volttron.platform import jsonapi
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_exception import AuthException
+from volttron.platform.auth.auth_file import AuthFileUnavailable
 from volttron.platform.auth.auth_protocols import (
     BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization)
 from volttron.platform.auth.auth_utils import dump_user
@@ -272,18 +273,33 @@ class ZMQServerAuthentication(BaseServerAuthentication):
                     )
                     # If in setup mode, add/update auth entry
                     if self.auth_service._setup_mode:
-                        self.authorization._update_auth_entry(
-                            domain, address, kind, credentials[0], userid)
-                        _log.info(
-                            "new authentication entry added in setup mode: "
-                            "domain=%r, address=%r, "
-                            "mechanism=%r, credentials=%r, user_id=%r",
-                            domain,
-                            address,
-                            kind,
-                            credentials[:1],
-                            userid,
-                        )
+                        # The reply does not depend on the write, and an
+                        # exception here would end this loop, leaving every
+                        # later connection unanswered.
+                        try:
+                            self.authorization._update_auth_entry(
+                                domain, address, kind, credentials[0], userid)
+                        except Exception:
+                            _log.exception(
+                                "authentication entry not recorded in setup "
+                                "mode: domain=%r, address=%r, mechanism=%r, "
+                                "credentials=%r",
+                                domain,
+                                address,
+                                kind,
+                                credentials[:1],
+                            )
+                        else:
+                            _log.info(
+                                "new authentication entry added in setup "
+                                "mode: domain=%r, address=%r, "
+                                "mechanism=%r, credentials=%r, user_id=%r",
+                                domain,
+                                address,
+                                kind,
+                                credentials[:1],
+                                userid,
+                            )
                         response.extend([b"200", b"SUCCESS", b"", b""])
                         _log.debug("AUTH response: {}".format(response))
                         sock.send_multipart(response)
@@ -534,12 +550,19 @@ class ZMQAuthorization(BaseServerAuthorization):
 
         try:
             self.auth_service.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
+        except AuthFileUnavailable:
+            # Nothing was written; the caller keeps the credential pending.
+            raise
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 
     def _remove_auth_entry(self, credential, is_allow=True):
         try:
             self.auth_service.auth_file.remove_by_credentials(credential, is_allow=is_allow)
+        except AuthFileUnavailable:
+            # The entry is still in the file; the caller must not report
+            # the removal as done.
+            raise
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 

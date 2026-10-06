@@ -32,6 +32,7 @@ from volttron.platform import get_home, jsonapi
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.auth import AuthEntry, AuthException
 from volttron.platform.control.control_utils import _ask_yes_no, _print_two_columns, _show_filtered_agents
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.subsystems.query import Query
 
@@ -517,7 +518,7 @@ def remove_auth(opts):
         return
     try:
         conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices",
-                                 opts.indices)
+                                 opts.indices).get(timeout=4)
         if len(opts.indices) > 1:
             msg = "removed entries at indices {}".format(opts.indices)
         else:
@@ -548,7 +549,7 @@ def update_auth(opts):
         updated_entry = response
         conn.server.vip.rpc.call(
             AUTH, "auth_file.update_by_index", updated_entry, opts.index
-        )
+        ).get(timeout=4)
         _stdout.write("updated entry at index {}\n".format(opts.index))
     except IndexError:
         _stderr.write("ERROR: invalid index %s\n" % opts.index)
@@ -570,7 +571,7 @@ def add_role(opts):
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
     roles[opts.role] = list(set(opts.capabilities))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
     _stdout.write('added role "{}"\n'.format(opts.role))
 
 
@@ -603,7 +604,7 @@ def update_role(opts):
         roles[opts.role] = list(set(caps) - set(opts.capabilities))
     else:
         roles[opts.role] = list(set(caps) | set(opts.capabilities))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
     _stdout.write('updated role "{}"\n'.format(opts.role))
 
 
@@ -620,7 +621,7 @@ def remove_role(opts):
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
     del roles[opts.role]
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
     _stdout.write('removed role "{}"\n'.format(opts.role))
 
 
@@ -637,7 +638,7 @@ def add_group(opts):
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
     groups[opts.group] = list(set(opts.roles))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
     _stdout.write('added group "{}"\n'.format(opts.group))
 
 
@@ -670,7 +671,7 @@ def update_group(opts):
         groups[opts.group] = list(set(roles) - set(opts.roles))
     else:
         groups[opts.group] = list(set(roles) | set(opts.roles))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
     _stdout.write('updated group "{}"\n'.format(opts.group))
 
 
@@ -687,7 +688,7 @@ def remove_group(opts):
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
     del groups[opts.group]
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
@@ -713,6 +714,9 @@ def add_agent_rpc_authorizations(opts):
         conn.server.vip.rpc.call(
             AUTH, "add_rpc_authorizations", agent_id, agent_method, added_auths
         ).get(timeout=4)
+    except RemoteError:
+        # vctl reports a RemoteError as an error; the handlers below only log.
+        raise
     except TimeoutError:
         _log.error(
             f"Adding RPC authorizations {added_auths} for {agent_id}'s "
@@ -752,6 +756,9 @@ def remove_agent_rpc_authorizations(opts):
             agent_method,
             removed_auths,
         ).get(timeout=4)
+    except RemoteError:
+        # vctl reports a RemoteError as an error; the handlers below only log.
+        raise
     except TimeoutError:
         _log.error(
             f"Adding RPC authorizations {removed_auths} for {agent_id}'s "
