@@ -454,17 +454,75 @@ def test_can_install_multiple_listeners(volttron_instance):
 
 
 def test_will_update_throws_typeerror():
-    # Note dictionary for os.environ must be string=string for key=value
+    # os.environ only accepts str keys and values; with_os_environ passes
+    # anything else through to os.environ.update, which raises TypeError.
+    # PlatformWrapper.__init__ itself uses with_os_environ, so build one first
+    # to cover the usual case of an earlier user in the same process.
+    p = PlatformWrapper(messagebus='zmq')
+    try:
+        for bad_env in (dict(shanty=dict(holy="cow")), dict(bogus=35)):
+            with pytest.raises(TypeError):
+                with with_os_environ(bad_env):
+                    pytest.fail("with_os_environ accepted a non-string value")
+    finally:
+        p.cleanup()
 
-    to_update = dict(shanty=dict(holy="cow"))
-    #with pytest.raises(TypeError):
-    with with_os_environ(to_update):
-        print("Should not reach here")
 
-    to_update = dict(bogus=35)
-#    with pytest.raises(TypeError):
-    with with_os_environ(to_update):
-        print("Should not reach here")
+def test_rejected_update_leaves_no_key_behind():
+    before = dict(os.environ)
+    with pytest.raises(TypeError):
+        with with_os_environ({"rejected_ok_key": "1", "rejected_bad_key": 2}):
+            pytest.fail("with_os_environ accepted a non-string value")
+    assert "rejected_ok_key" not in os.environ
+    assert dict(os.environ) == before
+
+
+def test_environ_stays_the_real_mapping_after_block():
+    real_type = type(os.environ)
+    with with_os_environ(dict(farthing="50")):
+        pass
+    assert type(os.environ) is real_type
+    assert not isinstance(os.environ, dict)
+
+
+def test_child_process_sees_restored_environment():
+    key = "WITH_OS_ENVIRON_CHILD_PROBE"
+    cmd = ["sh", "-c", 'printf %s "${' + key + '-absent}"']
+
+    def child_value():
+        return subprocess.check_output(cmd, universal_newlines=True)
+
+    with with_os_environ({key: "inside"}):
+        assert child_value() == "inside"
+    assert child_value() == "absent"
+
+    os.environ[key] = "outer"
+    try:
+        with with_os_environ({key: "inside"}):
+            assert child_value() == "inside"
+        assert child_value() == "outer"
+    finally:
+        del os.environ[key]
+
+
+def test_environment_restored_when_block_body_raises():
+    key = "WITH_OS_ENVIRON_BODY_RAISES"
+    os.environ[key] = "outer"
+    try:
+        with pytest.raises(RuntimeError):
+            with with_os_environ({key: "inside", "body_raises_extra": "1"}):
+                raise RuntimeError("body failed")
+        assert os.environ[key] == "outer"
+        assert "body_raises_extra" not in os.environ
+    finally:
+        del os.environ[key]
+
+
+def test_key_set_inside_block_is_gone_after_block():
+    key = "WITH_OS_ENVIRON_SET_INSIDE"
+    with with_os_environ(dict(farthing="50")):
+        os.environ[key] = "set in body"
+    assert key not in os.environ
 
 
 def test_will_update_environ():

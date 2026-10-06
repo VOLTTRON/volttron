@@ -275,11 +275,15 @@ def with_os_environ(update_env: dict):
     :return:
     """
     copy_env = os.environ.copy()
-    os.environ.update(update_env)
     try:
+        os.environ.update(update_env)
         yield
     finally:
-        os.environ = copy_env
+        # Restore in place: rebinding os.environ to a dict would stop it
+        # rejecting non-str values and leave the C-level environment (what
+        # child processes inherit) unrestored.
+        os.environ.clear()
+        os.environ.update(copy_env)
 
 
 class PlatformWrapper:

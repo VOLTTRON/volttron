@@ -91,9 +91,9 @@ copyright = '2023, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = '9.0.4'
+version = '9.1.0'
 # The full version, including alpha/beta/rc tags
-release = '9.0.4'
+release = '9.1.0'
 
 # -- General configuration ---------------------------------------------------
 

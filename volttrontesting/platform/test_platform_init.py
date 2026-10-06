@@ -31,6 +31,13 @@ from volttron.utils import get_random_key
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 
 
+@pytest.fixture(autouse=True)
+def auth_enabled_env(monkeypatch):
+    # PlatformWrapper.build_agent leaves AUTH_ENABLED in os.environ after an
+    # auth-disabled platform fixture; these tests assume auth is on.
+    monkeypatch.setenv("AUTH_ENABLED", "True")
+
+
 def test_update_platform_config():
     my_config = {"bind-web-address": "http://v2:8080",
                  "vip-address": "tcp://127.0.0.1:22196"}
