@@ -3,13 +3,16 @@ import subprocess
 
 try:
     import docker
-    from docker.errors import APIError, ImageNotFound
+    from docker.errors import APIError, ImageNotFound, NotFound
     HAS_DOCKER = True
 except ImportError:
     HAS_DOCKER = False
 
 import time
 import contextlib
+import logging
+
+_log = logging.getLogger(__name__)
 
 # Only allow this function if docker is available from the pip library.
 if HAS_DOCKER:
@@ -73,11 +76,13 @@ if HAS_DOCKER:
             if network_name:
                 container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
                                                   detach=True, network=network_name, hostname=hostname,
-                                                  command=command, mem_limit=mem_limit)
+                                                  command=command, mem_limit=mem_limit,
+                                                  memswap_limit=mem_limit)
             else:
                 container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
                                                   detach=True, hostname=hostname,
-                                                  command=command, mem_limit=mem_limit)
+                                                  command=command, mem_limit=mem_limit,
+                                                  memswap_limit=mem_limit)
         except (ImageNotFound, APIError, RuntimeError) as e:
             raise RuntimeError(e)
 
@@ -91,7 +96,27 @@ if HAS_DOCKER:
             else:
                 yield container
         finally:
+            _kill_quietly(container)
+
+    def _describe_stop(container) -> str:
+        """Exit code and OOM flag of a container that stopped, or why they are unknown."""
+        try:
+            container.reload()
+        except NotFound:
+            return "it was already removed (auto_remove), so its exit code and OOM state are unavailable"
+        state = container.attrs.get("State", {})
+        return f"exit code {state.get('ExitCode')}, OOM-killed: {state.get('OOMKilled')}"
+
+    def _kill_quietly(container):
+        """Kill the container without letting a stopped one replace the exception that is propagating."""
+        try:
             container.kill()
+        except NotFound:
+            _log.error("Container %s stopped before cleanup: %s", container.id, _describe_stop(container))
+        except APIError as e:
+            if e.status_code != 409:
+                raise
+            _log.error("Container %s stopped before cleanup: %s", container.id, _describe_stop(container))
 
     def _is_not_valid_container(container, startup_time_seconds):
         error_time = time.time() + startup_time_seconds
@@ -102,6 +127,10 @@ if HAS_DOCKER:
                 invalid = True
                 break
             time.sleep(0.1)
-            container.reload()
+            try:
+                container.reload()
+            except NotFound:
+                raise RuntimeError(f"Container {container.id} exited during startup and was removed "
+                                   f"(auto_remove), so its exit code and OOM state are unavailable")
 
         return invalid
