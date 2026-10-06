@@ -47,7 +47,7 @@ from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
-from .static_roots import configured_roots, file_to_serve, root_refusal
+from .static_roots import configured_roots, file_to_serve, open_checked, root_refusal
 from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH, REGISTER_WEB_ROUTES
 from ..agent.utils import get_fq_identity
@@ -202,7 +202,8 @@ class PlatformWebService(Agent):
         self.web_ssl_key = web_ssl_key
         self.web_ssl_cert = web_ssl_cert
         self._web_secret_key = web_secret_key
-        self._static_roots = configured_roots(web_static_roots, get_home())
+        self._static_roots = configured_roots(web_static_roots, get_home(),
+                                              (web_ssl_key, web_ssl_cert))
 
         # Maps from endpoint to peer.
         self.endpoints = {}
@@ -839,6 +840,11 @@ class PlatformWebService(Agent):
             start_response('404 Not Found', [('Content-Type', 'text/html')])
             return [b'<h1>Not Found</h1>']
 
+        opened = open_checked(filename)
+        if opened is None:
+            start_response('403 Forbidden', [('Content-Type', 'text/html')])
+            return [b'<h1>403 Forbidden</h1>']
+
         if not guess:
             guess = 'text/plain'
 
@@ -847,7 +853,7 @@ class PlatformWebService(Agent):
         ]
         start_response(status, response_headers)
 
-        return FileWrapper(open(filename, 'rb'))
+        return FileWrapper(opened)
 
     def register_gs_route(self):
         self.registeredroutes.append((GS_ROUTE, 'callable', self.jsonrpc))

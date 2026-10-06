@@ -37,10 +37,12 @@ def _general_refusal(root, home):
     return None
 
 
-def configured_roots(entries, home):
+def configured_roots(entries, home, protected_files=()):
     """Return the resolved ``web-static-roots`` entries that pass the root
-    rules; log each entry that does not at ERROR and drop it."""
+    rules and hold none of protected_files; log each entry that does not at
+    ERROR and drop it."""
     home = os.path.realpath(home)
+    protected = [os.path.realpath(path) for path in protected_files if path]
     kept = []
     for entry in entries or ():
         if '\x00' in entry:
@@ -53,6 +55,8 @@ def configured_roots(entries, home):
                 reason = 'not a directory'
             elif _within(root, home):
                 reason = 'inside VOLTTRON_HOME'
+            elif any(_within(path, root) for path in protected):
+                reason = 'holds the web server key or certificate'
             else:
                 reason = _general_refusal(root, home)
         if reason:
@@ -144,3 +148,24 @@ def file_to_serve(root, path_info):
     if _has_private_part(os.path.relpath(resolved, root)):
         return None
     return resolved
+
+
+def open_checked(path):
+    """Open path, a file_to_serve result, for reading; return None when the
+    opened file is no longer the regular file at that resolved path, as when
+    a component was swapped for a symlink after the check."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        opened = os.fstat(fd)
+        current = os.stat(path)
+        if (stat.S_ISREG(opened.st_mode) and os.path.realpath(path) == path
+                and (opened.st_dev, opened.st_ino) == (current.st_dev, current.st_ino)):
+            return os.fdopen(os.dup(fd), 'rb')
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+    return None

@@ -19,7 +19,7 @@ def set_caller(service, user, peer=None):
 
 
 def build_web_service(tmp_path, monkeypatch, start=True, enable_auth=True, home=None,
-                      static_roots=None):
+                      static_roots=None, **service_kwargs):
     """A PlatformWebService whose bus and web server are mocks.
 
     With start, startupagent builds the real built-in route table; nothing
@@ -41,7 +41,8 @@ def build_web_service(tmp_path, monkeypatch, start=True, enable_auth=True, home=
                                     bind_web_address='http://127.0.0.1:8080',
                                     web_secret_key='not-a-real-secret',
                                     web_static_roots=([str(tmp_path)] if static_roots is None
-                                                      else static_roots))
+                                                      else static_roots),
+                                    **service_kwargs)
     service.vip = MagicMock()
     service.core = MagicMock()
     service.core.messagebus = 'zmq'

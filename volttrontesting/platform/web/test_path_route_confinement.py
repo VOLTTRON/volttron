@@ -12,7 +12,7 @@ import requests
 from volttron.platform import get_services_core
 from volttron.platform.agent.known_identities import PLATFORM_WEB, VOLTTRON_CENTRAL
 from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.web import platform_web_service
+from volttron.platform.web import platform_web_service, static_roots
 from volttrontesting.platform.web.conftest import build_web_service, set_caller
 from volttrontesting.utils.web_utils import get_test_web_env
 
@@ -411,11 +411,97 @@ def test_a_configured_root_with_a_nul_byte_is_dropped_and_logged(tmp_path, monke
     assert service._static_roots == (str(good),)
 
 
+@pytest.mark.parametrize('kwarg', ['web_ssl_key', 'web_ssl_cert'])
+def test_a_configured_root_holding_the_web_key_or_certificate_is_dropped(
+        tmp_path, monkeypatch, caplog, kwarg):
+    holding = tmp_path / 'holding'
+    (holding / 'tls').mkdir(parents=True)
+    (holding / 'tls' / 'file.pem').write_text('PEM')
+    good = tmp_path / 'good'
+    good.mkdir()
+    with caplog.at_level(logging.ERROR):
+        service = build_web_service(tmp_path / 'www', monkeypatch, home=tmp_path / 'home',
+                                    static_roots=[str(holding), str(good)],
+                                    **{kwarg: str(holding / 'tls' / 'file.pem')})
+    errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(errors) == 1 and str(holding) in errors[0]
+    assert service._static_roots == (str(good),)
+
+
 def test_a_refused_request_logs_no_server_path(served, caplog):
     service, _ = served
     with caplog.at_level(logging.DEBUG):
         assert _get(service, '/probe/x.dist-info/f') == FORBIDDEN
     assert not [r for r in caplog.records if 'Serverpath' in r.getMessage()]
+
+
+def _swap_after_check(monkeypatch, swap):
+    check = platform_web_service.file_to_serve
+
+    def checked_then_swapped(root, path_info):
+        path = check(root, path_info)
+        swap()
+        return path
+
+    monkeypatch.setattr(platform_web_service, 'file_to_serve', checked_then_swapped)
+
+
+def test_a_file_swapped_for_a_symlink_after_the_check_is_not_served(served, tmp_path,
+                                                                    monkeypatch):
+    service, root = served
+    (tmp_path / 'outside.txt').write_text('OUTSIDE')
+    page = root / 'probe' / 'index.html'
+
+    def swap():
+        page.unlink()
+        page.symlink_to(tmp_path / 'outside.txt')
+
+    _swap_after_check(monkeypatch, swap)
+    assert _get(service, '/probe/index.html') == FORBIDDEN
+
+
+def _swap_directory(root, tmp_path):
+    (tmp_path / 'outside').mkdir()
+    (tmp_path / 'outside' / 'index.html').write_text('OUTSIDE')
+    probe = root / 'probe'
+
+    def swap():
+        probe.rename(root / 'probe-kept')
+        probe.symlink_to(tmp_path / 'outside')
+
+    def restore():
+        probe.unlink()
+        (root / 'probe-kept').rename(probe)
+
+    return swap, restore
+
+
+def test_a_directory_swapped_for_a_symlink_after_the_check_is_not_served(served, tmp_path,
+                                                                         monkeypatch):
+    service, root = served
+    swap, _ = _swap_directory(root, tmp_path)
+    _swap_after_check(monkeypatch, swap)
+    assert _get(service, '/probe/index.html') == FORBIDDEN
+
+
+def test_a_file_opened_through_a_swapped_directory_is_not_served(served, tmp_path,
+                                                                monkeypatch):
+    service, root = served
+    swap, restore = _swap_directory(root, tmp_path)
+    _swap_after_check(monkeypatch, swap)
+
+    class RestoreAfterOpen:
+        def __getattr__(self, name):
+            return getattr(os, name)
+
+        @staticmethod
+        def open(*args, **kwargs):
+            fd = os.open(*args, **kwargs)
+            restore()
+            return fd
+
+    monkeypatch.setattr(static_roots, 'os', RestoreAfterOpen())
+    assert _get(service, '/probe/index.html') == FORBIDDEN
 
 
 @pytest.mark.web
