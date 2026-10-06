@@ -36,9 +36,9 @@ def test_jwt_encode(encryption_type):
         token = jwt.encode(claims, encoded_key, algorithm)
         if encryption_type == 'tls':
             decode_key = CertWrapper.get_cert_public_key(certs.server_certs[0].cert_file)
-            new_claims = jwt.decode(token, decode_key, algorithms=algorithm)
+            new_claims = jwt.decode(token, decode_key, algorithms=[algorithm])
         else:
-            new_claims = jwt.decode(token, encoded_key, algorithms=algorithm)
+            new_claims = jwt.decode(token, encoded_key, algorithms=[algorithm])
 
         assert not DeepDiff(claims, new_claims)
 

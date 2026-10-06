@@ -169,7 +169,7 @@ class AuthenticateEndpoints:
         claims['exp'] = now + timedelta(minutes=self.refresh_token_timeout)
         claims['grant_type'] = 'refresh_token'
         refresh_token = jwt.encode(claims, encode_key, algorithm=algorithm)
-        return access_token.decode('utf-8'), refresh_token.decode('utf8')
+        return access_token, refresh_token
 
     def renew_auth_token(self, env, data):
         """
@@ -186,19 +186,36 @@ class AuthenticateEndpoints:
         :param data:
         :return:
         """
+        # The body is optional; a JSON body arrives already parsed only when the
+        # request declared a JSON content type.
+        if isinstance(data, str) and data.strip():
+            try:
+                data = json.loads(data)
+            except ValueError:
+                data = None
+        elif not data:
+            data = {}
+        if not isinstance(data, dict):
+            _log.error("Invalid request body sent to {}".format(printable_text(env.get('PATH_INFO'))))
+            return Response('Unauthorized User', status="401 Unauthorized")
         current_access_token = data.get('current_access_token')
         from volttron.platform.web import get_bearer, get_user_claim_from_bearer, NotAuthorized
         try:
+            # ValueError: an Authorization header that is not "<type> <token>".
             current_refresh_token = get_bearer(env)
-            claims = get_user_claim_from_bearer(current_refresh_token, web_secret_key=self._web_secret_key,
-                                                tls_public_key=self._tls_public_key)
-        except NotAuthorized:
+        except (NotAuthorized, ValueError):
             _log.error("Unauthorized user attempted to connect to {}".format(printable_text(env.get('PATH_INFO'))))
             return Response('Unauthorized User', status="401 Unauthorized")
-
+        try:
+            claims = get_user_claim_from_bearer(current_refresh_token, web_secret_key=self._web_secret_key,
+                                                tls_public_key=self._tls_public_key)
         except jwt.ExpiredSignatureError:
             _log.error("User attempted to connect to {} with an expired signature".format(
                 printable_text(env.get('PATH_INFO'))))
+            return Response('Unauthorized User', status="401 Unauthorized")
+
+        except jwt.PyJWTError:
+            _log.error("Invalid refresh token presented to {}".format(printable_text(env.get('PATH_INFO'))))
             return Response('Unauthorized User', status="401 Unauthorized")
 
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):
