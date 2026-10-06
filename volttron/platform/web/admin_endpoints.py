@@ -51,6 +51,21 @@ from volttron.utils import VolttronHomeFileReloader
 _log = logging.getLogger(__name__)
 
 
+def printable_text(text):
+    # Imported lazily: volttron.platform.web imports this module.
+    from volttron.platform.web import printable_text as _printable_text
+    return _printable_text(text)
+
+
+_STATE_CHANGING_API = tuple('/admin/api/' + name for name in (
+    'approve_csr/', 'deny_csr/', 'delete_csr/',
+    'approve_credential/', 'deny_credential/', 'delete_credential/'))
+
+
+def _changes_state(path_info):
+    return path_info.startswith(_STATE_CHANGING_API)
+
+
 def template_env(env):
     return env['JINJA2_TEMPLATE_ENV']
 
@@ -134,7 +149,7 @@ class AdminEndpoints:
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
+            _log.debug("Login.html: {}".format(printable_text(env.get('PATH_INFO'))))
             return Response(template.render(), content_type='text/html')
 
         return self.verify_and_dispatch(env, data)
@@ -146,17 +161,25 @@ class AdminEndpoints:
         :param data: data associated with a web form or json/xml request data
         :return: Response object.
         """
-        from volttron.platform.web import get_bearer, NotAuthorized
+        from volttron.platform.web import get_authorization_bearer, get_bearer, NotAuthorized
+        path = printable_text(env.get('PATH_INFO'))
+        # A request that changes authorization state takes the token from the
+        # Authorization header only, never the cookie, which a browser sends
+        # on requests other sites make.
+        changes_state = _changes_state(env.get('PATH_INFO') or '')
         try:
-            claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
+            bearer = get_authorization_bearer(env) if changes_state else get_bearer(env)
+            if changes_state and not bearer:
+                raise NotAuthorized()
+            claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', bearer).get()
         except NotAuthorized:
-            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
+            _log.error("Unauthorized user attempted to connect to {}".format(path))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
         except RemoteError as e:
             if "ExpiredSignatureError" in e.exc_info["exc_type"]:
                 _log.warning("Access token has expired! Please re-login to renew.")
                 template = template_env(env).get_template('login.html')
-                _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
+                _log.debug("Login.html: {}".format(path))
                 return Response(template.render(), content_type='text/html')
             else:
                 _log.error(e)
@@ -212,7 +235,7 @@ class AdminEndpoints:
         return Response(resp)
 
     def __api_endpoint(self, endpoint, data):
-        _log.debug("Doing admin endpoint {}".format(endpoint))
+        _log.debug("Doing admin endpoint {}".format(printable_text(endpoint)))
         if endpoint == 'certs':
             response = self.__cert_list_api()
         elif endpoint == 'pending_csrs':
@@ -236,7 +259,7 @@ class AdminEndpoints:
 
     def __approve_csr_api(self, common_name):
         try:
-            _log.debug("Creating cert and permissions for user: {}".format(common_name))
+            _log.debug("Creating cert and permissions for user: {}".format(printable_text(common_name)))
             self._rpc_caller.call(AUTH, 'approve_authorization', common_name).wait(timeout=4)
             data = dict(status=self._rpc_caller.call(AUTH, "get_authorization_status", common_name).get(timeout=2),
                         cert=self._rpc_caller.call(AUTH, "get_authorization", common_name).get(timeout=2))
@@ -296,7 +319,7 @@ class AdminEndpoints:
 
     def __approve_credential_api(self, user_id):
         try:
-            _log.debug("Creating credential and permissions for user: {}".format(user_id))
+            _log.debug("Creating credential and permissions for user: {}".format(printable_text(user_id)))
             self._rpc_caller.call(AUTH, 'approve_authorization', user_id).wait(timeout=4)
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
