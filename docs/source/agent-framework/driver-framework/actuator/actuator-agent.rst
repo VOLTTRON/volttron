@@ -13,6 +13,15 @@ one or more devices.
 Actuator Agent Communication
 ============================
 
+.. note::
+
+    Scheduling a task and setting or reverting points, whether by RPC or through the ``devices/actuators`` pub/sub
+    topics, require the requesting agent to hold the ``driver_write`` capability, the same capability the Platform
+    Driver requires for its own write methods. Agents installed with ``vctl install`` receive it by default; other
+    agents must be granted it with ``vctl auth``. Requests from an agent without it are refused with an
+    ``UNAUTHORIZED`` error (RPC) or a ``FAILURE`` schedule result / ``Unauthorized`` error reply (pub/sub). Reading
+    values does not require the capability.
+
 
 Scheduling a Task
 -----------------

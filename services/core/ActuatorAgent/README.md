@@ -40,3 +40,22 @@ drivers are configured to do so.
         "schedule_state_file": "actuator_state.pickle"
     }
 ```
+
+## Required capability for scheduling and writing
+
+The actuator's scheduling and writing methods (`request_new_schedule`, `request_cancel_schedule`, `set_point`,
+`set_multiple_points`, `revert_point` and `revert_device`), whether called over RPC or through the
+`devices/actuators/...` pub/sub topics, require the calling agent to hold the `driver_write` capability. This is the
+same capability the Platform Driver requires for its own write methods, so an agent that may write to devices
+directly may also write through the actuator, and one that may not cannot use the actuator to get around that.
+Reads (`get_point`, `get_multiple_points`, `scrape_all`) do not require it.
+
+Agents installed with `vctl install` are granted `driver_write` by default. For an agent that connects with its own
+credentials, grant it explicitly:
+
+```bash
+vctl auth add --credentials <agent public key> --user_id my.control.agent --capabilities driver_write
+```
+
+A call without the capability is refused with an `UNAUTHORIZED` RPC error; a pub/sub request without it receives a
+`FAILURE` schedule result or an `Unauthorized` error reply and does not reach the device.
