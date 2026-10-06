@@ -207,6 +207,87 @@ def test_a_configured_root_is_kept_resolved(tmp_path, monkeypatch):
     assert service._static_roots == (str(target),)
 
 
+@pytest.fixture()
+def served(tmp_path, monkeypatch):
+    """A registered root at tmp_path/www holding probe/index.html."""
+    service = build_web_service(tmp_path, monkeypatch)
+    root = tmp_path / 'www'
+    (root / 'probe').mkdir(parents=True)
+    (root / 'probe' / 'index.html').write_text('INDEX')
+    set_caller(service, OWNER)
+    service.register_path_route('^/probe/', str(root))
+    return service, root
+
+
+def test_a_file_in_the_root_is_served(served):
+    service, _ = served
+    assert _get(service, '/probe/index.html') == (200, b'INDEX')
+
+
+def test_a_sibling_directory_sharing_the_roots_prefix_is_not_served(served, tmp_path):
+    service, _ = served
+    (tmp_path / 'www-secret').mkdir()
+    (tmp_path / 'www-secret' / 'f').write_text('SIBLING')
+    assert _get(service, '/probe/../../www-secret/f') == FORBIDDEN
+
+
+@pytest.mark.parametrize('relative', [
+    'x.dist-info/keystore.json',
+    'y.agent-data/f',
+    'keystore.json',
+    'Z.DIST-INFO/f',
+])
+def test_agent_files_created_after_registration_are_not_served(served, relative):
+    service, root = served
+    target = root / 'probe' / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text('PRIVATE')
+    assert _get(service, f'/probe/{relative}') == FORBIDDEN
+
+
+def test_an_innocent_name_resolving_into_agent_metadata_is_not_served(served):
+    service, root = served
+    (root / 'probe' / 'x.dist-info').mkdir()
+    (root / 'probe' / 'x.dist-info' / 'data.txt').write_text('PRIVATE')
+    (root / 'probe' / 'alias').symlink_to(root / 'probe' / 'x.dist-info')
+    assert _get(service, '/probe/alias/data.txt') == FORBIDDEN
+
+
+def test_a_symlink_out_of_the_root_is_not_served(served, tmp_path):
+    service, root = served
+    (tmp_path / 'outside.txt').write_text('OUTSIDE')
+    (root / 'probe' / 'link.txt').symlink_to(tmp_path / 'outside.txt')
+    assert _get(service, '/probe/link.txt') == FORBIDDEN
+
+
+def test_a_root_replaced_by_a_symlink_after_registration_is_not_followed(served, tmp_path):
+    service, root = served
+    (tmp_path / 'elsewhere' / 'probe').mkdir(parents=True)
+    (tmp_path / 'elsewhere' / 'probe' / 'secret.txt').write_text('ELSEWHERE')
+    root.rename(tmp_path / 'www-old')
+    root.symlink_to(tmp_path / 'elsewhere')
+    assert _get(service, '/probe/secret.txt') == FORBIDDEN
+
+
+def test_the_packaged_pages_are_served_from_their_resolved_directory(web_service):
+    pattern, kind, root = web_service.registeredroutes[-1]
+    assert (pattern.pattern, kind, root) == ('^/.*$', 'path', os.path.realpath(root))
+    with open(os.path.join(root, 'index.html'), 'rb') as page:
+        expected = page.read()
+    assert _get(web_service, '/index.html') == (200, expected)
+
+
+def test_agent_files_are_not_served_from_the_packaged_route(web_service, tmp_path):
+    pattern, kind, _ = web_service.registeredroutes[-1]
+    static = tmp_path / 'static'
+    (static / 'x.dist-info').mkdir(parents=True)
+    (static / 'x.dist-info' / 'f').write_text('PRIVATE')
+    (static / 'page.html').write_text('PAGE')
+    web_service.registeredroutes[-1] = (pattern, kind, str(static))
+    assert _get(web_service, '/x.dist-info/f') == FORBIDDEN
+    assert _get(web_service, '/page.html') == (200, b'PAGE')
+
+
 @pytest.mark.web
 def test_volttron_central_serves_its_pages(web_instance_with_static_root):
     instance = web_instance_with_static_root

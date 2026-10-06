@@ -26,7 +26,6 @@ import base64
 import logging
 import mimetypes
 import os
-from pathlib import Path
 import re
 from types import MappingProxyType
 from urllib.parse import urlparse, parse_qs
@@ -48,7 +47,7 @@ from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
-from .static_roots import configured_roots, root_refusal
+from .static_roots import configured_roots, file_to_serve, root_refusal
 from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH, REGISTER_WEB_ROUTES
 from ..agent.utils import get_fq_identity
@@ -717,11 +716,9 @@ class PlatformWebService(Agent):
                 elif t == 'path':  # File service from agents on the platform.
                     if path_info == '/':
                         return self._redirect_index(env, start_response)
-                    server_path = v + path_info  # os.path.join(v, path_info)
-                    server_path = str(Path(server_path).resolve())
-                    _log.debug('Serverpath: {}'.format(printable_text(server_path)))
-                    # protects against relative server traversal.
-                    if not server_path.startswith(v):
+                    server_path = file_to_serve(v, path_info)
+                    _log.debug('Serverpath: {}'.format(printable_text(str(server_path))))
+                    if server_path is None:
                         start_response('403 Forbidden', [('Content-Type', 'text/html')])
                         return [b'<h1>403 Forbidden</h1>']
                     return self._sendfile(env, start_response, server_path)
@@ -1026,7 +1023,7 @@ class PlatformWebService(Agent):
             for rt in AuthenticateEndpoints(web_secret_key=self._web_secret_key).get_routes():
                 self.registeredroutes.append(rt)
 
-        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        static_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "static"))
         self._builtin_patterns = tuple(pattern for pattern, _, _ in self.registeredroutes)
         try:
             builtin = builtin_namespaces(self._builtin_patterns)

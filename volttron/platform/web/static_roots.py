@@ -103,3 +103,16 @@ def root_refusal(root, identity, home, configured):
         return None
     return 'the root is not in the agent install directory or a web-static-roots entry'
 
+
+def file_to_serve(root, path_info):
+    """The file a request names under the resolved root, or None when it
+    must not be served. The root is never re-resolved, so replacing it with
+    a symlink after registration does not move it."""
+    if _has_private_part(path_info, '/'):
+        return None
+    resolved = os.path.realpath(root + path_info)
+    if not _within(resolved, root):
+        return None
+    if _has_private_part(os.path.relpath(resolved, root)):
+        return None
+    return resolved
