@@ -33,7 +33,8 @@ from gevent.fileobject import FileObject
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.agent.utils import create_file_if_missing, get_messagebus, watch_file
 from volttron.platform.auth.auth_entry import AuthEntry
-from volttron.platform.auth.auth_file import AuthFile, AuthFileUnavailable
+from volttron.platform.auth.auth_file import (AuthFile, AuthFileEntryNotOwned,
+                                              AuthFileUnavailable)
 from volttron.platform.auth.auth_utils import load_user
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent import RPC, Agent, Core
@@ -98,8 +99,9 @@ class AuthService(Agent):
 
     def export_auth_file(self):
         """
-        Export all relevant AuthFile methods to external agents
-        through AuthService
+        Export the AuthFile read methods to external agents through
+        AuthService. The methods that change the file are exported on the
+        class, where each declares the capability it requires.
         :params: None
         :return: None
         """
@@ -112,39 +114,47 @@ class AuthService(Agent):
             """
             return self.auth_file.auth_data
 
-        def auth_file_add(entry):
-            """
-            Wrapper function to add entry to AuthFile
-            :params: entry
-            :return: None
-            """
-            self.auth_file.add(AuthEntry(**entry))
-
-        def auth_file_update_by_index(auth_entry, index, is_allow=True):
-            """
-            Wrapper function to update entry in AuthFile
-            :params: auth_entry, index, is_allow
-            :return: None
-            """
-            self.auth_file.update_by_index(AuthEntry(**auth_entry), index,
-                                           is_allow)
-
         self.vip.rpc.export(auth_file_read, "auth_file.read")
         self.vip.rpc.export(self.auth_file.find_by_credentials,
                             "auth_file.find_by_credentials")
-        self.vip.rpc.export(auth_file_add, "auth_file.add")
-        self.vip.rpc.export(auth_file_update_by_index,
-                            "auth_file.update_by_index")
-        self.vip.rpc.export(
-            self.auth_file.remove_by_credentials,
-            "auth_file.remove_by_credentials",
-        )
-        self.vip.rpc.export(self.auth_file.remove_by_index,
-                            "auth_file.remove_by_index")
-        self.vip.rpc.export(self.auth_file.remove_by_indices,
-                            "auth_file.remove_by_indices")
-        self.vip.rpc.export(self.auth_file.set_groups, "auth_file.set_groups")
-        self.vip.rpc.export(self.auth_file.set_roles, "auth_file.set_roles")
+
+    @RPC.export("auth_file.add")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_add(self, entry):
+        """Adds an entry, given as a dict of AuthEntry fields."""
+        self.auth_file.add(AuthEntry(**entry))
+
+    @RPC.export("auth_file.update_by_index")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_update_by_index(self, auth_entry, index, is_allow=True):
+        """Replaces the entry at index with a dict of AuthEntry fields."""
+        self.auth_file.update_by_index(AuthEntry(**auth_entry), index,
+                                       is_allow)
+
+    @RPC.export("auth_file.remove_by_credentials")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_remove_by_credentials(self, credentials, is_allow=True):
+        self.auth_file.remove_by_credentials(credentials, is_allow)
+
+    @RPC.export("auth_file.remove_by_index")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_remove_by_index(self, index, is_allow=True):
+        self.auth_file.remove_by_index(index, is_allow)
+
+    @RPC.export("auth_file.remove_by_indices")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_remove_by_indices(self, indices, is_allow=True):
+        self.auth_file.remove_by_indices(indices, is_allow)
+
+    @RPC.export("auth_file.set_groups")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_set_groups(self, groups):
+        self.auth_file.set_groups(groups)
+
+    @RPC.export("auth_file.set_roles")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_set_roles(self, roles):
+        self.auth_file.set_roles(roles)
 
     @Core.receiver("onsetup")
     def setup_authentication_server(self, sender, **kwargs):
@@ -183,8 +193,23 @@ class AuthService(Agent):
     def unbind_authentication_server(self, sender, **kwargs):
         self.authentication_server.unbind_authentication()
 
-    @RPC.export
-    def update_id_rpc_authorizations(self, identity, rpc_methods):
+    @RPC.export("update_id_rpc_authorizations")
+    def _update_caller_rpc_authorizations(self, identity, rpc_methods):
+        """
+        RPC entry point of update_id_rpc_authorizations. The caller's
+        authenticated user must be the user_id of the entry with the
+        identity; otherwise nothing is changed and None is returned.
+        """
+        user_id = str(self.vip.rpc.context.vip_message.user)
+        if get_messagebus() == "rmq":
+            # RMQ user names are <instance name>.<user>, as in the RPC
+            # subsystem's capability check.
+            user_id = user_id[user_id.index(".") + 1:]
+        return self.update_id_rpc_authorizations(identity, rpc_methods,
+                                                 user_id=user_id)
+
+    def update_id_rpc_authorizations(self, identity, rpc_methods,
+                                     user_id=None):
         """
         Update RPC methods for an auth entry. This is called by the subsystem
         on agent start-up to ensure that the agent's current rpc allowances are
@@ -192,6 +217,8 @@ class AuthService(Agent):
         :param identity: The agent's identity in the auth entry
         :param rpc_methods: The rpc methods to update in the format
             {rpc_method_name: [allowed_rpc_capability_1, ...]}
+        :param user_id: when given, the entry must belong to this user, or
+            the call is refused
         :return: updated_rpc_methods or None
         """
         enforced = {}
@@ -204,19 +231,31 @@ class AuthService(Agent):
 
         try:
             found = self.auth_file.modify_rpc_method_authorizations(
-                identity, fill_missing)
+                identity, fill_missing, user_id=user_id)
+        except AuthFileEntryNotOwned:
+            return self._refuse_rpc_authorizations(identity, user_id)
         except AuthFileUnavailable as err:
             # The agent waits only a few seconds for this answer, then keeps
             # its own defaults, so answer from the last load instead.
             _log.error("auth file not updated for %s: %s", identity, err)
-            return self._cached_rpc_authorizations(identity, rpc_methods)
+            return self._cached_rpc_authorizations(identity, rpc_methods,
+                                                   user_id)
         return enforced if found else None
 
-    def _cached_rpc_authorizations(self, identity, rpc_methods):
+    def _cached_rpc_authorizations(self, identity, rpc_methods, user_id):
         for entry in self.auth_file.read_allow_entries():
             if entry.identity == identity:
+                if user_id is not None and entry.user_id != user_id:
+                    return self._refuse_rpc_authorizations(identity, user_id)
                 return _merge_agent_rpc_methods(
                     entry.rpc_method_authorizations, rpc_methods)[1]
+        return None
+
+    @staticmethod
+    def _refuse_rpc_authorizations(identity, user_id):
+        _log.warning("rpc method authorizations for identity %r not "
+                     "recorded: the caller %r is not that entry's user",
+                     identity, user_id)
         return None
 
     def get_entry_authorizations(self, identity):
@@ -296,6 +335,7 @@ class AuthService(Agent):
                                 _log.error(f"Method {method} does not exist.")
 
     @RPC.export
+    @RPC.allow(capabilities="modify_rpc_method_allowance")
     def add_rpc_authorizations(self, identity, method, authorizations):
         """
         Adds authorizations to method in auth entry in auth file.
@@ -325,6 +365,7 @@ class AuthService(Agent):
             _log.error("Agent identity not found in auth file!")
 
     @RPC.export
+    @RPC.allow(capabilities="modify_rpc_method_allowance")
     def delete_rpc_authorizations(self, identity, method,
                                   denied_authorizations):
         """

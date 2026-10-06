@@ -743,7 +743,7 @@ class AuthFile(object):
         else:
             self._write(allow_entries, entries, groups, roles)
 
-    def modify_rpc_method_authorizations(self, identity, edit):
+    def modify_rpc_method_authorizations(self, identity, edit, user_id=None):
         """
         Changes the rpc_method_authorizations of the first allow entry with
         the given identity, as the file holds it now.
@@ -752,13 +752,18 @@ class AuthFile(object):
         :param edit: called with a copy of the entry's
             rpc_method_authorizations; returns the new dict, or None to leave
             the file unchanged
+        :param user_id: when given, the entry must have this user_id
         :returns: False if no allow entry has the identity, else True
         :rtype: bool
+        :raises AuthFileEntryNotOwned: the entry has another user_id; the
+            file is unchanged
         """
         with self._transaction():
             allow_entries, deny_entries, groups, roles = self.read()
             for entry in allow_entries:
                 if entry.identity == identity:
+                    if user_id is not None and entry.user_id != user_id:
+                        raise AuthFileEntryNotOwned(identity, user_id)
                     updated = edit(
                         copy.deepcopy(entry.rpc_method_authorizations))
                     if updated is not None:
@@ -849,6 +854,17 @@ class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
                 user_id, indicies
             )
         super(AuthFileUserIdAlreadyExists, self).__init__(indicies, message)
+
+
+class AuthFileEntryNotOwned(AuthException):
+    """The allow entry with an identity belongs to another user_id."""
+
+    def __init__(self, identity, user_id):
+        super().__init__(
+            f"the entry for identity {identity!r} does not belong to user "
+            f"{user_id!r}")
+        self.identity = identity
+        self.user_id = user_id
 
 
 class AuthFileUnavailable(AuthException):
