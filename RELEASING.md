@@ -132,12 +132,18 @@ these and records the result on the release pull request:
 
 - Both version strings read the version being released, and the prose
   mentions in `README.md` and the install guide match it (section 3).
-- The test workflows are green on the release branch tip. Read the jobs, not
-  only the overall conclusion: a skipped job is not a pass.
+- The nine `pytest-*` workflows are green on the release branch tip. They
+  share one job name, `build (ubuntu-22.04, 3.10)`, so count nine, read each
+  workflow's own jobs, and treat a missing or skipped one as not passed: a
+  workflow that never ran shows no job at all. `code_analysis.yml` does not
+  run on `releases/**`.
+- The commit those checks ran on is the commit that will be tagged. If the
+  branch moves after the checks, including by a merged fix, check again.
 - `main` has been merged into the release branch (section 2), and the branch
   is mergeable into `main`.
 - A maintainer with release authority has approved the release (section 10),
-  and the pull request has its required review (section 6).
+  after any security fixes are on the release branch, and the pull request has
+  its required review (section 6).
 
 ## 6. Merging the release into main, then publishing it
 
@@ -243,18 +249,29 @@ Fixes handled under coordinated disclosure are prepared in GitHub temporary
 private advisory forks, not on public branches, so nothing is visible before
 the release. Each fork may have only one pull request targeting the base
 branch, so a fix that needs several changes is combined into that one pull
-request.
+request. The fork pull requests target `develop`, not the default branch
+`main`: `main` only moves when a release is merged into it, and release
+branches are cut from `develop` (section 2).
 
 1. Prepare and review each fix in its advisory fork.
-2. In one short window immediately before the release branch is cut, merge
-   the fork pull requests, which target `develop`, from each advisory page.
+2. In one short window, merge the fork pull requests from each advisory page.
    This bypasses branch protection on `develop`, so it is done only by a
-   maintainer with release authority (section 10), and only once the release
-   is approved. Once they merge, the fixes are public on `develop` until the
-   GitHub Release is live, which is why the window is kept short.
-3. Cut the release as in sections 2 to 6, so the fixes are in the release
-   branch, the tag and the GitHub Release.
-4. After the GitHub Release is live and not a draft, request CVE identifiers
+   maintainer with release authority (section 10). Once they merge, the fixes
+   are public on `develop` until the GitHub Release is live, which is why the
+   window is kept short.
+3. Put the fixes in the release branch. If it does not exist yet, cut it from
+   `develop` only after the fork pull requests have merged. If it already
+   exists, merge `develop` into it after they merge, and check that each fix
+   is there with `git merge-base --is-ancestor <fork pull request head>
+   <release branch tip>`.
+4. Approve the release (section 10) only after the fixes are on the release
+   branch, so the approval covers content that includes them.
+5. Cut the release as in sections 2 to 6.
+6. Before publishing any advisory, check that the tag contains each fix:
+   `git merge-base --is-ancestor <fork pull request head> <tag>` must succeed
+   for every fork pull request. An advisory is never published for a version
+   whose tag lacks its fix.
+7. After the GitHub Release is live and not a draft, request CVE identifiers
    and publish the advisories, each naming the released version.
 
 Publishing earlier points readers at a fix they cannot install. Publishing
@@ -307,7 +324,10 @@ recovery rule here.
   would land: abandon that tag and release under a new version. If the
   conflicts are large enough that this is impractical, re-cut the release
   branch from a current `origin/develop` and start over, rather than forcing a
-  resolution nobody has reviewed.
+  resolution nobody has reviewed. A fix that went only into the release branch
+  is not on `develop`, so a re-cut would lose it: merge the old release branch
+  into the new one, or cherry-pick the fix, and check it is present before
+  going on.
 - Publishing a security advisory (section 9) is irreversible in the
   disclosure sense: once details are public, they cannot be made
   confidential again. If a defect in the advisory itself is found afterward,
@@ -319,3 +339,9 @@ recovery rule here.
   already public: either proceed with the release, using a new version if a tag
   was already pushed, or publish the advisories promptly. Do not leave the
   fixes public and the advisories unpublished.
+- Fixes are public on `develop` but the release is blocked (red CI, a merge
+  conflict, or an abandoned tag). Do not hold the release open indefinitely:
+  fix the cause on the release branch by pull request, and if a tag was already
+  pushed, release under a new version (see the first item). Until the Release
+  is live, the advisories stay unpublished, so keep the delay short and tell
+  the maintainers who hold the advisories.
