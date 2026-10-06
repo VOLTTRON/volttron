@@ -505,6 +505,26 @@ def test_child_process_sees_restored_environment():
         del os.environ[key]
 
 
+def test_environment_restored_when_block_body_raises():
+    key = "WITH_OS_ENVIRON_BODY_RAISES"
+    os.environ[key] = "outer"
+    try:
+        with pytest.raises(RuntimeError):
+            with with_os_environ({key: "inside", "body_raises_extra": "1"}):
+                raise RuntimeError("body failed")
+        assert os.environ[key] == "outer"
+        assert "body_raises_extra" not in os.environ
+    finally:
+        del os.environ[key]
+
+
+def test_key_set_inside_block_is_gone_after_block():
+    key = "WITH_OS_ENVIRON_SET_INSIDE"
+    with with_os_environ(dict(farthing="50")):
+        os.environ[key] = "set in body"
+    assert key not in os.environ
+
+
 def test_will_update_environ():
     to_update = dict(farthing="50")
     with with_os_environ(to_update):
