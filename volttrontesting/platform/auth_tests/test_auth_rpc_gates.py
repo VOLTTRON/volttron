@@ -54,8 +54,8 @@ RPC_MODS = "modify_rpc_method_allowance"
 # A new export fails test_export_table_requires_the_listed_capabilities
 # until it is added here, gated or not.
 EXPORT_CAPABILITIES = {
-    "auth_file.read": set(),
-    "auth_file.find_by_credentials": set(),
+    "auth_file.read": {AUTH_MODS},
+    "auth_file.find_by_credentials": {AUTH_MODS},
     "auth_file.add": {AUTH_MODS},
     "auth_file.update_by_index": {AUTH_MODS},
     "auth_file.remove_by_credentials": {AUTH_MODS},
@@ -71,13 +71,13 @@ EXPORT_CAPABILITIES = {
     "delete_authorization": {AUTH_MODS},
     "get_authorization": {AUTH_MODS},
     "get_authorization_status": {AUTH_MODS},
-    "get_pending_authorizations": set(),
-    "get_approved_authorizations": set(),
-    "get_denied_authorizations": set(),
-    "get_authorizations": set(),
-    "get_capabilities": set(),
-    "get_groups": set(),
-    "get_roles": set(),
+    "get_pending_authorizations": {AUTH_MODS},
+    "get_approved_authorizations": {AUTH_MODS},
+    "get_denied_authorizations": {AUTH_MODS},
+    "get_authorizations": {AUTH_MODS},
+    "get_capabilities": {AUTH_MODS},
+    "get_groups": {AUTH_MODS},
+    "get_roles": {AUTH_MODS},
     "get_user_to_capabilities": set(),
 }
 
@@ -88,6 +88,9 @@ def _key(char):
 
 def _entry(user_id, char, **kwargs):
     return AuthEntry(user_id=user_id, credentials=_key(char), **kwargs)
+
+
+PENDING = {"user_id": "pending.user", "credentials": _key("W")}
 
 
 def _seed(auth_path, allow):
@@ -124,14 +127,17 @@ class _Wired:
         service.auth_file_path = auth_path
         service.auth_file = AuthFile(auth_path)
         service._last_loaded_allow_entries = []
-        service.auth_entries = []
+        service.auth_entries = service.auth_file.read_allow_entries()
+        service.authorization_server = SimpleNamespace(
+            get_pending_authorizations=lambda: [PENDING],
+            get_approved_authorizations=lambda: [],
+            get_denied_authorizations=lambda: [])
         core = MagicMock(enable_auth=enable_auth, messagebus="zmq")
         self.rpc = RPC(core, service, MagicMock())
         service.vip = SimpleNamespace(
             rpc=self.rpc,
             auth=SimpleNamespace(
                 get_capabilities=lambda user: capabilities.get(user, {})))
-        service.export_auth_file()
         self.service = service
 
     def call(self, user, name, *args, **kwargs):
@@ -217,6 +223,50 @@ def test_caller_with_the_capability_changes_the_file(
     wired.call("admin", name, *args)
 
     assert _bytes(auth_path) != before
+
+
+# Each export that reads auth.json or pending credentials, with arguments
+# and a check of what a caller holding the capability gets back.
+READ_CALLS = [
+    ("auth_file.read", (),
+     lambda data: [e["user_id"] for e in data["allow_list"]] == [
+         "target", "other"]),
+    ("auth_file.find_by_credentials", (_key("O"),),
+     lambda entries: [e.user_id for e in entries] == ["other"]),
+    ("get_pending_authorizations", (), lambda pending: pending == [PENDING]),
+    ("get_approved_authorizations", (), lambda approved: approved == []),
+    ("get_denied_authorizations", (), lambda denied: denied == []),
+    ("get_authorizations", ("target",),
+     lambda auths: auths == [{}, [], []]),
+    ("get_capabilities", ("target",), lambda caps: caps == {}),
+    ("get_groups", ("target",), lambda groups: groups == []),
+    ("get_roles", ("target",), lambda roles: roles == []),
+]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("name,args,expected", READ_CALLS,
+                         ids=[c[0] for c in READ_CALLS])
+def test_caller_without_the_capability_cannot_read(auth_path, name, args,
+                                                   expected):
+    _seed_target(auth_path)
+    wired = _Wired(auth_path, {"other": {"edit_config_store": {}}})
+
+    with pytest.raises(jsonrpc.Error) as refused:
+        wired.call("other", name, *args)
+
+    assert refused.value.code == jsonrpc.UNAUTHORIZED
+    assert AUTH_MODS in refused.value.message
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("name,args,expected", READ_CALLS,
+                         ids=[c[0] for c in READ_CALLS])
+def test_caller_with_the_capability_reads(auth_path, name, args, expected):
+    _seed_target(auth_path)
+    wired = _Wired(auth_path, {"admin": {AUTH_MODS: None}})
+
+    assert expected(wired.call("admin", name, *args))
 
 
 @pytest.mark.auth
@@ -467,6 +517,9 @@ def test_live_agent_without_capabilities_cannot_add_an_auth_entry(
                 "credentials": refused_key, "user_id": "refused.entry",
                 "capabilities": [AUTH_MODS]}).get(timeout=10)
         assert AUTH_MODS in str(refused.value)
+        with pytest.raises(RemoteError) as refused_read:
+            agent.vip.rpc.call(AUTH, "auth_file.read").get(timeout=10)
+        assert AUTH_MODS in str(refused_read.value)
 
         volttron_instance.dynamic_agent.vip.rpc.call(AUTH, "auth_file.add", {
             "credentials": allowed_key, "user_id": "allowed.entry"}).get(

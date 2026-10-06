@@ -38,6 +38,7 @@ from volttron.platform import jsonapi
 from volttron.platform.auth import AuthEntry, AuthFile, AuthService
 from volttron.platform.control import control_auth
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.vip.agent.decorators import annotations
 
 
 def _key(char):
@@ -78,10 +79,9 @@ class _Platform:
         service.auth_file_path = auth_path
         service.auth_file = AuthFile(auth_path)
         self.exports = {}
-        service.vip = SimpleNamespace(rpc=SimpleNamespace(
-            export=lambda method, name=None: self.exports.__setitem__(
-                name or method.__name__, method)))
-        service.export_auth_file()
+        for member in vars(AuthService).values():
+            for name in annotations(member, set, "rpc.exports"):
+                self.exports[name] = member.__get__(service)
         self.service = service
 
     def call(self, peer, method, *args):

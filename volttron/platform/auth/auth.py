@@ -77,7 +77,6 @@ class AuthService(Agent):
         # auth_file refreshes before the file watcher runs.
         self._last_loaded_allow_entries = copy.deepcopy(
             self.auth_file.read_allow_entries())
-        self.export_auth_file()
         self.can_update = False
         self.needs_rpc_update = False
         self.aip = aip
@@ -97,26 +96,16 @@ class AuthService(Agent):
         self.authentication_server = None
         self.authorization_server = None
 
-    def export_auth_file(self):
-        """
-        Export the AuthFile read methods to external agents through
-        AuthService. The methods that change the file are exported on the
-        class, where each declares the capability it requires.
-        :params: None
-        :return: None
-        """
+    @RPC.export("auth_file.read")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_read(self):
+        """Returns the auth file data as last loaded or written."""
+        return self.auth_file.auth_data
 
-        def auth_file_read():
-            """
-            Returns AuthFile data object
-            :params: None
-            :return: auth_data
-            """
-            return self.auth_file.auth_data
-
-        self.vip.rpc.export(auth_file_read, "auth_file.read")
-        self.vip.rpc.export(self.auth_file.find_by_credentials,
-                            "auth_file.find_by_credentials")
+    @RPC.export("auth_file.find_by_credentials")
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def _auth_file_find_by_credentials(self, credentials, is_allow=True):
+        return self.auth_file.find_by_credentials(credentials, is_allow)
 
     @RPC.export("auth_file.add")
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -601,6 +590,7 @@ class AuthService(Agent):
         return user_to_caps
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_authorizations(self, user_id):
         """RPC method
 
@@ -705,6 +695,7 @@ class AuthService(Agent):
         return self.authorization_server.get_authorization_status(common_name)
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_pending_authorizations(self):
         """RPC method
 
@@ -715,6 +706,7 @@ class AuthService(Agent):
         return self.authorization_server.get_pending_authorizations()
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_approved_authorizations(self):
         """RPC method
 
@@ -728,6 +720,7 @@ class AuthService(Agent):
         return self.authorization_server.get_approved_authorizations()
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_denied_authorizations(self):
         """RPC method
 
@@ -748,6 +741,7 @@ class AuthService(Agent):
         return []
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_capabilities(self, user_id):
         """RPC method
 
@@ -761,6 +755,7 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 0)
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_groups(self, user_id):
         """RPC method
 
@@ -774,6 +769,7 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 1)
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_roles(self, user_id):
         """RPC method
 
