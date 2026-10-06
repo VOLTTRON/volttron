@@ -43,6 +43,7 @@ from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthService
 from volttron.platform.auth import auth as auth_module
 from volttron.platform.jsonrpc import INTERNAL_ERROR, RemoteError
+from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems.rpc import RPC
 from volttrontesting.utils.platformwrapper import with_os_environ
 
@@ -479,3 +480,36 @@ def test_live_agent_without_capabilities_cannot_add_an_auth_entry(
         agent.core.stop()
         AuthFile(os.path.join(volttron_instance.volttron_home,
                               "auth.json")).remove_by_credentials(allowed_key)
+
+
+class _AgentWithAMethod(Agent):
+
+    @RPC.export
+    @RPC.allow("can_call_recorded_method")
+    def recorded_method(self):
+        return "recorded"
+
+
+@pytest.mark.auth
+def test_live_agent_records_its_own_methods_at_start(volttron_instance):
+    if not volttron_instance.auth_enabled:
+        pytest.skip("method authorizations are recorded only with auth")
+    agent = volttron_instance.build_agent(identity="records.own.methods",
+                                          agent_class=_AgentWithAMethod)
+    try:
+        auth_path = os.path.join(volttron_instance.volttron_home, "auth.json")
+
+        def recorded():
+            for entry in _disk_allow(auth_path):
+                if entry.get("identity") == "records.own.methods":
+                    return entry.get("rpc_method_authorizations", {})
+            return {}
+
+        deadline = 15
+        while not recorded() and deadline > 0:
+            gevent.sleep(1)
+            deadline -= 1
+        assert recorded() == {
+            "recorded_method": ["can_call_recorded_method"]}
+    finally:
+        agent.core.stop()
