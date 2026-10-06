@@ -12,6 +12,7 @@ import requests
 from volttron.platform import get_services_core
 from volttron.platform.agent.known_identities import PLATFORM_WEB, VOLTTRON_CENTRAL
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.web import platform_web_service
 from volttrontesting.platform.web.conftest import build_web_service, set_caller
 from volttrontesting.utils.web_utils import get_test_web_env
 
@@ -55,10 +56,10 @@ def _snapshot(service):
             dict(service._namespace_owners))
 
 
-def _refused(service, identity, root, regex='^/probe/'):
+def _refused(service, identity, root, regex='^/probe/', reason=''):
     set_caller(service, identity)
     before = _snapshot(service)
-    with pytest.raises(PermissionError):
+    with pytest.raises(PermissionError, match=reason):
         service.register_path_route(regex, str(root))
     assert _snapshot(service) == before
 
@@ -135,7 +136,9 @@ def test_volttron_home_and_its_contents_are_refused(tmp_path, monkeypatch, root)
              'keystores': home / 'keystores', 'filesystem-root': '/'}
     service = build_web_service(tmp_path / 'www', monkeypatch, home=home,
                                 static_roots=[str(paths[root])])
-    _refused(service, OWNER, paths[root])
+    reason = 'is inside VOLTTRON_HOME' if root in ('certificates', 'keystores') else \
+        'contains VOLTTRON_HOME'
+    _refused(service, OWNER, paths[root], reason=reason)
 
 
 def test_a_directory_in_a_configured_root_is_accepted(layout, tmp_path):
@@ -184,8 +187,10 @@ def test_a_bad_configured_root_is_dropped_and_logged(tmp_path, monkeypatch, capl
     (home / 'inside').mkdir(parents=True)
     (tmp_path / 'a-file').write_text('x')
     (tmp_path / 'x.dist-info').mkdir()
+    (tmp_path / 'relative').mkdir()
+    monkeypatch.chdir(tmp_path)
     entries = {'/': '/', 'home': str(home), 'home-parent': str(tmp_path),
-               'inside-home': str(home / 'inside'), 'relative': 'www',
+               'inside-home': str(home / 'inside'), 'relative': 'relative',
                'missing': str(tmp_path / 'missing'), 'a-file': str(tmp_path / 'a-file'),
                'metadata': str(tmp_path / 'x.dist-info')}
     good = tmp_path.with_name(tmp_path.name + '-good')
@@ -196,6 +201,20 @@ def test_a_bad_configured_root_is_dropped_and_logged(tmp_path, monkeypatch, capl
     errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
     assert len(errors) == 1 and entries[entry] in errors[0]
     assert service._static_roots == (str(good),)
+
+
+def test_a_symlink_root_is_stored_as_its_target(layout, tmp_path):
+    service, _, _ = layout
+    (tmp_path / 'first' / 'probe').mkdir(parents=True)
+    (tmp_path / 'first' / 'probe' / 'page.html').write_text('FIRST')
+    (tmp_path / 'second' / 'probe').mkdir(parents=True)
+    (tmp_path / 'second' / 'probe' / 'page.html').write_text('SECOND')
+    link = tmp_path / 'current'
+    link.symlink_to(tmp_path / 'first')
+    _accepted(service, OTHER, link)
+    link.unlink()
+    link.symlink_to(tmp_path / 'second')
+    assert _get(service, '/probe/page.html') == (200, b'FIRST')
 
 
 def test_a_configured_root_is_kept_resolved(tmp_path, monkeypatch):
@@ -245,6 +264,13 @@ def test_agent_files_created_after_registration_are_not_served(served, relative)
     assert _get(service, f'/probe/{relative}') == FORBIDDEN
 
 
+def test_a_request_naming_agent_metadata_is_refused_even_if_it_resolves_elsewhere(served):
+    service, root = served
+    (root / 'probe' / 'x.dist-info').mkdir()
+    assert _get(service, '/probe/x.dist-info/../index.html') == FORBIDDEN
+    assert _get(service, '/probe/index.html') == (200, b'INDEX')
+
+
 def test_an_innocent_name_resolving_into_agent_metadata_is_not_served(served):
     service, root = served
     (root / 'probe' / 'x.dist-info').mkdir()
@@ -269,12 +295,18 @@ def test_a_root_replaced_by_a_symlink_after_registration_is_not_followed(served,
     assert _get(service, '/probe/secret.txt') == FORBIDDEN
 
 
-def test_the_packaged_pages_are_served_from_their_resolved_directory(web_service):
-    pattern, kind, root = web_service.registeredroutes[-1]
-    assert (pattern.pattern, kind, root) == ('^/.*$', 'path', os.path.realpath(root))
-    with open(os.path.join(root, 'index.html'), 'rb') as page:
+def test_the_packaged_pages_are_served_from_their_resolved_directory(tmp_path, monkeypatch):
+    package = os.path.dirname(platform_web_service.__file__)
+    (tmp_path / 'linked-package').symlink_to(package)
+    monkeypatch.setattr(platform_web_service, '__file__',
+                        str(tmp_path / 'linked-package' / 'platform_web_service.py'))
+    service = build_web_service(tmp_path, monkeypatch)
+    pattern, kind, root = service.registeredroutes[-1]
+    static = os.path.join(os.path.realpath(package), 'static')
+    assert (pattern.pattern, kind, root) == ('^/.*$', 'path', static)
+    with open(os.path.join(static, 'index.html'), 'rb') as page:
         expected = page.read()
-    assert _get(web_service, '/index.html') == (200, expected)
+    assert _get(service, '/index.html') == (200, expected)
 
 
 def test_agent_files_are_not_served_from_the_packaged_route(web_service, tmp_path):
