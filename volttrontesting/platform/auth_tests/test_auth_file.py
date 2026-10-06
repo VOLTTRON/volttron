@@ -793,3 +793,142 @@ def test_watcher_survives_a_failed_push(tmp_path, monkeypatch, caplog):
         "InotifyObserver"]
     assert any(r.levelno == logging.ERROR and r.exc_info
                for r in caplog.records)
+
+
+def _version_1_4_entry(user_id, identity, capabilities):
+    return {"domain": "vip", "address": "127.0.0.1", "mechanism": "CURVE",
+            "credentials": "A" * 43, "user_id": user_id, "identity": identity,
+            "groups": [], "roles": [], "capabilities": capabilities,
+            "rpc_method_authorizations": {}, "comments": None, "enabled": True}
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_grants_web_routes_to_volttron_central_only(tmp_path, caplog):
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    entries = [
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps),
+        _version_1_4_entry("volttron.central", "other.agent", {}),
+        _version_1_4_entry("some.user", "volttron.central", {}),
+        _version_1_4_entry("platform.agent", "platform.agent", {}),
+        _version_1_4_entry("Volttron.Central", "Volttron.Central", {}),
+    ]
+    auth_path = str(tmp_path / "auth.json")
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": entries, "deny": [], "groups": {},
+                                "roles": {}, "version": {"major": 1, "minor": 4}}))
+
+    with caplog.at_level(logging.WARNING):
+        AuthFile(auth_path)
+
+    read_back = AuthFile(auth_path).read_allow_entries()
+    granted = [(e.user_id, e.identity) for e in read_back
+               if "register_web_routes" in e.capabilities]
+    assert granted == [("volttron.central", "volttron.central")]
+    assert read_back[0].capabilities == {
+        "edit_config_store": {"identity": "volttron.central"},
+        "register_web_routes": None}
+    with open(auth_path) as fp:
+        assert jsonapi.loads(fp.read())["version"] == {"major": 1, "minor": 5}
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING
+                and "register_web_routes" in r.getMessage()]
+    assert len(warnings) == 1
+
+
+def _write_1_4(auth_path, allow):
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": allow, "deny": [], "groups": {},
+                                "roles": {}, "version": {"major": 1, "minor": 4}}))
+
+
+def _disk_version(auth_path):
+    with open(auth_path) as fp:
+        return jsonapi.loads(fp.read())["version"]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("capabilities", [None, {}, []])
+def test_upgrade_to_1_5_grants_web_routes_when_vc_has_no_capabilities(tmp_path, capabilities):
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [_version_1_4_entry("volttron.central", "volttron.central",
+                                              capabilities)])
+
+    entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.capabilities for e in entries] == [{"register_web_routes": None}]
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_leaves_an_existing_grant_alone(tmp_path, caplog):
+    caps = {"register_web_routes": {"note": "kept"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [_version_1_4_entry("volttron.central", "volttron.central", caps)])
+
+    with caplog.at_level(logging.WARNING):
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.capabilities for e in entries] == [caps]
+    assert not [r for r in caplog.records if "register_web_routes" in r.getMessage()]
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_skips_entries_it_cannot_read(tmp_path, caplog):
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [
+        "junk",
+        _version_1_4_entry("volttron.central", "volttron.central", 5),
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps),
+    ])
+
+    with caplog.at_level(logging.WARNING):
+        AuthFile(auth_path)
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    assert [e.capabilities for e in entries] == [
+        {"edit_config_store": {"identity": "volttron.central"}, "register_web_routes": None}]
+    skipped = [r for r in caplog.records if r.levelno == logging.WARNING
+               and "removed from the file" in r.getMessage()]
+    assert len(skipped) == 2
+    assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1
+
+
+def _with_rpc_authorizations(entry, value):
+    entry["rpc_method_authorizations"] = value
+    return entry
+
+
+@pytest.mark.auth
+def test_entry_with_unreadable_rpc_authorizations_is_dropped(tmp_path, caplog):
+    auth_path = str(tmp_path / "auth.json")
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": [
+            _with_rpc_authorizations(_version_1_4_entry("bad", "bad", {}), ["not", "a", "dict"]),
+            _version_1_4_entry("other", "other", {}),
+        ], "deny": [], "groups": {}, "roles": {}, "version": {"major": 1, "minor": 5}}))
+
+    with caplog.at_level(logging.WARNING):
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.user_id for e in entries] == ["other"]
+    assert [r for r in caplog.records if r.levelno == logging.WARNING
+            and "rpc method authorization" in r.getMessage()]
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_completes_past_unreadable_rpc_authorizations(tmp_path):
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [
+        _with_rpc_authorizations(_version_1_4_entry("bad", "bad", {}), "not-a-dict"),
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps),
+    ])
+
+    AuthFile(auth_path)
+    entries = AuthFile(auth_path).read_allow_entries()
+
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    assert [(e.user_id, "register_web_routes" in e.capabilities) for e in entries] == [
+        ("volttron.central", True)]
+    assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1

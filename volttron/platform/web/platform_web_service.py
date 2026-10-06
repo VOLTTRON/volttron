@@ -26,7 +26,6 @@ import base64
 import logging
 import mimetypes
 import os
-from pathlib import Path
 import re
 from types import MappingProxyType
 from urllib.parse import urlparse, parse_qs
@@ -48,8 +47,9 @@ from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
+from .static_roots import configured_roots, file_to_serve, open_checked, root_refusal
 from volttron.platform.agent.known_identities import \
-    CONTROL, VOLTTRON_CENTRAL, AUTH
+    CONTROL, VOLTTRON_CENTRAL, AUTH, REGISTER_WEB_ROUTES
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
 from volttron.platform.auth.auth_entry import AuthEntry
@@ -65,7 +65,7 @@ from ..jsonrpc import (json_result,
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
 from ..vip.socket import encode_key
-from ...platform import jsonapi, jsonrpc
+from ...platform import get_home, jsonapi, jsonrpc
 from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
@@ -83,6 +83,69 @@ GS_ALLOWED_CALLS = MappingProxyType({
 GS_CALL_TIMEOUT = 10
 # \Z rather than $, which also matches before a trailing newline.
 GS_ROUTE = re.compile(r'^/gs/?\Z')
+
+# Kept from agents even where their routes are not served (/csr runs only on
+# some platforms); their clients expect the platform to answer.
+ALWAYS_RESERVED_NAMESPACES = frozenset({'gs', 'csr'})
+# Held for the agent that serves them, so no other agent can claim them first.
+IDENTITY_NAMESPACES = MappingProxyType({'vc': VOLTTRON_CENTRAL})
+# The platform login pages keep the token in this cookie.
+LOGIN_COOKIE = 'bearer'
+# An endpoint or websocket path: /<namespace> or /<namespace>/...
+_PATH_NAMESPACE = re.compile(r'/([A-Za-z0-9_.~-]+)(?:/|\Z)')
+# An agent route pattern: ^/<namespace> or /<namespace>, then /, $ or the end.
+_PATTERN_NAMESPACE = re.compile(r'\^?/([A-Za-z0-9_.~-]+)(?:/|\$|\Z)')
+# A platform pattern's literal first segment; '.' is a wildcard there.
+_BUILTIN_SEGMENT = re.compile(r'\^?/([A-Za-z0-9_~-]+)')
+
+
+class AgentRoute(tuple):
+    """A (pattern, kind, value) route table entry that an agent registered.
+
+    The entry is consulted only for requests whose first path segment is its
+    namespace, and only its owner removes it.
+    """
+
+    def __new__(cls, pattern, kind, value, owner, namespace):
+        entry = super().__new__(cls, (pattern, kind, value))
+        entry.owner = owner
+        entry.namespace = namespace
+        return entry
+
+
+def builtin_namespaces(patterns):
+    """Return the case-folded first path segment of each platform route.
+
+    Raises ValueError for a pattern without a literal first segment, since
+    agent namespaces could not be kept apart from it.
+    """
+    names = set()
+    for pattern in patterns:
+        match = _BUILTIN_SEGMENT.match(pattern.pattern)
+        if match is None:
+            raise ValueError(f'platform route {pattern.pattern!r} has no literal first path segment')
+        names.add(match.group(1).casefold())
+    return names
+
+
+def _path_namespace(path):
+    match = _PATH_NAMESPACE.match(path) if isinstance(path, str) else None
+    return match.group(1) if match else None
+
+
+def _pattern_namespace(regex):
+    match = _PATTERN_NAMESPACE.match(regex) if isinstance(regex, str) else None
+    return match.group(1) if match else None
+
+
+def _first_segment(path):
+    return path.split('/', 2)[1] if path.startswith('/') else ''
+
+
+def _without_login_cookie(cookie_header):
+    kept = (c.strip() for c in cookie_header.split(';')
+            if c.split('=', 1)[0].strip().casefold() != LOGIN_COOKIE)
+    return '; '.join(c for c in kept if c)
 
 
 class CouldNotRegister(Exception):
@@ -116,7 +179,8 @@ class PlatformWebService(Agent):
 
     def __init__(self, serverkey, identity, address, bind_web_address,
                  volttron_central_address=None, volttron_central_rmq_address=None,
-                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None, **kwargs):
+                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None,
+                 web_static_roots=None, **kwargs):
         """
         Initialize the configuration of the base web service integration within the platform.
 
@@ -138,9 +202,17 @@ class PlatformWebService(Agent):
         self.web_ssl_key = web_ssl_key
         self.web_ssl_cert = web_ssl_cert
         self._web_secret_key = web_secret_key
+        self._static_roots = configured_roots(web_static_roots, get_home(),
+                                              (web_ssl_key, web_ssl_cert))
 
         # Maps from endpoint to peer.
         self.endpoints = {}
+        # Case-folded namespace to the identity that registered in it first.
+        self._namespace_owners = {}
+        # Set by startupagent once the platform routes are in the table; until
+        # then every agent registration is refused.
+        self._reserved_namespaces = None
+        self._builtin_patterns = ()
 
         self.volttron_central_address = volttron_central_address
         self.volttron_central_rmq_address = volttron_central_rmq_address
@@ -204,9 +276,17 @@ class PlatformWebService(Agent):
 
     @RPC.export
     def websocket_send(self, endpoint, message):
+        identity = self._caller('websocket_send', endpoint)
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
-        self.appContainer.websocket_send(endpoint, message)
+        if self.appContainer is None:
+            _log.info('web server is not running; nothing sent to %r', endpoint)
+            return
+        try:
+            self.appContainer.websocket_send(endpoint, message, identity)
+        except PermissionError:
+            self._refuse('websocket_send', identity, endpoint,
+                         'the websocket belongs to another agent')
 
     @RPC.export
     def print_websocket_clients(self):
@@ -230,6 +310,7 @@ class PlatformWebService(Agent):
         return self.volttron_central_address
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_endpoint(self, endpoint, res_type):
         """
         RPC method to register a dynamic route.
@@ -237,8 +318,9 @@ class PlatformWebService(Agent):
         :param endpoint:
         :return:
         """
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('register_endpoint', endpoint)
+        namespace = self._check_namespace('register_endpoint', identity, endpoint,
+                                          _path_namespace(endpoint))
         _log.debug('Registering route with endpoint: {}'.format(endpoint))
         _log.debug('Route is associated with peer: {}'.format(identity))
 
@@ -248,17 +330,20 @@ class PlatformWebService(Agent):
             raise DuplicateEndpointError(
                 "Endpoint {} is already an endpoint".format(endpoint))
 
+        self._namespace_owners[namespace] = identity
         self.endpoints[endpoint] = (identity, res_type)
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_agent_route(self, regex, fn):
         """ Register an agent route to an exported function.
 
         When a http request is executed and matches the passed regular
         expression then the function on peer is executed.
         """
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('register_agent_route', regex)
+        namespace = _pattern_namespace(regex)
+        key = self._check_namespace('register_agent_route', identity, regex, namespace)
 
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
@@ -267,56 +352,79 @@ class PlatformWebService(Agent):
         # TODO: inspect peer for function
 
         compiled = re.compile(regex)
+        self._namespace_owners[key] = identity
         self.peerroutes[identity].append(compiled)
-        self.registeredroutes.insert(0, (compiled, 'peer_route', (identity, fn)))
+        self.registeredroutes.insert(
+            0, AgentRoute(compiled, 'peer_route', (identity, fn), identity, namespace))
 
     @RPC.export
     def unregister_all_agent_routes(self):
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('unregister_all_agent_routes', None)
 
         _log.info('Unregistering agent routes for: {}'.format(identity))
-        for regex in self.peerroutes[identity]:
-            out = [cp for cp in self.registeredroutes if cp[0] != regex]
-            self.registeredroutes = out
-        del self.peerroutes[identity]
-        for regex in self.pathroutes[identity]:
-            out = [cp for cp in self.registeredroutes if cp[0] != regex]
-            self.registeredroutes = out
-        del self.pathroutes[identity]
+        # By owner, never by pattern: re.compile hands back one cached object
+        # for equal pattern strings, including those of platform routes.
+        self.registeredroutes = [entry for entry in self.registeredroutes
+                                 if getattr(entry, 'owner', None) != identity]
+        self.peerroutes.pop(identity, None)
+        self.pathroutes.pop(identity, None)
+        if self.appContainer:
+            self.appContainer.destroy_owner_endpoints(identity)
 
         _log.debug(self.endpoints)
         endpoints = self.endpoints.copy()
         endpoints = {i:endpoints[i] for i in endpoints if endpoints[i][0] != identity}
         _log.debug(endpoints)
         self.endpoints = endpoints
+        self._namespace_owners = {ns: owner for ns, owner in self._namespace_owners.items()
+                                  if owner != identity}
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_path_route(self, regex, root_dir):
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('register_path_route', regex)
+        namespace = _pattern_namespace(regex)
+        key = self._check_namespace('register_path_route', identity, regex, namespace)
 
         _log.info(f'Registering web path route from {identity} regex: {regex} dir: {root_dir}')
 
         compiled = re.compile(regex)
+        if not isinstance(root_dir, str) or not os.path.isabs(root_dir):
+            self._refuse('register_path_route', identity, root_dir,
+                         'the root must be an absolute path')
+        if '\x00' in root_dir:
+            self._refuse('register_path_route', identity, root_dir, 'the root is not a valid path')
+        resolved = os.path.realpath(root_dir)
+        if not os.path.isdir(resolved):
+            self._refuse('register_path_route', identity, root_dir, 'the root is not a directory')
+        reason = root_refusal(resolved, identity, get_home(), self._static_roots)
+        if reason:
+            self._refuse('register_path_route', identity, root_dir, reason)
+        # Stored resolved and never re-resolved when serving.
+        root_dir = resolved
+        self._namespace_owners[key] = identity
         self.pathroutes[identity].append(compiled)
-        assert Path(root_dir).exists()
-        # Make sure we resolve the root directory so its easier to check
-        # later on.
-        root_dir = str(Path(root_dir).resolve(root_dir))
         # in order for this agent to pass against the default route we want this
         # to be before the last route which will resolve to .*
-        self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
+        self.registeredroutes.insert(len(self.registeredroutes) - 1,
+                                     AgentRoute(compiled, 'path', root_dir, identity, namespace))
 
     @RPC.export
+    @RPC.allow(capabilities=REGISTER_WEB_ROUTES)
     def register_websocket(self, endpoint):
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('register_websocket', endpoint)
+        namespace = self._check_namespace('register_websocket', identity, endpoint,
+                                          _path_namespace(endpoint))
 
         _log.debug('Caller identity: {}'.format(identity))
         _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
         if self.appContainer:
-            self.appContainer.create_ws_endpoint(endpoint, identity)
+            try:
+                self.appContainer.create_ws_endpoint(endpoint, identity)
+            except PermissionError:
+                self._refuse('register_websocket', identity, endpoint,
+                             'the websocket belongs to another agent')
+            self._namespace_owners[namespace] = identity
         else:
             _log.error('Attempting to register endpoint without web'
                        'subsystem initialized')
@@ -325,11 +433,54 @@ class PlatformWebService(Agent):
 
     @RPC.export
     def unregister_websocket(self, endpoint):
-        # Get calling identity from whom the request came from
-        identity = self.vip.rpc.context.vip_message.peer
+        identity = self._caller('unregister_websocket', endpoint)
 
         _log.debug('Caller identity: {}'.format(identity))
-        self.appContainer.destroy_ws_endpoint(endpoint)
+        if self.appContainer is None:
+            _log.info('web server is not running; no websocket to remove at %r', endpoint)
+            return
+        try:
+            self.appContainer.destroy_ws_endpoint(endpoint, identity)
+        except PermissionError:
+            self._refuse('unregister_websocket', identity, endpoint,
+                         'the websocket belongs to another agent')
+
+    def _caller(self, action, path):
+        """Return the identity of the agent calling an export.
+
+        Callbacks go to the peer, so with authentication enabled the
+        authenticated user must be that same agent.
+        """
+        message = self.vip.rpc.context.vip_message
+        peer = message.peer
+        if self.core.enable_auth is not False and str(message.user) != str(peer):
+            self._refuse(action, f'{message.user} as {peer}', path,
+                         'the authenticated user is not the calling agent')
+        return peer
+
+    def _check_namespace(self, action, identity, path, namespace):
+        """Refuse a namespace the caller may not register in, before any table
+        changes; return the key its owner is recorded under."""
+        if self._reserved_namespaces is None:
+            self._refuse(action, identity, path, 'the platform routes are not ready')
+        if namespace is None or namespace in ('.', '..'):
+            self._refuse(action, identity, path,
+                         'the path must start with a literal first segment')
+        key = namespace.casefold()
+        probes = {f'/{name}{end}' for name in (namespace, key) for end in ('', '/')}
+        if key in self._reserved_namespaces or any(
+                pattern.match(probe) for pattern in self._builtin_patterns for probe in probes):
+            self._refuse(action, identity, path, 'the first segment is used by the platform')
+        holder = IDENTITY_NAMESPACES.get(key, self._namespace_owners.get(key))
+        if holder is not None and holder != identity:
+            self._refuse(action, identity, path, 'the first segment belongs to another agent')
+        return key
+
+    @staticmethod
+    def _refuse(action, identity, path, rule):
+        from volttron.platform.web import printable_text
+        _log.warning('%s refused for %r at %r: %s', action, identity, printable_text(path), rule)
+        raise PermissionError(f'{rule}: {path!r}')
 
     def _redirect_index(self, env, start_response, data=None):
         """ Redirect to the index page.
@@ -484,6 +635,10 @@ class PlatformWebService(Agent):
         data = env['wsgi.input'].read().decode('utf-8')
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
+        if 'HTTP_COOKIE' in passenv:
+            passenv['HTTP_COOKIE'] = _without_login_cookie(passenv['HTTP_COOKIE'])
+            if not passenv['HTTP_COOKIE']:
+                del passenv['HTTP_COOKIE']
 
         from volttron.platform.web import printable_text
         _log.debug('path_info is: {}'.format(printable_text(path_info)))
@@ -524,7 +679,12 @@ class PlatformWebService(Agent):
         if 'ws4py.socket' in env and 'vui' not in path_info:
             return env['ws4py.socket'](env, start_response)
 
-        for k, t, v in self.registeredroutes:
+        first_segment = _first_segment(path_info)
+        for entry in self.registeredroutes:
+            k, t, v = entry
+            namespace = getattr(entry, 'namespace', None)
+            if namespace is not None and namespace != first_segment:
+                continue
             if k.match(path_info):
                 _log.debug("MATCHED: pattern: {}, path_info: {}, v: {}"
                            .format(k.pattern, printable_text(path_info), v))
@@ -559,13 +719,11 @@ class PlatformWebService(Agent):
                 elif t == 'path':  # File service from agents on the platform.
                     if path_info == '/':
                         return self._redirect_index(env, start_response)
-                    server_path = v + path_info  # os.path.join(v, path_info)
-                    server_path = str(Path(server_path).resolve())
-                    _log.debug('Serverpath: {}'.format(printable_text(server_path)))
-                    # protects against relative server traversal.
-                    if not server_path.startswith(v):
+                    server_path = file_to_serve(v, path_info)
+                    if server_path is None:
                         start_response('403 Forbidden', [('Content-Type', 'text/html')])
                         return [b'<h1>403 Forbidden</h1>']
+                    _log.debug('Serverpath: {}'.format(printable_text(server_path)))
                     return self._sendfile(env, start_response, server_path)
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
@@ -682,6 +840,11 @@ class PlatformWebService(Agent):
             start_response('404 Not Found', [('Content-Type', 'text/html')])
             return [b'<h1>Not Found</h1>']
 
+        opened = open_checked(filename)
+        if opened is None:
+            start_response('403 Forbidden', [('Content-Type', 'text/html')])
+            return [b'<h1>403 Forbidden</h1>']
+
         if not guess:
             guess = 'text/plain'
 
@@ -690,7 +853,7 @@ class PlatformWebService(Agent):
         ]
         start_response(status, response_headers)
 
-        return FileWrapper(open(filename, 'rb'))
+        return FileWrapper(opened)
 
     def register_gs_route(self):
         self.registeredroutes.append((GS_ROUTE, 'callable', self.jsonrpc))
@@ -868,7 +1031,17 @@ class PlatformWebService(Agent):
             for rt in AuthenticateEndpoints(web_secret_key=self._web_secret_key).get_routes():
                 self.registeredroutes.append(rt)
 
-        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        static_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "static"))
+        self._builtin_patterns = tuple(pattern for pattern, _, _ in self.registeredroutes)
+        try:
+            builtin = builtin_namespaces(self._builtin_patterns)
+        except ValueError as err:
+            _log.error('web server not started: %s', err)
+            raise
+        self._reserved_namespaces = frozenset(
+            builtin
+            | {name.casefold() for name in os.listdir(static_dir)}
+            | {'favicon.ico'} | ALWAYS_RESERVED_NAMESPACES)
         self.registeredroutes.append((re.compile('^/.*$'), 'path', static_dir))
 
         port = int(port)
@@ -900,5 +1073,8 @@ class PlatformWebService(Agent):
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
         _log.debug("Stopping web agent.")
+        if self._server_greenlet is None:
+            _log.info('web server is not running; nothing to stop')
+            return
         if not self._server_greenlet.dead:
             self._server_greenlet.join(timeout=10)

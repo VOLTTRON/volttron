@@ -341,6 +341,8 @@ class PlatformWrapper:
         self.jsonrpc_endpoint = None
         self.volttron_central_address = None
         self.volttron_central_serverkey = None
+        # Written to the config as web-static-roots; kept across restarts.
+        self.web_static_roots = []
         self.instance_name = instance_name
         self.serverkey = None
 
@@ -859,6 +861,7 @@ class PlatformWrapper:
                          setupmode=False,
                          agent_monitor_frequency=600,
                          timeout=60,
+                         web_static_roots=None,
                          # Allow the AuthFile to be preauthenticated with keys for service agents.
                          perform_preauth_service_agents=True):
 
@@ -877,6 +880,8 @@ class PlatformWrapper:
             self.volttron_central_address = volttron_central_address
             self.volttron_central_serverkey = volttron_central_serverkey
             self.bind_web_address = bind_web_address
+            if web_static_roots is not None:
+                self.web_static_roots = list(web_static_roots)
 
             if perform_preauth_service_agents and self.auth_enabled:
                 authfile = AuthFile()
@@ -1044,6 +1049,8 @@ class PlatformWrapper:
                 parser.set('volttron', 'web-ssl-cert', web_ssl_cert)
             if web_ssl_key:
                 parser.set('volttron', 'web-ssl-key', web_ssl_key)
+            if self.web_static_roots:
+                parser.set('volttron', 'web-static-roots', ','.join(self.web_static_roots))
             if volttron_central_address:
                 parser.set('volttron', 'volttron-central-address',
                            volttron_central_address)

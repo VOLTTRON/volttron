@@ -68,6 +68,14 @@ The example consists of the following entries:
 * **instance-name** - name of this VOLTTRON platform instance, should be unique for the deployment
 * **volttron-central-address** - Optional, needed if instance is running Volttron Central.  Represents web address of
   VOLTTRON Central agent managing this platform instance.  Typical address would be ``https://<hostname>:8443``
+* **web-static-roots** - Optional, a comma-separated list of absolute directories from which agents may serve static
+  files through the platform web service, in addition to each agent's own install directory.  Every agent allowed to
+  register web routes may serve files from any listed directory, so list only directories meant to be public.  An
+  entry is logged as an error at startup and ignored when it is not an absolute path to an existing directory, when it
+  contains or is inside `VOLTTRON_HOME`, or when it is or is inside a ``*.dist-info`` or ``*.agent-data`` directory.
+  Static roots inside `VOLTTRON_HOME` are accepted only from an agent's own install directory.  Files under
+  ``*.dist-info`` and ``*.agent-data`` directories, and files named ``keystore.json``, are never served.  Example:
+  ``web-static-roots = /opt/site/www,/srv/dashboards``
 
    
 .. _VOLTTRON-Config:

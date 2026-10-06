@@ -87,21 +87,35 @@ class WebApplicationWrapper:
         else:
             self.platformweb.vip.rpc.call(identity, 'client.closed', endpoint)
 
+    def _check_owner(self, endpoint, identity):
+        owner = self._wsregistry.get(endpoint)
+        if owner is not None and owner != identity:
+            raise PermissionError(f'websocket {endpoint!r} belongs to another agent')
+        return owner
+
     def create_ws_endpoint(self, endpoint, identity):
+        self._check_owner(endpoint, identity)
         if endpoint not in self.endpoint_clients:
             self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
 
-    def destroy_ws_endpoint(self, endpoint):
-        clients = self.endpoint_clients.get(endpoint, [])
-        for identity, client in clients:
+    def destroy_ws_endpoint(self, endpoint, identity):
+        """Close and remove identity's websocket; an unknown endpoint is ignored."""
+        if self._check_owner(endpoint, identity) is None:
+            _log.debug('no websocket registered at %r; nothing removed', endpoint)
+            return
+        for _, client in list(self.endpoint_clients.get(endpoint, ())):
             client.close(reason="Endpoint closed.")
-        try:
-            del self.endpoint_clients[endpoint]
-        except KeyError:
-            pass
+        self.endpoint_clients.pop(endpoint, None)
+        del self._wsregistry[endpoint]
 
-    def websocket_send(self, endpoint, message):
+    def destroy_owner_endpoints(self, identity):
+        owned = [endpoint for endpoint, owner in self._wsregistry.items() if owner == identity]
+        for endpoint in owned:
+            self.destroy_ws_endpoint(endpoint, identity)
+
+    def websocket_send(self, endpoint, message, identity):
+        self._check_owner(endpoint, identity)
         _log.debug('Sending message to clients!')
         clients = self.endpoint_clients.get(endpoint, [])
         if not clients:
