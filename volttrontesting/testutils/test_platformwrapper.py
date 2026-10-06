@@ -454,17 +454,14 @@ def test_can_install_multiple_listeners(volttron_instance):
 
 
 def test_will_update_throws_typeerror():
-    # Note dictionary for os.environ must be string=string for key=value
-
-    to_update = dict(shanty=dict(holy="cow"))
-    #with pytest.raises(TypeError):
-    with with_os_environ(to_update):
-        print("Should not reach here")
-
-    to_update = dict(bogus=35)
-#    with pytest.raises(TypeError):
-    with with_os_environ(to_update):
-        print("Should not reach here")
+    # os.environ only accepts str keys and values; with_os_environ passes
+    # anything else through to os.environ.update, which raises TypeError.
+    for bad_env, name in ((dict(shanty=dict(holy="cow")), "shanty"),
+                          (dict(bogus=35), "bogus")):
+        with pytest.raises(TypeError):
+            with with_os_environ(bad_env):
+                pytest.fail("with_os_environ accepted a non-string value")
+        assert name not in os.environ
 
 
 def test_will_update_environ():
