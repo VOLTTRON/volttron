@@ -47,6 +47,22 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Coverage is added only if pytest-cov installs; the build action runs pytest and
+      # picks the options up from PYTEST_ADDOPTS, so a failed install cannot fail the tests.
+      - name: Prepare coverage tooling
+        shell: bash
+        run: |
+          if [[ ! -f env/bin/activate ]]; then
+            pip install wheel
+            python bootstrap.py --all --force
+          fi
+          source env/bin/activate
+          if pip install pytest-cov; then
+            echo "PYTEST_ADDOPTS=--cov --cov-append --cov-config=.coveragerc --cov-report=xml:coverage.xml" >> "$GITHUB_ENV"
+          else
+            echo "::warning::pytest-cov install failed; tests run without coverage"
+          fi
+
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
@@ -55,6 +71,34 @@ jobs:
             os: ${{ matrix.os }}
             test_path: volttrontesting/testutils
             test_output_suffix: testutils
+
+      # Partial report; the closing call is made by codacy-coverage-final.yml once every
+      # pytest workflow for the commit has finished. The reporter binary is pinned by checksum.
+      - name: Upload partial coverage to Codacy
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPORTER_VERSION: 14.1.3
+          REPORTER_SHA256: 15c5f052207d27b8501ab5d5910c68c206ea70b0157ee1725132780530580875
+        run: |
+          set -euo pipefail
+          if [[ -z "$CODACY_PROJECT_TOKEN" ]]; then
+            echo "CODACY_PROJECT_TOKEN is not available; skipping upload"
+            exit 0
+          fi
+          if [[ ! -s coverage.xml ]]; then
+            echo "::warning::coverage.xml is missing or empty; nothing to upload"
+            exit 0
+          fi
+          reporter="$RUNNER_TEMP/codacy-coverage-reporter"
+          curl -fsSL -o "$reporter" \
+            "https://github.com/codacy/codacy-coverage-reporter/releases/download/${REPORTER_VERSION}/codacy-coverage-reporter-linux"
+          echo "${REPORTER_SHA256}  ${reporter}" | sha256sum -c -
+          chmod +x "$reporter"
+          "$reporter" report --language Python -r coverage.xml --commit-uuid "$COMMIT_SHA" --partial
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
