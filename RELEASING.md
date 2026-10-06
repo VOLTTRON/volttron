@@ -24,6 +24,9 @@ Only MINOR and PATCH move.
 Read the latest release tag from `git tag` or the repository's Releases page;
 the next version is chosen against it.
 
+This repository is not published to PyPI. A release is a tag on `main` plus a
+GitHub Release for that tag; there is no package to upload.
+
 ## 2. Where release work happens
 
 A release is prepared on a branch named `releases/<version>` (for example
@@ -38,6 +41,12 @@ when `main` appears to be level with `develop` (section 7). This keeps the
 release from silently dropping a fix that only exists on `main`. Resolve any
 conflict from that merge on the release branch, and do it before the tag is
 created (section 4), so the tagged tip is the content that lands on `main`.
+
+A fix found after the release branch is cut goes in by pull request into
+`releases/<version>`, not by a direct push, and is reviewed like any other
+change. The merge of `main` back into `develop` after the release (section 7)
+carries it to `develop`, so it does not have to be made twice. Do this before
+the tag is created; after the tag exists, section 4 and section 12 apply.
 
 ## 3. What gets updated in a release
 
@@ -92,7 +101,8 @@ Verify it with `git cat-file -t X.Y.Z`, which prints `tag` for an annotated
 tag and `commit` for a lightweight one. That checks only the local tag, so
 also confirm the push reached the remote: `git ls-remote --tags origin X.Y.Z`
 prints a line, and an empty result means it did not land. The existing 8.x and
-9.x tags are lightweight and are left as they are.
+9.x tags up to 9.0.4 are lightweight and are left as they are; new tags are
+annotated as above.
 
 Once a tag is pushed it is never moved, deleted and re-created, or reused for a
 different commit. Any change after tagging means a new version: bump it
@@ -116,6 +126,17 @@ project's test suite and review process. The test workflows run on pushes to
 `develop` and `releases/**` and on pull requests into `main`, so check that
 they passed on the release branch tip and on the release pull request before
 approving. Pushes to `main` do not trigger them.
+
+Before the tag is created, the person preparing the release confirms each of
+these and records the result on the release pull request:
+
+- Both version strings read the version being released (section 3).
+- The test workflows are green on the release branch tip. Read the jobs, not
+  only the overall conclusion: a skipped job is not a pass.
+- `main` has been merged into the release branch (section 2), and the branch
+  is mergeable into `main`.
+- A maintainer with release authority has approved the release (section 10),
+  and the pull request has its required review (section 6).
 
 ## 6. Merging the release into main, then publishing it
 
@@ -214,6 +235,28 @@ Coordinate the timing so the advisory goes out once a reader can confirm,
 from the repository's Releases page or its API, that the version containing
 the fix is published rather than a draft, and confirm the advisory names
 that version.
+
+### Security release path
+
+Fixes handled under coordinated disclosure are prepared in GitHub temporary
+private advisory forks, not on public branches, so nothing is visible before
+the release. Each fork may have only one pull request targeting the base
+branch, so a fix that needs several changes is combined into that one pull
+request.
+
+1. Prepare and review each fix in its advisory fork.
+2. In one short window immediately before the release, merge the fork pull
+   requests from each advisory page. This bypasses branch protection on the
+   base branch, so it is done only by a maintainer with release authority
+   (section 10), and only once the release is approved. Once the fixes are on
+   `develop`, they are public there; keep the window short.
+3. Cut the release as in sections 2 to 6, so the fixes are in the release
+   branch, the tag and the GitHub Release.
+4. After the GitHub Release is live and not a draft, request CVE identifiers
+   and publish the advisories, each naming the released version.
+
+Publishing earlier points readers at a fix they cannot install. Publishing
+with the release already live is the order that section 12 assumes.
 
 ## 10. Who decides what
 
