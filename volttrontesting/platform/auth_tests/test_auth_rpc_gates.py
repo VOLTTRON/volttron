@@ -44,6 +44,7 @@ from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthService
 from volttron.platform.auth import auth as auth_module
 from volttron.platform.auth.auth_file import AuthFileUnavailable
+from volttron.platform.auth.auth_protocols import auth_zmq
 from volttron.platform.jsonrpc import INTERNAL_ERROR, RemoteError
 from volttron.platform.vip.agent import Agent, Unreachable
 from volttron.platform.vip.agent.subsystems.rpc import RPC
@@ -83,6 +84,25 @@ EXPORT_CAPABILITIES = {
     "get_user_to_capabilities": set(),
 }
 
+# Exports every agent's subsystems register at setup, with their
+# capabilities as they stand; part of the table the export check compares.
+SUBSYSTEM_EXPORTS = {
+    "agent.version": set(),
+    "auth.update": set(),
+    "auth.get_rpc_authorizations": set(),
+    "auth.get_all_rpc_authorizations": set(),
+    "auth.set_rpc_authorizations": {RPC_MODS},
+    "auth.set_multiple_rpc_authorizations": {RPC_MODS},
+    "health.set_status": set(),
+    "health.get_status": set(),
+    "health.get_status_json": set(),
+    "health.send_alert": set(),
+    "heartbeat.start": set(),
+    "heartbeat.start_with_period": set(),
+    "heartbeat.stop": set(),
+    "heartbeat.restart": set(),
+    "heartbeat.set_period": set(),
+}
 
 
 def _key(char):
@@ -143,9 +163,9 @@ class _Wired:
                 get_capabilities=lambda user: capabilities.get(user, {})))
         self.service = service
 
-    def call(self, user, name, *args, **kwargs):
+    def call(self, user, name, *args, peer="unrelated.peer", **kwargs):
         self.rpc.context = SimpleNamespace(
-            vip_message=SimpleNamespace(user=user))
+            vip_message=SimpleNamespace(user=user, peer=peer))
         return self.rpc._exports[name](*args, **kwargs)
 
 
@@ -186,15 +206,40 @@ MUTATING_CALLS = [
 ]
 
 
+@pytest.fixture
+def set_up_service(tmp_path, monkeypatch):
+    """A real AuthService after __init__ and its onsetup signal, so exports
+    registered at either time are in its RPC export table. The pieces that
+    need a running platform (ZAP socket, file watchers, VIP socket) are
+    stubbed."""
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
+    monkeypatch.setattr(auth_module, "watch_file", lambda *a, **k: None)
+    monkeypatch.setattr(auth_zmq.ZMQServerAuthentication,
+                        "setup_authentication", lambda self: None)
+    service = AuthService(str(tmp_path / "auth.json"),
+                          str(tmp_path / "protected_topics.json"), False,
+                          None, address="inproc://unused", identity=AUTH,
+                          enable_store=False, message_bus="zmq",
+                          enable_auth=True)
+    service.core.socket = MagicMock()
+    service.core.spawn = lambda *args, **kwargs: None
+    try:
+        service.core.onsetup.send(service.core)
+        yield service
+    finally:
+        processor = getattr(service.vip.pubsub, "_processgreenlet", None)
+        if processor is not None:
+            processor.kill()
+
+
 @pytest.mark.auth
-def test_export_table_requires_the_listed_capabilities(auth_path):
-    _seed_target(auth_path)
-    wired = _Wired(auth_path, {})
+def test_export_table_requires_the_listed_capabilities(set_up_service):
+    rpc = set_up_service.vip.rpc
 
-    table = {name: _required_capabilities(wired.rpc._exports[name])
-             for name in wired.rpc.get_exports()}
+    table = {name: _required_capabilities(rpc._exports[name])
+             for name in rpc.get_exports()}
 
-    assert table == EXPORT_CAPABILITIES
+    assert table == {**EXPORT_CAPABILITIES, **SUBSYSTEM_EXPORTS}
 
 
 @pytest.mark.auth
@@ -305,8 +350,9 @@ def test_agent_cannot_record_methods_for_another_identity(auth_path, caplog):
     wired = _Wired(auth_path, {})
     caplog.set_level(logging.WARNING)
 
+    # The routing peer names the target, so only the user can refuse it.
     returned = wired.call("other", "update_id_rpc_authorizations",
-                          "target", {"new_method": ["c"]})
+                          "target", {"new_method": ["c"]}, peer="target")
 
     assert returned is None
     assert _bytes(auth_path) == before
@@ -320,7 +366,8 @@ def test_agent_records_its_own_missing_methods(auth_path, caplog):
     caplog.set_level(logging.WARNING)
 
     returned = wired.call("target", "update_id_rpc_authorizations",
-                          "target", {"m": ["loose"], "new_method": ["c"]})
+                          "target", {"m": ["loose"], "new_method": ["c"]},
+                          peer="other")
 
     assert returned == {"m": ["tight"], "new_method": ["c"]}
     assert _disk_allow(auth_path)[0]["rpc_method_authorizations"] == {
@@ -341,7 +388,7 @@ def test_entry_is_matched_by_user_id_not_by_identity(auth_path):
     assert _bytes(auth_path) == before
 
     assert wired.call("agent-user", "update_id_rpc_authorizations",
-                      "agent", {"m": ["c"]}) == {"m": ["c"]}
+                      "agent", {"m": ["c"]}, peer="agent") == {"m": ["c"]}
 
 
 @pytest.mark.auth
