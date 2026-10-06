@@ -196,7 +196,7 @@ class AuthenticateEndpoints:
         elif not data:
             data = {}
         if not isinstance(data, dict):
-            _log.error("Invalid request body sent to {}".format(env.get('PATH_INFO')))
+            _log.error("Invalid request body sent to {}".format(printable_text(env.get('PATH_INFO'))))
             return Response('Unauthorized User', status="401 Unauthorized")
         current_access_token = data.get('current_access_token')
         from volttron.platform.web import get_bearer, get_user_claim_from_bearer, NotAuthorized
@@ -215,7 +215,7 @@ class AuthenticateEndpoints:
             return Response('Unauthorized User', status="401 Unauthorized")
 
         except jwt.PyJWTError:
-            _log.error("Invalid refresh token presented to {}".format(env.get('PATH_INFO')))
+            _log.error("Invalid refresh token presented to {}".format(printable_text(env.get('PATH_INFO'))))
             return Response('Unauthorized User', status="401 Unauthorized")
 
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):

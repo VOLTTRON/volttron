@@ -130,6 +130,10 @@ def test_login_log_lines_stay_on_one_line(caplog):
         auth.handle_authenticate(get_test_web_env('/authenticate', method='POST'),
                                  {'username': 'u\nEXTRA', 'password': 'p'})
         auth.handle_authenticate(get_test_web_env('/authenticate\nEXTRA', method='PUT'), {})
-    assert sum('EXTRA' in r.getMessage() for r in caplog.records) >= 3
+        auth.handle_authenticate(get_test_web_env('/authenticate\nEXTRA', method='PUT',
+                                                  HTTP_AUTHORIZATION='Bearer x.y.z'), '[1, 2]')
+        auth.handle_authenticate(get_test_web_env('/authenticate\nEXTRA', method='PUT',
+                                                  HTTP_AUTHORIZATION='Bearer not.a.jwt'), {})
+    assert sum('EXTRA' in r.getMessage() for r in caplog.records) >= 5
     for record in caplog.records:
         assert record.getMessage().isprintable(), record.getMessage()
