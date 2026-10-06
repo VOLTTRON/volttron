@@ -264,6 +264,19 @@ def start_pending_agent(request, identity):
     return agent
 
 
+def own_pending_entry(auth_pending, agent):
+    """The pending entry for this test's agent; the pending list also holds earlier tests' agents."""
+    for entry in auth_pending:
+        if entry["credentials"] == agent.core.publickey:
+            return entry
+    pytest.fail(f"{agent.core.identity}: no pending entry with credentials {agent.core.publickey}; "
+                f"pending credentials: {[e['credentials'] for e in auth_pending]}")
+
+
+def credentials_of(entries):
+    return [e["credentials"] for e in entries]
+
+
 @pytest.mark.web
 def test_get_credentials(request, volttron_instance_web: PlatformWrapper):
     skip_non_auth(volttron_instance_web)
@@ -299,13 +312,15 @@ def test_accept_credential(request, volttron_instance_web):
         assert len_auth_approved == 0
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
-        entry = next(e for e in auth_pending if e["credentials"] == pending_agent.core.publickey)
-        instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization", entry["user_id"]).wait(timeout=4)
+        entry = own_pending_entry(auth_pending, pending_agent)
+        instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization", entry["user_id"]).get(timeout=4)
         gevent.sleep(2)
         auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_approved_authorizations").get()
+        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
 
         assert len(auth_approved) == len_auth_approved + 1
-        assert auth_approved[0]["credentials"] == entry["credentials"]
+        assert auth_approved[0]["credentials"] == pending_agent.core.publickey
+        assert pending_agent.core.publickey not in credentials_of(auth_pending)
 
 
 @pytest.mark.web
@@ -327,11 +342,15 @@ def test_deny_credential(request, volttron_instance_web):
         assert len_auth_denied == 0
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
-        instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization", auth_pending[0]["user_id"]).wait(timeout=4)
+        entry = own_pending_entry(auth_pending, pending_agent)
+        instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization", entry["user_id"]).get(timeout=4)
         gevent.sleep(2)
         auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_denied_authorizations").get()
+        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
 
         assert len(auth_denied) == len_auth_denied + 1
+        assert pending_agent.core.publickey in credentials_of(auth_denied)
+        assert pending_agent.core.publickey not in credentials_of(auth_pending)
 
 
 @pytest.mark.web
@@ -349,8 +368,12 @@ def test_delete_credential(request, volttron_instance_web):
         print(f"Auth pending is: {auth_pending}")
         assert len(auth_pending) == len_auth_pending + 1
 
-        instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization", auth_pending[0]["user_id"]).wait(timeout=4)
+        entry = own_pending_entry(auth_pending, pending_agent)
+        instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization", entry["user_id"]).get(timeout=4)
         gevent.sleep(2)
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
+        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_denied_authorizations").get()
 
         assert len(auth_pending) == len_auth_pending
+        assert pending_agent.core.publickey not in credentials_of(auth_pending)
+        assert pending_agent.core.publickey not in credentials_of(auth_denied)
