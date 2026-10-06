@@ -1,11 +1,13 @@
 """Registering web endpoints, routes, static paths and websockets requires the
 register_web_routes capability, which only VolttronCentral is given at install."""
 
+import ssl
 from unittest.mock import MagicMock
 
 import gevent
 import pytest
 import requests
+import websocket
 
 from volttron.platform.agent.known_identities import (PLATFORM_WEB, VOLTTRON_CENTRAL,
                                                       VOLTTRON_CENTRAL_PLATFORM)
@@ -115,6 +117,70 @@ def test_registration_is_refused_without_the_capability(volttron_instance_web):
         assert response.status_code == 200
         assert response.json() == {'served': 'allowed'}
         assert allowed_calls == ['/probe-allowed/x']
+    finally:
+        allowed.vip.rpc.call(PLATFORM_WEB, 'unregister_all_agent_routes').get(timeout=10)
+        denied.core.stop()
+        allowed.core.stop()
+
+
+def _connect(instance, path):
+    url = instance.bind_web_address.replace('http', 'ws', 1) + path
+    return websocket.create_connection(url, timeout=10, sslopt={'cert_reqs': ssl.CERT_NONE})
+
+
+@pytest.mark.web
+def test_routes_paths_and_websockets_need_the_capability(volttron_instance_web, tmp_path):
+    instance = volttron_instance_web
+    if not instance.auth_enabled:
+        pytest.skip('the capability is only enforced with authentication enabled')
+    for name in ('probe-denied-files', 'probe-allowed-files'):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / 'index.html').write_text(f'{name} page')
+
+    denied = instance.build_agent(identity='probe.denied.kinds', enable_web=True)
+    allowed = instance.build_agent(
+        identity='probe.allowed.kinds', enable_web=True,
+        capabilities={'edit_config_store': {'identity': 'probe.allowed.kinds'},
+                      CAPABILITY: None})
+    route_calls, opened = [], []
+    allowed.vip.rpc.export(_answer({'served': 'route'}, route_calls), 'probe_route')
+    try:
+        refusals = [
+            lambda: denied.vip.rpc.call(PLATFORM_WEB, 'register_agent_route',
+                                        '^/probe-denied-route/', 'probe_route').get(timeout=10),
+            lambda: denied.vip.web.register_path('^/probe-denied-files/', str(tmp_path)),
+            lambda: denied.vip.web.register_websocket('/probe-denied-ws/x',
+                                                      lambda ip, endpoint: True),
+        ]
+        for register in refusals:
+            with pytest.raises(RemoteError) as refused:
+                register()
+            assert CAPABILITY in str(refused.value)
+
+        allowed.vip.rpc.call(PLATFORM_WEB, 'register_agent_route',
+                             '^/probe-allowed-route/', 'probe_route').get(timeout=10)
+        allowed.vip.web.register_path('^/probe-allowed-files/', str(tmp_path))
+        allowed.vip.web.register_websocket(
+            '/probe-allowed-ws/x', lambda ip, endpoint: opened.append(endpoint) or True)
+        gevent.sleep(0.5)
+
+        assert _get(instance, '/probe-denied-route/x').status_code == 404
+        assert _get(instance, '/probe-denied-files/index.html').status_code == 404
+        with pytest.raises((websocket.WebSocketException, OSError)):
+            _connect(instance, '/probe-denied-ws/x').close()
+
+        response = _get(instance, '/probe-allowed-route/x')
+        assert (response.status_code, response.json()) == (200, {'served': 'route'})
+        assert route_calls == ['/probe-allowed-route/x']
+        response = _get(instance, '/probe-allowed-files/index.html')
+        assert (response.status_code, response.text) == (200, 'probe-allowed-files page')
+        sock = _connect(instance, '/probe-allowed-ws/x')
+        try:
+            assert sock.getstatus() == 101
+            gevent.sleep(0.5)
+            assert opened == ['/probe-allowed-ws/x']
+        finally:
+            sock.close()
     finally:
         allowed.vip.rpc.call(PLATFORM_WEB, 'unregister_all_agent_routes').get(timeout=10)
         denied.core.stop()

@@ -276,6 +276,9 @@ class PlatformWebService(Agent):
         identity = self._caller('websocket_send', endpoint)
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
+        if self.appContainer is None:
+            _log.info('web server is not running; nothing sent to %r', endpoint)
+            return
         try:
             self.appContainer.websocket_send(endpoint, message, identity)
         except PermissionError:
@@ -421,6 +424,9 @@ class PlatformWebService(Agent):
         identity = self._caller('unregister_websocket', endpoint)
 
         _log.debug('Caller identity: {}'.format(identity))
+        if self.appContainer is None:
+            _log.info('web server is not running; no websocket to remove at %r', endpoint)
+            return
         try:
             self.appContainer.destroy_ws_endpoint(endpoint, identity)
         except PermissionError:
@@ -1052,5 +1058,8 @@ class PlatformWebService(Agent):
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
         _log.debug("Stopping web agent.")
+        if self._server_greenlet is None:
+            _log.info('web server is not running; nothing to stop')
+            return
         if not self._server_greenlet.dead:
             self._server_greenlet.join(timeout=10)

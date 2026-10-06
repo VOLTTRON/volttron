@@ -13,7 +13,8 @@ from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL
 from volttron.platform.web import platform_web_service
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.platform_web_service import PlatformWebService
-from volttrontesting.platform.web.conftest import build_web_service, set_caller
+from volttrontesting.platform.web.conftest import (build_web_service, set_caller,
+                                                   start_web_service)
 from volttrontesting.utils.web_utils import get_test_web_env
 
 KINDS = ('endpoint', 'agent_route', 'path_route', 'websocket')
@@ -249,6 +250,42 @@ def test_startup_stops_loudly_on_a_platform_route_without_a_first_segment(tmp_pa
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert len(errors) == 1
     assert '(?:/x|/y)' in errors[0].getMessage()
+
+
+def test_after_a_failed_start_nothing_is_served_and_cleanup_is_quiet(tmp_path, monkeypatch,
+                                                                     caplog):
+    service = build_web_service(tmp_path, monkeypatch, start=False)
+    server = MagicMock()
+    with _with_extra_platform_route('(?:/x|/y)'), pytest.raises(ValueError):
+        start_web_service(service, server)
+    assert server.call_count == 0
+    assert service.appContainer is None
+
+    set_caller(service, 'a')
+    for kind in KINDS:
+        with pytest.raises(PermissionError):
+            _register(service, kind, '/probe/x', tmp_path)
+    with caplog.at_level(logging.DEBUG):
+        service.unregister_websocket('/probe/ws')
+        service.websocket_send('/probe/ws', 'message')
+        service.unregister_all_agent_routes()
+        service.onstop(sender='test')
+    notes = [r.getMessage() for r in caplog.records
+             if r.name == 'volttron.platform.web.platform_web_service'
+             and 'web server is not running' in r.getMessage()]
+    assert len(notes) == 3
+
+
+@pytest.mark.parametrize('first', KINDS)
+@pytest.mark.parametrize('second', KINDS)
+def test_every_kind_of_registration_claims_its_namespace(web_service, tmp_path, first, second):
+    set_caller(web_service, 'a')
+    _register(web_service, first, '/probe/one', tmp_path)
+    set_caller(web_service, 'b')
+    before = _tables(web_service)
+    with pytest.raises(PermissionError):
+        _register(web_service, second, '/probe/two', tmp_path)
+    assert _tables(web_service) == before
 
 
 @pytest.mark.parametrize('kind', KINDS)

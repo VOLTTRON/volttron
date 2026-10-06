@@ -35,15 +35,21 @@ def build_web_service(tmp_path, monkeypatch, start=True, enable_auth=True):
     service.core.messagebus = 'zmq'
     service.core.enable_auth = enable_auth
     if start:
-        query = MagicMock()
-        query.return_value.query.return_value.get.return_value = 'test-instance'
-        with mock.patch('volttron.platform.web.vui_endpoints.Query', query), \
-                mock.patch('volttron.platform.web.admin_endpoints.Observer'), \
-                mock.patch('volttron.platform.web.authenticate_endpoint.Observer'), \
-                mock.patch('volttron.platform.web.platform_web_service.WSGIServer'), \
-                mock.patch('volttron.platform.web.platform_web_service.gevent.spawn'):
-            service.startupagent(sender='test')
+        start_web_service(service)
     return service
+
+
+def start_web_service(service, server=None):
+    """Run startupagent with the web server class replaced by server."""
+    query = MagicMock()
+    query.return_value.query.return_value.get.return_value = 'test-instance'
+    with mock.patch('volttron.platform.web.vui_endpoints.Query', query), \
+            mock.patch('volttron.platform.web.admin_endpoints.Observer'), \
+            mock.patch('volttron.platform.web.authenticate_endpoint.Observer'), \
+            mock.patch('volttron.platform.web.platform_web_service.WSGIServer',
+                       server or MagicMock()), \
+            mock.patch('volttron.platform.web.platform_web_service.gevent.spawn'):
+        service.startupagent(sender='test')
 
 
 @pytest.fixture()
