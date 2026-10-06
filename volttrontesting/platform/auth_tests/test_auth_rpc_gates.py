@@ -30,9 +30,11 @@ import inspect
 import logging
 import os
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import gevent
+import gevent.event
 import pytest
 from mock import MagicMock
 
@@ -40,7 +42,7 @@ from volttron.platform import jsonapi, jsonrpc
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthService
 from volttron.platform.auth import auth as auth_module
-from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.jsonrpc import INTERNAL_ERROR, RemoteError
 from volttron.platform.vip.agent.subsystems.rpc import RPC
 from volttrontesting.utils.platformwrapper import with_os_environ
 
@@ -336,6 +338,110 @@ def test_cached_answer_under_a_held_lock_is_refused_to_another_user(
     assert refused is None
     assert len(_refusals(caplog)) == 1
     assert allowed == {"new_method": ["c"]}
+
+
+class _AuthServiceCalls:
+    """Sends VolttronCentral's AUTH calls through a wired AuthService as
+    the user volttron.central; a remote exception arrives as a RemoteError
+    on get(), and hang makes every call time out."""
+
+    def __init__(self, wired, hang=False):
+        self.wired = wired
+        self.hang = hang
+        self.timeouts = []
+
+    def call(self, peer, method, *args):
+        assert peer == AUTH
+        if self.hang:
+            return _NeverReady(self.timeouts)
+        result = gevent.event.AsyncResult()
+        try:
+            result.set(self.wired.call("volttron.central", method, *args))
+        except Exception as err:
+            # Named as the platform's dispatcher names a remote exception.
+            exc_type = f"{type(err).__module__}.{type(err).__name__}"
+            result.set_exception(RemoteError(
+                str(err), exc_type=exc_type, exc_args=list(err.args)))
+        return result
+
+
+class _NeverReady:
+    def __init__(self, timeouts):
+        self.timeouts = timeouts
+
+    def get(self, timeout=None):
+        self.timeouts.append(timeout)
+        raise gevent.Timeout(timeout)
+
+
+def _volttron_central(auth_path, capabilities, monkeypatch, hang=False):
+    repo_root = Path(__file__).resolve().parents[3]
+    monkeypatch.syspath_prepend(
+        str(repo_root / "services" / "core" / "VolttronCentral"))
+    from volttroncentral.agent import VolttronCentralAgent
+
+    agent = object.__new__(VolttronCentralAgent)
+    calls = _AuthServiceCalls(
+        _Wired(auth_path, {"volttron.central": capabilities}), hang=hang)
+    agent.vip = SimpleNamespace(rpc=calls)
+    return agent, calls
+
+
+def _enable(agent):
+    return agent._enable_setup_mode({"groups": ["admin"]}, {"message_id": 7})
+
+
+@pytest.mark.auth
+def test_setup_mode_without_the_capability_is_an_error(
+        auth_path, no_pause, monkeypatch):
+    _seed_target(auth_path)
+    before = _bytes(auth_path)
+    agent, _ = _volttron_central(auth_path, {}, monkeypatch)
+
+    response = _enable(agent)
+
+    assert response != "SUCCESS"
+    assert response["error"]["code"] == INTERNAL_ERROR
+    assert response["id"] == 7
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_setup_mode_with_the_capability_adds_the_entry(
+        auth_path, no_pause, monkeypatch):
+    _seed_target(auth_path)
+    agent, _ = _volttron_central(auth_path, {AUTH_MODS: None}, monkeypatch)
+
+    assert _enable(agent) == "SUCCESS"
+
+    added = [e for e in _disk_allow(auth_path) if e["credentials"] == "/.*/"]
+    assert [e["user_id"] for e in added] == ["unknown"]
+
+
+@pytest.mark.auth
+def test_setup_mode_enabled_twice_succeeds_and_keeps_one_entry(
+        auth_path, no_pause, monkeypatch):
+    _seed_target(auth_path)
+    agent, _ = _volttron_central(auth_path, {AUTH_MODS: None}, monkeypatch)
+    assert _enable(agent) == "SUCCESS"
+    before = _bytes(auth_path)
+
+    assert _enable(agent) == "SUCCESS"
+
+    assert _bytes(auth_path) == before
+
+
+@pytest.mark.auth
+def test_setup_mode_unanswered_is_an_error_after_a_bounded_wait(
+        auth_path, monkeypatch):
+    _seed_target(auth_path)
+    agent, calls = _volttron_central(auth_path, {AUTH_MODS: None},
+                                     monkeypatch, hang=True)
+
+    response = _enable(agent)
+
+    assert response["error"]["code"] == INTERNAL_ERROR
+    assert calls.timeouts and all(t is not None for t in calls.timeouts)
 
 
 def _auth_list(platform):
