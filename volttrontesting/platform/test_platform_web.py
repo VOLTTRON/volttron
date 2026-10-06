@@ -237,9 +237,13 @@ def test_register_path_route(volttron_instance_web):
         gevent.sleep(1)
 
         # Files are served from <root>/<request path>, so the namespace
-        # webdir maps to <root>/webdir.
-        root = os.path.join(vi.volttron_home, "site")
+        # webdir maps to <root>/webdir. An agent may serve a directory inside
+        # its own installed package, laid out here as the platform installs one.
+        install = os.path.join(vi.volttron_home, "agents", "web-path-agent-uuid")
+        root = os.path.join(install, "webpathagent-0.1", "webpathagent", "webroot")
         _, index_html = _build_web_dir(root)
+        with open(os.path.join(install, "IDENTITY"), "w") as f:
+            f.write("web.path.agent")
         agent = vi.build_agent(use_ipc=True, identity="web.path.agent",
                                capabilities={"register_web_routes": None})
         agent.vip.rpc.call(PLATFORM_WEB,
