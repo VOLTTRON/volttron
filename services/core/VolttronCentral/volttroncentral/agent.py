@@ -696,15 +696,34 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to enable setup mode")
-        entries = self.vip.rpc.call(AUTH, "auth_file.find_by_credentials", ".*")
-        if len(entries) > 0:
-            return "SUCCESS"
-
         entry = {"credentials": "/.*/",
                  "comments": "Un-Authenticated connections allowed here",
                  "user_id": "unknown"
                 }
-        self.vip.rpc.call(AUTH, "auth_file.add", entry)
+        try:
+            auth_data = self.vip.rpc.call(AUTH, "auth_file.read").get(
+                timeout=30)
+        except (RemoteError, Unreachable, gevent.Timeout) as err:
+            _log.error("enable setup mode failed at auth_file.read: %s", err)
+            return jsonrpc.json_error(id, INTERNAL_ERROR,
+                                      "Setup mode could not be enabled")
+        if any(allowed.get("credentials") == entry["credentials"]
+               for allowed in auth_data["allow_list"]):
+            return "SUCCESS"
+        try:
+            self.vip.rpc.call(AUTH, "auth_file.add", entry).get(timeout=30)
+        except RemoteError as err:
+            _log.error("enable setup mode failed at auth_file.add: %s", err)
+            return jsonrpc.json_error(id, INTERNAL_ERROR,
+                                      "Setup mode could not be enabled")
+        except (Unreachable, gevent.Timeout) as err:
+            # The add may still have been applied, so do not report it as
+            # not enabled.
+            _log.error("enable setup mode not confirmed at auth_file.add: "
+                       "%s", err)
+            return jsonrpc.json_error(
+                id, INTERNAL_ERROR,
+                "Setup mode could not be confirmed enabled")
         return "SUCCESS"
 
     def _disable_setup_mode(self, session_user, params):

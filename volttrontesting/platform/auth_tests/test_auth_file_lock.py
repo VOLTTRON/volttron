@@ -580,9 +580,6 @@ def _rpc_exports(service):
     names = set()
     for member in vars(AuthService).values():
         names |= annotations(member, set, "rpc.exports")
-    service.vip = SimpleNamespace(rpc=SimpleNamespace(
-        export=lambda method, name=None: names.add(name or method.__name__)))
-    service.export_auth_file()
     return names
 
 
