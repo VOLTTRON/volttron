@@ -709,9 +709,15 @@ def test_live_agent_records_its_own_methods_at_start(volttron_instance):
         auth_path = os.path.join(volttron_instance.volttron_home, "auth.json")
 
         def recorded():
-            for entry in _disk_allow(auth_path):
-                if entry.get("identity") == "records.own.methods":
-                    return entry.get("rpc_method_authorizations", {})
+            # Read under the auth file lock, as the platform does, so a
+            # file the platform is still writing is never parsed.
+            try:
+                entries = AuthFile(auth_path).read_allow_entries()
+            except AuthFileUnavailable:
+                return {}
+            for entry in entries:
+                if entry.identity == "records.own.methods":
+                    return entry.rpc_method_authorizations
             return {}
 
         deadline = 15
