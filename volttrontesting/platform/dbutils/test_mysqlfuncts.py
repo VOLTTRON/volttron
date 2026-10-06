@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 IMAGES = [
-    "mysql:8.0"
+    "mysql:8.0.39"
 ]
 
 CONNECTION_HOST = "localhost"
@@ -452,7 +452,7 @@ def wait_for_connection(container):
     start_time = time()
     response = None
     while time() - start_time < ALLOW_CONNECTION_TIME:
-        # mysql:8.0 does not ship mysqlshow; mysqladmin is on the same image.
+        # mysql:8.0.x does not ship mysqlshow; mysqladmin is on the same image.
         command = f'mysqladmin ping --user="root" --password="{ROOT_PASSWORD}"'
         response = container.exec_run(command, tty=True)
         exit_code, output = response
