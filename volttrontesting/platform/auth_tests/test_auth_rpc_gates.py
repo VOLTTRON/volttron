@@ -25,6 +25,7 @@
 through AuthService's RPC exports, checked through the export table the RPC
 subsystem builds, and from a live platform."""
 
+import errno
 import fcntl
 import inspect
 import logging
@@ -42,8 +43,9 @@ from volttron.platform import jsonapi, jsonrpc
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthService
 from volttron.platform.auth import auth as auth_module
+from volttron.platform.auth.auth_file import AuthFileUnavailable
 from volttron.platform.jsonrpc import INTERNAL_ERROR, RemoteError
-from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent import Agent, Unreachable
 from volttron.platform.vip.agent.subsystems.rpc import RPC
 from volttrontesting.utils.platformwrapper import with_os_environ
 
@@ -80,6 +82,7 @@ EXPORT_CAPABILITIES = {
     "get_roles": {AUTH_MODS},
     "get_user_to_capabilities": set(),
 }
+
 
 
 def _key(char):
@@ -394,17 +397,21 @@ def test_cached_answer_under_a_held_lock_is_refused_to_another_user(
 class _AuthServiceCalls:
     """Sends VolttronCentral's AUTH calls through a wired AuthService as
     the user volttron.central; a remote exception arrives as a RemoteError
-    on get(), and hang makes every call time out."""
+    on get(). A method in hang_on never answers, and one in unreachable_on
+    raises Unreachable."""
 
-    def __init__(self, wired, hang=False):
+    def __init__(self, wired, hang_on=(), unreachable_on=()):
         self.wired = wired
-        self.hang = hang
+        self.hang_on = hang_on
+        self.unreachable_on = unreachable_on
         self.timeouts = []
 
     def call(self, peer, method, *args):
         assert peer == AUTH
-        if self.hang:
+        if method in self.hang_on:
             return _NeverReady(self.timeouts)
+        if method in self.unreachable_on:
+            return _Unreachable()
         result = gevent.event.AsyncResult()
         try:
             result.set(self.wired.call("volttron.central", method, *args))
@@ -416,6 +423,11 @@ class _AuthServiceCalls:
         return result
 
 
+class _Unreachable:
+    def get(self, timeout=None):
+        raise Unreachable(errno.EHOSTUNREACH, "unreachable", AUTH, "RPC")
+
+
 class _NeverReady:
     def __init__(self, timeouts):
         self.timeouts = timeouts
@@ -425,7 +437,8 @@ class _NeverReady:
         raise gevent.Timeout(timeout)
 
 
-def _volttron_central(auth_path, capabilities, monkeypatch, hang=False):
+def _volttron_central(auth_path, capabilities, monkeypatch, hang_on=(),
+                      unreachable_on=()):
     repo_root = Path(__file__).resolve().parents[3]
     monkeypatch.syspath_prepend(
         str(repo_root / "services" / "core" / "VolttronCentral"))
@@ -433,7 +446,8 @@ def _volttron_central(auth_path, capabilities, monkeypatch, hang=False):
 
     agent = object.__new__(VolttronCentralAgent)
     calls = _AuthServiceCalls(
-        _Wired(auth_path, {"volttron.central": capabilities}), hang=hang)
+        _Wired(auth_path, {"volttron.central": capabilities}),
+        hang_on=hang_on, unreachable_on=unreachable_on)
     agent.vip = SimpleNamespace(rpc=calls)
     return agent, calls
 
@@ -442,9 +456,19 @@ def _enable(agent):
     return agent._enable_setup_mode({"groups": ["admin"]}, {"message_id": 7})
 
 
+def _setup_mode_errors(caplog):
+    return [r.getMessage() for r in caplog.records
+            if r.name == "volttroncentral.agent"
+            and r.levelno == logging.ERROR]
+
+
+NOT_ENABLED = "Setup mode could not be enabled"
+NOT_CONFIRMED = "Setup mode could not be confirmed enabled"
+
+
 @pytest.mark.auth
 def test_setup_mode_without_the_capability_is_an_error(
-        auth_path, no_pause, monkeypatch):
+        auth_path, no_pause, monkeypatch, caplog):
     _seed_target(auth_path)
     before = _bytes(auth_path)
     agent, _ = _volttron_central(auth_path, {}, monkeypatch)
@@ -453,8 +477,62 @@ def test_setup_mode_without_the_capability_is_an_error(
 
     assert response != "SUCCESS"
     assert response["error"]["code"] == INTERNAL_ERROR
+    assert response["error"]["message"] == NOT_ENABLED
     assert response["id"] == 7
     assert _bytes(auth_path) == before
+    errors = _setup_mode_errors(caplog)
+    assert len(errors) == 1 and "auth_file.read" in errors[0]
+
+
+@pytest.mark.auth
+def test_setup_mode_add_refused_after_a_good_read_is_an_error(
+        auth_path, no_pause, monkeypatch, caplog):
+    _seed_target(auth_path)
+    before = _bytes(auth_path)
+    agent, _ = _volttron_central(auth_path, {AUTH_MODS: None}, monkeypatch)
+
+    def unavailable(self, *args, **kwargs):
+        raise AuthFileUnavailable("lock held")
+    monkeypatch.setattr(AuthFile, "add", unavailable)
+
+    response = _enable(agent)
+
+    assert response["error"]["code"] == INTERNAL_ERROR
+    assert response["error"]["message"] == NOT_ENABLED
+    assert _bytes(auth_path) == before
+    errors = _setup_mode_errors(caplog)
+    assert len(errors) == 1 and "auth_file.add" in errors[0]
+
+
+@pytest.mark.auth
+def test_setup_mode_add_unanswered_is_not_confirmed(
+        auth_path, no_pause, monkeypatch, caplog):
+    _seed_target(auth_path)
+    agent, calls = _volttron_central(auth_path, {AUTH_MODS: None},
+                                     monkeypatch, hang_on=("auth_file.add",))
+
+    response = _enable(agent)
+
+    assert calls.timeouts == [30]
+    assert response["error"]["code"] == INTERNAL_ERROR
+    assert response["error"]["message"] == NOT_CONFIRMED
+    errors = _setup_mode_errors(caplog)
+    assert len(errors) == 1 and "auth_file.add" in errors[0]
+
+
+@pytest.mark.auth
+def test_setup_mode_add_unreachable_is_not_confirmed(
+        auth_path, no_pause, monkeypatch, caplog):
+    _seed_target(auth_path)
+    agent, _ = _volttron_central(auth_path, {AUTH_MODS: None}, monkeypatch,
+                                 unreachable_on=("auth_file.add",))
+
+    response = _enable(agent)
+
+    assert response["error"]["code"] == INTERNAL_ERROR
+    assert response["error"]["message"] == NOT_CONFIRMED
+    errors = _setup_mode_errors(caplog)
+    assert len(errors) == 1 and "auth_file.add" in errors[0]
 
 
 @pytest.mark.auth
@@ -486,13 +564,15 @@ def test_setup_mode_enabled_twice_succeeds_and_keeps_one_entry(
 def test_setup_mode_unanswered_is_an_error_after_a_bounded_wait(
         auth_path, monkeypatch):
     _seed_target(auth_path)
-    agent, calls = _volttron_central(auth_path, {AUTH_MODS: None},
-                                     monkeypatch, hang=True)
+    agent, calls = _volttron_central(
+        auth_path, {AUTH_MODS: None}, monkeypatch,
+        hang_on=("auth_file.read", "auth_file.add"))
 
     response = _enable(agent)
 
+    assert calls.timeouts == [30]
     assert response["error"]["code"] == INTERNAL_ERROR
-    assert calls.timeouts and all(t is not None for t in calls.timeouts)
+    assert response["error"]["message"] == NOT_ENABLED
 
 
 def _auth_list(platform):
