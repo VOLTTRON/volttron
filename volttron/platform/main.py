@@ -658,6 +658,12 @@ class GreenRouter(Router):
         self.setup()
 
 
+def parse_web_static_roots(value):
+    """Split the comma-separated web-static-roots option into expanded entries."""
+    return [config.expandall(entry.strip()) for entry in (value or '').split(',')
+            if entry.strip()]
+
+
 def start_volttron_process(opts):
     '''Start the main volttron process.
 
@@ -716,9 +722,7 @@ def start_volttron_process(opts):
         opts.web_ssl_key = config.expandall(opts.web_ssl_key)
     if opts.web_ssl_cert:
         opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
-    opts.web_static_roots = [config.expandall(root.strip())
-                             for root in (opts.web_static_roots or '').split(',')
-                             if root.strip()]
+    opts.web_static_roots = parse_web_static_roots(opts.web_static_roots)
 
     if opts.web_ssl_key and not opts.web_ssl_cert:
         raise Exception(

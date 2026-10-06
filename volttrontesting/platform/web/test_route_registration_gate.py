@@ -132,7 +132,7 @@ def _connect(instance, path):
 @pytest.mark.web
 def test_routes_paths_and_websockets_need_the_capability(web_instance_with_static_root):
     instance = web_instance_with_static_root
-    root = Path(instance.web_static_roots[0])
+    root = Path(instance.web_static_roots[-1])
     for name in ('probe-denied-files', 'probe-allowed-files'):
         (root / name).mkdir(exist_ok=True)
         (root / name / 'index.html').write_text(f'{name} page')

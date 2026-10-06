@@ -75,16 +75,16 @@ def web_service(tmp_path, monkeypatch):
     pytest.param(True, id='https', marks=ci_skipif),
 ])
 def web_instance_with_static_root(request, tmp_path_factory):
-    """A web platform with one web-static-roots entry, its
-    web_static_roots[0], outside VOLTTRON_HOME."""
+    """A web platform with two web-static-roots entries outside
+    VOLTTRON_HOME; tests serve from the last, web_static_roots[-1]."""
     if request.param:
         hostname, port = get_hostname_and_random_port()
         web_address = f'https://{hostname}:{port}'
     else:
         web_address = f'http://{get_rand_ip_and_port()}'
-    root = tmp_path_factory.mktemp('web-static-root')
+    roots = [tmp_path_factory.mktemp('web-static-extra'), tmp_path_factory.mktemp('web-static-root')]
     wrapper = build_wrapper(get_rand_vip(), ssl_auth=request.param, bind_web_address=web_address,
                             volttron_central_address=web_address, instance_name='volttron1',
-                            web_static_roots=[str(root)])
+                            web_static_roots=[str(root) for root in roots])
     yield wrapper
     cleanup_wrapper(wrapper)
