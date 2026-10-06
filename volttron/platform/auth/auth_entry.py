@@ -205,7 +205,7 @@ class AuthEntry(object):
             "of type {}. Authorized rpc method entries can "
             "only be a dictionary. Dictionaries should be of "
             "the format: "
-            "{'method1:[list of capabilities], 'method2: [], ...}"
+            "{{'method1:[list of capabilities], 'method2: [], ...}}"
         )
         if isinstance(value, dict):
             return value

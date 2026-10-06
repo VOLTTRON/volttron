@@ -889,6 +889,46 @@ def test_upgrade_to_1_5_skips_entries_it_cannot_read(tmp_path, caplog):
     assert [e.capabilities for e in entries] == [
         {"edit_config_store": {"identity": "volttron.central"}, "register_web_routes": None}]
     skipped = [r for r in caplog.records if r.levelno == logging.WARNING
-               and "not upgraded" in r.getMessage()]
+               and "removed from the file" in r.getMessage()]
     assert len(skipped) == 2
+    assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1
+
+
+def _with_rpc_authorizations(entry, value):
+    entry["rpc_method_authorizations"] = value
+    return entry
+
+
+@pytest.mark.auth
+def test_entry_with_unreadable_rpc_authorizations_is_dropped(tmp_path, caplog):
+    auth_path = str(tmp_path / "auth.json")
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": [
+            _with_rpc_authorizations(_version_1_4_entry("bad", "bad", {}), ["not", "a", "dict"]),
+            _version_1_4_entry("other", "other", {}),
+        ], "deny": [], "groups": {}, "roles": {}, "version": {"major": 1, "minor": 5}}))
+
+    with caplog.at_level(logging.WARNING):
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.user_id for e in entries] == ["other"]
+    assert [r for r in caplog.records if r.levelno == logging.WARNING
+            and "rpc method authorization" in r.getMessage()]
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_completes_past_unreadable_rpc_authorizations(tmp_path):
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [
+        _with_rpc_authorizations(_version_1_4_entry("bad", "bad", {}), "not-a-dict"),
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps),
+    ])
+
+    AuthFile(auth_path)
+    entries = AuthFile(auth_path).read_allow_entries()
+
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    assert [(e.user_id, "register_web_routes" in e.capabilities) for e in entries] == [
+        ("volttron.central", True)]
     assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1

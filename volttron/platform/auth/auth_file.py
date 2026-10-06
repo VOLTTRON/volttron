@@ -367,7 +367,7 @@ class AuthFile(object):
                 # An unreadable entry must not stop the upgrade: the file
                 # would stay at 1.4 and fail to load on every start.
                 if not isinstance(entry, dict):
-                    warn_invalid(entry, "not upgraded: not an object")
+                    warn_invalid(entry, "removed from the file: not an object")
                     continue
                 if (entry.get("user_id") != VOLTTRON_CENTRAL
                         or entry.get("identity") != VOLTTRON_CENTRAL):
@@ -376,7 +376,7 @@ class AuthFile(object):
                     capabilities = AuthEntry.build_capabilities_field(
                         entry.get("capabilities")) or {}
                 except AuthEntryInvalid as err:
-                    warn_invalid(entry, f"not upgraded: {err}")
+                    warn_invalid(entry, f"removed from the file: {err}")
                     continue
                 if REGISTER_WEB_ROUTES in capabilities:
                     continue
