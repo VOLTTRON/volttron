@@ -1,0 +1,12 @@
+# Test code uses assert by design (B101); shipped code is still checked.
+assert_used:
+  skips:
+    - 'test_*.py'
+    - '*/test_*.py'
+    - '*_test.py'
+    - 'conftest.py'
+    - '*/conftest.py'
+    - 'tests/*'
+    - '*/tests/*'
+    - 'volttrontesting/*'
+    - '*/volttrontesting/*'
