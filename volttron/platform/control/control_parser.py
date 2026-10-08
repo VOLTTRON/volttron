@@ -463,6 +463,9 @@ def priority(value):
 
 MAX_TIMEOUT_SECONDS = 300
 MAX_TIMEOUT_ENV = "VOLTTRON_VCTL_MAX_TIMEOUT"
+# Bounds the override: a limit that large never fires, the failure the
+# maximum exists to prevent.
+MAX_TIMEOUT_CEILING_SECONDS = 86400
 
 
 def _positive_seconds(text, what):
@@ -477,21 +480,38 @@ def _positive_seconds(text, what):
 
 
 def timeout_seconds(value):
-    """argparse type for --timeout: a finite number greater than 0 and at most
-    the maximum, since inf, nan and huge values never fire and 0 or less fires
-    at once. The maximum is read per call so it can be overridden by
-    MAX_TIMEOUT_ENV."""
-    seconds = _positive_seconds(value, "timeout")
+    """argparse type for --timeout: shape only, a finite number greater than 0.
+    The maximum is applied after parsing by check_timeout_maximum, since the
+    type never runs for the default."""
+    return _positive_seconds(value, "timeout")
+
+
+def effective_maximum_timeout():
+    """The maximum --timeout: MAX_TIMEOUT_ENV when set, else
+    MAX_TIMEOUT_SECONDS. Raises ArgumentTypeError for an override that is not
+    a finite number in (0, MAX_TIMEOUT_CEILING_SECONDS]."""
     override = os.environ.get(MAX_TIMEOUT_ENV)
     if override is None:
-        maximum = MAX_TIMEOUT_SECONDS
-    else:
-        maximum = _positive_seconds(override, MAX_TIMEOUT_ENV)
-    if seconds > maximum:
+        return MAX_TIMEOUT_SECONDS
+    maximum = _positive_seconds(override, MAX_TIMEOUT_ENV)
+    if maximum > MAX_TIMEOUT_CEILING_SECONDS:
         raise argparse.ArgumentTypeError(
-            f"invalid timeout {value!r}: must not exceed {maximum:g} seconds; "
-            f"set {MAX_TIMEOUT_ENV} to change the maximum")
-    return seconds
+            f"invalid {MAX_TIMEOUT_ENV} {override!r}: must not exceed "
+            f"{MAX_TIMEOUT_CEILING_SECONDS} seconds")
+    return maximum
+
+
+def check_timeout_maximum(parser, timeout):
+    """Exit 2 through parser if the override is invalid or the resolved
+    timeout, whatever its source, exceeds the maximum."""
+    try:
+        maximum = effective_maximum_timeout()
+    except argparse.ArgumentTypeError as exc:
+        parser.error(str(exc))
+    if timeout > maximum:
+        parser.error(
+            f"invalid timeout {timeout:g}: must not exceed {maximum:g} "
+            f"seconds; set {MAX_TIMEOUT_ENV} to change the maximum")
 
 
 def get_keys(opts):
@@ -540,8 +560,9 @@ def main():
         "--timeout",
         type=timeout_seconds,
         metavar="SECS",
-        help="timeout in seconds for remote calls, at most 300 unless "
-        "VOLTTRON_VCTL_MAX_TIMEOUT is set (default: %(default)g)",
+        help="timeout in seconds for remote calls, at most "
+        + str(MAX_TIMEOUT_SECONDS) + " unless " + MAX_TIMEOUT_ENV
+        + " is set (default: %(default)g)",
     )
     global_args.add_argument(
         "--msgdebug", help="route all messages to an agent while debugging")
@@ -874,6 +895,7 @@ def main():
     if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
         args = ["--config", conf] + args
     opts = parser.parse_args(args)
+    check_timeout_maximum(parser, opts.timeout)
 
     if opts.log:
         opts.log = config.expandall(opts.log)
