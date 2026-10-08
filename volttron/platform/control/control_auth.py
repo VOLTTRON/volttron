@@ -128,7 +128,7 @@ def list_remotes(opts):
     try:
         approved_certs = conn.server.vip.rpc.call(
             AUTH, "get_approved_authorizations"
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
         for value in approved_certs:
             output_view.append({"entry": value, "status": "APPROVED"})
     except TimeoutError:
@@ -136,7 +136,7 @@ def list_remotes(opts):
     try:
         denied_certs = conn.server.vip.rpc.call(AUTH,
                                                 "get_denied_authorizations").get(
-            timeout=4
+            timeout=opts.timeout
         )
         for value in denied_certs:
             output_view.append({"entry": value, "status": "DENIED"})
@@ -145,7 +145,7 @@ def list_remotes(opts):
     try:
         pending_certs = conn.server.vip.rpc.call(AUTH,
                                                  "get_pending_authorizations").get(
-            timeout=4
+            timeout=opts.timeout
         )
         for value in pending_certs:
             output_view.append({"entry": value, "status": "PENDING"})
@@ -229,7 +229,7 @@ def approve_remote(opts):
         return
     conn.server.vip.rpc.call(AUTH, "approve_authorization",
                              opts.user_id).get(
-        timeout=4
+        timeout=opts.timeout
     )
 
 
@@ -248,7 +248,7 @@ def deny_remote(opts):
         return
     conn.server.vip.rpc.call(AUTH, "deny_authorization",
                              opts.user_id).get(
-        timeout=4
+        timeout=opts.timeout
     )
 
 
@@ -267,7 +267,7 @@ def delete_remote(opts):
         return
     conn.server.vip.rpc.call(AUTH, "delete_authorization",
                              opts.user_id).get(
-        timeout=4
+        timeout=opts.timeout
     )
 
 
@@ -489,7 +489,8 @@ def add_auth(opts):
         add_server_key(opts)
 
     try:
-        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry).get(timeout=4)
+        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry).get(
+            timeout=opts.timeout)
         _stdout.write("added entry {}\n".format(entry))
     except AuthException as err:
         _stderr.write("ERROR: %s\n" % str(err))
@@ -518,7 +519,7 @@ def remove_auth(opts):
         return
     try:
         conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices",
-                                 opts.indices).get(timeout=4)
+                                 opts.indices).get(timeout=opts.timeout)
         if len(opts.indices) > 1:
             msg = "removed entries at indices {}".format(opts.indices)
         else:
@@ -549,7 +550,7 @@ def update_auth(opts):
         updated_entry = response
         conn.server.vip.rpc.call(
             AUTH, "auth_file.update_by_index", updated_entry, opts.index
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
         _stdout.write("updated entry at index {}\n".format(opts.index))
     except IndexError:
         _stderr.write("ERROR: invalid index %s\n" % opts.index)
@@ -571,7 +572,8 @@ def add_role(opts):
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
     roles[opts.role] = list(set(opts.capabilities))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(
+        timeout=opts.timeout)
     _stdout.write('added role "{}"\n'.format(opts.role))
 
 
@@ -604,7 +606,8 @@ def update_role(opts):
         roles[opts.role] = list(set(caps) - set(opts.capabilities))
     else:
         roles[opts.role] = list(set(caps) | set(opts.capabilities))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(
+        timeout=opts.timeout)
     _stdout.write('updated role "{}"\n'.format(opts.role))
 
 
@@ -621,7 +624,8 @@ def remove_role(opts):
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
     del roles[opts.role]
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(
+        timeout=opts.timeout)
     _stdout.write('removed role "{}"\n'.format(opts.role))
 
 
@@ -638,7 +642,8 @@ def add_group(opts):
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
     groups[opts.group] = list(set(opts.roles))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(
+        timeout=opts.timeout)
     _stdout.write('added group "{}"\n'.format(opts.group))
 
 
@@ -671,7 +676,8 @@ def update_group(opts):
         groups[opts.group] = list(set(roles) - set(opts.roles))
     else:
         groups[opts.group] = list(set(roles) | set(opts.roles))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(
+        timeout=opts.timeout)
     _stdout.write('updated group "{}"\n'.format(opts.group))
 
 
@@ -688,7 +694,8 @@ def remove_group(opts):
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
     del groups[opts.group]
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(
+        timeout=opts.timeout)
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
@@ -713,7 +720,7 @@ def add_agent_rpc_authorizations(opts):
     try:
         conn.server.vip.rpc.call(
             AUTH, "add_rpc_authorizations", agent_id, agent_method, added_auths
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
     except RemoteError:
         # vctl reports a RemoteError as an error; the handlers below only log.
         raise
@@ -755,7 +762,7 @@ def remove_agent_rpc_authorizations(opts):
             agent_id,
             agent_method,
             removed_auths,
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
     except RemoteError:
         # vctl reports a RemoteError as an error; the handlers below only log.
         raise

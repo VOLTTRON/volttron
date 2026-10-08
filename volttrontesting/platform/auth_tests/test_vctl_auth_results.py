@@ -136,7 +136,7 @@ def vctl(tmp_path, monkeypatch):
         func, fields, _ = COMMANDS[command]
         opts = SimpleNamespace(connection=SimpleNamespace(
             server=SimpleNamespace(vip=SimpleNamespace(rpc=platform))),
-            **fields)
+            timeout=60, **fields)
         return func(opts)
 
     return SimpleNamespace(run=run, auth_path=auth_path, stdout=stdout,
@@ -205,7 +205,7 @@ def test_change_never_answered_is_not_waited_on_forever(vctl, monkeypatch,
     with pytest.raises(gevent.Timeout):
         vctl.run(command)
 
-    assert len(waits) == 1 and waits[0] is not None
+    assert waits == [60]
     success = COMMANDS[command][2]
     if success:
         assert success not in vctl.stdout.getvalue()
