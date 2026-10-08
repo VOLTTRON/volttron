@@ -497,9 +497,9 @@ def remove_auth(opts):
         conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices",
                                  opts.indices).get(timeout=opts.timeout)
         if len(opts.indices) > 1:
-            msg = "removed entries at indices {}".format(opts.indices)
+            msg = f"removed entries at indices {opts.indices}"
         else:
-            msg = "removed entry at index {}".format(opts.indices)
+            msg = f"removed entry at index {opts.indices}"
         _stdout.write(msg + "\n")
     except AuthException as err:
         _stderr.write("ERROR: %s\n" % str(err))
