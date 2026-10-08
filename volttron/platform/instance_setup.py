@@ -115,15 +115,16 @@ def _update_config_file(instance_name=None, web_secret_key=None):
         config.write(configfile)
 
 
-def _cmd(cmdargs):
+def _cmd(cmdargs, env=None):
     """Executes the passed command.
 
     :param cmdargs: A list of arguments that should be passed to Popen.
     :type cmdargs: [str]
+    :param env: environment for the subprocess; defaults to os.environ.
     """
     if verbose:
         print(cmdargs)
-    process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
+    process = Popen(cmdargs, env=os.environ if env is None else env, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
     out, error = process.communicate()
     if process.returncode != 0:
@@ -224,15 +225,18 @@ def _install_agent(agent_dir, config, tag, identity):
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
     # Allow a little extra time for VC to install, especially for RMQ
+    env = None
     if tag in ['vc', 'platform_driver']:
         cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file,
                      "--tag", tag, "--timeout", "360", "--force"]
+        # 360 exceeds vctl's default --timeout maximum; raise it for this call only.
+        env = dict(os.environ, VOLTTRON_VCTL_MAX_TIMEOUT="360")
     else:
         cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
     if identity:
         cmd_array.extend(["--vip-identity", identity])
     cmd_array.append(agent_dir)
-    _cmd(cmd_array)
+    _cmd(cmd_array, env)
 
 
 def _is_agent_installed(tag):

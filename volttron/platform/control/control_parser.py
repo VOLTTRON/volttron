@@ -32,6 +32,7 @@ import collections
 import logging
 import logging.config
 import logging.handlers
+import math
 import os
 import sys
 from datetime import datetime, timedelta
@@ -460,6 +461,39 @@ def priority(value):
     return "{:02}".format(n)
 
 
+MAX_TIMEOUT_SECONDS = 300
+MAX_TIMEOUT_ENV = "VOLTTRON_VCTL_MAX_TIMEOUT"
+
+
+def _positive_seconds(text, what):
+    try:
+        seconds = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid {what} {text!r}: not a number")
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise argparse.ArgumentTypeError(
+            f"invalid {what} {text!r}: must be a finite number greater than 0")
+    return seconds
+
+
+def timeout_seconds(value):
+    """argparse type for --timeout: a finite number greater than 0 and at most
+    the maximum, since inf, nan and huge values never fire and 0 or less fires
+    at once. The maximum is read per call so it can be overridden by
+    MAX_TIMEOUT_ENV."""
+    seconds = _positive_seconds(value, "timeout")
+    override = os.environ.get(MAX_TIMEOUT_ENV)
+    if override is None:
+        maximum = MAX_TIMEOUT_SECONDS
+    else:
+        maximum = _positive_seconds(override, MAX_TIMEOUT_ENV)
+    if seconds > maximum:
+        raise argparse.ArgumentTypeError(
+            f"invalid timeout {value!r}: must not exceed {maximum:g} seconds; "
+            f"set {MAX_TIMEOUT_ENV} to change the maximum")
+    return seconds
+
+
 def get_keys(opts):
     """Gets keys from keystore and known-hosts store"""
     hosts = KnownHostsStore()
@@ -504,9 +538,10 @@ def main():
     global_args.add_argument(
         "-t",
         "--timeout",
-        type=float,
+        type=timeout_seconds,
         metavar="SECS",
-        help="timeout in seconds for remote calls (default: %(default)g)",
+        help="timeout in seconds for remote calls, at most 300 unless "
+        "VOLTTRON_VCTL_MAX_TIMEOUT is set (default: %(default)g)",
     )
     global_args.add_argument(
         "--msgdebug", help="route all messages to an agent while debugging")
