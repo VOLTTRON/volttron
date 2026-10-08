@@ -287,7 +287,8 @@ def list_auth(opts, indices=None):
         )
         return
 
-    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)[
         "allow_list"]
     print_out = []
     if entries:
@@ -505,7 +506,8 @@ def remove_auth(opts):
         )
         return
     entry_count = len(
-        conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
+        conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+            timeout=opts.timeout)["allow_list"]
     )
 
     for i in opts.indices:
@@ -538,7 +540,8 @@ def update_auth(opts):
         )
         return
 
-    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)[
         "allow_list"]
     try:
         if opts.index < 0:
@@ -567,7 +570,8 @@ def add_role(opts):
         )
         return
 
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     if opts.role in roles:
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
@@ -585,7 +589,8 @@ def list_roles(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     _print_two_columns(roles, "ROLE", "CAPABILITIES")
 
 
@@ -597,7 +602,8 @@ def update_role(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -619,7 +625,8 @@ def remove_role(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -637,7 +644,8 @@ def add_group(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
@@ -655,7 +663,8 @@ def list_groups(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     _print_two_columns(groups, "GROUPS", "ROLES")
 
 
@@ -667,7 +676,8 @@ def update_group(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -689,7 +699,8 @@ def remove_group(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return

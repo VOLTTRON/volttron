@@ -114,6 +114,13 @@ COMMANDS = {
                    {"pattern": ["x.m", "c"]}),
 }
 
+# Commands whose only RPC is the auth file read.
+READ_ONLY = {
+    "list": (control_auth.list_auth, {}),
+    "list-roles": (control_auth.list_roles, {}),
+    "list-groups": (control_auth.list_groups, {}),
+}
+
 
 @pytest.fixture
 def vctl(monkeypatch):
@@ -123,14 +130,17 @@ def vctl(monkeypatch):
     monkeypatch.setattr(control_auth, "_ask_for_auth_fields",
                         lambda **entry: dict(entry, comments="edited"))
 
-    def run(command, delay, timeout=OPTS_TIMEOUT):
-        func, fields = COMMANDS[command]
+    def run(command, delay, timeout=OPTS_TIMEOUT, read_delay=None):
+        func, fields = {**COMMANDS, **READ_ONLY}[command]
         rpc = _Rpc(delay)
         real_call = rpc.call
 
         def call(peer, method, *args):
             if method == "auth_file.read":
-                return _Read(copy.deepcopy(_AUTH_FILE))
+                value = copy.deepcopy(_AUTH_FILE)
+                if read_delay is None:
+                    return _Read(value)
+                return _Reply(value, read_delay, rpc.waits)
             return real_call(peer, method, *args)
 
         rpc.call = call
@@ -158,6 +168,33 @@ def test_reply_slower_than_four_seconds_succeeds_within_timeout(vctl, command):
 @pytest.mark.parametrize("command", sorted(COMMANDS))
 def test_reply_slower_than_timeout_still_times_out(vctl, command):
     rpc, func, opts = vctl(command, OPTS_TIMEOUT + 1)
+
+    with pytest.raises(gevent.Timeout):
+        func(opts)
+
+    assert rpc.waits == [OPTS_TIMEOUT]
+
+
+READ_COMMANDS = ["list", "list-roles", "list-groups", "remove", "update",
+                 "add-role", "update-role", "remove-role", "add-group",
+                 "update-group", "remove-group"]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("command", READ_COMMANDS)
+def test_slow_auth_file_read_succeeds_within_timeout(vctl, command):
+    rpc, func, opts = vctl(command, 0, read_delay=SLOW_REPLY)
+
+    func(opts)
+
+    assert rpc.waits[0] == OPTS_TIMEOUT
+    assert all(wait == OPTS_TIMEOUT for wait in rpc.waits)
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("command", READ_COMMANDS)
+def test_auth_file_read_slower_than_timeout_times_out(vctl, command):
+    rpc, func, opts = vctl(command, 0, read_delay=OPTS_TIMEOUT + 1)
 
     with pytest.raises(gevent.Timeout):
         func(opts)
