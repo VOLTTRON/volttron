@@ -32,6 +32,7 @@ import collections
 import logging
 import logging.config
 import logging.handlers
+import math
 import os
 import sys
 from datetime import datetime, timedelta
@@ -460,6 +461,21 @@ def priority(value):
     return "{:02}".format(n)
 
 
+def timeout_seconds(value):
+    """argparse type for --timeout: a finite number greater than 0, since inf,
+    nan and huge values never fire and 0 or less fires at once."""
+    try:
+        seconds = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "invalid timeout {!r}: not a number".format(value))
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise argparse.ArgumentTypeError(
+            "invalid timeout {!r}: must be a finite number greater than "
+            "0".format(value))
+    return seconds
+
+
 def get_keys(opts):
     """Gets keys from keystore and known-hosts store"""
     hosts = KnownHostsStore()
@@ -504,7 +520,7 @@ def main():
     global_args.add_argument(
         "-t",
         "--timeout",
-        type=float,
+        type=timeout_seconds,
         metavar="SECS",
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
