@@ -25,13 +25,14 @@ fixed few seconds (#3367)."""
 
 import copy
 import io
+import sys
 from types import SimpleNamespace
 
 import gevent
 import gevent.event
 import pytest
 
-from volttron.platform.control import control_auth
+from volttron.platform.control import control_auth, control_parser
 
 # Longer than the old fixed 4 second wait, shorter than the --timeout used.
 SLOW_REPLY = 5
@@ -57,8 +58,8 @@ class _Reply:
 
 
 class _Read:
-    """An immediate reply to a read; the reads are not among the waits under
-    test, so this accepts any get()."""
+    """An immediate reply to a read; this accepts any get(), so the wait
+    passed to it is not recorded."""
 
     def __init__(self, value):
         self.value = value
@@ -175,6 +176,32 @@ def test_reply_slower_than_timeout_still_times_out(vctl, command):
     assert rpc.waits == [OPTS_TIMEOUT]
 
 
+LIST_REMOTES_RPCS = ["get_approved_authorizations",
+                     "get_denied_authorizations",
+                     "get_pending_authorizations"]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("slow", LIST_REMOTES_RPCS)
+def test_list_remotes_each_wait_times_out(slow):
+    waits = []
+
+    def call(peer, method, *args):
+        delay = OPTS_TIMEOUT + 1 if method == slow else 0
+        return _Reply([], delay, waits)
+
+    opts = SimpleNamespace(
+        connection=SimpleNamespace(
+            server=SimpleNamespace(vip=SimpleNamespace(
+                rpc=SimpleNamespace(call=call)))),
+        timeout=OPTS_TIMEOUT, status=None)
+
+    with pytest.raises(gevent.Timeout):
+        control_auth.list_remotes(opts)
+
+    assert waits == [OPTS_TIMEOUT] * (LIST_REMOTES_RPCS.index(slow) + 1)
+
+
 READ_COMMANDS = ["list", "list-roles", "list-groups", "remove", "update",
                  "add-role", "update-role", "remove-role", "add-group",
                  "update-group", "remove-group"]
@@ -208,6 +235,9 @@ def test_real_slow_reply_succeeds_within_timeout(monkeypatch):
     stdout = io.StringIO()
     monkeypatch.setattr(control_auth, "_stdout", stdout)
     result = gevent.event.AsyncResult()
+    # spawn_later times from the loop's cached clock, which is stale unless
+    # refreshed, and a stale clock makes the reply arrive early.
+    gevent.get_hub().loop.update_now()
     gevent.spawn_later(4.5, result.set, None)
     rpc = SimpleNamespace(call=lambda *args: result)
     func, fields = COMMANDS["approve"]
@@ -222,3 +252,35 @@ def test_real_slow_reply_succeeds_within_timeout(monkeypatch):
         pytest.fail("vctl gave up before the reply arrived")
 
     assert result.ready()
+
+
+@pytest.mark.auth
+def test_main_reports_timed_out_auth_command_and_exits_75(monkeypatch,
+                                                           tmp_path):
+    """Stubbed: the home directory, the agent install platform, the
+    running check, the connection and the log setup. The reply is a real
+    AsyncResult that is never set, and the parser, the --timeout option and
+    the timeout handling in main() run unstubbed."""
+    stderr = io.StringIO()
+    never = gevent.event.AsyncResult()
+    rpc = SimpleNamespace(call=lambda *args: never)
+    connection = SimpleNamespace(
+        server=SimpleNamespace(vip=SimpleNamespace(rpc=rpc)),
+        kill=lambda: None)
+    monkeypatch.setattr(control_parser, "get_home", lambda: str(tmp_path))
+    monkeypatch.setattr(control_parser, "_stderr", stderr)
+    monkeypatch.setattr(control_parser, "log_to_file", lambda *a, **k: None)
+    monkeypatch.setattr(control_parser.utils, "is_volttron_running",
+                        lambda home: True)
+    monkeypatch.setattr(control_parser, "ControlConnection",
+                        lambda address: connection)
+    monkeypatch.setattr(
+        control_parser.aipmod, "AIPplatform",
+        lambda opts: SimpleNamespace(setup=lambda: None))
+    monkeypatch.setenv("SKIP_VOLTTRON_CONFIG", "1")
+    monkeypatch.setattr(
+        sys, "argv",
+        ["vctl", "--timeout", "0.2", "auth", "remote", "approve", "u"])
+
+    assert control_parser.main() == 75
+    assert stderr.getvalue() == "auth: operation timed out\n"
