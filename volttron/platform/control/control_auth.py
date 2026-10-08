@@ -110,47 +110,21 @@ def list_remotes(opts):
         return
 
     output_view = []
-    # try:
-    #     pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(
-    #         timeout=4)
-    #     for csr in pending_csrs:
-    #         output_view.append(
-    #             {
-    #                 "entry": {
-    #                     "user_id": csr["identity"],
-    #                     "address": csr["remote_ip_address"],
-    #                 },
-    #                 "status": csr["status"],
-    #             }
-    #         )
-    # except TimeoutError:
-    #     print("Certs timed out")
-    try:
-        approved_certs = conn.server.vip.rpc.call(
-            AUTH, "get_approved_authorizations"
-        ).get(timeout=opts.timeout)
-        for value in approved_certs:
-            output_view.append({"entry": value, "status": "APPROVED"})
-    except TimeoutError:
-        print("Approved credentials timed out")
-    try:
-        denied_certs = conn.server.vip.rpc.call(AUTH,
-                                                "get_denied_authorizations").get(
-            timeout=opts.timeout
-        )
-        for value in denied_certs:
-            output_view.append({"entry": value, "status": "DENIED"})
-    except TimeoutError:
-        print("Denied credentials timed out")
-    try:
-        pending_certs = conn.server.vip.rpc.call(AUTH,
-                                                 "get_pending_authorizations").get(
-            timeout=opts.timeout
-        )
-        for value in pending_certs:
-            output_view.append({"entry": value, "status": "PENDING"})
-    except TimeoutError:
-        print("Pending credentials timed out")
+    approved_certs = conn.server.vip.rpc.call(
+        AUTH, "get_approved_authorizations"
+    ).get(timeout=opts.timeout)
+    for value in approved_certs:
+        output_view.append({"entry": value, "status": "APPROVED"})
+    denied_certs = conn.server.vip.rpc.call(
+        AUTH, "get_denied_authorizations"
+    ).get(timeout=opts.timeout)
+    for value in denied_certs:
+        output_view.append({"entry": value, "status": "DENIED"})
+    pending_certs = conn.server.vip.rpc.call(
+        AUTH, "get_pending_authorizations"
+    ).get(timeout=opts.timeout)
+    for value in pending_certs:
+        output_view.append({"entry": value, "status": "PENDING"})
 
     if not output_view:
         print("No remote certificates or credentials")
@@ -733,13 +707,8 @@ def add_agent_rpc_authorizations(opts):
             AUTH, "add_rpc_authorizations", agent_id, agent_method, added_auths
         ).get(timeout=opts.timeout)
     except RemoteError:
-        # vctl reports a RemoteError as an error; the handlers below only log.
+        # vctl reports a RemoteError as an error; the handler below only logs.
         raise
-    except TimeoutError:
-        _log.error(
-            f"Adding RPC authorizations {added_auths} for {agent_id}'s "
-            f"method {agent_method} timed out"
-        )
     except Exception as e:
         _log.error(
             f"{e}) \nCommand format should be agent_id.method "
@@ -775,13 +744,8 @@ def remove_agent_rpc_authorizations(opts):
             removed_auths,
         ).get(timeout=opts.timeout)
     except RemoteError:
-        # vctl reports a RemoteError as an error; the handlers below only log.
+        # vctl reports a RemoteError as an error; the handler below only logs.
         raise
-    except TimeoutError:
-        _log.error(
-            f"Adding RPC authorizations {removed_auths} for {agent_id}'s "
-            f"method {agent_method} timed out"
-        )
     except Exception as e:
         _log.error(
             f"{e}) \nCommand format should be agent_id.method "
