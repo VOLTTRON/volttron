@@ -109,3 +109,79 @@ def test_default_timeout_is_60(run_vctl):
     run_vctl(["peerlist"])
 
     assert run_vctl.seen["timeout"] == 60
+
+
+MAX_ENV = "VOLTTRON_VCTL_MAX_TIMEOUT"
+
+
+def test_maximum_timeout_is_300_seconds():
+    assert control_parser.MAX_TIMEOUT_SECONDS == 300
+
+
+def test_timeout_at_the_maximum_is_kept(run_vctl, monkeypatch):
+    monkeypatch.delenv(MAX_ENV, raising=False)
+
+    run_vctl(["--timeout", "300", "peerlist"])
+
+    assert run_vctl.seen["timeout"] == 300.0
+    assert len(run_vctl.connections) == 1
+
+
+def test_timeout_above_the_maximum_is_rejected(run_vctl, monkeypatch, capsys):
+    monkeypatch.delenv(MAX_ENV, raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        run_vctl(["--timeout", "300.5", "peerlist"])
+
+    err = capsys.readouterr().err
+    assert exc.value.code == 2
+    assert "300" in err
+    assert MAX_ENV in err
+    assert "timeout" not in run_vctl.seen
+    assert run_vctl.connections == []
+
+
+def test_config_file_timeout_above_the_maximum_is_rejected(
+        run_vctl, monkeypatch, capsys):
+    monkeypatch.delenv(MAX_ENV, raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        run_vctl(["peerlist"], config_text="timeout = 301\n")
+
+    assert exc.value.code == 2
+    assert MAX_ENV in capsys.readouterr().err
+    assert run_vctl.connections == []
+
+
+def test_environment_raises_the_maximum(run_vctl, monkeypatch, capsys):
+    monkeypatch.setenv(MAX_ENV, "600")
+
+    run_vctl(["--timeout", "600", "peerlist"])
+    assert run_vctl.seen["timeout"] == 600.0
+
+    with pytest.raises(SystemExit) as exc:
+        run_vctl(["--timeout", "601", "peerlist"])
+    assert exc.value.code == 2
+    assert "600" in capsys.readouterr().err
+
+
+def test_environment_lowers_the_maximum(run_vctl, monkeypatch):
+    monkeypatch.setenv(MAX_ENV, "10")
+
+    with pytest.raises(SystemExit) as exc:
+        run_vctl(["--timeout", "11", "peerlist"])
+
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "0", "-1", "abc", ""])
+def test_invalid_environment_maximum_is_a_usage_error(
+        run_vctl, monkeypatch, capsys, value):
+    monkeypatch.setenv(MAX_ENV, value)
+
+    with pytest.raises(SystemExit) as exc:
+        run_vctl(["--timeout", "5", "peerlist"])
+
+    assert exc.value.code == 2
+    assert MAX_ENV in capsys.readouterr().err
+    assert run_vctl.connections == []
