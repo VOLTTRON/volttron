@@ -148,7 +148,8 @@ vctl Optional Arguments
 
 - **-c FILE, --config FILE** - Start the platform using the configuration from the provided FILE
 - **--debug** - show tracebacks for errors rather than a brief message
-- **-t SECS, --timeout SECS** - timeout in seconds for remote calls (default: 60)
+- **-t SECS, --timeout SECS** - timeout in seconds for remote calls (default: 60). The maximum is 300 seconds; set the
+  environment variable ``VOLTTRON_VCTL_MAX_TIMEOUT`` (seconds) to change the maximum
 - **--msgdebug MSGDEBUG** - route all messages to an agent while debugging
 - **--vip-address ZMQADDR** - ZeroMQ URL to bind for VIP connections
 - **-l FILE, --log FILE** - send log output to FILE instead of standard output/error
