@@ -1,6 +1,6 @@
-"""Unit tests for the actuator's driver_write gate on the pub/sub interface.
+"""Unit tests for the actuator's actuator_control gate on the pub/sub interface.
 
-The RPC methods are gated by @RPC.allow(DRIVER_WRITES); these tests exercise the helper that applies the same
+The RPC methods are gated by @RPC.allow(ACTUATOR_CONTROL); these tests exercise the helper that applies the same
 rule to pub/sub senders, without a running platform.
 """
 import inspect
@@ -11,7 +11,7 @@ import gevent
 import pytest
 
 from actuator.agent import ActuatorAgent
-from volttron.platform.agent.known_identities import DRIVER_WRITES
+from volttron.platform.agent.known_identities import ACTUATOR_CONTROL, DRIVER_WRITES
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent.subsystems.rpc import RPC
 
@@ -42,9 +42,9 @@ def _gated_agent(grants):
 
 @pytest.mark.parametrize("method", ['set_point', 'set_multiple_points', 'revert_point', 'revert_device',
                                     'request_new_schedule', 'request_cancel_schedule'])
-def test_write_and_schedule_rpcs_require_driver_write(method):
+def test_write_and_schedule_rpcs_require_actuator_control(method):
     annotations = getattr(getattr(ActuatorAgent, method), '_annotations', {})
-    assert annotations.get('rpc.allow_capabilities') == {DRIVER_WRITES}
+    assert annotations.get('rpc.allow_capabilities') == {ACTUATOR_CONTROL}
 
 
 @pytest.mark.parametrize("method", ['get_point', 'get_multiple_points', 'scrape_all'])
@@ -53,13 +53,19 @@ def test_read_rpcs_stay_open(method):
     assert not annotations.get('rpc.allow_capabilities')
 
 
+def test_actuator_control_is_its_own_capability():
+    assert ACTUATOR_CONTROL == 'actuator_control'
+    assert ACTUATOR_CONTROL != DRIVER_WRITES
+
+
 def test_sender_with_capability_may_write():
-    agent = _agent(capabilities={DRIVER_WRITES: None, 'edit_config_store': {'identity': 'x'}})
+    agent = _agent(capabilities={ACTUATOR_CONTROL: None, 'edit_config_store': {'identity': 'x'}})
     assert ActuatorAgent._sender_may_write(agent, 'some.agent', 'set_point', *SET_ARGS) is True
     agent.vip.auth.get_capabilities.assert_called_once_with('some.agent')
 
 
-@pytest.mark.parametrize("capabilities", [None, {}, [], {'edit_config_store': {'identity': 'x'}}])
+@pytest.mark.parametrize("capabilities", [None, {}, [], {'edit_config_store': {'identity': 'x'}},
+                                           {DRIVER_WRITES: None}])
 def test_sender_without_capability_is_refused(capabilities):
     agent = _agent(capabilities=capabilities)
     assert ActuatorAgent._sender_may_write(agent, 'some.agent', 'set_point', *SET_ARGS) is False
@@ -104,24 +110,24 @@ RESTRICTABLE = [
 
 @pytest.mark.parametrize("method, args, param, value", RESTRICTABLE)
 def test_restricted_grant_that_matches_is_honored(method, args, param, value):
-    agent = _agent(capabilities={DRIVER_WRITES: {param: value}})
+    agent = _agent(capabilities={ACTUATOR_CONTROL: {param: value}})
     assert ActuatorAgent._sender_may_write(agent, 'some.agent', method, 'some.agent', *args) is True
 
 
 @pytest.mark.parametrize("method, args, param, value", RESTRICTABLE)
 def test_restricted_grant_that_does_not_match_is_refused(method, args, param, value):
-    agent = _agent(capabilities={DRIVER_WRITES: {param: value + '-other'}})
+    agent = _agent(capabilities={ACTUATOR_CONTROL: {param: value + '-other'}})
     assert ActuatorAgent._sender_may_write(agent, 'some.agent', method, 'some.agent', *args) is False
 
 
 @pytest.mark.parametrize("method, args, param, value", RESTRICTABLE)
 def test_restricted_grant_on_a_parameter_the_method_lacks_is_refused(method, args, param, value):
-    agent = _agent(capabilities={DRIVER_WRITES: {'path': 'devA'}})
+    agent = _agent(capabilities={ACTUATOR_CONTROL: {'path': 'devA'}})
     assert ActuatorAgent._sender_may_write(agent, 'some.agent', method, 'some.agent', *args) is False
 
 
 def test_restricted_grant_matches_regex_with_fullmatch():
-    agent = _agent(capabilities={DRIVER_WRITES: {'topic': '/dev/.*/'}})
+    agent = _agent(capabilities={ACTUATOR_CONTROL: {'topic': '/dev/.*/'}})
     assert ActuatorAgent._sender_may_write(agent, 's', 'set_point', 's', 'dev/point', 1) is True
     assert ActuatorAgent._sender_may_write(agent, 's', 'set_point', 's', 'other/dev/point', 1) is False
     assert ActuatorAgent._sender_may_write(agent, 's', 'set_point', 's', 'dev/point\n', 1) is False
@@ -147,14 +153,14 @@ def test_pubsub_gate_agrees_with_the_rpc_gate(grant, args):
     # The stub must keep the signature the RPC gate binds arguments against.
     assert inspect.signature(set_point) == inspect.signature(ActuatorAgent.set_point)
 
-    capabilities = {DRIVER_WRITES: grant}
+    capabilities = {ACTUATOR_CONTROL: grant}
     owner = _agent(capabilities=capabilities)
     rpc = object.__new__(RPC)
     rpc._enable_auth = True
     rpc._message_bus = 'zmq'
     rpc._owner = owner
     rpc.context = types.SimpleNamespace(vip_message=types.SimpleNamespace(user='s'))
-    checked = rpc._add_auth_check(types.MethodType(set_point, object()), {DRIVER_WRITES})
+    checked = rpc._add_auth_check(types.MethodType(set_point, object()), {ACTUATOR_CONTROL})
     try:
         rpc_allows = checked(*args) == 'ran'
     except Exception:
@@ -169,7 +175,7 @@ def test_refused_pubsub_write_publishes_unauthorized_error():
     ActuatorAgent._refuse_pubsub_write(agent, 'some.agent', 'dev/point')
     prefix, point, headers, error = agent._push_result_topic_pair.call_args[0]
     assert point == 'dev/point'
-    assert error['type'] == 'Unauthorized' and DRIVER_WRITES in error['value']
+    assert error['type'] == 'Unauthorized' and ACTUATOR_CONTROL in error['value']
 
 
 def test_handle_set_refuses_before_touching_the_driver():
@@ -186,7 +192,7 @@ def test_handle_schedule_request_refuses_with_failure_result():
     headers = {'type': 'NEW_SCHEDULE', 'taskID': 't', 'priority': 'LOW'}
     result = ActuatorAgent.handle_schedule_request(agent, 'pubsub', 'no.cap', 'bus',
                                                    'devices/actuators/schedule/request', headers, [['dev', 'a', 'b']])
-    assert result['result'] == 'FAILURE' and DRIVER_WRITES in result['info']
+    assert result['result'] == 'FAILURE' and ACTUATOR_CONTROL in result['info']
     agent._request_new_schedule.assert_not_called()
     agent.vip.pubsub.publish.assert_called_once()
 
@@ -243,7 +249,7 @@ def test_handler_without_capability_is_refused_and_does_not_reach_the_driver(cal
 
 @pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
 def test_handler_with_capability_reaches_the_driver(call, reaches, schedule):
-    agent = _gated_agent({'granted': {DRIVER_WRITES: None}})
+    agent = _gated_agent({'granted': {ACTUATOR_CONTROL: None}})
     call(agent, 'granted', {})
     assert getattr(agent, reaches).called
     assert not _refused(agent, schedule)
@@ -252,7 +258,7 @@ def test_handler_with_capability_reaches_the_driver(call, reaches, schedule):
 @pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
 def test_gate_uses_the_bus_sender_not_the_requester_header(call, reaches, schedule):
     # An ungranted sender cannot borrow a granted identity through the requesterID header.
-    agent = _gated_agent({'granted': {DRIVER_WRITES: None}})
+    agent = _gated_agent({'granted': {ACTUATOR_CONTROL: None}})
     call(agent, 'ungranted', {'requesterID': 'granted'})
     assert _refused(agent, schedule)
     assert not getattr(agent, reaches).called
@@ -260,7 +266,7 @@ def test_gate_uses_the_bus_sender_not_the_requester_header(call, reaches, schedu
 
 @pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
 def test_gate_ignores_an_ungranted_requester_header_on_a_granted_sender(call, reaches, schedule):
-    agent = _gated_agent({'granted': {DRIVER_WRITES: None}})
+    agent = _gated_agent({'granted': {ACTUATOR_CONTROL: None}})
     call(agent, 'granted', {'requesterID': 'ungranted'})
     assert getattr(agent, reaches).called
     assert getattr(agent, reaches).call_args[0][0] == 'granted'
@@ -283,12 +289,12 @@ HANDLER_ARGS = [
 
 @pytest.mark.parametrize("call, reaches, schedule, param, value", HANDLER_ARGS)
 def test_handler_passes_its_real_arguments_to_a_restricted_grant(call, reaches, schedule, param, value):
-    allowed = _gated_agent({'s': {DRIVER_WRITES: {param: value}}})
+    allowed = _gated_agent({'s': {ACTUATOR_CONTROL: {param: value}}})
     call(allowed, 's', {})
     assert getattr(allowed, reaches).called
     assert not _refused(allowed, schedule)
 
-    refused = _gated_agent({'s': {DRIVER_WRITES: {param: 'not-' + str(value)}}})
+    refused = _gated_agent({'s': {ACTUATOR_CONTROL: {param: 'not-' + str(value)}}})
     call(refused, 's', {})
     assert not getattr(refused, reaches).called
     assert _refused(refused, schedule)
@@ -300,3 +306,48 @@ def test_handle_set_refuses_after_a_capability_lookup_timeout():
     _call_set(agent, 's', {})
     agent._refuse_pubsub_write.assert_called_once_with('s', 'dev/point')
     assert not agent._set_point.called
+
+
+@pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
+def test_handler_with_only_driver_write_is_refused(call, reaches, schedule):
+    agent = _gated_agent({'writer': {DRIVER_WRITES: None}})
+    call(agent, 'writer', {})
+    assert _refused(agent, schedule)
+    assert not getattr(agent, reaches).called
+
+
+@pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
+def test_driver_write_does_not_narrow_or_widen_an_actuator_control_grant(call, reaches, schedule):
+    agent = _gated_agent({'both': {DRIVER_WRITES: {'topic': 'never'}, ACTUATOR_CONTROL: None}})
+    call(agent, 'both', {})
+    assert getattr(agent, reaches).called
+    assert not _refused(agent, schedule)
+
+
+@pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
+def test_pubsub_compat_sender_is_refused_without_actuator_control(call, reaches, schedule):
+    agent = _gated_agent({'pubsub.compat': {DRIVER_WRITES: None}})
+    call(agent, 'pubsub.compat', {})
+    assert _refused(agent, schedule)
+    assert not getattr(agent, reaches).called
+
+
+@pytest.mark.parametrize("call, reaches, schedule", HANDLERS)
+def test_pubsub_compat_sender_is_allowed_with_actuator_control(call, reaches, schedule):
+    agent = _gated_agent({'pubsub.compat': {ACTUATOR_CONTROL: None}})
+    call(agent, 'pubsub.compat', {})
+    assert getattr(agent, reaches).called
+    assert not _refused(agent, schedule)
+
+
+def test_schedule_refusal_headers_come_from_the_actuator_not_the_caller():
+    agent = MagicMock()
+    agent._sender_may_write.return_value = False
+    agent._get_headers.return_value = {'requesterID': 'no.cap', 'taskID': 't'}
+    headers = {'type': 'NEW_SCHEDULE', 'taskID': 't', 'priority': 'LOW', 'injected': 'x'}
+    ActuatorAgent.handle_schedule_request(agent, 'pubsub', 'no.cap', 'bus', topics.ACTUATOR_SCHEDULE_REQUEST,
+                                          headers, [['dev', 'a', 'b']])
+    agent._get_headers.assert_called_once_with('no.cap', task_id='t')
+    published = agent.vip.pubsub.publish.call_args
+    assert published.kwargs['headers'] == {'requesterID': 'no.cap', 'taskID': 't'}
+    assert 'injected' not in published.kwargs['headers']
