@@ -1011,8 +1011,14 @@ def test_device_write_refused_by_the_actuator_returns_403_with_a_fixed_body(mock
 
 
 @pytest.mark.parametrize('method', ['PUT', 'DELETE'])
-def test_device_write_failing_for_another_reason_is_not_reported_as_a_refusal(mock_platform_web_service, method):
-    other = RemoteError('unhandled exception', exc_type='builtins.ValueError', exc_args=['bad value'])
+@pytest.mark.parametrize('other', [
+    RemoteError('unhandled exception', exc_type='builtins.ValueError', exc_args=['bad value']),
+    RemoteError('unhandled exception', exc_type='volttron.platform.jsonrpc.Error', exc_args=[-32601, 'other']),
+    RemoteError('unhandled exception', exc_type='volttron.platform.jsonrpc.Error', exc_args=[]),
+    RemoteError('unhandled exception'),
+], ids=['value-error', 'other-jsonrpc-code', 'no-args', 'no-exc-info'])
+def test_device_write_failing_for_another_reason_is_not_reported_as_a_refusal(mock_platform_web_service, method,
+                                                                              other):
     with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
         env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
                                method=method, HTTP_AUTHORIZATION='BEARER foo')
