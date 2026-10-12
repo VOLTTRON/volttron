@@ -13,7 +13,7 @@ from werkzeug.urls import url_decode
 
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.jsonrpc import MethodNotFound, RemoteError
+from volttron.platform.jsonrpc import MethodNotFound, RemoteError, UNAUTHORIZED
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
 from volttron.platform.web.vui_pubsub import VUIPubsubManager
 
@@ -35,6 +35,18 @@ class LockError(Exception):
     """Error raised by actuator when the user does not have a device scheduled
     and tries to use methods that require exclusive access."""
     pass
+
+
+# Fixed text for a refused device write, so no part of the RPC error reaches the web client.
+DEVICE_WRITES_REFUSED = {'error': 'device writes through the VUI are not authorized on this platform'}
+
+
+def _is_unauthorized(error: RemoteError) -> bool:
+    """Whether a RemoteError carries the UNAUTHORIZED code raised by a capability check."""
+    exc_info = getattr(error, 'exc_info', None) or {}
+    exc_args = exc_info.get('exc_args')
+    return (exc_info.get('exc_type') == 'volttron.platform.jsonrpc.Error'
+            and isinstance(exc_args, (list, tuple)) and len(exc_args) > 0 and exc_args[0] == UNAUTHORIZED)
 
 
 def endpoint(func=None, *, admin_post=False):
@@ -774,6 +786,10 @@ class VUIEndpoints:
 
             except (LockError, OverrideError) as e:
                 return Response(json.dumps({'error': e}), 409, content_type='application/json')
+            except RemoteError as e:
+                if not _is_unauthorized(e):
+                    raise
+                return Response(json.dumps(DEVICE_WRITES_REFUSED), 403, content_type='application/json')
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
 
@@ -808,6 +824,10 @@ class VUIEndpoints:
 
             except (LockError, OverrideError) as e:
                 return Response(json.dumps({'error': e}), 409, content_type='application/json')
+            except RemoteError as e:
+                if not _is_unauthorized(e):
+                    raise
+                return Response(json.dumps(DEVICE_WRITES_REFUSED), 403, content_type='application/json')
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
 
