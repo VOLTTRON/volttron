@@ -971,6 +971,75 @@ def test_handle_platforms_devices_delete_response(mock_platform_web_service, top
                     assert "value_check_error" not in keys
 
 
+UNAUTHORIZED_DETAIL = ("method 'set_multiple_points' requires capabilities {'actuator_control'}, but capability "
+                       "{'allow_auth_modifications': None} was provided for user platform_web")
+DEVICE_WRITES_REFUSED = {'error': 'device writes through the VUI are not authorized on this platform'}
+
+
+def _unauthorized_error():
+    # The error the actuator's capability gate raises, as a caller receives it over RPC.
+    return RemoteError('unhandled exception', exc_type='volttron.platform.jsonrpc.Error',
+                       exc_args=[-32001, UNAUTHORIZED_DETAIL])
+
+
+def _refusing_actuator_rpc(error):
+    def _rpc(peer, meth, *args, external_platform=None, **kwargs):
+        if peer == 'platform.actuator' and meth in ('set_multiple_points', 'revert_device', 'revert_point'):
+            raise error
+        return _mock_devices_rpc(peer, meth, *args, external_platform=external_platform, **kwargs)
+    return _rpc
+
+
+@pytest.mark.parametrize('method, topic', [
+    ('PUT', 'Campus/Building1/Fake1/SampleWritableFloat1'),
+    ('DELETE', 'Campus/Building1/Fake1/SampleWritableFloat1'),
+    ('DELETE', 'Campus/Building1/Fake1/'),
+])
+def test_device_write_refused_by_the_actuator_returns_403_with_a_fixed_body(mock_platform_web_service, method, topic):
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env(f'/vui/platforms/my_instance_name/devices/{topic}', query_string='write-all=true',
+                               method=method, HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _refusing_actuator_rpc(_unauthorized_error())
+        response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
+        assert response.status_code == 403
+        assert json.loads(response.response[0]) == DEVICE_WRITES_REFUSED
+        body = response.response[0].decode() if isinstance(response.response[0], bytes) else response.response[0]
+        for leaked in ('actuator_control', 'set_multiple_points', 'allow_auth_modifications', 'platform_web',
+                       '-32001', 'requires capabilities'):
+            assert leaked not in body
+
+
+@pytest.mark.parametrize('method', ['PUT', 'DELETE'])
+def test_device_write_failing_for_another_reason_is_not_reported_as_a_refusal(mock_platform_web_service, method):
+    other = RemoteError('unhandled exception', exc_type='builtins.ValueError', exc_args=['bad value'])
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
+                               method=method, HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _refusing_actuator_rpc(other)
+        response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
+        assert response.status_code == 500
+        assert json.loads(response.response[0]) != DEVICE_WRITES_REFUSED
+
+
+def test_device_read_does_not_call_the_actuator_write_methods(mock_platform_web_service):
+    calls = []
+
+    def _rpc(peer, meth, *args, external_platform=None, **kwargs):
+        calls.append((peer, meth))
+        return _mock_devices_rpc(peer, meth, *args, external_platform=external_platform, **kwargs)
+
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
+                               method='GET', HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _rpc
+        response = vui_endpoints.handle_platforms_devices(env, {})
+    assert response.status_code == 200
+    assert not [c for c in calls if c[1] in ('set_multiple_points', 'revert_device', 'revert_point')]
+
+
 def test_handle_platforms_pubsub(mock_platform_web_service):
     pass
 
