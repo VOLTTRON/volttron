@@ -39,7 +39,7 @@ from mock import MagicMock
 from volttron.platform import get_services_core
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
-from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import ACTUATOR_CONTROL, DRIVER_WRITES, PLATFORM_DRIVER
 from volttron.platform.messaging.health import STATUS_GOOD
 
 REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
@@ -110,10 +110,10 @@ def publish_agent(request, volttron_instance):
     print("agent id: ", actuator_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    # The actuator's write and schedule RPCs are gated on driver_write (see #3298 for the driver); grant it to the
-    # test agent explicitly, since build_agent only grants edit_config_store by default.
+    # The actuator's write and schedule RPCs are gated on actuator_control; grant it to the test agent
+    # explicitly, since build_agent only grants edit_config_store by default.
     publish_agent = volttron_instance.build_agent(identity=TEST_AGENT)
-    volttron_instance.add_capabilities(publish_agent.core.publickey, [DRIVER_WRITES])
+    volttron_instance.add_capabilities(publish_agent.core.publickey, [ACTUATOR_CONTROL])
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
     def stop_agent():
@@ -1500,7 +1500,7 @@ def test_set_point_raises_remote_error_on_allow_no_lock_write_default_setting(pu
         agentid2 = "test-agent2"
         taskid = "test-task"
         publish_agent2 = volttron_instance.build_agent(identity=agentid2)
-        volttron_instance.add_capabilities(publish_agent2.core.publickey, [DRIVER_WRITES])
+        volttron_instance.add_capabilities(publish_agent2.core.publickey, [ACTUATOR_CONTROL])
 
         start = str(datetime.now())
         end = str(datetime.now() + timedelta(seconds=60))
@@ -1764,18 +1764,47 @@ def test_actuator_default_config_should_succeed(volttron_instance, publish_agent
     ('revert_point', ['fakedriver0/SampleWritableFloat1']),
     ('revert_device', ['fakedriver0']),
 ])
-def test_write_rpcs_require_driver_write_capability(publish_agent, volttron_instance, method, args):
-    """An authenticated bus peer without driver_write may read through the actuator but cannot schedule or write.
-    This closes the bypass of the Platform Driver's driver_write gate through the actuator."""
+def test_write_rpcs_require_actuator_control_capability(publish_agent, volttron_instance, method, args):
+    """An authenticated bus peer that holds driver_write but not actuator_control may read through the actuator
+    but cannot schedule or write."""
     if not volttron_instance.auth_enabled:
         pytest.skip("capability requirements are only enforced when authentication is enabled")
     no_cap_agent = volttron_instance.build_agent(identity="test-actuator-no-capability")
+    volttron_instance.add_capabilities(no_cap_agent.core.publickey, [DRIVER_WRITES])
     try:
         with pytest.raises(RemoteError) as exc_info:
             no_cap_agent.vip.rpc.call(PLATFORM_ACTUATOR, method, no_cap_agent.core.identity, *args).get(timeout=10)
-        assert "method '{}' requires capabilities {{'{}'}}".format(method, DRIVER_WRITES) in str(exc_info.value)
+        assert "method '{}' requires capabilities {{'{}'}}".format(method, ACTUATOR_CONTROL) in str(exc_info.value)
         # Reads stay open.
         assert no_cap_agent.vip.rpc.call(PLATFORM_ACTUATOR, 'get_point',
                                          'fakedriver0/SampleWritableFloat1').get(timeout=10) is not None
     finally:
         no_cap_agent.core.stop()
+
+
+@pytest.mark.actuator
+def test_actuator_control_alone_lets_the_actuator_write_through_its_own_driver_write(publish_agent,
+                                                                                      volttron_instance):
+    """The caller holds actuator_control and not driver_write; the write still reaches the driver because the
+    actuator writes with its own driver_write grant."""
+    if not volttron_instance.auth_enabled:
+        pytest.skip("capability requirements are only enforced when authentication is enabled")
+    control_agent = volttron_instance.build_agent(identity="test-actuator-control-only")
+    volttron_instance.add_capabilities(control_agent.core.publickey, [ACTUATOR_CONTROL])
+    taskid = 'task-control-only'
+    try:
+        start = str(datetime.now())
+        end = str(datetime.now() + timedelta(seconds=5))
+        result = control_agent.vip.rpc.call(PLATFORM_ACTUATOR, REQUEST_NEW_SCHEDULE, control_agent.core.identity,
+                                            taskid, PRIORITY_LOW, [['fakedriver1', start, end]]).get(timeout=10)
+        assert result['result'] == SUCCESS
+        assert control_agent.vip.rpc.call(PLATFORM_ACTUATOR, 'set_point', control_agent.core.identity,
+                                          'fakedriver1', 2.5, point='SampleWritableFloat1').get(timeout=10) == 2.5
+        assert control_agent.vip.rpc.call(PLATFORM_ACTUATOR, 'get_point', 'fakedriver1',
+                                          point='SampleWritableFloat1').get(timeout=10) == 2.5
+    finally:
+        try:
+            control_agent.vip.rpc.call(PLATFORM_ACTUATOR, REQUEST_CANCEL_SCHEDULE, control_agent.core.identity,
+                                       taskid).get(timeout=10)
+        finally:
+            control_agent.core.stop()

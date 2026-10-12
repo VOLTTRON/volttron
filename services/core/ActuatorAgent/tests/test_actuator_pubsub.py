@@ -40,7 +40,7 @@ from mock import MagicMock
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
-from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import ACTUATOR_CONTROL, DRIVER_WRITES, PLATFORM_DRIVER
 
 FAILURE = 'FAILURE'
 SUCCESS = 'SUCCESS'
@@ -183,8 +183,8 @@ def publish_agent(request, volttron_instance):
 
     # 3: Start a fake agent to publish to message bus
     fake_publish_agent = volttron_instance.build_agent()
-    # Scheduling and writing through the actuator (RPC or pub/sub) require driver_write.
-    volttron_instance.add_capabilities(fake_publish_agent.core.publickey, [DRIVER_WRITES])
+    # Scheduling and writing through the actuator (RPC or pub/sub) require actuator_control.
+    volttron_instance.add_capabilities(fake_publish_agent.core.publickey, [ACTUATOR_CONTROL])
     # Mock callback methods attach actuate method to fake_publish_agent as
     # it needs to be a class method for the call back to work
     fake_publish_agent.callback = MagicMock(name="callback")
@@ -1879,12 +1879,13 @@ def test_set_value_error(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator_pubsub
-def test_pubsub_schedule_and_set_refused_without_driver_write(publish_agent, volttron_instance):
-    """The pub/sub interface applies the same driver_write rule as the RPC methods: a peer without the capability
-    gets a FAILURE schedule result and an error reply for a set, and the point is not written."""
+def test_pubsub_schedule_and_set_refused_without_actuator_control(publish_agent, volttron_instance):
+    """The pub/sub interface applies the same actuator_control rule as the RPC methods: a peer that holds
+    driver_write but not actuator_control gets a FAILURE schedule result and an error reply for a set, and the point is not written."""
     if not volttron_instance.auth_enabled:
         pytest.skip("capability requirements are only enforced when authentication is enabled")
     no_cap_agent = volttron_instance.build_agent(identity="test-actuator-pubsub-no-capability")
+    volttron_instance.add_capabilities(no_cap_agent.core.publickey, [DRIVER_WRITES])
     try:
         no_cap_agent.callback = MagicMock(name="callback")
         no_cap_agent.vip.pubsub.subscribe(peer='pubsub', prefix=topics.ACTUATOR_SCHEDULE_RESULT,
@@ -1902,7 +1903,7 @@ def test_pubsub_schedule_and_set_refused_without_driver_write(publish_agent, vol
         results = [c.args[5] for c in no_cap_agent.callback.call_args_list
                    if str(c.args[3]) == str(topics.ACTUATOR_SCHEDULE_RESULT)]
         assert results and results[-1]['result'] == 'FAILURE'
-        assert 'driver_write' in results[-1]['info']
+        assert 'actuator_control' in results[-1]['info']
 
         before = publish_agent.vip.rpc.call(PLATFORM_ACTUATOR, 'get_point',
                                             'fakedriver0/SampleWritableFloat1').get(timeout=10)
@@ -1914,6 +1915,7 @@ def test_pubsub_schedule_and_set_refused_without_driver_write(publish_agent, vol
         errors = [c.args[5] for c in no_cap_agent.callback.call_args_list
                   if str(c.args[3]).startswith(str(topics.ACTUATOR_ERROR()))]
         assert errors and errors[-1]['type'] == 'Unauthorized'
+        assert 'actuator_control' in errors[-1]['value']
         after = publish_agent.vip.rpc.call(PLATFORM_ACTUATOR, 'get_point',
                                            'fakedriver0/SampleWritableFloat1').get(timeout=10)
         assert after == before
