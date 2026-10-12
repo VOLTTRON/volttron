@@ -39,14 +39,16 @@ two histories stay consistent.
 Before finalizing the release branch, merge `main` into it every release, even
 when `main` appears to be level with `develop` (section 7). This keeps the
 release from silently dropping a fix that only exists on `main`. Resolve any
-conflict from that merge on the release branch, and do it before the tag is
-created (section 4), so the tagged tip is the content that lands on `main`.
+conflict from that merge on the release branch, and do it before the release
+pull request is merged (section 6), so the content that lands on `main` is
+the content that was checked.
 
 A fix found after the release branch is cut goes in by pull request into
 `releases/<version>`, not by a direct push, and is reviewed like any other
 change. The merge of `main` back into `develop` after the release (section 7)
 carries it to `develop`, so it does not have to be made twice. Do this before
-the tag is created; after the tag exists, section 4 and section 12 apply.
+the release pull request is merged; after the tag exists, section 4 and
+section 12 apply.
 
 ## 3. What gets updated in a release
 
@@ -62,13 +64,13 @@ Both are plain string literals, are not generated from the git tag or from
 each other, and nothing enforces that they agree: no script and no CI step
 reads either one back to check it against the other or against the tag. A
 release bumps both by hand, or by a script that writes both, and then
-confirms them before tagging:
+confirms them before the release pull request merges:
 
     grep "__version__" volttron/platform/__init__.py
     grep -E "^(version|release) = " docs/source/conf.py
 
 Both commands must print the same version being released, and that version
-must match the tag about to be created (section 4).
+must match the tag that will be created after the merge (section 4).
 
 A small number of other files mention the version number in prose rather
 than as a machine-read field: `README.md` and
@@ -81,21 +83,24 @@ bump when their content is affected by the release.
 
 ## 4. Tagging the release
 
-The tag `X.Y.Z` is created on the release branch, at the commit that carries
-the version bump and the merge of `main` (section 2), before that branch is
-merged into `main`. This repository
-does not prefix release tags with `v`: of 38 tags, only 2 carry a `v`, both
-2014-era pre-releases, and every 8.x and 9.x tag, 9.0.4 included, is bare.
-Use the bare form, matching section 1's own naming of the latest tag.
-
-Tag the release branch tip, not the merge commit on `main`; the 9.0.4 tag
-likewise points at the head of `releases/9.0.4`. Create the tag only after a
-maintainer with release authority has approved the release (section 10).
+The tag `X.Y.Z` is created on the merge commit on `main` that the release pull
+request produces (section 6), after that pull request has merged, not on the
+release branch tip. This repository does not prefix release tags with `v`: the
+only two that do are 2014-era pre-releases, and every 8.x and 9.x tag is bare.
+Use the bare form, matching section 1's own naming of the latest tag. Tags
+9.0.1 and 9.1.0 are on commits on `main`; earlier tags such as 9.0.4 were
+placed on a release branch head, and that is not the model to follow. Create
+the tag only after a maintainer with release authority has approved the
+release (section 10) and the release pull request has merged.
 
 Release tags are annotated, so each carries a tagger, a date and a message:
 
-    git tag -a X.Y.Z -m "VOLTTRON X.Y.Z" <release-branch-tip-sha>
+    git fetch origin
+    git tag -a X.Y.Z -m "VOLTTRON X.Y.Z" <merge-commit-sha>
     git push origin X.Y.Z
+
+Take `<merge-commit-sha>` from `gh pr view <n> --json mergeCommit`, and run the
+merge-commit checks in section 5 first. Do not tag if any of them fails.
 
 Verify it with `git cat-file -t X.Y.Z`, which prints `tag` for an annotated
 tag and `commit` for a lightweight one. That checks only the local tag, so
@@ -107,53 +112,72 @@ annotated as above.
 Once a tag is pushed it is never moved, deleted and re-created, or reused for a
 different commit. Any change after tagging means a new version: bump it
 (section 3), create a new tag, and treat the old one as abandoned (section 12).
+The 9.1.0 tag is the one exception. It first pointed at the release branch tip
+`06fd6d66f3af4e112f55f5965028b3890062083e`, and was moved within minutes to the
+merge commit on `main`, `6fbecc9ad29dd9ecee33353ada7dd5fffa4a8063`, before
+this rule was settled. A clone that fetched the first target runs
+`git fetch --tags --force origin`, after which `git rev-parse 9.1.0^{commit}`
+prints the `6fbecc9ad` commit. This is not a precedent.
 
 The tag is the record of what a version contained only for as long as the tag
-survives. This repository deletes a branch on merge, but the merge commit in
-section 6 brings the tagged commit into `main`, so `main` still contains it
-after the branch is gone. An annotated tag can still be moved
-or deleted by anyone with push access, and the repository has no tag
-protection: its rulesets list is empty and no tag rule exists. A maintainer
-with repository-settings authority adds a ruleset protecting version tags as a
-one-time setup step; until that is done, treat the tag as unprotected.
+survives. This repository deletes a branch on merge, but the tag is on the
+merge commit on `main`, so it stays reachable from `main` after the branch is
+gone. An annotated tag can still be moved or deleted by anyone with push
+access, and the repository has no tag protection: its rulesets list is empty
+and no tag rule exists. A maintainer with repository-settings authority adds a
+ruleset protecting version tags as a one-time setup step; until that is done,
+treat the tag as unprotected.
 
 ## 5. Readiness, and the pre-release checklist
 
 This document describes the branch and tag mechanics, and the checklist below
-lists what to confirm. Neither, by itself, guarantees that the code on the release branch is ready: that is a
-judgment for whoever approves the release (section 10), informed by the
-project's test suite and review process. The test workflows run on pushes to
-`develop` and `releases/**` and on pull requests into `main`, so check that
-they passed on the release branch tip and on the release pull request before
-approving. Pushes to `main` do not trigger them.
+lists what to confirm. Neither, by itself, guarantees that the code on the
+release branch is ready: that is a judgment for whoever approves the release
+(section 10), informed by the project's test suite and review process. The test
+workflows run on pushes to `develop` and `releases/**` and on pull requests
+into `main`, so check that they passed on the release branch tip and on the
+release pull request before approving. Pushes to `main` do not trigger them.
 
-Before the tag is created, the person preparing the release confirms each of
-these and records the result on the release pull request:
+Before the release pull request is merged, the person preparing the release
+confirms each of these and records the result on the release pull request.
+Each check is made against the pull request's head commit, read with
+`gh pr view <n> --json headRefOid`:
 
 - Both version strings read the version being released, and the prose
   mentions in `README.md` and the install guide match it (section 3).
-- The nine `pytest-*` workflows are green on the release branch tip. They
-  share one job name, `build (ubuntu-22.04, 3.10)`, so count nine, read each
-  workflow's own jobs, and treat a missing or skipped one as not passed: a
-  workflow that never ran shows no job at all. `code_analysis.yml` does not
-  run on `releases/**`.
-- The commit those checks ran on is the commit that will be tagged. If the
-  branch moves after the checks, including by a merged fix, check again.
+- The nine `pytest-*` workflows are green on that head commit. They share one
+  job name, `build (ubuntu-22.04, 3.10)`, so count nine, read each workflow's
+  own jobs, and treat a missing or skipped one as not passed: a workflow that
+  never ran shows no job at all. `code_analysis.yml` does not run on
+  `releases/**`.
 - `main` has been merged into the release branch (section 2), and the branch
   is mergeable into `main`.
 - A maintainer with release authority has approved the release (section 10),
   after any security fixes are on the release branch, and the pull request has
   its required review (section 6).
+- If the head commit moves after any of these, including by a merged fix,
+  check again before merging.
 
-## 6. Merging the release into main, then publishing it
+After the merge and before tagging, confirm the merge commit is the one that
+was tested. If any of these fails, stop and do not tag:
+
+- The merge commit is the tip of `origin/main`, after `git fetch origin`.
+- Its second parent equals the head commit read before the merge:
+  `git rev-parse <merge>^2`.
+- Its tree equals the release branch tip's tree: `git diff --quiet <merge>^2
+  <merge>` succeeds. If it fails, `main` moved after it was merged into the
+  release branch, so what landed is not what CI tested.
+
+## 6. Merging the release into main, tagging it, then publishing it
 
 The release branch is merged into `main` through a pull request, using a
 merge commit (`gh pr merge <n> --merge`). Never squash it: this repository has
 squash merging turned off at the repository level, and the release history is
-worth keeping intact. A merge commit keeps the tagged release commit reachable
-from `main`. The repository also allows a rebase merge, and `main`'s protection
-does not require linear history, so the choice rests on the person merging;
-this project's policy is the merge commit. The 9.0.4 pull request merged the
+worth keeping intact. A merge commit keeps the whole release branch reachable
+from `main`, and gives the tag its commit (section 4). The repository also
+allows a rebase merge, and `main`'s protection does not require linear history,
+so the choice rests on the person merging; this project's policy is the merge
+commit. The 9.0.4 pull request merged the
 same way, as an ordinary two-parent merge commit.
 
 `main`'s protection requires one approving review and has the code-owner
@@ -170,10 +194,11 @@ of this document. A maintainer with admin rights reads the current settings
 with `gh api repos/VOLTTRON/volttron/branches/main/protection`; anyone else
 reads the merge options on the pull request itself.
 
-Publish nothing until the merge has landed. Once the release pull request has
-merged into `main` (confirm with `gh pr view <n> --json state`, which must read
-`MERGED`), a maintainer with release authority (section 10) creates a GitHub
-Release for the tag: not a draft, named after the version, with release notes
+The order is merge, then tag, then publish. Publish nothing until the merge has
+landed and the tag is pushed. Once the release pull request has merged into
+`main` (confirm with `gh pr view <n> --json state`, which must read `MERGED`)
+and the tag is on the merge commit (section 4), a maintainer with release
+authority (section 10) creates a GitHub Release for the tag: not a draft, named after the version, with release notes
 summarizing what changed since the previous release. Every 8.x and 9.x tag in
 this repository except `8.0` has a published, non-draft Release object of this
 kind (checked with `gh api repos/VOLTTRON/volttron/releases`), most combining a
@@ -267,7 +292,8 @@ branches are cut from `develop` (section 2).
 4. Approve the release (section 10) only after the fixes are on the release
    branch, so the approval covers content that includes them.
 5. Cut the release as in sections 2 to 6.
-6. Before publishing any advisory, check that the tag contains each fix:
+6. Before publishing any advisory, check that the tag, which is on the merge
+   commit on `main` (section 4), contains each fix:
    `git merge-base --is-ancestor <fork pull request head> <tag>` must succeed
    for every fork pull request. An advisory is never published for a version
    whose tag lacks its fix.
@@ -308,26 +334,29 @@ by hand until that changes.
 Four steps in this document are hard or impossible to undo, so each has a
 recovery rule here.
 
-- The tag (section 4) is created before the release branch is merged into
-  `main`, and nothing is published until after the merge (section 6). If the
-  release branch is then reworked or rejected, the tag names a commit that
-  never lands anywhere durable, but no Release or advisory points at it. Do not
+- The tag (section 4) is created on the merge commit after the release branch
+  is merged into `main`, and nothing is published until after the tag is
+  pushed (section 6). If the release is then found to be wrong, the tag names
+  a commit that is already on `main`, and a Release or advisory may already
+  point at it. Do not
   move, delete and re-create, or reuse that tag: any fix after tagging is a new
   version with a new bump (section 3) and a new tag. Leave the abandoned tag in
   place, or delete it only if nothing refers to it, and never after a Release
   or advisory has been published for it.
 - The merge into `main` (section 6) can conflict. Resolve the conflict on the
-  release branch itself by merging `main` into it before the tag is created
-  (section 2), then merge the pull request, so the resolution is reviewed on
-  the branch rather than made inside the pull request's own tooling. If a
-  conflict only appears after the tag exists, the tagged tip is no longer what
-  would land: abandon that tag and release under a new version. If the
-  conflicts are large enough that this is impractical, re-cut the release
-  branch from a current `origin/develop` and start over, rather than forcing a
-  resolution nobody has reviewed. A fix that went only into the release branch
+  release branch itself by merging `main` into it before the pull request is
+  merged (section 2), then merge the pull request, so the resolution is
+  reviewed on the branch rather than made inside the pull request's own
+  tooling. If the conflicts are large enough that this is impractical, re-cut
+  the release branch from a current `origin/develop` and start over, rather
+  than forcing a resolution nobody has reviewed. A fix that went only into the release branch
   is not on `develop`, so a re-cut would lose it: merge the old release branch
   into the new one, or cherry-pick the fix, and check it is present before
   going on.
+- The release pull request has merged into `main` but the tag does not exist
+  yet. Do not merge again. Run the merge-commit checks in section 5, and tag
+  the merge commit once they pass; if they fail, treat the content on `main`
+  as unchecked and release under a new version.
 - Publishing a security advisory (section 9) is irreversible in the
   disclosure sense: once details are public, they cannot be made
   confidential again. If a defect in the advisory itself is found afterward,

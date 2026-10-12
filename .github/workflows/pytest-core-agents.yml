@@ -1,0 +1,71 @@
+---
+# Runs the tests of the agents under services/core, one job per agent, so one
+# agent's failure does not hide another's result. Each job collects the agent's
+# tests directory, so a test file added there runs without a change here.
+#
+# Agents with a tests directory that are NOT run here, and why:
+#   DNP3OutstationAgent: its test imports pydnp3, which no extra declares;
+#       the DNP3 integration test is set aside until the move to dnp3py.
+#   IEEE_2030_5: tests/ holds helper scripts and fixtures, no test_*.py file,
+#       so pytest would collect nothing and exit 5.
+#   WeatherDotGov: its tests call the live api.weather.gov service, which a
+#       hosted runner cannot be relied on to reach.
+# Not wired yet (the build action starts no database server): the database
+# variants of the historian tests under volttrontesting/. SQLHistorian below
+# runs only its sqlite tests, which need no server. RabbitMQ variants are
+# skipped as in the other pytest workflows.
+
+name: Core agent tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - releases/**
+  pull_request:
+    branches:
+      - main
+      - develop
+      - releases/**
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  agent-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04 ]
+        python-version: [ '3.10' ]
+        agent:
+          - { name: ActuatorAgent, path: services/core/ActuatorAgent/tests, suffix: actuator }
+          - { name: DataMover, path: services/core/DataMover/tests, suffix: datamover }
+          - { name: ForwardHistorian, path: services/core/ForwardHistorian/tests, suffix: forwardhistorian }
+          - { name: OpenADRVenAgent, path: services/core/OpenADRVenAgent/tests, suffix: openadrven }
+          - { name: PlatformDriverAgent, path: services/core/PlatformDriverAgent/tests, suffix: platformdriver }
+          - { name: SQLHistorian, path: services/core/SQLHistorian/tests, suffix: sqlhistorian }
+          - { name: VolttronCentral, path: services/core/VolttronCentral/tests, suffix: volttroncentral }
+          - { name: VolttronCentralPlatform, path: services/core/VolttronCentralPlatform/tests, suffix: vcp }
+
+    name: ${{ matrix.agent.name }} tests (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Same 60 minutes as the miscellaneous workflow; each test also has the 300 s
+    # limit from pytest.ini, and these platform-starting suites are slow.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run ${{ matrix.agent.name }} tests on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@6e7b23f01038cc26bfafc3f1622df4e65addde46 # no_rmq_no_rerun
+        with:
+          python_version: ${{ matrix.python-version }}
+          os: ${{ matrix.os }}
+          test_path: ${{ matrix.agent.path }}
+          test_output_suffix: ${{ matrix.agent.suffix }}
