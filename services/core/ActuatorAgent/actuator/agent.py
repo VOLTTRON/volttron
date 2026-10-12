@@ -448,7 +448,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
 from volttron.platform.vip.agent.subsystems.rpc import _isregex
-from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import ACTUATOR_CONTROL, PLATFORM_DRIVER
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
@@ -803,7 +803,7 @@ class ActuatorAgent(Agent):
     def _sender_may_write(self, sender, rpc_method, *rpc_args):
         """Whether the pub/sub sender may make the call that RPC method ``rpc_method`` would make.
 
-        The RPC write and schedule methods are gated on driver_write by
+        The RPC write and schedule methods are gated on actuator_control by
         @RPC.allow. The pub/sub interface (devices/actuators/set, revert and
         schedule/request) reaches the same code, so it applies the same rule
         here, including parameter restrictions on the grant, evaluated against
@@ -825,10 +825,10 @@ class ActuatorAgent(Agent):
             _log.warning('Refusing pub/sub write from %r: capabilities unavailable (%s).',
                          sender, ex.__class__.__name__)
             return False
-        if DRIVER_WRITES not in capabilities:
-            _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, DRIVER_WRITES)
+        if ACTUATOR_CONTROL not in capabilities:
+            _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, ACTUATOR_CONTROL)
             return False
-        restrictions = capabilities[DRIVER_WRITES]
+        restrictions = capabilities[ACTUATOR_CONTROL]
         if restrictions and not _grant_allows_call(sender, restrictions, rpc_method, rpc_args):
             return False
         return True
@@ -836,7 +836,7 @@ class ActuatorAgent(Agent):
     def _refuse_pubsub_write(self, requester, point):
         headers = self._get_headers(requester)
         error = {'type': 'Unauthorized',
-                 'value': "requires capability '{}'".format(DRIVER_WRITES)}
+                 'value': "requires capability '{}'".format(ACTUATOR_CONTROL)}
         self._push_result_topic_pair(ERROR_RESPONSE_PREFIX, point, headers, error)
 
     def handle_get(self, peer, sender, bus, topic, headers, message):
@@ -956,7 +956,7 @@ class ActuatorAgent(Agent):
                                  point_name, **kwargs).get()
 
     @RPC.export
-    @RPC.allow(DRIVER_WRITES)
+    @RPC.allow(ACTUATOR_CONTROL)
     def set_point(self, requester_id, topic, value, point=None, **kwargs):
         """RPC method
 
@@ -1075,7 +1075,7 @@ class ActuatorAgent(Agent):
         return results, errors
 
     @RPC.export
-    @RPC.allow(DRIVER_WRITES)
+    @RPC.allow(ACTUATOR_CONTROL)
     def set_multiple_points(self, requester_id, topics_values, **kwargs):
         """RPC method
 
@@ -1208,7 +1208,7 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
 
     @RPC.export
-    @RPC.allow(DRIVER_WRITES)
+    @RPC.allow(ACTUATOR_CONTROL)
     def revert_point(self, requester_id, topic, point=None, **kwargs):
         """
         RPC method
@@ -1251,7 +1251,7 @@ class ActuatorAgent(Agent):
             raise LockError("caller does not have this lock")
 
     @RPC.export
-    @RPC.allow(DRIVER_WRITES)
+    @RPC.allow(ACTUATOR_CONTROL)
     def revert_device(self, requester_id, topic, **kwargs):
         """
         RPC method
@@ -1365,9 +1365,9 @@ class ActuatorAgent(Agent):
         if not self._sender_may_write(requester_id, *gate_call):
             results = {'result': SCHEDULE_RESPONSE_FAILURE,
                        'data': {},
-                       'info': "UNAUTHORIZED: requires capability '{}'".format(DRIVER_WRITES)}
+                       'info': "UNAUTHORIZED: requires capability '{}'".format(ACTUATOR_CONTROL)}
             self.vip.pubsub.publish('pubsub', topics.ACTUATOR_SCHEDULE_RESULT(),
-                                    headers=headers, message=results)
+                                    headers=self._get_headers(requester_id, task_id=task_id), message=results)
             return results
 
         if request_type == SCHEDULE_ACTION_NEW:
@@ -1394,7 +1394,7 @@ class ActuatorAgent(Agent):
                                      'info': 'INVALID_REQUEST_TYPE'})
 
     @RPC.export
-    @RPC.allow(DRIVER_WRITES)
+    @RPC.allow(ACTUATOR_CONTROL)
     def request_new_schedule(self, requester_id, task_id, priority, requests):
         """
         RPC method
@@ -1500,7 +1500,7 @@ class ActuatorAgent(Agent):
         return results
 
     @RPC.export
-    @RPC.allow(DRIVER_WRITES)
+    @RPC.allow(ACTUATOR_CONTROL)
     def request_cancel_schedule(self, requester_id, task_id):
         """RPC method
 
