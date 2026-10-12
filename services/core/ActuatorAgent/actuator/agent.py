@@ -432,7 +432,9 @@ __docformat__ = 'reStructuredText'
 
 import collections
 import datetime
+import inspect
 import logging
+import re
 import sys
 
 import gevent
@@ -445,6 +447,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
+from volttron.platform.vip.agent.subsystems.rpc import _isregex
 from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
@@ -507,6 +510,34 @@ def actuator_agent(config_path, **kwargs):
                          driver_vip_identity,
                          allow_no_lock_write,
                          **kwargs)
+
+
+def _grant_allows_call(sender, restrictions, rpc_method, rpc_args):
+    """Mirror of the argument check in the RPC subsystem's capability gate (rpc.py, _add_auth_check).
+
+    Not importable from there: the check is a closure over the RPC call context. Keep the two in step,
+    including fullmatch for "/regex/" values and refusing a restriction on a parameter the method lacks.
+    """
+    args_dict = inspect.getcallargs(getattr(ActuatorAgent, rpc_method), None, *rpc_args)
+    for name, value in restrictions.items():
+        if name not in args_dict:
+            _log.warning('Refusing pub/sub write from %r: grant restricts %r, which %s does not take.',
+                         sender, name, rpc_method)
+            return False
+        actual = args_dict[name]
+        if _isregex(value):
+            allowed = isinstance(actual, str) and re.compile('^' + value[1:-1] + '$').fullmatch(actual)
+        else:
+            allowed = actual == value
+        if not allowed:
+            _log.warning('Refusing pub/sub write from %r: grant restricts %r for %s.',
+                         sender, name, rpc_method)
+            return False
+    return True
+
+
+def _schedule_requests(message):
+    return message[0] if len(message) == 1 else message
 
 
 class ActuatorAgent(Agent):
@@ -769,17 +800,19 @@ class ActuatorAgent(Agent):
                                      point, headers, error)
         _log.debug('Actuator Agent Error: ' + str(error))
 
-    def _sender_may_write(self, sender):
-        """Whether the pub/sub sender holds the driver_write capability.
+    def _sender_may_write(self, sender, rpc_method, *rpc_args):
+        """Whether the pub/sub sender may make the call that RPC method ``rpc_method`` would make.
 
         The RPC write and schedule methods are gated on driver_write by
         @RPC.allow. The pub/sub interface (devices/actuators/set, revert and
         schedule/request) reaches the same code, so it applies the same rule
-        here. Mirrors the RPC gate: enforcement is skipped when the platform
-        runs with authentication disabled, and fails closed when the auth
+        here, including parameter restrictions on the grant, evaluated against
+        ``rpc_args`` as the RPC gate would bind them. Enforcement is skipped
+        only when the platform runs with authentication disabled (a real
+        ``False``, as in the RPC gate), and fails closed when the auth
         subsystem is unavailable or the sender's capabilities cannot be read.
         """
-        if not getattr(self.core, 'enable_auth', True):
+        if getattr(self.core, 'enable_auth', True) is False:
             return True
         auth = getattr(self.vip, 'auth', None)
         if auth is None:
@@ -787,14 +820,18 @@ class ActuatorAgent(Agent):
             return False
         try:
             capabilities = auth.get_capabilities(sender) or {}
-        except Exception as ex:
+        # gevent.Timeout is a BaseException; a lookup that times out must refuse like any other failure.
+        except (Exception, gevent.Timeout) as ex:
             _log.warning('Refusing pub/sub write from %r: capabilities unavailable (%s).',
                          sender, ex.__class__.__name__)
             return False
-        if DRIVER_WRITES in capabilities:
-            return True
-        _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, DRIVER_WRITES)
-        return False
+        if DRIVER_WRITES not in capabilities:
+            _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, DRIVER_WRITES)
+            return False
+        restrictions = capabilities[DRIVER_WRITES]
+        if restrictions and not _grant_allows_call(sender, restrictions, rpc_method, rpc_args):
+            return False
+        return True
 
     def _refuse_pubsub_write(self, requester, point):
         headers = self._get_headers(requester)
@@ -873,7 +910,7 @@ class ActuatorAgent(Agent):
 
         point = topic.replace(topics.ACTUATOR_SET() + '/', '', 1)
         requester = sender
-        if not self._sender_may_write(requester):
+        if not self._sender_may_write(requester, 'set_point', requester, point, message):
             return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
         if not message:
@@ -1117,7 +1154,7 @@ class ActuatorAgent(Agent):
         """
         point = topic.replace(topics.ACTUATOR_REVERT_POINT() + '/', '', 1)
         requester = sender
-        if not self._sender_may_write(requester):
+        if not self._sender_may_write(requester, 'revert_point', requester, point):
             return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
 
@@ -1159,7 +1196,7 @@ class ActuatorAgent(Agent):
         """
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE() + '/', '', 1)
         requester = sender
-        if not self._sender_may_write(requester):
+        if not self._sender_may_write(requester, 'revert_device', requester, point):
             return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
 
@@ -1317,7 +1354,15 @@ class ActuatorAgent(Agent):
         task_id = headers.get('taskID')
         priority = headers.get('priority')
 
-        if not self._sender_may_write(requester_id):
+        if request_type == SCHEDULE_ACTION_NEW:
+            try:
+                gate_call = ('request_new_schedule', requester_id, task_id, priority, _schedule_requests(message))
+            except TypeError:
+                # Malformed message: gate on the raw message; the handling below reports the error.
+                gate_call = ('request_new_schedule', requester_id, task_id, priority, message)
+        else:
+            gate_call = ('request_cancel_schedule', requester_id, task_id)
+        if not self._sender_may_write(requester_id, *gate_call):
             results = {'result': SCHEDULE_RESPONSE_FAILURE,
                        'data': {},
                        'info': "UNAUTHORIZED: requires capability '{}'".format(DRIVER_WRITES)}
@@ -1327,11 +1372,7 @@ class ActuatorAgent(Agent):
 
         if request_type == SCHEDULE_ACTION_NEW:
             try:
-                if len(message) == 1:
-                    requests = message[0]
-                else:
-                    requests = message
-
+                requests = _schedule_requests(message)
                 self._request_new_schedule(requester_id, task_id, priority,
                                            requests)
             except Exception as ex:
