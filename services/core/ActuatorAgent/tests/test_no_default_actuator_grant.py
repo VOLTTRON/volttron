@@ -10,13 +10,16 @@ import pytest
 from volttron.platform.agent.known_identities import (ACTUATOR_CONTROL, VOLTTRON_CENTRAL,
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.aip import AIPplatform
+from volttron.platform.auth.auth_entry import BASE64_ENCODED_CURVE_KEY_LEN
+
+PUBLIC_KEY = 'A' * BASE64_ENCODED_CURVE_KEY_LEN
 
 
 @pytest.mark.parametrize("identity", ['my.control.agent', 'platform.actuator', VOLTTRON_CENTRAL,
                                       VOLTTRON_CENTRAL_PLATFORM])
 def test_install_time_entry_has_no_actuator_control(identity):
     with patch('volttron.platform.aip.AuthFile') as auth_file:
-        AIPplatform._authorize_agent_keys(MagicMock(), 'uuid', identity, 'public-key')
+        AIPplatform._authorize_agent_keys(MagicMock(), 'uuid', identity, PUBLIC_KEY)
     auth_file.return_value.add.assert_called_once()
     entry = auth_file.return_value.add.call_args[0][0]
     assert entry.user_id == identity
