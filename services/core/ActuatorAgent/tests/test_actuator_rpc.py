@@ -1773,7 +1773,7 @@ def test_write_rpcs_require_driver_write_capability(publish_agent, volttron_inst
     try:
         with pytest.raises(RemoteError) as exc_info:
             no_cap_agent.vip.rpc.call(PLATFORM_ACTUATOR, method, no_cap_agent.core.identity, *args).get(timeout=10)
-        assert 'driver_write' in str(exc_info.value) or 'UNAUTHORIZED' in str(exc_info.value).upper()
+        assert "method '{}' requires capabilities {{'{}'}}".format(method, DRIVER_WRITES) in str(exc_info.value)
         # Reads stay open.
         assert no_cap_agent.vip.rpc.call(PLATFORM_ACTUATOR, 'get_point',
                                          'fakedriver0/SampleWritableFloat1').get(timeout=10) is not None
