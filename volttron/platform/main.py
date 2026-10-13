@@ -584,7 +584,9 @@ class Router(BaseRouter):
         # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
-        self.route(deserialize_frames(frames), ORIGIN_NETWORK, frames)
+        # No raw frames: this socket is the platform's own outgoing
+        # connection, so any User-Id on a frame came from the remote peer.
+        self.route(deserialize_frames(frames), ORIGIN_NETWORK)
         # for f in frames:
         #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
