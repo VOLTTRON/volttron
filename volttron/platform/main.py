@@ -297,7 +297,8 @@ class FramesFormatter:
         self.frames = frames
 
     def __repr__(self):
-        return str([bytes(f) for f in self.frames])
+        return str([bytes(f) if isinstance(f, zmq.Frame) else f
+                    for f in self.frames])
 
     __str__ = __repr__
 

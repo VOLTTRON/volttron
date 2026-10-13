@@ -33,8 +33,12 @@ from volttron.platform.vip import router as router_module
 from volttron.platform.vip.externalrpcservice import ExternalRPCService
 from volttron.platform.vip.pubsubservice import PubSubService
 from volttron.platform.vip.router import (ORIGIN_INPROC, ORIGIN_NETWORK,
-                                          RouterSender, UNROUTABLE)
-from volttron.platform.vip.routingservice import RoutingService
+                                          RouterSender, UNROUTABLE, ERROR,
+                                          INCOMING, OUTGOING)
+from volttron.platform.vip.routingservice import (
+    RoutingService, STATUS_CONNECTED, STATUS_CONNECTING, STATUS_DISCONNECTED)
+from volttron.platform.vip import routingservice as routingservice_module
+from volttron.platform.vip.tracking import Tracker
 
 ROUTER_LOGGER = router_module.__name__
 BODY_MARKER = "BODYMARKER-5678"
@@ -313,3 +317,67 @@ def test_a_text_sender_is_still_recorded(router, frames_after_sender):
     router.route(["agent.x"] + frames_after_sender, ORIGIN_NETWORK)
     assert router._peers == {"agent.x"}
     assert "agent.x" in router._identity_sockets
+
+
+# Message statistics read the frames the router carries, which are decoded
+# text on the way in and zmq frames on the way out.
+
+
+@pytest.fixture
+def tracked(router):
+    router._tracker = Tracker()
+    router._tracker.enable()
+    return router
+
+
+def test_a_ping_is_still_answered_and_counted_while_tracking(tracked):
+    poll(tracked, arrive(tracked, message(*GOOD, user="u2")))
+    (reply,) = good_replied(tracked)
+    assert reply[5:7] == ["ping", "pong"]
+    stats = tracked._tracker.stats
+    assert stats["incoming"]["peer"] == {"agent.good": 1}
+    assert stats["incoming"]["subsystem"] == {"ping": 1}
+    assert stats["outgoing"]["peer"] == {"agent.good": 1}
+    assert stats["outgoing"]["subsystem"] == {"ping": 1}
+
+
+def test_a_call_to_control_is_delivered_while_tracking(tracked):
+    # stats.disable travels as an ordinary call to the control agent.
+    call = message("agent.x", "control", "VIP1", "", "m1", "RPC", "{}")
+    poll(tracked, arrive(tracked, call))
+    (delivered,) = [m for m in tracked.inproc_socket.sent if m[0] == "control"]
+    assert delivered[1] == "agent.x"
+    tracked._tracker.disable()
+    assert tracked._tracker.enabled is False
+
+
+def test_statistics_are_keyed_by_text_when_a_frame_is_not_text(tracked):
+    tracked._tracker.hit(INCOMING, ["a", "", "VIP1", ["x"], "m", 5], None)
+    tracked._tracker.hit(UNROUTABLE, [["a"], ""], "sender is not text")
+    stats = tracked._tracker.stats
+    assert stats["incoming"]["user"] == {"<not text>": 1}
+    assert stats["incoming"]["subsystem"] == {"<not text>": 1}
+    assert stats["unroutable"]["peer"] == {"<not text>": 1}
+
+
+def test_an_error_is_counted_by_its_text_number(tracked):
+    error = (zmq.Frame(b"113"), zmq.Frame(b"No route to host"))
+    tracked._tracker.hit(ERROR, ["a", "b", "VIP1", "u", "m", "RPC"], error)
+    assert tracked._tracker.stats["error"]["error"] == {"113": 1}
+    assert tracked._tracker.stats["error"]["peer"] == {"a": 1}
+
+
+def test_outgoing_zmq_frames_are_counted_by_their_text(tracked):
+    frames = [zmq.Frame(p) for p in (b"agent.x", b"", b"VIP1", b"usr", b"m",
+                                     b"RPC")]
+    tracked._tracker.hit(OUTGOING, frames, None)
+    stats = tracked._tracker.stats["outgoing"]
+    assert stats["peer"] == {"agent.x": 1}
+    assert stats["user"] == {"usr": 1}
+    assert stats["subsystem"] == {"RPC": 1}
+
+
+def test_logging_frames_that_are_text_does_not_raise():
+    shown = str(platform_main.FramesFormatter(
+        ["agent.x", 5, zmq.Frame(b"VIP1"), ["a"]]))
+    assert "agent.x" in shown and "VIP1" in shown and "5" in shown

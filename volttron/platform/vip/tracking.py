@@ -32,16 +32,30 @@
 
 
 import gevent
+import zmq
 
 from .router import UNROUTABLE, ERROR, INCOMING
 
 __all__ = ['Tracker']
 
 
+NOT_TEXT = '<not text>'
+
+
+def as_text(frame):
+    '''Return a frame as text: decoded frames arrive as str, frames read
+    from or written to a socket as bytes-like objects.'''
+    if isinstance(frame, str):
+        return frame
+    if isinstance(frame, (bytes, zmq.Frame)):
+        return bytes(frame).decode('utf-8', 'replace')
+    return NOT_TEXT
+
+
 def pick(frames, index):
-    '''Return the frame at index, converted to bytes, or None.'''
+    '''Return the frame at index as text, or None.'''
     try:
-        return bytes(frames[index])
+        return as_text(frames[index])
     except IndexError:
         return None
 
@@ -86,7 +100,7 @@ class Tracker:
                 subsystem = pick(frames, 5)
                 if topic == ERROR:
                     stat = self.stats['error']
-                    increment(stat['error'], bytes(extra[0]))
+                    increment(stat['error'], as_text(extra[0]))
                 else:
                     stat = self.stats[
                         'incoming' if topic == INCOMING else 'outgoing']
