@@ -834,6 +834,7 @@ class ActuatorAgent(Agent):
         return True
 
     def _refuse_pubsub_write(self, requester, point):
+        """Publish an Unauthorized error on the error topic for a refused pub/sub write to point."""
         headers = self._get_headers(requester)
         error = {'type': 'Unauthorized',
                  'value': "requires capability '{}'".format(ACTUATOR_CONTROL)}
