@@ -105,8 +105,9 @@ from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      PLATFORM, PLATFORM_HEALTH, PLATFORM_WEB,
                                      PROXY_ROUTER, CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
                                      START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
-from .keystore import (KeyStore, KnownHostsStore, create_keystore_dir,
-                       tighten_keystore_dirs)
+from .keystore import (HomeOwnedByAnotherUser, KeyStore, KnownHostsStore,
+                       create_keystore_dir, tighten_keystore_dirs,
+                       tighten_volttron_home)
 from .store import ConfigStoreService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
@@ -857,11 +858,13 @@ def start_volttron_process(opts):
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
-    # Check for agent isolation mode/permissions on VOLTTRON_HOME directory
-    mode = os.stat(opts.volttron_home).st_mode
-    if mode & (stat.S_IWGRP | stat.S_IWOTH):
-        _log.warning('insecure access control on directory: %s',
-                     opts.volttron_home)
+    # The platform's key lives in VOLTTRON_HOME and is refused while the
+    # directory is writable by group or others.
+    try:
+        tighten_volttron_home()
+    except HomeOwnedByAnotherUser as err:
+        _log.error('%s', err)
+        sys.exit(1)
 
     tighten_keystore_dirs()
 

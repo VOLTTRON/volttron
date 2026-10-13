@@ -88,6 +88,37 @@ def tighten_keystore_dirs():
                   stat.S_IMODE(info.st_mode), _PRIVATE_DIR_MODE)
 
 
+class HomeOwnedByAnotherUser(Exception):
+    """VOLTTRON_HOME is writable by group or others and is owned by someone
+    other than the user running the platform, so the platform cannot fix it."""
+
+
+def tighten_volttron_home():
+    """Removes group and other write from VOLTTRON_HOME when this user owns
+    it. Every read and execute bit stays, because agent users reach their
+    folders through the home's execute bit. The platform's key lives in the
+    home and is refused while the home is writable by anyone else. A home
+    owned by another user raises HomeOwnedByAnotherUser. A symlink or a
+    non-directory is left alone."""
+    home = get_home()
+    info = os.lstat(home)
+    if not stat.S_ISDIR(info.st_mode):
+        return
+    loose = info.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+    if not loose:
+        return
+    if info.st_uid != os.getuid():
+        raise HomeOwnedByAnotherUser(
+            "VOLTTRON_HOME {0} is writable by its group or others and is "
+            "owned by another user. Ask its owner to run: chmod go-w {0}"
+            .format(home))
+    before = stat.S_IMODE(info.st_mode)
+    after = before & ~loose
+    os.chmod(home, after)
+    _log.warning("removed group and other write access from %s: mode %o "
+                 "changed to %o", home, before, after)
+
+
 class BaseJSONStore:
     """JSON-file-backed store for dictionaries"""
 
