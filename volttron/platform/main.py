@@ -302,12 +302,6 @@ class FramesFormatter:
     __str__ = __repr__
 
 
-# Identity prefix of the sockets a platform opens to another platform
-# (routingservice.py). Peers choose their identity, so this narrows who sends
-# these operations but does not prove the peer is a platform.
-_PLATFORM_PEER_PREFIX = 'instance.'
-
-
 def _from_control(sender, user_id, frames):
     return user_id == CONTROL
 
@@ -322,10 +316,6 @@ def _from_key_discovery(sender, user_id, frames):
 
 def _from_auth_service(sender, user_id, frames):
     return user_id == AUTH
-
-
-def _from_platform_peer(sender, user_id, frames):
-    return isinstance(sender, str) and sender.startswith(_PLATFORM_PEER_PREFIX)
 
 
 def _from_nobody(sender, user_id, frames):
@@ -345,7 +335,6 @@ _ROUTER_OPERATIONS = {
     ('routing_table', 'update'): _from_nobody,
     ('pubsub', 'auth_update'): _from_auth_service,
     ('pubsub', 'protected_update'): _from_auth_service,
-    ('external_rpc', 'send_peer'): _from_platform_peer,
 }
 
 

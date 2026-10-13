@@ -181,11 +181,6 @@ AUTH_SERVICE_ONLY = dict(
     allowed=[("platform.auth", "platform.auth")],
     denied=[("agent.x", "agent.x"), ("keydiscovery", "keydiscovery"),
             ("platform.auth", "u1")])
-PLATFORM_PEER_ONLY = dict(
-    allowed=[("instance.b.0.5", "u2")],
-    denied=[("agent.x", "agent.x"), ("instance", "u2"),
-            ("control", "control")])
-
 OPERATIONS = {
     "setupmode_platform_connection": dict(
         subsystem="routing_table", payload=({"instance-name": "b"},),
@@ -212,10 +207,6 @@ OPERATIONS = {
         payload=({"write-protect": [{"topic": "t", "capabilities": ["c"]}]},),
         snapshot=lambda h: h.router.pubsub._protected_topics.get_topic_caps(),
         **AUTH_SERVICE_ONLY),
-    "send_peer": dict(
-        subsystem="external_rpc", payload=({"to_peer": "agent.z"},),
-        snapshot=lambda h: list(h.router.socket.sent),
-        **PLATFORM_PEER_ONLY),
     "agentstop": dict(
         subsystem="agentstop", payload=("victim",),
         snapshot=lambda h: sorted(h.router._peers),
@@ -293,12 +284,19 @@ def test_hello_and_welcome_from_any_sender_change_nothing(
     assert refusals(caplog) == []
 
 
-def test_a_relayed_call_from_a_platform_peer_is_delivered_with_no_user(
-        harness):
-    run(harness, "send_peer", "instance.b.0.5", "u2")
+@pytest.mark.parametrize("sender,user", [
+    ("agent.x", "agent.x"), ("instance.b.0.5", "u2"), ("agent.x", ""),
+    ("instance.b.0.5", ""), ("control", "control")])
+def test_a_relayed_call_from_any_sender_is_delivered_with_no_user_and_no_sender(
+        harness, caplog, sender, user):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        harness.send("external_rpc", "send_peer", sender, user,
+                     {"to_peer": "agent.z"})
     (sent,) = harness.router.socket.sent
     assert sent[0] == "agent.z"
+    assert sent[1] == ""
     assert sent[3] == ""
+    assert refusals(caplog) == []
 
 
 def test_a_refusal_is_logged_once_per_sender_and_never_logs_the_body(
@@ -352,11 +350,10 @@ def test_quit_from_any_other_user_does_nothing(harness, caplog):
 
 @pytest.mark.parametrize("sender", [5, None])
 def test_a_sender_that_is_not_text_is_refused_without_raising(harness, sender):
-    before = list(harness.router.socket.sent)
-    result = harness.send("external_rpc", "send_peer", sender, "u2",
-                          {"to_peer": "agent.z"})
+    before = sorted(harness.router._peers)
+    result = harness.send("agentstop", "victim", sender, "u2")
     assert not result
-    assert harness.router.socket.sent == before
+    assert sorted(harness.router._peers) == before
 
 
 @pytest.mark.parametrize("op", [{"a": 1}, ["x"], 7, None])
@@ -553,6 +550,9 @@ UNGATED = {
     "external_publish": "not covered by the sender rules",
     # Any local agent may ask the platform to relay a call.
     "hello": "ignored: the handshake is not used and nothing acts on it",
+    "send_peer": "any sender: the router blanks the user and sender of the "
+                 "relayed call, and an identity prefix a peer picks proves "
+                 "nothing",
     "send_platform": "relaying an agent's own call to a connected platform",
 }
 
