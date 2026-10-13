@@ -120,6 +120,8 @@ class ExternalRPCService:
             msg_data = msg
             peer = msg_data['to_peer']
             frames[0] = peer
+            # A call relayed from another platform carries no local user.
+            frames[3] = ''
             drop = self._send_internal(frames)
             return False
         except KeyError as exc:

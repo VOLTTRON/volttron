@@ -386,6 +386,9 @@ class BaseRouter:
             elif name == 'error':
                 return
             else:
+                # Whatever USER_ID the peer wrote is replaced, so a response
+                # built from the frames carries the router's value.
+                frames[3] = user_id
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:
                     # Handler does not know of the subsystem
