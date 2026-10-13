@@ -91,6 +91,7 @@ def _read_public_key(path):
         with _open_trusted(path) as keystore:
             key = jsonapi.load(keystore).get("public")
     except FileNotFoundError:
+        _log.warning("the platform's key file %s does not exist", path)
         return None
     except (OSError, ValueError, AttributeError) as err:
         _log.warning("cannot trust the platform's key file %s: %s", path, err)
@@ -106,9 +107,13 @@ def _installed_agent_key_path(agent_dir):
         names = [name for name in os.listdir(agent_dir)
                  if os.path.isdir(os.path.join(
                      agent_dir, name, name + ".dist-info"))]
-    except OSError:
+    except OSError as err:
+        _log.warning("cannot list the installed agent folder %s: %s",
+                     agent_dir, err)
         return None
     if len(names) != 1:
+        _log.warning("expected one package with a dist-info in %s, found %d",
+                     agent_dir, len(names))
         return None
     name = names[0]
     return os.path.join(agent_dir, name, name + ".dist-info", "keystore.json")
@@ -127,7 +132,9 @@ def _installed_agent_keys(identity):
         try:
             with open(os.path.join(agent_dir, "IDENTITY")) as fil:
                 installed_identity = fil.read().strip()
-        except OSError:
+        except OSError as err:
+            _log.warning("cannot read the IDENTITY file of the agent in %s: "
+                         "%s", agent_dir, err)
             continue
         if installed_identity != identity:
             continue
@@ -158,9 +165,16 @@ def check_reserved_user_id(entry):
     if entry.user_id not in RESERVED_USER_IDS:
         return
     credentials = entry.credentials
+    held = platform_held_keys(entry.user_id)
     if (entry.mechanism == "CURVE" and isinstance(credentials, str)
-            and credentials in platform_held_keys(entry.user_id)):
+            and credentials in held):
         return
+    if not held:
+        reason = "the platform holds no key for it"
+    elif entry.mechanism != "CURVE":
+        reason = "the entry does not use CURVE credentials"
+    else:
+        reason = "the entry holds a different key than the platform's"
     raise ReservedUserIdRefused(
         f"user_id {entry.user_id!r} is reserved for a platform service and "
-        f"this entry does not hold the key the platform holds for it")
+        f"{reason}")

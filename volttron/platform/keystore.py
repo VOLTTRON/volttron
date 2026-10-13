@@ -79,9 +79,20 @@ def tighten_keystore_dirs():
     except FileNotFoundError:
         return
     for path in [root] + children:
-        info = os.lstat(path)
-        if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
-                or stat.S_IMODE(info.st_mode) == _PRIVATE_DIR_MODE):
+        try:
+            info = os.lstat(path)
+        except FileNotFoundError:
+            continue
+        except OSError as err:
+            _log.warning("cannot check key directory %s: %s", path, err)
+            continue
+        if not stat.S_ISDIR(info.st_mode):
+            continue
+        if info.st_uid != os.getuid():
+            _log.warning("not tightening key directory %s: it is owned by "
+                         "another user", path)
+            continue
+        if stat.S_IMODE(info.st_mode) == _PRIVATE_DIR_MODE:
             continue
         os.chmod(path, _PRIVATE_DIR_MODE)
         _log.info("tightened %s from mode %o to %o", path,

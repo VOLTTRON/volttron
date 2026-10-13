@@ -103,6 +103,7 @@ class BaseRouter:
         self.inproc_socket = None
         self._identity_sockets = {}
         self._logged_senders = {}
+        self._suppression_logged = set()
         self._peers = set()
         self._poller = self._poller_class()
         self._ext_sockets = []
@@ -175,6 +176,11 @@ class BaseRouter:
         if sender in seen:
             return
         if len(seen) >= _LOGGED_SENDERS_LIMIT:
+            if kind not in self._suppression_logged:
+                self._suppression_logged.add(kind)
+                _log.warning(
+                    'Further "%s" warnings are suppressed after %d senders',
+                    kind, _LOGGED_SENDERS_LIMIT)
             return
         seen.add(sender)
         _log.warning(message, sender)
