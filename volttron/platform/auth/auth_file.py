@@ -420,7 +420,12 @@ class AuthFile(object):
             allow_list = upgrade_1_4_to_1_5(allow_list)
             version["minor"] = 5
 
-        allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
+        # Entries the key check withholds stay in the file, as in a mutator's
+        # write.
+        withheld = {"allow": []}
+        allow_entries, deny_entries = self._get_entries(
+            allow_list, deny_list, withheld)
+        self._withheld = withheld
         self._write(allow_entries, deny_entries, groups, roles)
 
     def read_allow_entries(self):
