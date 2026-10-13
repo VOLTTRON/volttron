@@ -67,6 +67,12 @@ _INVALID_SUBSYSTEM = (
 )
 
 
+def is_power_of_ten(count):
+    """True for 10, 100, 1000, ...; 1 is excluded because the first
+    occurrence is logged by name."""
+    return count >= 10 and str(count).rstrip('0') == '1'
+
+
 class BaseRouter:
     '''Abstract base class of VIP router implementation.
 
@@ -175,6 +181,11 @@ class BaseRouter:
         raise ValueError('unknown message origin: {!r}'.format(origin))
 
     def _log_once(self, kind, sender, message, *args):
+        """Warn once per sender and kind.
+
+        `message` is a %-format string whose first argument is the sender;
+        `args` fill the rest.
+        """
         seen = self._logged_senders.setdefault(kind, set())
         if sender in seen:
             return
@@ -196,7 +207,7 @@ class BaseRouter:
         without a line per message.
         """
         count = self._drop_counts[kind] = self._drop_counts.get(kind, 0) + 1
-        if count >= 10 and str(count).rstrip('0') == '1':
+        if is_power_of_ten(count):
             _log.warning('%d messages dropped so far: %s', count, kind)
         return count
 

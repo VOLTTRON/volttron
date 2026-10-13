@@ -23,7 +23,9 @@
 keeps polling. A quit still stops it. Fake sockets stand in for zmq, and the
 real routing, pub/sub and external RPC services handle the messages."""
 
+import json
 import logging
+from collections import defaultdict
 
 import pytest
 import zmq
@@ -40,7 +42,8 @@ from volttron.platform.vip.routingservice import (
 from volttron.platform.vip import pubsubservice as pubsubservice_module
 from volttron.platform.vip import routingservice as routingservice_module
 from volttron.platform.vip.tracking import Tracker
-from volttron.utils.frame_serialization import deserialize_frames
+from volttron.utils.frame_serialization import (deserialize_frames,
+                                                serialize_frames)
 
 ROUTER_LOGGER = router_module.__name__
 BODY_MARKER = "BODYMARKER-5678"
@@ -401,6 +404,23 @@ def test_outgoing_zmq_frames_are_counted_by_their_text(tracked):
     assert stats["subsystem"] == {"RPC": 1}
 
 
+def test_outgoing_frames_are_decoded_in_the_wire_encoding(tracked):
+    # serialize_frames writes text as ISO-8859-1, so the outgoing key must
+    # match the key the same text gets on the way in.
+    frames = serialize_frames(
+        ["agent.\xff", "", "VIP1", "usr\xe9", "m", "sub\xfc"])
+    tracked._tracker.hit(OUTGOING, frames, None)
+    stats = tracked._tracker.stats["outgoing"]
+    assert stats["peer"] == {"agent.\xff": 1}
+    assert stats["user"] == {"usr\xe9": 1}
+    assert stats["subsystem"] == {"sub\xfc": 1}
+
+
+def test_a_zmq_frame_is_shown_as_its_bytes():
+    shown = str(platform_main.FramesFormatter([zmq.Frame(b"VIP1"), "x"]))
+    assert shown == "[b'VIP1', 'x']"
+
+
 def test_logging_frames_that_are_text_does_not_raise():
     shown = str(platform_main.FramesFormatter(
         ["agent.x", 5, zmq.Frame(b"VIP1"), ["a"]]))
@@ -440,6 +460,38 @@ def test_the_traceback_is_kept_at_debug_and_not_in_the_warning(
     assert record.levelno == logging.DEBUG
     assert record.exc_info[0] is TypeError
     assert "agent.x" in record.getMessage()
+
+
+@pytest.mark.parametrize("frames, subsystem", [
+    (["agent.x", "", "VIP1", "", "m1"], "<unknown>"),
+    (["agent.x", "", "VIP1", "", "m1", "sub6"], "'sub6'"),
+])
+def test_the_subsystem_is_named_once_the_frame_exists(
+        router, caplog, frames, subsystem):
+    router.route = lambda *args, **kwargs: 1 / 0
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        poll(router, arrive(router, message(*frames)))
+    (warning,) = [r.getMessage() for r in caplog.records
+                  if r.name == ROUTER_LOGGER]
+    assert "in subsystem %s: routing raised ZeroDivisionError" % subsystem \
+        in warning
+
+
+@pytest.mark.parametrize("count, expected", [
+    (1, False), (9, False), (10, True), (11, False), (20, False),
+    (100, True), (101, False), (110, False), (1000, True), (1010, False),
+    (10000, True), (100000, True), (200000, False)])
+def test_summaries_are_logged_only_at_powers_of_ten(count, expected):
+    assert router_module.is_power_of_ten(count) is expected
+
+
+def test_the_sender_is_the_first_argument_of_a_once_only_warning(
+        router, caplog):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        router._log_once("kind", "agent.x", "Saw %r with %s", "extra")
+        router._log_once("kind", "agent.x", "Saw %r with %s", "extra")
+    (warning,) = [r.getMessage() for r in caplog.records]
+    assert warning == "Saw 'agent.x' with extra"
 
 
 def test_every_drop_is_counted_but_one_sender_is_warned_once(router, caplog):
@@ -495,12 +547,23 @@ def external_list(sender, payload):
                    payload)
 
 
-def publish(router, sender="agent.p"):
+PUBLISH_BODY = '{"headers": {"h": 1}, "message": "payload", "bus": ""}'
+
+
+def publish(router, sender="agent.p", topic="devices/a"):
     before = len(router.socket.sent)
     poll(router, arrive(router, message(
-        sender, "", "VIP1", "", "m9", "pubsub", "publish", "devices/a",
-        '{"v": 1}', user="u9")))
+        sender, "", "VIP1", "", "m9", "pubsub", "publish", topic,
+        PUBLISH_BODY, user="u9")))
     return [m for m in router.socket.sent[before:] if m[0] == sender]
+
+
+def connect_platform(router, name):
+    """Register a connected remote platform; return its fake socket."""
+    sock = FakeSocket(name)
+    router._ext_routing._instances[name] = {
+        "socket": sock, "status": STATUS_CONNECTED}
+    return sock
 
 
 MALFORMED_LISTS = {
@@ -553,6 +616,158 @@ def test_a_valid_external_list_is_stored(router, monkeypatch):
         "agent.x", '{"inst-b": ["devices/", "alerts/"], "inst-c": []}')))
     assert dict(router.pubsub._ext_subscriptions) == {
         "inst-b": ["devices/", "alerts/"], "inst-c": []}
+
+
+@pytest.fixture
+def local_name(monkeypatch):
+    monkeypatch.setattr(pubsubservice_module, "get_platform_instance_name",
+                        lambda: "inst-a")
+
+
+def test_a_publish_reaches_a_platform_that_listed_a_matching_prefix(
+        router, local_name):
+    remote = connect_platform(router, "inst-b")
+    poll(router, arrive(router, external_list(
+        "agent.x", '{"inst-b": ["devices/"]}')))
+    (reply,) = publish(router)
+    assert reply[5:7] == ["pubsub", "request_response"]
+    (forwarded,) = remote.sent
+    assert forwarded[4:7] == ["pubsub", "external_publish", "devices/a"]
+
+
+def test_a_publish_is_not_sent_to_a_platform_with_another_prefix(
+        router, local_name):
+    remote = connect_platform(router, "inst-b")
+    poll(router, arrive(router, external_list(
+        "agent.x", '{"inst-b": ["alerts/"]}')))
+    publish(router)
+    assert remote.sent == []
+
+
+class CountingDict(defaultdict):
+    """Counts how often the stored dict is turned into text."""
+
+    formatted = 0
+
+    def __repr__(self):
+        type(self).formatted += 1
+        return super().__repr__()
+
+
+def many(count, prefixes=0):
+    """A JSON list: `count` platforms with `prefixes` prefixes each."""
+    return json.dumps({"p%d" % n: ["x/%d" % m for m in range(prefixes)]
+                       for n in range(count)})
+
+
+def test_storing_a_list_does_not_format_the_stored_dict_below_debug(
+        router, local_name, caplog):
+    CountingDict.formatted = 0
+    router.pubsub._ext_subscriptions = CountingDict(set)
+    with caplog.at_level(logging.INFO, logger=pubsubservice_module.__name__):
+        poll(router, arrive(router, external_list("agent.x", many(20))))
+    assert len(router.pubsub._ext_subscriptions) == 20
+    assert CountingDict.formatted == 0
+
+
+def test_the_incoming_frames_are_not_formatted_below_debug(router, local_name,
+                                                          caplog):
+    CountingDict.formatted = 0
+    frames = ["agent.x", "", "VIP1", "", "m1", "pubsub", "external_list",
+              CountingDict(set, {"inst-b": ["devices/"]})]
+    with caplog.at_level(logging.INFO, logger=pubsubservice_module.__name__):
+        assert router.pubsub._update_external_subscriptions(frames) is True
+    assert CountingDict.formatted == 0
+
+
+def test_the_stored_list_is_logged_as_a_count_at_debug(router, local_name,
+                                                      caplog):
+    with caplog.at_level(logging.DEBUG, logger=pubsubservice_module.__name__):
+        poll(router, arrive(router, external_list(
+            "agent.x", '{"inst-b": ["devices/", "alerts/"], "inst-c": []}')))
+    texts = [r.getMessage() for r in caplog.records
+             if "New external list" in r.getMessage()]
+    assert texts == [
+        "PUBSUBSERVICE New external list for inst-b: 2 prefixes "
+        "(1 platforms stored)",
+        "PUBSUBSERVICE New external list for inst-c: 0 prefixes "
+        "(2 platforms stored)"]
+
+
+def test_a_list_of_64_platforms_is_stored(router, local_name):
+    poll(router, arrive(router, external_list("agent.x", many(64))))
+    assert len(router.pubsub._ext_subscriptions) == 64
+
+
+def test_a_list_of_65_platforms_is_refused(router, local_name):
+    router.pubsub._ext_subscriptions["kept"] = {"kept/"}
+    poll(router, arrive(router, external_list("agent.x", many(65))))
+    assert dict(router.pubsub._ext_subscriptions) == {"kept": {"kept/"}}
+    assert router.pubsub._bad_external_lists == 1
+
+
+def test_a_platform_with_1024_prefixes_is_stored(router, local_name):
+    poll(router, arrive(router, external_list("agent.x", many(1, 1024))))
+    assert len(router.pubsub._ext_subscriptions["p0"]) == 1024
+
+
+def test_a_platform_with_1025_prefixes_is_refused(router, local_name):
+    poll(router, arrive(router, external_list("agent.x", many(1, 1025))))
+    assert dict(router.pubsub._ext_subscriptions) == {}
+    assert router.pubsub._bad_external_lists == 1
+
+
+def refusal_warnings(caplog):
+    return [r.getMessage() for r in caplog.records
+            if r.name == pubsubservice_module.__name__
+            and r.levelno == logging.WARNING]
+
+
+def test_the_refusal_warning_names_the_sender(router, caplog):
+    with caplog.at_level(logging.WARNING):
+        poll(router, arrive(router, external_list(
+            "agent.x", MALFORMED_LISTS["a list"])))
+        poll(router, arrive(router, external_list(
+            "agent.y", MALFORMED_LISTS["a list"])))
+        poll(router, arrive(router, external_list(
+            "agent.x", MALFORMED_LISTS["a list"])))
+    first, second = refusal_warnings(caplog)
+    assert "'agent.x'" in first and "'agent.y'" not in first
+    assert "'agent.y'" in second
+
+
+def test_a_refusal_count_is_logged_at_each_power_of_ten(router, caplog):
+    with caplog.at_level(logging.WARNING):
+        for _ in range(100):
+            poll(router, arrive(router, external_list(
+                "agent.x", MALFORMED_LISTS["a list"])))
+    warnings = refusal_warnings(caplog)
+    assert len(warnings) == 3
+    assert "10 external subscription lists refused so far" in warnings[1]
+    assert "100 external subscription lists refused so far" in warnings[2]
+    assert router.pubsub._bad_external_lists == 100
+
+
+def test_senders_past_the_limit_are_counted_without_a_line_each(
+        router, caplog, monkeypatch):
+    monkeypatch.setattr(pubsubservice_module, "_LOGGED_SENDERS_LIMIT", 2)
+    with caplog.at_level(logging.WARNING):
+        for n in range(5):
+            poll(router, arrive(router, external_list(
+                "agent.%d" % n, MALFORMED_LISTS["a list"])))
+    assert len(refusal_warnings(caplog)) == 2
+    assert router.pubsub._bad_external_lists == 5
+
+
+@pytest.mark.parametrize("payload, answer", [
+    (MALFORMED_LISTS["a list"], "\x00"),
+    ('{"inst-b": ["devices/"]}', "\x01"),
+])
+def test_the_reply_to_an_external_list_says_whether_it_was_stored(
+        router, local_name, payload, answer):
+    poll(router, arrive(router, external_list("agent.x", payload)))
+    (reply,) = [m for m in router.socket.sent if m[0] == "agent.x"]
+    assert reply[5:8] == ["pubsub", "request_response", answer]
 
 
 # Things the guard and the router rules must still do.

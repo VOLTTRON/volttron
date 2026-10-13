@@ -34,6 +34,8 @@
 import gevent
 import zmq
 
+from volttron.utils.frame_serialization import ENCODE_FORMAT
+
 from .router import UNROUTABLE, ERROR, INCOMING
 
 __all__ = ['Tracker']
@@ -44,11 +46,11 @@ NOT_TEXT = '<not text>'
 
 def as_text(frame):
     '''Return a frame as text: decoded frames arrive as str, frames read
-    from or written to a socket as bytes-like objects.'''
+    from or written to a socket as bytes-like objects in the wire encoding.'''
     if isinstance(frame, str):
         return frame
     if isinstance(frame, (bytes, zmq.Frame)):
-        return bytes(frame).decode('utf-8', 'replace')
+        return bytes(frame).decode(ENCODE_FORMAT)
     return NOT_TEXT
 
 
