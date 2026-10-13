@@ -26,6 +26,7 @@ auth file an entry."""
 
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -111,9 +112,52 @@ def test_a_key_file_that_is_not_a_regular_file_is_refused(vhome):
     assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
 
 
+def test_a_pipe_in_place_of_a_key_file_is_refused(vhome):
+    key = held_key(CONTROL)
+    path = keystore_file(CONTROL)
+    os.remove(path)
+    os.mkfifo(path)
+    reader = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+    writer = os.open(path, os.O_WRONLY)
+    try:
+        os.write(writer, json.dumps({"public": key}).encode())
+        assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
+    finally:
+        os.close(writer)
+        os.close(reader)
+
+
 def test_a_key_file_owned_by_another_user_is_refused(vhome, monkeypatch):
     held_key(CONTROL)
     monkeypatch.setattr(os, "getuid", lambda: os.stat(vhome).st_uid + 1)
+    assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
+
+
+def _as_owned_by_another_user(real):
+    def wrapper(*args, **kwargs):
+        info = real(*args, **kwargs)
+        return SimpleNamespace(st_mode=info.st_mode, st_uid=info.st_uid + 1)
+    return wrapper
+
+
+def test_a_key_file_owned_by_another_user_in_our_directory_is_refused(
+        vhome, monkeypatch):
+    held_key(CONTROL)
+    monkeypatch.setattr(os, "fstat", _as_owned_by_another_user(os.fstat))
+    assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
+
+
+def test_a_key_directory_owned_by_another_user_is_refused(vhome, monkeypatch):
+    held_key(CONTROL)
+    monkeypatch.setattr(os, "lstat", _as_owned_by_another_user(os.lstat))
+    assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
+
+
+def test_a_symlinked_key_directory_is_refused(vhome):
+    held_key(CONTROL)
+    real = vhome / "real-keystores-control"
+    os.replace(os.path.dirname(keystore_file(CONTROL)), real)
+    os.symlink(real, os.path.dirname(keystore_file(CONTROL)))
     assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
 
 
@@ -225,6 +269,20 @@ def test_visible_indexes_ignore_entries_hidden_by_a_failed_key_read(
         auth_file.remove_by_index(0)
 
     assert file_user_ids(auth_file, "allow") == [CONTROL]
+
+
+def test_a_write_with_no_read_of_its_own_adds_nothing_back(
+        auth_file, vhome, monkeypatch):
+    key = held_key(CONTROL)
+    auth_file.add(AuthEntry(credentials=key, user_id=CONTROL,
+                            identity=CONTROL))
+    with monkeypatch.context() as patch:
+        patch.setattr(reserved_user_ids, "platform_held_keys",
+                      lambda user_id: frozenset())
+        auth_file.read_allow_entries()
+    with auth_file._transaction():
+        auth_file._write([], [], {}, {})
+    assert file_user_ids(auth_file, "allow") == []
 
 
 def test_an_entry_removed_on_purpose_is_gone(auth_file, vhome):
