@@ -30,6 +30,7 @@ import logging
 import os
 import re
 import subprocess
+import sys
 
 import pytest
 import zmq
@@ -68,6 +69,7 @@ class FakeSocket:
         self.sndtimeo = 0
         self.hwm = None
         self._log = log if log is not None else self.events
+        self.closed_with = "open"
 
     def bind(self, address):
         self._log.append((self.name, "bind", address))
@@ -86,6 +88,9 @@ class FakeSocket:
     @zap_domain.setter
     def zap_domain(self, value):
         self._log.append((self.name, "zap_domain", value))
+
+    def close(self, linger=None):
+        self.closed_with = linger
 
     def send_multipart(self, frames, flags=0, copy=True):
         first = bytes(frames[0]).decode("iso-8859-1")
@@ -309,7 +314,7 @@ def test_network_peer_cannot_take_an_identity_mapped_to_inproc(context):
     assert len(router.socket.sent) == 1   # only the first, inproc, message
 
 
-def test_identity_that_appears_on_both_sockets_is_dropped_from_network(
+def test_identity_that_appears_on_both_sockets_moves_to_the_inproc_socket(
         context):
     router = make_router(context)
     router.route(message("custom.svc", "agent.a"), ORIGIN_NETWORK,
@@ -321,6 +326,36 @@ def test_identity_that_appears_on_both_sockets_is_dropped_from_network(
                  network_frames("agent.a", "u1"))
     assert [m[0] for m in router.inproc_socket.sent[-1:]] == ["custom.svc"]
     assert router.socket.sent == []
+
+
+def test_moving_an_identity_to_the_inproc_socket_is_warned_about_once(
+        context, caplog):
+    router = make_router(context)
+    router.route(message("custom.svc", "agent.a"), ORIGIN_NETWORK,
+                 network_frames("custom.svc", "u1"))
+    with caplog.at_level(logging.WARNING, logger=router_module.__name__):
+        router.route(message("custom.svc", "agent.a"), ORIGIN_INPROC)
+        router.route(message("custom.svc", "agent.a", msg_id="m2"),
+                     ORIGIN_INPROC)
+    moved = [r.getMessage() for r in caplog.records
+             if r.levelno == logging.WARNING and "moved" in r.getMessage()]
+    assert len(moved) == 1 and "custom.svc" in moved[0]
+
+
+def test_network_message_from_a_moved_identity_is_dropped_and_warned_about(
+        context, caplog):
+    router = make_router(context)
+    router.route(message("custom.svc", "agent.a"), ORIGIN_NETWORK,
+                 network_frames("custom.svc", "u1"))
+    router.route(message("custom.svc", "agent.a"), ORIGIN_INPROC)
+    router.socket.sent.clear()
+    with caplog.at_level(logging.WARNING, logger=router_module.__name__):
+        router.route(message("custom.svc", "agent.a", msg_id="m3"),
+                     ORIGIN_NETWORK, network_frames("custom.svc", "u1"))
+    assert router.socket.sent == []
+    assert router._identity_sockets["custom.svc"] is router.inproc_socket
+    assert any("in use on the inproc socket" in r.getMessage()
+               for r in caplog.records)
 
 
 def test_dropping_a_peer_forgets_its_socket(context):
@@ -350,6 +385,21 @@ def test_error_reply_goes_on_the_senders_socket(context):
     replies = [m for m in router.inproc_socket.sent if m[5] == "error"]
     assert [m[0] for m in replies] == ["platform.auth"]
     assert [m for m in router.socket.sent if m[5] == "error"] == []
+
+
+def test_stop_closes_both_sockets(context):
+    router = make_router(context)
+    router.stop(linger=0)
+    assert router.socket.closed_with == 0
+    assert router.inproc_socket.closed_with == 0
+
+
+def test_stop_before_the_inproc_socket_exists_closes_the_network_socket(
+        context):
+    router = make_router(context)
+    router.inproc_socket = None
+    router.stop(linger=0)
+    assert router.socket.closed_with == 0
 
 
 def test_distribute_uses_each_peers_socket(context):
@@ -544,38 +594,92 @@ def test_both_router_classes_still_construct(router_class, context):
     assert router.inproc_socket is None
 
 
-def inproc_vip_lines():
-    root = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__)))))
-    out = subprocess.run(
-        ["git", "-C", root, "grep", "-n", "-E",
-         r"['\"]inproc://vip['\"]", "--", "volttron", "volttrontesting",
-         "services", "scripts", "examples", "integrations"],
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
+SEARCHED = ("volttron", "volttrontesting", "services", "scripts", "examples",
+            "integrations")
+
+
+def tracked_python_files():
+    """Tracked .py files under the searched directories, or a skip outside a
+    git checkout."""
+    inside = subprocess.run(
+        ["git", "-C", REPO_ROOT, "rev-parse", "--is-inside-work-tree"],
         capture_output=True, text=True, check=False)
-    assert out.returncode in (0, 1), out.stderr
-    lines = []
-    for line in out.stdout.splitlines():
-        path, _, text = line.split(":", 2)
-        lines.append((path, text.strip()))
-    return lines
+    if inside.returncode != 0 or inside.stdout.strip() != "true":
+        pytest.skip("not a git checkout")
+    out = subprocess.run(
+        ["git", "-C", REPO_ROOT, "ls-files", "-z", "--"]
+        + ["{}/**/*.py".format(d) for d in SEARCHED],
+        capture_output=True, check=True)
+    return [name.decode() for name in out.stdout.split(b"\0") if name]
+
+
+ENDPOINT = "inproc://vip"
+
+
+def inproc_address_pieces():
+    """Every string in the tracked code that is the endpoint or a leading
+    piece of it ("inproc", "inproc://"), as (path, value). Parsing the code finds an address written in pieces
+    ("inproc://" + "vip") as well as one written whole. Docstrings and bare
+    string statements are not addresses."""
+    found = set()
+    for name in tracked_python_files():
+        with open(os.path.join(REPO_ROOT, name), "rb") as source:
+            try:
+                tree = ast.parse(source.read())
+            except SyntaxError:
+                continue
+        docs = {id(node.value) for node in ast.walk(tree)
+                if isinstance(node, ast.Expr)}
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and id(node) not in docs
+                    and len(node.value) >= len("inproc")
+                    and (node.value == ENDPOINT
+                         or ENDPOINT.startswith(node.value))):
+                found.add((name, node.value))
+    return found
 
 
 # The one place that binds the endpoint and the places that connect to it.
-# A new connect site fails the test until it is added here, with its identity
-# checked below.
+# A new site fails the test until it is added here, with its identity checked
+# below.
 KNOWN_INPROC_VIP_SITES = {
-    ("volttron/platform/main.py", "inproc.bind('inproc://vip')"),
-    ("volttron/platform/main.py", "address = 'inproc://vip'"),
-    ("volttron/platform/aip.py", "agent = Agent(identity='aip', address='inproc://vip',"),
+    ("volttron/platform/main.py", "inproc://vip"),
+    ("volttron/platform/aip.py", "inproc://vip"),
+    # Checks of the address scheme, not connect sites.
+    ("volttron/platform/vip/agent/core.py", "inproc:"),
+    ("volttron/platform/vip/socket.py", "inproc"),
+    ("volttron/platform/vip/router.py", "inproc"),
 }
 
 
 def test_every_inproc_vip_connect_in_the_tree_is_listed():
-    found = inproc_vip_lines()
+    found = inproc_address_pieces()
     # Denominator: the test files themselves are among the searched paths.
     this_file = "volttrontesting/platform/auth_tests/test_router_origin.py"
     found = {item for item in found if item[0] != this_file}
     assert found == KNOWN_INPROC_VIP_SITES
+
+
+def test_the_enumeration_catches_an_address_built_from_parts(
+        tmp_path, monkeypatch):
+    sample = tmp_path / "sample.py"
+    sample.write_text("address = 'inproc://' + 'vip'\n"
+                      "other = 'inproc' + '://vip'\n"
+                      "\"\"\"inproc docs\"\"\"\n")
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
+    monkeypatch.setattr(sys.modules[__name__], "tracked_python_files",
+                        lambda: ["sample.py"])
+    assert inproc_address_pieces() == {("sample.py", "inproc://"),
+                                       ("sample.py", "inproc")}
+
+
+def test_the_enumeration_skips_outside_a_git_checkout(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
+    with pytest.raises(pytest.skip.Exception):
+        tracked_python_files()
 
 
 def _main_tree():
