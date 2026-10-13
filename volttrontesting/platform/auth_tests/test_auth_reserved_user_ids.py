@@ -31,27 +31,23 @@ import pytest
 
 from volttron.platform.agent import known_identities
 from volttron.platform.agent.known_identities import (
-    AUTH,
-    CONFIGURATION_STORE,
     CONTROL,
-    CONTROL_CONNECTION,
-    KEY_DISCOVERY,
     PLATFORM,
-    PLATFORM_WEB,
     VOLTTRON_CENTRAL,
 )
 from volttron.platform.auth import AuthEntry, AuthEntryInvalid, AuthFile
 from volttron.platform.keystore import KeyStore
+from volttrontesting.platform.auth_tests.conftest import (
+    held_key, install_agent)
 
 IN_PROCESS = {"platform.auth", "platform.health", "config.store", "control",
               "platform_web", "keydiscovery", "zmq.proxy.router", "aip"}
 RESERVED = IN_PROCESS | {"control.connection", "platform", "volttron.central",
                          "vip.service"}
 
-# Reserved ids the platform writes an entry for at startup, with the key
-# source main.py uses for each.
-STARTUP_IDS = [PLATFORM, CONTROL_CONNECTION, CONFIGURATION_STORE, AUTH,
-               CONTROL, KEY_DISCOVERY, PLATFORM_WEB]
+# Reserved ids the platform holds a key for: its own keypair, vctl's, and
+# each service's keystore.
+STARTUP_IDS = sorted({"platform", "control.connection"} | (IN_PROCESS - {"aip"}))
 # Reserved ids no key is held for.
 NO_KEY_IDS = sorted(RESERVED - set(STARTUP_IDS) - {VOLTTRON_CENTRAL})
 
@@ -71,26 +67,8 @@ def auth_file(vhome):
     return AuthFile(str(vhome / "auth.json"))
 
 
-def held_key(identity):
-    """The public key the platform holds for a startup identity, made the
-    way main.py makes it."""
-    if identity == PLATFORM:
-        return KeyStore().public
-    return KeyStore(KeyStore.get_agent_keystore_path(identity)).public
-
-
 def foreign_key(vhome):
     return KeyStore(str(vhome / "foreign" / "keystore.json")).public
-
-
-def install_agent(vhome, identity, uuid="0123"):
-    """Lays out an installed agent as the agent installer does."""
-    agent_dir = vhome / "agents" / uuid
-    os.makedirs(agent_dir)
-    (agent_dir / "IDENTITY").write_text(identity)
-    dist_info = agent_dir / "pkg" / "pkg.dist-info"
-    os.makedirs(dist_info)
-    return KeyStore(str(dist_info / "keystore.json")).public
 
 
 def write_entries(auth_file, allow=(), deny=()):
@@ -246,4 +224,14 @@ def test_reserved_entry_with_regex_credentials_is_refused(auth_file):
 def test_reserved_entry_with_null_mechanism_is_refused(auth_file):
     with pytest.raises(AuthEntryInvalid):
         auth_file.add(AuthEntry(mechanism="NULL", user_id=CONTROL))
+    assert allow_user_ids(auth_file) == []
+
+
+def test_reserved_entry_with_null_mechanism_is_refused_even_with_the_held_key(
+        auth_file):
+    # A NULL entry matches every peer whatever its credentials say.
+    entry = AuthEntry(mechanism="NULL", credentials=held_key(CONTROL),
+                      user_id=CONTROL)
+    with pytest.raises(AuthEntryInvalid):
+        auth_file.add(entry)
     assert allow_user_ids(auth_file) == []

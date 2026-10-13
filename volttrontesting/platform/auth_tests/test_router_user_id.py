@@ -59,8 +59,9 @@ def test_router_keeps_the_enable_auth_it_is_given(
 
 
 def enable_auth_keywords():
-    """Maps each call name in main.py to the source of its enable_auth
-    argument, for every call that passes one."""
+    """Lists (call name, source of the enable_auth argument, line) for every
+    call in main.py that passes one, except a constructor handing its own
+    parameter to its parent class."""
     path = importlib.util.find_spec("volttron.platform.main").origin
     with open(path) as source:
         tree = ast.parse(source.read())
@@ -71,6 +72,8 @@ def enable_auth_keywords():
         for keyword in node.keywords:
             if keyword.arg == "enable_auth":
                 name = ast.unparse(node.func)
+                if name.endswith(".__init__"):
+                    continue
                 found.append((name, ast.unparse(keyword.value), node.lineno))
     return found
 
