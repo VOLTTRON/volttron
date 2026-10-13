@@ -104,6 +104,7 @@ class BaseRouter:
         self._identity_sockets = {}
         self._logged_senders = {}
         self._suppression_logged = set()
+        self._drop_counts = {}
         self._peers = set()
         self._poller = self._poller_class()
         self._ext_sockets = []
@@ -173,7 +174,7 @@ class BaseRouter:
             return self.socket
         raise ValueError('unknown message origin: {!r}'.format(origin))
 
-    def _log_once(self, kind, sender, message):
+    def _log_once(self, kind, sender, message, *args):
         seen = self._logged_senders.setdefault(kind, set())
         if sender in seen:
             return
@@ -185,7 +186,19 @@ class BaseRouter:
                     kind, _LOGGED_SENDERS_LIMIT)
             return
         seen.add(sender)
-        _log.warning(message, sender)
+        _log.warning(message, sender, *args)
+
+    def _count_drop(self, kind):
+        """Count a dropped message and return the count for its kind.
+
+        The count includes senders whose warning is suppressed. A summary is
+        logged at each power of ten, so a sustained drop stays visible
+        without a line per message.
+        """
+        count = self._drop_counts[kind] = self._drop_counts.get(kind, 0) + 1
+        if count >= 10 and str(count).rstrip('0') == '1':
+            _log.warning('%d messages dropped so far: %s', count, kind)
+        return count
 
     def _claim_identity(self, sender, origin):
         '''Record the socket sender arrived on, or refuse the message.

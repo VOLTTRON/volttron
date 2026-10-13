@@ -381,3 +381,82 @@ def test_logging_frames_that_are_text_does_not_raise():
     shown = str(platform_main.FramesFormatter(
         ["agent.x", 5, zmq.Frame(b"VIP1"), ["a"]]))
     assert "agent.x" in shown and "VIP1" in shown and "5" in shown
+
+
+# A dropped message is visible: the subsystem is named, the traceback is kept
+# at DEBUG, and every drop is counted even when its warning is suppressed.
+
+
+def bad_send_peer(sender, subsystem="external_rpc"):
+    return message(sender, "", "VIP1", "", "m1", subsystem, "send_peer",
+                   BODY_MARKER)
+
+
+def test_the_warning_names_the_subsystem_cut_to_100_characters(
+        router, caplog):
+    long_name = "S" * 300
+    router.route = lambda *args, **kwargs: 1 / 0
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        poll(router, arrive(router, message(
+            "agent.x", "", "VIP1", "", "m1", long_name, "op")))
+        poll(router, arrive(router, bad_send_peer("agent.y")))
+    first, second = [r.getMessage() for r in caplog.records
+                     if r.name == ROUTER_LOGGER]
+    assert "'" + "S" * 99 in first and "S" * 100 not in first
+    assert "in subsystem 'external_rpc'" in second
+    assert "ZeroDivisionError" in first
+
+
+def test_the_traceback_is_kept_at_debug_and_not_in_the_warning(
+        router, caplog):
+    with caplog.at_level(logging.DEBUG, logger=platform_main.__name__):
+        poll(router, arrive(router, bad_send_peer("agent.x")))
+    (record,) = [r for r in caplog.records
+                 if r.name == platform_main.__name__ and r.exc_info]
+    assert record.levelno == logging.DEBUG
+    assert record.exc_info[0] is TypeError
+    assert "agent.x" in record.getMessage()
+
+
+def test_every_drop_is_counted_but_one_sender_is_warned_once(router, caplog):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        for _ in range(3):
+            poll(router, arrive(router, bad_send_peer("agent.x")))
+    assert router._drop_counts == {"route failed TypeError": 3}
+    (warning,) = [r.getMessage() for r in caplog.records
+                  if r.name == ROUTER_LOGGER]
+    assert "(1 dropped so far)" in warning
+
+
+def test_a_count_summary_is_logged_at_each_power_of_ten(router, caplog):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        for _ in range(100):
+            poll(router, arrive(router, bad_send_peer("agent.x")))
+    summaries = [r.getMessage() for r in caplog.records
+                 if r.name == ROUTER_LOGGER and "dropped so far:" in
+                 r.getMessage()]
+    assert summaries == [
+        "10 messages dropped so far: route failed TypeError",
+        "100 messages dropped so far: route failed TypeError"]
+    assert router._drop_counts["route failed TypeError"] == 100
+
+
+def test_senders_past_the_warning_limit_are_still_counted(
+        router, caplog, monkeypatch):
+    monkeypatch.setattr(router_module, "_LOGGED_SENDERS_LIMIT", 2)
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        for n in range(5):
+            poll(router, arrive(router, bad_send_peer("agent.%d" % n)))
+    warned = [r.getMessage() for r in caplog.records
+              if r.name == ROUTER_LOGGER and "routing raised" in
+              r.getMessage()]
+    assert len(warned) == 2
+    assert router._drop_counts == {"route failed TypeError": 5}
+
+
+def test_drops_of_different_types_are_counted_apart(router):
+    poll(router, arrive(router, bad_send_peer("agent.x")))
+    poll(router, arrive(router, message(
+        "agent.x", "", "VIP1", "", "m1", "external_rpc", "send_peer")))
+    assert router._drop_counts == {"route failed TypeError": 1,
+                                   "route failed ValueError": 1}

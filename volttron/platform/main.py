@@ -602,20 +602,29 @@ class Router(BaseRouter):
         """Route one message; a message that makes routing raise is dropped.
 
         Any peer can send frames the services do not expect, and an exception
-        here would stop the whole platform. Only the exception type is logged,
-        once per sender, because the message body is peer-controlled.
+        here would stop the whole platform. The warning names the exception
+        type and subsystem once per sender; the message body is
+        peer-controlled and is not logged, and the traceback is kept at DEBUG.
         """
         sender = '<unreadable>'
+        subsystem = '<unknown>'
         try:
             decoded = deserialize_frames(frames)
             sender = decoded[0] if decoded and isinstance(
                 decoded[0], str) else '<not text>'
+            if len(decoded) > 5:
+                subsystem = repr(decoded[5])[:100]
             self.route(decoded, origin, raw_frames)
         except Exception as ex:
             name = type(ex).__name__
+            kind = 'route failed ' + name
+            count = self._count_drop(kind)
+            _log.debug('Dropped a message from %r in subsystem %s',
+                       sender, subsystem, exc_info=True)
             self._log_once(
-                'route failed ' + name, sender,
-                'Dropped a message from %%r: routing raised %s' % name)
+                kind, sender,
+                'Dropped a message from %%r in subsystem %%s: routing raised '
+                '%s (%%d dropped so far)' % name, subsystem, count)
 
     def poll_sockets(self):
         """
