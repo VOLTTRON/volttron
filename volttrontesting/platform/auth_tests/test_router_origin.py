@@ -471,6 +471,30 @@ def configured_router(context):
     return router, sockets, log
 
 
+@pytest.mark.parametrize("service", [
+    "RoutingService", "PubSubService", "ExternalRPCService"])
+def test_each_service_is_given_the_routers_sender_not_a_socket(
+        context, monkeypatch, service):
+    given = []
+
+    class Spy:
+        def __init__(self, sender, *args, **kwargs):
+            given.append(sender)
+
+    monkeypatch.setattr(platform_main, service, Spy)
+    for other in ("RoutingService", "PubSubService", "ExternalRPCService"):
+        if other != service:
+            monkeypatch.setattr(platform_main, other,
+                                lambda *args, **kwargs: None)
+    router, sockets, _ = configured_router(context)
+    assert len(given) == 1
+    assert isinstance(given[0], RouterSender)
+    assert given[0]._router is router
+    assert given[0] is router._sender
+    assert given[0] is not router.socket
+    assert given[0] is not router.inproc_socket
+
+
 def test_inproc_socket_binds_only_inproc_vip_and_has_no_zap_domain(context):
     router, sockets, log = configured_router(context)
     assert router.inproc_socket is sockets["inproc"]
