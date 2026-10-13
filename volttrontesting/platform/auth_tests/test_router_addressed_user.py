@@ -128,7 +128,7 @@ def build_router(context, router_class=_GatedRouter, enable_auth=True):
     router = router_class("ipc://@router-addressed-test", context=context,
                           enable_auth=enable_auth, service_notifier=None)
     router.socket = RecordingSocket("network")
-    router.inproc_socket = RecordingSocket("inproc")
+    router.inproc_socket = RecordingSocket("in-process")
     router.socket.identity = b"net-id"
     router.inproc_socket.identity = b"inproc-id"
     return router
