@@ -745,6 +745,9 @@ def start_volttron_process(opts):
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
 
+    report_resolved_home(getattr(opts, 'requested_home', opts.volttron_home),
+                         opts.volttron_home)
+
     if opts.agent_isolation_mode == "True":
         _log.info("VOLTTRON starting in agent isolation mode")
         os.umask(0o007)
@@ -1355,6 +1358,23 @@ def setup_auth_service(opts, address, services):
     AuthFile().add(entry, overwrite=True)
 
 
+def resolve_volttron_home(raw):
+    """Sets VOLTTRON_HOME to the real path of `raw` and returns (real path,
+    requested path). The key checks read directories with lstat, which does
+    not follow a symlink, so every reader and child process gets the real
+    path."""
+    requested = os.path.normpath(config.expandall(raw))
+    resolved = os.path.realpath(requested)
+    os.environ['VOLTTRON_HOME'] = resolved
+    return resolved, requested
+
+
+def report_resolved_home(requested, resolved):
+    if requested != resolved:
+        _log.warning('VOLTTRON_HOME %s goes through a symlink; using its real '
+                     'path %s', requested, resolved)
+
+
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -1362,9 +1382,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(
-        config.expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    os.environ['VOLTTRON_HOME'] = volttron_home
+    volttron_home, requested_home = resolve_volttron_home(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
@@ -1608,6 +1627,7 @@ def main(argv=sys.argv):
         monitor=False,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
+        requested_home=requested_home,
         autostart=True,
         publish_address=ipc + 'publish',
         subscribe_address=ipc + 'subscribe',
