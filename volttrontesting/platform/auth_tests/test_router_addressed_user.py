@@ -39,6 +39,7 @@ from volttron.platform.vip.pubsubservice import PubSubService
 from volttron.platform.vip.router import (ORIGIN_INPROC, ORIGIN_NETWORK,
                                           RouterSender)
 from volttron.platform.vip.routingservice import RoutingService
+from volttron.utils.frame_serialization import deserialize_frames
 
 PROTO = "VIP1"
 ROUTER_LOGGER = router_module.__name__
@@ -435,50 +436,79 @@ def test_a_relayed_call_carries_no_user_whatever_the_frame_held():
     assert sent[3] == ""
 
 
-# ext_route forwards nothing for relayed frame shapes.
+# ext_route reads the socket empty and discards what it read.
 
-def ext_frames(subsystem, body):
-    return [WireFrame(x.encode()) for x in
-            ("s7", PROTO, "control.connection", "m1", subsystem, body)]
+def wire(*parts):
+    return [WireFrame(x.encode()) for x in parts]
 
 
 class _ExtSocket(RecordingSocket):
     def __init__(self, frames):
         super().__init__("ext")
         self._frames = frames
+        self.reads = 0
 
     def recv_multipart(self, copy=True):
+        self.reads += 1
         return self._frames
 
 
-@pytest.mark.parametrize("subsystem,body", [
-    ("external_rpc", '{"to_peer": "agent.z"}'),
-    ("pubsub", '{"to_peer": "agent.z"}'),
-    ("routing_table", '{"to_peer": "agent.z"}'),
-])
-def test_ext_route_forwards_nothing_for_a_relayed_frame_shape(
-        harness, subsystem, body):
+EXT_SHAPES = {
+    "agentstop of the sender": wire(
+        "victim", "", PROTO, "", "m1", "agentstop", "victim"),
+    "call under a chosen sender": wire(
+        "agent.z", "vc.agent.y", PROTO, "", "m1", "RPC", "{}"),
+    "external_rpc": wire(
+        "s7", PROTO, "control.connection", "m1", "external_rpc",
+        '{"to_peer": "agent.z"}'),
+    "pubsub": wire(
+        "s7", PROTO, "control.connection", "m1", "pubsub",
+        '{"to_peer": "agent.z"}'),
+    "routing_table": wire(
+        "s7", PROTO, "control.connection", "m1", "routing_table",
+        '{"to_peer": "agent.z"}'),
+}
+
+
+@pytest.mark.parametrize("shape", sorted(EXT_SHAPES))
+def test_ext_route_reads_the_socket_and_discards_the_message(harness, shape):
+    router = harness.router
     spied = []
+    router.route = lambda *args, **kwargs: spied.append("route")
+    router.handle_subsystem = lambda *args, **kwargs: spied.append("handle")
     harness.router.pubsub.handle_subsystem = (
-        lambda frames, user_id="": spied.append(("pubsub", frames)))
-    harness.routing.handle_subsystem = (
-        lambda frames: spied.append(("routing_table", frames)))
-    harness.router.ext_route(_ExtSocket(ext_frames(subsystem, body)))
-    assert harness.router.socket.sent == []
-    assert harness.router.inproc_socket.sent == []
+        lambda frames, user_id="": spied.append("pubsub"))
+    harness.routing.handle_subsystem = lambda frames: spied.append("routing")
+    peers = set(router._peers)
+    claimed = dict(router._identity_sockets)
+    ext = _ExtSocket(EXT_SHAPES[shape])
+    router.ext_route(ext)
+    assert ext.reads == 1
+    assert router.socket.sent == [] and router.inproc_socket.sent == []
+    assert router._peers == peers
+    assert router._identity_sockets == claimed
     assert spied == []
 
 
-def test_ext_route_has_no_branch_past_the_route_call():
+def test_ext_route_through_the_real_route_would_have_dropped_the_victim(
+        harness):
+    # Control: the same frames given to route() drop the named peer, so the
+    # test above fails if ext_route calls it.
+    harness.router.route(
+        deserialize_frames(EXT_SHAPES["agentstop of the sender"]),
+        ORIGIN_NETWORK)
+    assert "victim" not in harness.router._peers
+
+
+def test_ext_route_has_no_call_to_route_or_the_services():
     path = platform_main.__file__
     with open(path) as fil:
         tree = ast.parse(fil.read())
     (func,) = [n for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef) and n.name == "ext_route"]
-    statements = [s for s in func.body
-                  if not (isinstance(s, ast.Expr)
-                          and isinstance(s.value, ast.Constant))]
-    assert [type(s).__name__ for s in statements] == ["Assign", "Expr"]
+    called = {n.func.attr for n in ast.walk(func)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+    assert called == {"recv_multipart"}
 
 
 # Every operation the dispatch tables accept is either in OPERATIONS above or

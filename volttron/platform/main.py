@@ -644,12 +644,10 @@ class Router(BaseRouter):
         :param socket: socket affected files: {}
         :return:
         """
-        # Expecting incoming frames to follow this VIP format:
-        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
-        # No raw frames: this socket is the platform's own outgoing
-        # connection, so any User-Id on a frame came from the remote peer.
-        self.route(deserialize_frames(frames), ORIGIN_NETWORK)
+        # Read the socket empty and drop the message: a remote platform
+        # chooses every frame, and nothing it sends on this socket may act on
+        # local peers or claim an identity.
+        socket.recv_multipart(copy=False)
 
 
 class GreenRouter(Router):
