@@ -270,7 +270,7 @@ def test_network_router_probe_from_an_in_process_identity_is_dropped(context):
     assert "platform.auth" not in router._peers
 
 
-def test_spoofed_network_message_does_not_move_the_real_service(context):
+def test_network_message_under_a_service_identity_leaves_the_service_mapped(context):
     router = make_router(context)
     router.route(message("platform.auth", "agent.a"), ORIGIN_INPROC)
     router.route(message("platform.auth", "agent.a"), ORIGIN_NETWORK,
@@ -439,7 +439,7 @@ def test_ext_route_routes_as_network(context):
     router.ext_route(ext)
     (origin, frames, raw_frames), = router.routed
     assert origin == ORIGIN_NETWORK
-    assert raw_frames is raw[:3] or raw_frames == raw[:3]
+    assert raw_frames == raw[:3]
 
 
 def configured_router(context):
