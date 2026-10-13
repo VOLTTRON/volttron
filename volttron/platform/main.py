@@ -55,7 +55,7 @@ from urllib.parse import urlparse
 
 import gevent
 import zmq
-from zmq import ZMQError, green, NOBLOCK
+from zmq import ZMQError, green
 
 from volttron.platform.agent.utils import get_platform_instance_name
 # Create a context common to the green and non-green zmq modules.
@@ -588,49 +588,6 @@ class Router(BaseRouter):
         # No raw frames: this socket is the platform's own outgoing
         # connection, so any User-Id on a frame came from the remote peer.
         self.route(deserialize_frames(frames), ORIGIN_NETWORK)
-        # for f in frames:
-        #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
-        if len(frames) < 6:
-            return
-
-        sender, proto, user_id, msg_id, subsystem = frames[:5]
-        if proto != 'VIP1':
-            return
-
-        # Handle 'EXT_RPC' subsystem messages
-        name = subsystem
-        if name == 'external_rpc':
-            # Reframe the frames
-            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loads(msg)
-            peer = msg_data['to_peer']
-            # Send to destionation agent/peer
-            # Form new frame for local
-            frames[:9] = [
-                peer, sender, proto, usr_id, msg_id, 'external_rpc', msg
-            ]
-            try:
-                self._sender.send_multipart(frames, flags=NOBLOCK, copy=False)
-            except ZMQError as ex:
-                _log.debug("ZMQ error: {}".format(ex))
-                pass
-        # Handle 'pubsub' subsystem messages
-        elif name == 'pubsub':
-            if frames[1] == 'VIP1':
-                recipient = ''
-                frames[:1] = ['', '']
-                # for f in frames:
-                #     _log.debug("frames: {}".format(bytes(f)))
-            result = self.pubsub.handle_subsystem(frames, user_id)
-            return result
-        # Handle 'routing_table' subsystem messages
-        elif name == 'routing_table':
-            # for f in frames:
-            #     _log.debug("frames: {}".format(bytes(f)))
-            if frames[1] == 'VIP1':
-                frames[:1] = ['', '']
-            result = self._ext_routing.handle_subsystem(frames)
-            return result
 
 
 class GreenRouter(Router):
