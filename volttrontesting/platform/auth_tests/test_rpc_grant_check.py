@@ -1,7 +1,7 @@
 """Tests for the argument restrictions on a capability grant.
 
 The RPC gate (RPC._add_auth_check) and the actuator's pub/sub gate both apply them through
-grant_allows_call, so these tests pin the gate's verdicts and the shared function together.
+grant_refusal, so these tests pin the gate's verdicts and the shared function together.
 """
 import re
 import types
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from volttron.platform import jsonrpc
-from volttron.platform.vip.agent.subsystems.rpc import RPC, grant_allows_call, grant_refusal
+from volttron.platform.vip.agent.subsystems.rpc import RPC, grant_refusal
 
 CAP = 'some_capability'
 
@@ -69,8 +69,8 @@ def test_rpc_gate_applies_keyword_arguments():
 
 
 @pytest.mark.parametrize("grant, args, allowed", [c.values[:3] for c in CASES if c.values[0]])
-def test_grant_allows_call_agrees_with_the_gate(grant, args, allowed):
-    assert grant_allows_call(grant, target, args, {}) is allowed
+def test_grant_refusal_agrees_with_the_gate(grant, args, allowed):
+    assert (grant_refusal(grant, target, args, {}) is None) is allowed
 
 
 def test_grant_refusal_names_the_parameter_and_value():
@@ -87,6 +87,32 @@ def test_gate_error_message_is_unchanged():
     assert "User s can call method target only with topic=dev/point but called with topic=dev/x" in str(result)
 
 
+# Every refusal text the gate can produce, exactly as an operator sees it after "User s ".
+MESSAGES = [
+    pytest.param({'topic': 'dev/point'}, ('s', 'dev/x', 1),
+                 "can call method target only with topic=dev/point but called with topic=dev/x",
+                 id='exact_mismatch'),
+    pytest.param({'topic': '/dev.*/'}, ('s', 'x', 1),
+                 "can call method target only with topic matching pattern /dev.*/ but called with topic=x",
+                 id='regex_mismatch'),
+    pytest.param({'nope': 'x'}, ('s', 'x', 1),
+                 "capability is not defined properly. method target does not have a parameter nope",
+                 id='missing_parameter'),
+    pytest.param(['topic'], ('s', 'x', 1),
+                 "capability grant is malformed: restrictions must be a mapping of parameter names",
+                 id='not_a_mapping'),
+    pytest.param({'topic': '/[/'}, ('s', 'x', 1),
+                 "capability grant is malformed: invalid pattern /[/ (unterminated character set at position 1)",
+                 id='invalid_pattern'),
+]
+
+
+@pytest.mark.parametrize("grant, args, message", MESSAGES)
+def test_every_refusal_text_is_pinned(grant, args, message):
+    assert grant_refusal(grant, target, args, {}) == message
+    assert str(_gate_verdict(grant, args)).endswith("User s " + message)
+
+
 # A grant that cannot be evaluated refuses, with a reason, instead of raising out of the check.
 MALFORMED = [
     pytest.param({'topic': '/[/'}, id='invalid_regex'),
@@ -97,8 +123,7 @@ MALFORMED = [
 
 @pytest.mark.parametrize("grant", MALFORMED)
 def test_malformed_grant_is_refused_with_a_reason(grant):
-    assert grant_allows_call(grant, target, ('s', 'dev/point', 1), {}) is False
-    assert grant_refusal(grant, target, ('s', 'dev/point', 1), {})
+    assert grant_refusal(grant, target, ('s', 'dev/point', 1), {}) is not None
 
 
 @pytest.mark.parametrize("grant", MALFORMED)
@@ -110,4 +135,4 @@ def test_rpc_gate_refuses_a_malformed_grant_as_unauthorized(grant):
 
 
 def test_non_string_argument_against_a_regex_is_refused():
-    assert grant_allows_call({'topic': '/dev.*/'}, target, ('s', 5, 1), {}) is False
+    assert grant_refusal({'topic': '/dev.*/'}, target, ('s', 5, 1), {}) is not None
