@@ -858,6 +858,29 @@ def _disk_version(auth_path):
 
 
 @pytest.mark.auth
+def test_upgrade_keeps_a_reserved_entry_the_key_check_withholds(tmp_path, monkeypatch):
+    # No volttron.central agent is installed, so the platform holds no key
+    # for it and the check withholds the entry. The upgrade must not drop it.
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
+    auth_path = str(tmp_path / "auth.json")
+    reserved = _version_1_4_entry("volttron.central", "volttron.central", {})
+    other = _version_1_4_entry("some.agent", "some.agent", {}, "B" * 43)
+    _write_1_4(auth_path, [reserved, other])
+
+    loaded = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.user_id for e in loaded] == ["some.agent"]
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    with open(auth_path) as fp:
+        on_disk = jsonapi.loads(fp.read())["allow"]
+    kept = [e for e in on_disk if e["user_id"] == "volttron.central"]
+    assert len(kept) == 1
+    assert kept[0]["credentials"] == "A" * 43
+    assert kept[0]["identity"] == "volttron.central"
+    assert sorted(e["user_id"] for e in on_disk) == ["some.agent", "volttron.central"]
+
+
+@pytest.mark.auth
 @pytest.mark.parametrize("capabilities", [None, {}, []])
 def test_upgrade_to_1_5_grants_web_routes_when_vc_has_no_capabilities(tmp_path, capabilities, monkeypatch):
     vc_key = hold_volttron_central_key(tmp_path, monkeypatch)
