@@ -5,7 +5,7 @@ rule to pub/sub senders, without a running platform.
 """
 import inspect
 import types
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import gevent
 import pytest
@@ -351,3 +351,53 @@ def test_schedule_refusal_headers_come_from_the_actuator_not_the_caller():
     published = agent.vip.pubsub.publish.call_args
     assert published.kwargs['headers'] == {'requesterID': 'no.cap', 'taskID': 't'}
     assert 'injected' not in published.kwargs['headers']
+
+
+# A grant that cannot be evaluated refuses like any other mismatch; it does not raise out of the handler.
+MALFORMED_GRANTS = [
+    pytest.param({'topic': '/[/'}, id='invalid_regex'),
+    pytest.param(['topic'], id='list_restriction'),
+    pytest.param('topic', id='string_restriction'),
+]
+
+
+@pytest.mark.parametrize("grant", MALFORMED_GRANTS)
+def test_sender_with_a_malformed_grant_is_refused(grant):
+    agent = _agent(capabilities={ACTUATOR_CONTROL: grant})
+    assert ActuatorAgent._sender_may_write(agent, 'some.agent', 'set_point', *SET_ARGS) is False
+
+
+@pytest.mark.parametrize("grant", MALFORMED_GRANTS)
+def test_handle_set_replies_with_a_refusal_for_a_malformed_grant(grant):
+    agent = _gated_agent({'s': {ACTUATOR_CONTROL: grant}})
+    _call_set(agent, 's', {})
+    agent._refuse_pubsub_write.assert_called_once_with('s', 'dev/point')
+    assert not agent._set_point.called
+
+
+def test_sender_may_write_asks_the_shared_check_with_the_methods_arguments():
+    agent = _agent(capabilities={ACTUATOR_CONTROL: {'topic': 'dev/point'}})
+    with patch('actuator.agent.grant_refusal', return_value='a reason') as check:
+        assert ActuatorAgent._sender_may_write(agent, 'some.agent', 'set_point', *SET_ARGS) is False
+    restrictions, method, args, kwargs = check.call_args[0]
+    assert restrictions == {'topic': 'dev/point'}
+    assert method is ActuatorAgent.set_point
+    assert args == (None,) + SET_ARGS and kwargs == {}
+
+
+def test_sender_may_write_allows_when_the_shared_check_allows():
+    agent = _agent(capabilities={ACTUATOR_CONTROL: {'topic': 'never-matches'}})
+    with patch('actuator.agent.grant_refusal', return_value=None):
+        assert ActuatorAgent._sender_may_write(agent, 'some.agent', 'set_point', *SET_ARGS) is True
+
+
+@pytest.mark.parametrize("message", [{'a': 1}, 5])
+def test_malformed_new_schedule_message_gets_a_malformed_request_reply(message):
+    agent = _gated_agent({'s': {ACTUATOR_CONTROL: None}})
+    agent._handle_unknown_schedule_error = lambda *a: ActuatorAgent._handle_unknown_schedule_error(agent, *a)
+    headers = {'type': 'NEW_SCHEDULE', 'taskID': 't', 'priority': 'LOW'}
+    result = ActuatorAgent.handle_schedule_request(agent, 'pubsub', 's', 'bus', topics.ACTUATOR_SCHEDULE_REQUEST,
+                                                   headers, message)
+    assert result['result'] == 'FAILURE' and result['info'].startswith('MALFORMED_REQUEST: ')
+    published = agent.vip.pubsub.publish.call_args
+    assert published.kwargs['message']['result'] == 'FAILURE'
