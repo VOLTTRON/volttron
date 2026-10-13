@@ -57,6 +57,7 @@ import gevent
 import zmq
 from zmq import ZMQError, green
 
+from volttron.platform.agent.known_identities import AUTH, CONTROL, KEY_DISCOVERY
 from volttron.platform.agent.utils import get_platform_instance_name
 # Create a context common to the green and non-green zmq modules.
 from volttron.platform.instance_setup import _update_config_file
@@ -301,6 +302,54 @@ class FramesFormatter:
     __str__ = __repr__
 
 
+# Identity prefix of the sockets a platform opens to another platform
+# (routingservice.py). Peers choose their identity, so this narrows who sends
+# these operations but does not prove the peer is a platform.
+_PLATFORM_PEER_PREFIX = 'instance.'
+
+
+def _from_control(sender, user_id, frames):
+    return user_id == CONTROL
+
+
+def _from_control_or_for_itself(sender, user_id, frames):
+    return user_id == CONTROL or (len(frames) > 6 and frames[6] == sender)
+
+
+def _from_key_discovery(sender, user_id, frames):
+    return user_id == KEY_DISCOVERY
+
+
+def _from_auth_service(sender, user_id, frames):
+    return user_id == AUTH
+
+
+def _from_platform_peer(sender, user_id, frames):
+    return isinstance(sender, str) and sender.startswith(_PLATFORM_PEER_PREFIX)
+
+
+def _from_nobody(sender, user_id, frames):
+    return False
+
+
+# Router-addressed operations that change platform state, and who may send
+# each. Keys are (subsystem, operation); the subsystems that have no operation
+# frame use None. The user is the one the router assigned, never a frame value.
+_ROUTER_OPERATIONS = {
+    ('quit', None): _from_control,
+    ('agentstop', None): _from_control_or_for_itself,
+    ('routing_table', 'setupmode_platform_connection'): _from_key_discovery,
+    ('routing_table', 'normalmode_platform_connection'): _from_key_discovery,
+    ('routing_table', 'web-addresses'): _from_key_discovery,
+    # No sender in the tree and the handler cannot run, so nobody may call it.
+    ('routing_table', 'update'): _from_nobody,
+    ('routing_table', 'hello'): _from_platform_peer,
+    ('pubsub', 'auth_update'): _from_auth_service,
+    ('pubsub', 'protected_update'): _from_auth_service,
+    ('external_rpc', 'send_peer'): _from_platform_peer,
+}
+
+
 class Router(BaseRouter):
     '''Concrete VIP router.'''
 
@@ -463,21 +512,34 @@ class Router(BaseRouter):
     #            result.append(f.bytes)
     #    return result
 
+    def _operation_allowed(self, frames, user_id):
+        subsystem = frames[5]
+        operation = frames[6] if len(frames) > 6 else None
+        # Frames are JSON-decoded, so an operation may not be hashable text.
+        if not isinstance(subsystem, str):
+            return True
+        rule = _ROUTER_OPERATIONS.get((subsystem, None))
+        if rule is None and isinstance(operation, str):
+            rule = _ROUTER_OPERATIONS.get((subsystem, operation))
+            label = '{} {}'.format(subsystem, operation)
+        else:
+            label = subsystem
+        if rule is None or rule(frames[0], user_id, frames):
+            return True
+        self._log_once(
+            'refused ' + label, frames[0],
+            'Refused router operation "%s" from %%r' % label)
+        return False
+
     def handle_subsystem(self, frames, user_id):
         subsystem = frames[5]
+        if not self._operation_allowed(frames, user_id):
+            return False
         if subsystem == 'quit':
-            sender = frames[0]
-            # was if sender == 'control' and user_id == self.default_user_id:
-            # now we serialize frames and if user_id is always the sender and not
-            # recipents.get('User-Id') or default user name
-            if sender == 'control':
-                if self._ext_routing:
-                    self._ext_routing.close_external_connections()
-                self.stop()
-                raise KeyboardInterrupt()
-            else:
-                _log.error(
-                    f"Sender {sender} not authorized to shutdown platform")
+            if self._ext_routing:
+                self._ext_routing.close_external_connections()
+            self.stop()
+            raise KeyboardInterrupt()
         elif subsystem == 'agentstop':
             try:
                 drop = frames[6]
