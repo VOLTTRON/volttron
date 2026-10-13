@@ -597,6 +597,25 @@ class Router(BaseRouter):
     def _add_pubsub_peers(self, peer):
         self.pubsub.peer_add(peer)
 
+    def _route_guarded(self, frames, origin, raw_frames=None):
+        """Route one message; a message that makes routing raise is dropped.
+
+        Any peer can send frames the services do not expect, and an exception
+        here would stop the whole platform. Only the exception type is logged,
+        once per sender, because the message body is peer-controlled.
+        """
+        sender = '<unreadable>'
+        try:
+            decoded = deserialize_frames(frames)
+            sender = decoded[0] if decoded and isinstance(
+                decoded[0], str) else '<not text>'
+            self.route(decoded, origin, raw_frames)
+        except Exception as ex:
+            name = type(ex).__name__
+            self._log_once(
+                'route failed ' + name, sender,
+                'Dropped a message from %%r: routing raised %s' % name)
+
     def poll_sockets(self):
         """
         Poll for incoming messages through router socket or other external socket connections
@@ -604,18 +623,20 @@ class Router(BaseRouter):
         try:
             sockets = dict(self._poller.poll())
         except ZMQError as ex:
+            if ex.errno in (zmq.ETERM, zmq.ENOTSOCK):
+                raise
             _log.error("ZMQ Error while polling: {}".format(ex))
+            return
 
         for sock in sockets:
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames), ORIGIN_NETWORK,
-                               frames)
+                    self._route_guarded(frames, ORIGIN_NETWORK, frames)
             elif sock == self.inproc_socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames), ORIGIN_INPROC)
+                    self._route_guarded(frames, ORIGIN_INPROC)
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
