@@ -665,3 +665,11 @@ def test_a_delayed_connect_event_changes_the_status_only(monitored):
     monitored.fire(zmq.EVENT_CONNECT_DELAYED)
     assert monitored.status == "CONNECTION_DELAY"
     assert monitored.connected == []
+
+
+def test_a_key_that_is_not_text_is_refused(router):
+    # JSON keys are always text on the wire; this reaches the check directly.
+    frames = ["agent.x", "", "VIP1", "", "m1", "pubsub", "external_list",
+              {5: ["devices/"]}]
+    assert router.pubsub._update_external_subscriptions(frames) is False
+    assert dict(router.pubsub._ext_subscriptions) == {}
