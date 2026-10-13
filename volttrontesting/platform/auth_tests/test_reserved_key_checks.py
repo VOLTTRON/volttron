@@ -55,8 +55,8 @@ def auth_file(vhome):
     return AuthFile(str(vhome / "auth.json"))
 
 
-def foreign_key(vhome):
-    return KeyStore(str(vhome / "foreign" / "keystore.json")).public
+def foreign_key(vhome, name="foreign"):
+    return KeyStore(str(vhome / name / "keystore.json")).public
 
 
 def keystore_file(identity):
@@ -165,12 +165,12 @@ def test_a_reserved_allow_entry_is_still_refused_beside_a_kept_deny_entry(
 
 MUTATORS = {
     "add": lambda af, vhome: af.add(AuthEntry(
-        credentials=foreign_key(vhome), user_id="other", identity="other")),
+        credentials=foreign_key(vhome, "extra"), user_id="other", identity="other")),
     "remove_by_index": lambda af, vhome: af.remove_by_index(0),
     "remove_by_credentials": lambda af, vhome: af.remove_by_credentials(
         "no-such-credentials"),
     "update_by_index": lambda af, vhome: af.update_by_index(AuthEntry(
-        credentials=foreign_key(vhome), user_id="replacement"), 0),
+        credentials=foreign_key(vhome, "extra"), user_id="replacement"), 0),
     "set_groups": lambda af, vhome: af.set_groups({"g": ["c"]}),
     "set_roles": lambda af, vhome: af.set_roles({"r": ["g"]}),
     "approve_deny_credential": lambda af, vhome:
@@ -197,10 +197,10 @@ def test_a_change_during_a_failing_key_read_keeps_the_reserved_entries(
         json.dump(denied, fil)
     auth_file.load()
 
-    monkeypatch.setattr(reserved_user_ids, "platform_held_keys",
-                        lambda user_id: frozenset())
-    MUTATORS[name](auth_file, vhome)
-    monkeypatch.undo()
+    with monkeypatch.context() as patch:
+        patch.setattr(reserved_user_ids, "platform_held_keys",
+                      lambda user_id: frozenset())
+        MUTATORS[name](auth_file, vhome)
 
     assert CONTROL in file_user_ids(auth_file, "allow")
     assert file_user_ids(auth_file, "deny") == [CONTROL]
@@ -212,17 +212,17 @@ def test_visible_indexes_ignore_entries_hidden_by_a_failed_key_read(
         auth_file, vhome, monkeypatch):
     key = held_key(CONTROL)
     first = AuthEntry(credentials=key, user_id=CONTROL, identity=CONTROL)
-    second = AuthEntry(credentials=foreign_key(vhome), user_id="second",
+    second = AuthEntry(credentials=foreign_key(vhome, "extra"), user_id="second",
                        identity="second")
     auth_file.add(first)
     auth_file.add(second)
-    monkeypatch.setattr(reserved_user_ids, "platform_held_keys",
-                        lambda user_id: frozenset())
-    auth_file.load()
-    assert [e.user_id for e in auth_file.read_allow_entries()] == ["second"]
-
-    auth_file.remove_by_index(0)
-    monkeypatch.undo()
+    with monkeypatch.context() as patch:
+        patch.setattr(reserved_user_ids, "platform_held_keys",
+                      lambda user_id: frozenset())
+        auth_file.load()
+        assert [e.user_id for e in auth_file.read_allow_entries()] \
+            == ["second"]
+        auth_file.remove_by_index(0)
 
     assert file_user_ids(auth_file, "allow") == [CONTROL]
 

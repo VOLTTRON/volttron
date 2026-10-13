@@ -51,7 +51,10 @@ from volttron.platform.agent.utils import (
 from volttron.platform.auth.auth_utils import isregex
 from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
-from volttron.platform.auth.reserved_user_ids import check_reserved_user_id
+from volttron.platform.auth.reserved_user_ids import (
+    ReservedUserIdRefused,
+    check_reserved_user_id,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -69,6 +72,9 @@ class AuthFile(object):
     lock_timeout = 2.0
     # The greenlet inside _transaction, the only caller _write accepts.
     _writer = None
+    # Allow entries the last read() left out only because the platform's key
+    # for their reserved user id could not be matched; _write puts them back.
+    _withheld = None
 
     def __init__(self, auth_file=None):
         self.auth_data = {}
@@ -148,6 +154,7 @@ class AuthFile(object):
         applied to the file as it is now, not to what this object last saw."""
         with self._locked(exclusive=True):
             self.auth_data = self._read_locked()
+            self._withheld = None
             self._writer = gevent.getcurrent()
             try:
                 yield
@@ -237,9 +244,12 @@ class AuthFile(object):
         :returns: tuple of allow-entries-list, groups-dict, roles-dict
         :rtype: tuple
         """
+        withheld = {"allow": []}
         allow_entries, deny_entries = self._get_entries(
-            self.auth_data["allow_list"], self.auth_data["deny_list"]
+            self.auth_data["allow_list"], self.auth_data["deny_list"],
+            withheld,
         )
+        self._withheld = withheld
         self._use_groups_and_roles(
             allow_entries, self.auth_data["groups"], self.auth_data["roles"]
         )
@@ -453,7 +463,10 @@ class AuthFile(object):
                 if str(entry.credentials) == credentials
             ]
 
-    def _get_entries(self, allow_list, deny_list):
+    def _get_entries(self, allow_list, deny_list, withheld=None):
+        """Builds entries from the file's lists. An allow entry refused only
+        for its reserved user id is appended to withheld["allow"] when given,
+        so a write can put it back."""
         allow_entries = []
         for file_entry in allow_list:
             try:
@@ -472,6 +485,9 @@ class AuthFile(object):
                     self.auth_file,
                     str(err),
                 )
+                if withheld is not None and isinstance(
+                        err, ReservedUserIdRefused):
+                    withheld["allow"].append(file_entry)
             else:
                 allow_entries.append(entry)
 
@@ -479,7 +495,6 @@ class AuthFile(object):
         for file_entry in deny_list:
             try:
                 entry = AuthEntry(**file_entry)
-                check_reserved_user_id(entry)
             except TypeError:
                 _log.warning(
                     "invalid entry %r in auth file %s",
@@ -817,8 +832,11 @@ class AuthFile(object):
             raise RuntimeError(
                 f"refusing to write {self.auth_file} outside a locked "
                 f"transaction")
+        # A key that fails to read for a moment must not cost the file an
+        # entry the caller never saw.
+        withheld = (self._withheld or {}).get("allow", [])
         auth = {
-            "allow": [vars(x) for x in allow_entries],
+            "allow": [vars(x) for x in allow_entries] + withheld,
             "deny": [vars(x) for x in deny_entries],
             "groups": groups,
             "roles": roles,

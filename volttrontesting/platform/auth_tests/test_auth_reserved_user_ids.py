@@ -139,7 +139,7 @@ def test_reserved_user_id_with_foreign_key_is_skipped_at_load(
     write_entries(auth_file, allow=[keep, bad], deny=[bad])
     with caplog.at_level("WARNING"):
         assert allow_user_ids(auth_file) == ["keep"]
-    assert auth_file.read_deny_entries() == []
+    assert [e.user_id for e in auth_file.read_deny_entries()] == [user_id]
     assert any(rec.levelname == "WARNING" and user_id in rec.message
                for rec in caplog.records)
 

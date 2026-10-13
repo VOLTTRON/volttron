@@ -25,6 +25,7 @@
 
 import logging
 import os
+import stat
 
 from volttron.platform import get_home, jsonapi
 from volttron.platform.agent.known_identities import (
@@ -44,17 +45,63 @@ _log = logging.getLogger(__name__)
 _SERVICE_KEYSTORE_IDENTITIES = frozenset(PROCESS_IDENTITIES) | {CONTROL_CONNECTION}
 
 
+class ReservedUserIdRefused(AuthEntryInvalid):
+    """The entry is valid but its reserved user id lacks the platform's key."""
+
+
+def _writable_by_others(mode):
+    return bool(mode & (stat.S_IWGRP | stat.S_IWOTH))
+
+
+def _open_trusted(path):
+    """Opens a key file only if the platform's user owns it as a regular file
+    that nobody else can write, in a directory nobody else can write."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+                 | os.O_NONBLOCK)
+    try:
+        info = os.fstat(fd)
+        directory = os.lstat(os.path.dirname(path))
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or _writable_by_others(info.st_mode)
+                or not stat.S_ISDIR(directory.st_mode)
+                or directory.st_uid != os.getuid()
+                or _writable_by_others(directory.st_mode)):
+            raise PermissionError(
+                "not a regular file and directory owned by this user and "
+                "closed to group and other writes")
+        return os.fdopen(fd)
+    except BaseException:
+        os.close(fd)
+        raise
+
+
 def _read_public_key(path):
     """Reads a keystore file without creating or repairing it."""
     try:
-        with open(path) as keystore:
+        with _open_trusted(path) as keystore:
             key = jsonapi.load(keystore).get("public")
     except FileNotFoundError:
         return None
     except (OSError, ValueError, AttributeError) as err:
-        _log.warning("cannot read the platform's key file %s: %s", path, err)
+        _log.warning("cannot trust the platform's key file %s: %s", path, err)
         return None
     return key if isinstance(key, str) and key else None
+
+
+def _installed_agent_key_path(agent_dir):
+    """The keystore of the agent installed in agent_dir, found as the agent
+    installer lays it out: <dir>/<name>/<name>.dist-info/keystore.json.
+    None unless exactly one package directory has a dist-info."""
+    try:
+        names = [name for name in os.listdir(agent_dir)
+                 if os.path.isdir(os.path.join(
+                     agent_dir, name, name + ".dist-info"))]
+    except OSError:
+        return None
+    if len(names) != 1:
+        return None
+    name = names[0]
+    return os.path.join(agent_dir, name, name + ".dist-info", "keystore.json")
 
 
 def _installed_agent_keys(identity):
@@ -70,16 +117,14 @@ def _installed_agent_keys(identity):
         try:
             with open(os.path.join(agent_dir, "IDENTITY")) as fil:
                 installed_identity = fil.read().strip()
-            if installed_identity != identity:
-                continue
-            names = os.listdir(agent_dir)
         except OSError:
             continue
-        for name in names:
-            key = _read_public_key(os.path.join(
-                agent_dir, name, name + ".dist-info", "keystore.json"))
-            if key:
-                keys.add(key)
+        if installed_identity != identity:
+            continue
+        path = _installed_agent_key_path(agent_dir)
+        key = _read_public_key(path) if path else None
+        if key:
+            keys.add(key)
     return frozenset(keys)
 
 
@@ -106,6 +151,6 @@ def check_reserved_user_id(entry):
     if (entry.mechanism == "CURVE" and isinstance(credentials, str)
             and credentials in platform_held_keys(entry.user_id)):
         return
-    raise AuthEntryInvalid(
+    raise ReservedUserIdRefused(
         f"user_id {entry.user_id!r} is reserved for a platform service and "
         f"this entry does not hold the key the platform holds for it")
