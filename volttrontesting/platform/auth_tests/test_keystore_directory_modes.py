@@ -38,8 +38,10 @@ from volttron.platform.agent.known_identities import (
 )
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.auth import reserved_user_ids
-from volttron.platform.keystore import (KeyStore, create_keystore_dir,
-                                        tighten_keystore_dirs)
+from volttron.platform.keystore import (HomeOwnedByAnotherUser, KeyStore,
+                                        create_keystore_dir,
+                                        tighten_keystore_dirs,
+                                        tighten_volttron_home)
 from volttrontesting.platform.auth_tests.conftest import install_agent
 
 
@@ -167,6 +169,98 @@ def test_each_tightened_directory_is_logged_once(vhome, caplog):
 def test_tightening_with_no_key_directory_does_nothing(vhome):
     tighten_keystore_dirs()
     assert not os.path.exists(vhome / "keystores")
+
+
+# ---- VOLTTRON_HOME itself ----
+
+def make_home(vhome, mode):
+    os.chmod(vhome, mode)
+
+
+@pytest.mark.parametrize("umask,expected", [
+    (0o007, 0o750),
+    (0o002, 0o755),
+    (0o000, 0o755),
+])
+def test_a_home_made_under_a_loose_umask_loses_only_its_write_bits(
+        tmp_path, monkeypatch, umask, expected):
+    home = tmp_path / "home"
+    previous = os.umask(umask)
+    try:
+        os.makedirs(home, 0o777)
+    finally:
+        os.umask(previous)
+    monkeypatch.setenv("VOLTTRON_HOME", str(home))
+    tighten_volttron_home()
+    assert mode_of(home) == expected
+
+
+@pytest.mark.parametrize("before,after", [
+    (0o770, 0o750),
+    (0o775, 0o755),
+    (0o757, 0o755),
+    (0o777, 0o755),
+    (0o720, 0o700),
+])
+def test_tightening_the_home_keeps_every_read_and_execute_bit(
+        vhome, before, after):
+    make_home(vhome, before)
+    tighten_volttron_home()
+    assert mode_of(vhome) == after
+    # the bits agents use to reach their own folders are still there
+    assert mode_of(vhome) & before & 0o055 == before & 0o055
+
+
+@pytest.mark.parametrize("mode", [0o700, 0o750, 0o755, 0o711])
+def test_a_home_with_no_group_or_other_write_is_left_alone(
+        vhome, mode, caplog):
+    make_home(vhome, mode)
+    with caplog.at_level(logging.INFO, logger="volttron.platform.keystore"):
+        tighten_volttron_home()
+    assert mode_of(vhome) == mode
+    assert caplog.records == []
+
+
+def test_tightening_the_home_is_logged_once_with_both_modes(vhome, caplog):
+    make_home(vhome, 0o770)
+    with caplog.at_level(logging.INFO, logger="volttron.platform.keystore"):
+        tighten_volttron_home()
+        tighten_volttron_home()
+    messages = [r.getMessage() for r in caplog.records]
+    assert len(messages) == 1
+    assert str(vhome) in messages[0]
+    assert "770" in messages[0] and "750" in messages[0]
+
+
+def test_a_tightened_home_lets_the_platform_key_be_trusted(vhome):
+    key = KeyStore().public
+    os.chmod(vhome, 0o770)
+    assert reserved_user_ids.platform_held_keys("platform") == frozenset()
+    tighten_volttron_home()
+    assert reserved_user_ids.platform_held_keys("platform") == {key}
+
+
+def test_a_writable_home_owned_by_another_user_stops_startup_with_the_fix(
+        vhome, monkeypatch):
+    make_home(vhome, 0o770)
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(vhome).st_uid + 1)
+    with pytest.raises(HomeOwnedByAnotherUser) as raised:
+        tighten_volttron_home()
+    message = str(raised.value)
+    assert str(vhome) in message
+    assert "chmod" in message and "owner" in message
+    assert mode_of(vhome) == 0o770
+
+
+def test_a_symlinked_home_is_not_followed(tmp_path, monkeypatch):
+    target = tmp_path / "target"
+    os.mkdir(target)
+    os.chmod(target, 0o770)
+    link = tmp_path / "link"
+    os.symlink(target, link)
+    monkeypatch.setenv("VOLTTRON_HOME", str(link))
+    tighten_volttron_home()
+    assert mode_of(target) == 0o770
 
 
 # ---- keystores/ itself is checked ----
