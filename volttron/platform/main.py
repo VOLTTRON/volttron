@@ -72,7 +72,9 @@ from volttron.platform.auth.auth import AuthService
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.control.control import ControlService
-from volttron.platform.vip.router import BaseRouter, ERROR, INCOMING, UNROUTABLE
+from volttron.platform.vip.router import (BaseRouter, ERROR, INCOMING, UNROUTABLE,
+                                          ORIGIN_INPROC, ORIGIN_NETWORK,
+                                          RouterSender)
 from volttron.platform.vip.socket import Address, decode_key, encode_key
 from volttron.platform.vip.tracking import Tracker
 
@@ -363,9 +365,19 @@ class Router(BaseRouter):
         identity = str(uuid.uuid4())
         sock.identity = identity.encode("utf-8")
         _log.debug("ROUTER SOCK identity: {}".format(sock.identity))
+        # In-process peers get a socket of their own, bound only to inproc://vip
+        # and with no ZAP domain, so the socket a message arrives on says
+        # whether it came from inside the platform process.
+        inproc = self._socket_class(self.context, zmq.ROUTER)
+        inproc.identity = sock.identity
+        inproc.router_mandatory = True
+        inproc.sndtimeo = sock.sndtimeo
+        inproc.set_hwm(6000)
+        self.inproc_socket = inproc
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
-        sock.bind('inproc://vip')
+            Monitor(inproc.get_monitor_socket()).start()
+        inproc.bind('inproc://vip')
         _log.debug('In-process VIP router bound to inproc://vip')
         sock.zap_domain = b'vip'
         addr = self.local_address
@@ -395,14 +407,16 @@ class Router(BaseRouter):
             _log.debug('Additional VIP router bound to %s' % address)
         self._ext_routing = None
 
-        self._ext_routing = RoutingService(self.socket, self.context,
+        self._sender = RouterSender(self)
+        self._ext_routing = RoutingService(self._sender, self.context,
                                            self._socket_class, self._poller,
                                            self._addr, self._instance_name)
 
-        self.pubsub = PubSubService(self.socket, self._protected_topics,
+        self.pubsub = PubSubService(self._sender, self._protected_topics,
                                     self._ext_routing)
-        self.ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
+        self.ext_rpc = ExternalRPCService(self._sender, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
+        self._poller.register(inproc, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
     def issue(self, topic, frames, extra=None):
@@ -545,7 +559,12 @@ class Router(BaseRouter):
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames))
+                    self.route(deserialize_frames(frames), ORIGIN_NETWORK,
+                               frames)
+            elif sock == self.inproc_socket:
+                if sockets[sock] == zmq.POLLIN:
+                    frames = sock.recv_multipart(copy=False)
+                    self.route(deserialize_frames(frames), ORIGIN_INPROC)
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -565,7 +584,7 @@ class Router(BaseRouter):
         # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
-        self.route(deserialize_frames(frames))
+        self.route(deserialize_frames(frames), ORIGIN_NETWORK, frames)
         # for f in frames:
         #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
@@ -588,7 +607,7 @@ class Router(BaseRouter):
                 peer, sender, proto, usr_id, msg_id, 'external_rpc', msg
             ]
             try:
-                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
+                self._sender.send_multipart(frames, flags=NOBLOCK, copy=False)
             except ZMQError as ex:
                 _log.debug("ZMQ error: {}".format(ex))
                 pass
