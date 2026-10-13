@@ -40,7 +40,8 @@ from volttron.platform.auth.auth_file import AuthFileUnavailable
 from volttron.platform.auth.auth_protocols import (
     BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization)
 from volttron.platform.auth.auth_utils import dump_user
-from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.keystore import (KeyStore, KnownHostsStore,
+                                        create_keystore_dir)
 from volttron.platform.parameters import Parameters
 from volttron.platform.vip.socket import encode_key
 
@@ -121,6 +122,8 @@ class ZMQClientAuthentication(BaseAuthentication):
             keystore_dir = os.path.join(
                 self.volttron_home, 'keystores',
                 self.identity)
+
+            create_keystore_dir(keystore_dir)
 
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)

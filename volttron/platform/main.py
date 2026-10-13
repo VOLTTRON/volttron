@@ -103,7 +103,8 @@ from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      PLATFORM, PLATFORM_HEALTH, PLATFORM_WEB,
                                      PROXY_ROUTER, CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
                                      START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
-from .keystore import KeyStore, KnownHostsStore
+from .keystore import (KeyStore, KnownHostsStore, create_keystore_dir,
+                       tighten_keystore_dirs)
 from .store import ConfigStoreService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
@@ -841,6 +842,8 @@ def start_volttron_process(opts):
         _log.warning('insecure access control on directory: %s',
                      opts.volttron_home)
 
+    tighten_keystore_dirs()
+
     # Initialize public and secret keys for Non-auth.
     publickey = None
     secretkey = None
@@ -878,7 +881,7 @@ def start_volttron_process(opts):
         # Add the control.connection so that volttron-ctl can access the bus
         control_conn_path = KeyStore.get_agent_keystore_path(
             CONTROL_CONNECTION)
-        os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+        create_keystore_dir(os.path.dirname(control_conn_path))
         ks_control_conn = KeyStore(
             KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
         entry = AuthEntry(credentials=encode_key(

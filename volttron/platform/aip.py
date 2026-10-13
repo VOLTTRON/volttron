@@ -32,6 +32,7 @@ import os
 import pwd
 import shutil
 import signal
+import stat
 import sys
 import uuid
 
@@ -235,6 +236,21 @@ class SecureExecutionEnvironment:
 
     def __call__(self, *args, **kwargs):
         self.execute(*args, **kwargs)
+
+
+def remove_group_write(tree):
+    """Clears the group write bit on tree and everything below it. Run before
+    any setfacl call: the ACL mask is recomputed from the group bits, so a
+    directory left group-writable keeps a writable mask and its key is
+    refused as a reserved key."""
+    for root, directories, files in os.walk(tree):
+        for name in [root] + [os.path.join(root, n)
+                              for n in directories + files]:
+            if os.path.islink(name):
+                continue
+            mode = stat.S_IMODE(os.stat(name).st_mode)
+            if mode & stat.S_IWGRP:
+                os.chmod(name, mode & ~stat.S_IWGRP)
 
 
 class AIPplatform:
@@ -488,6 +504,7 @@ class AIPplatform:
             else:
                 unpack(agent_wheel, dest=agent_path)
 
+            remove_group_write(agent_path)
             os.remove(agent_wheel)
 
             final_identity = self._setup_agent_vip_id(

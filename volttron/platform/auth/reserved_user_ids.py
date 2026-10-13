@@ -36,7 +36,7 @@ from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL,
 )
 from volttron.platform.auth.auth_entry import AuthEntryInvalid
-from volttron.platform.keystore import KeyStore
+from volttron.platform.keystore import KEYSTORES_DIRNAME, KeyStore
 
 _log = logging.getLogger(__name__)
 
@@ -53,21 +53,31 @@ def _writable_by_others(mode):
     return bool(mode & (stat.S_IWGRP | stat.S_IWOTH))
 
 
+def _closed_directory(path):
+    """True for a real directory this user owns that nobody else can write."""
+    info = os.lstat(path)
+    return (stat.S_ISDIR(info.st_mode) and info.st_uid == os.getuid()
+            and not _writable_by_others(info.st_mode))
+
+
 def _open_trusted(path):
     """Opens a key file only if the platform's user owns it as a regular file
-    that nobody else can write, in a directory nobody else can write."""
+    that nobody else can write, in a directory nobody else can write. A key
+    under keystores/ also needs keystores/ itself closed, or a group member
+    could swap the per-identity directories."""
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
                  | os.O_NONBLOCK)
     try:
         info = os.fstat(fd)
-        directory = os.lstat(os.path.dirname(path))
+        directory = os.path.dirname(path)
+        parent = os.path.dirname(directory)
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
                 or _writable_by_others(info.st_mode)
-                or not stat.S_ISDIR(directory.st_mode)
-                or directory.st_uid != os.getuid()
-                or _writable_by_others(directory.st_mode)):
+                or not _closed_directory(directory)
+                or (os.path.basename(parent) == KEYSTORES_DIRNAME
+                    and not _closed_directory(parent))):
             raise PermissionError(
-                "not a regular file and directory owned by this user and "
+                "not a regular file and directories owned by this user and "
                 "closed to group and other writes")
         return os.fdopen(fd)
     except BaseException:
