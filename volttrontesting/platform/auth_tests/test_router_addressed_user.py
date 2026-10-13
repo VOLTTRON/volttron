@@ -372,6 +372,21 @@ def test_a_subsystem_that_is_not_text_is_left_to_the_dispatch(
     assert harness.calls == []
 
 
+PUBSUB_LOGGER = "volttron.platform.vip.pubsubservice"
+
+
+@pytest.mark.parametrize("op", ["bogus", {"a": 1}, ["x"], 7, "x" * 5000])
+def test_an_unknown_pubsub_operation_is_logged_and_gets_no_reply(
+        harness, caplog, op):
+    frames = ["agent.x", "", PROTO, "agent.x", "m1", "pubsub", op]
+    with caplog.at_level(logging.ERROR, logger=PUBSUB_LOGGER):
+        result = harness.router.handle_subsystem(frames, "agent.x")
+    assert result == []
+    (record,) = [r for r in caplog.records if r.name == PUBSUB_LOGGER]
+    assert "Unknown pubsub request" in record.getMessage()
+    assert len(record.getMessage()) < 300
+
+
 # The user of a message addressed to the router.
 
 def route_query(router, frame_user, origin, raw_frames=None, sender="alice"):

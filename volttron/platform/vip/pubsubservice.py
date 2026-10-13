@@ -645,8 +645,9 @@ class PubSubService:
             elif op == 'request_response':
                 pass
             else:
-                self._logger.error("PUBSUBSERVICE Unknown pubsub request {}".format(op.decode("utf-8")))
-                pass
+                # The operation is chosen by the peer and may not be text.
+                self._logger.error(
+                    "PUBSUBSERVICE Unknown pubsub request %s", repr(op)[:100])
 
         if result is not None:
             # Form response frame
