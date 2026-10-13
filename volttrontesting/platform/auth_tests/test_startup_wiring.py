@@ -138,3 +138,12 @@ def test_main_hands_the_requested_home_to_startup_for_the_log_line():
         ast.Name(id="requested_home", ctx=ast.Load()))
     assert given["volttron_home"] == ast.dump(
         ast.Name(id="volttron_home", ctx=ast.Load()))
+
+
+def test_the_report_gets_the_requested_home_first_and_the_resolved_home_second():
+    function = startup_function()
+    call = calls(function, "report_resolved_home")[0]
+    args = [ast.unparse(a) for a in call.args]
+    assert len(args) == 2
+    assert "requested_home" in args[0]
+    assert args[1] == "opts.volttron_home"

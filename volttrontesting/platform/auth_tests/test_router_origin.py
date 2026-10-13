@@ -25,6 +25,7 @@ in-process socket gives the sender, the network socket gives the ZAP user.
 Fake sockets record which socket sent each message."""
 
 import ast
+import collections
 import importlib.util
 import logging
 import os
@@ -626,7 +627,7 @@ def inproc_address_pieces():
     Parsing the code finds an address written in pieces ("inproc://" + "vip")
     as well as one written whole, and the source line keeps two sites in one
     file apart. Docstrings and bare string statements are not addresses."""
-    found = set()
+    found = collections.Counter()
     for name in tracked_python_files():
         with open(os.path.join(REPO_ROOT, name), "rb") as source:
             text = source.read()
@@ -643,7 +644,7 @@ def inproc_address_pieces():
                     and len(node.value) >= len("inproc")
                     and (node.value == ENDPOINT
                          or ENDPOINT.startswith(node.value))):
-                found.add((name, lines[node.lineno - 1].strip(), node.value))
+                found[(name, lines[node.lineno - 1].strip(), node.value)] += 1
     return found
 
 
@@ -669,8 +670,9 @@ def test_every_inproc_vip_connect_in_the_tree_is_listed():
     found = inproc_address_pieces()
     # Denominator: the test files themselves are among the searched paths.
     this_file = "volttrontesting/platform/auth_tests/test_router_origin.py"
-    found = {item for item in found if item[0] != this_file}
-    assert found == KNOWN_INPROC_VIP_SITES
+    found = collections.Counter(
+        {item: n for item, n in found.items() if item[0] != this_file})
+    assert found == collections.Counter(KNOWN_INPROC_VIP_SITES)
 
 
 def test_the_enumeration_catches_an_address_built_from_parts(
@@ -682,9 +684,9 @@ def test_the_enumeration_catches_an_address_built_from_parts(
     monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
     monkeypatch.setattr(sys.modules[__name__], "tracked_python_files",
                         lambda: ["sample.py"])
-    assert inproc_address_pieces() == {
-        ("sample.py", "address = 'inproc://' + 'vip'", "inproc://"),
-        ("sample.py", "other = 'inproc' + '://vip'", "inproc")}
+    assert inproc_address_pieces() == collections.Counter({
+        ("sample.py", "address = 'inproc://' + 'vip'", "inproc://"): 1,
+        ("sample.py", "other = 'inproc' + '://vip'", "inproc"): 1})
 
 
 def test_two_connects_in_one_file_are_listed_separately(
@@ -698,6 +700,17 @@ def test_two_connects_in_one_file_are_listed_separately(
     assert {line for _, line, _ in inproc_address_pieces()} == {
         "first = 'inproc://vip'", "second = 'inproc://vip'",
         "third = 'inproc://vip'  # same text, other line"}
+
+
+def test_identical_lines_in_one_file_count_as_separate_sites(
+        tmp_path, monkeypatch):
+    sample = tmp_path / "sample.py"
+    sample.write_text("address = 'inproc://vip'\naddress = 'inproc://vip'\n")
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
+    monkeypatch.setattr(sys.modules[__name__], "tracked_python_files",
+                        lambda: ["sample.py"])
+    assert inproc_address_pieces() == collections.Counter({
+        ("sample.py", "address = 'inproc://vip'", "inproc://vip"): 2})
 
 
 def test_the_search_covers_files_directly_in_each_directory(
