@@ -32,6 +32,7 @@ from types import SimpleNamespace
 import pytest
 
 from volttron.platform import aip as aip_module
+from volttron.platform import get_address, get_home
 from volttron.platform.agent.known_identities import (
     CONTROL_CONNECTION,
     VOLTTRON_CENTRAL,
@@ -306,7 +307,7 @@ def test_a_writable_home_owned_by_another_user_stops_startup_with_the_fix(
     assert mode_of(vhome) == 0o770
 
 
-def test_a_symlinked_home_is_not_followed(tmp_path, monkeypatch):
+def test_a_symlinked_home_is_tightened_at_its_real_path(tmp_path, monkeypatch):
     target = tmp_path / "target"
     os.mkdir(target)
     os.chmod(target, 0o770)
@@ -314,7 +315,8 @@ def test_a_symlinked_home_is_not_followed(tmp_path, monkeypatch):
     os.symlink(target, link)
     monkeypatch.setenv("VOLTTRON_HOME", str(link))
     tighten_volttron_home()
-    assert mode_of(target) == 0o770
+    assert mode_of(target) == 0o750
+    assert os.path.islink(link)
 
 
 # ---- a symlinked VOLTTRON_HOME is resolved at startup ----
@@ -350,6 +352,46 @@ def test_the_resolved_home_reaches_child_processes(linked_home):
     target, link = linked_home
     resolve_volttron_home(str(link))
     assert os.environ.copy()["VOLTTRON_HOME"] == os.path.realpath(target)
+
+
+def test_get_home_returns_the_real_path_of_a_symlinked_home(linked_home):
+    target, link = linked_home
+    assert get_home() == os.path.realpath(target)
+    assert get_home() != str(link)
+
+
+def test_a_client_address_equals_the_one_the_platform_binds(
+        linked_home, monkeypatch):
+    target, link = linked_home
+    monkeypatch.delenv("VOLTTRON_VIP_ADDR", raising=False)
+    client_side = get_address()
+    resolve_volttron_home(str(link))
+    bound = "ipc://@{}/run/vip.socket".format(os.environ["VOLTTRON_HOME"])
+    assert client_side == bound
+    assert client_side == "ipc://@{}/run/vip.socket".format(
+        os.path.realpath(target))
+
+
+def test_get_home_expands_the_user_and_variables_before_resolving(
+        tmp_path, monkeypatch):
+    real = tmp_path / "real"
+    os.mkdir(real)
+    os.symlink(real, tmp_path / "link")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SOME_BASE", str(tmp_path))
+    monkeypatch.setenv("VOLTTRON_HOME", "~/link")
+    assert get_home() == os.path.realpath(real)
+    monkeypatch.setenv("VOLTTRON_HOME", "$SOME_BASE/link")
+    assert get_home() == os.path.realpath(real)
+
+
+def test_the_startup_resolve_expands_the_user_before_resolving(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
+    resolved, requested = resolve_volttron_home("~/.volttron")
+    assert requested == str(tmp_path / ".volttron")
+    assert resolved == os.path.realpath(tmp_path / ".volttron")
 
 
 def test_a_home_with_no_symlink_is_returned_unchanged(tmp_path, monkeypatch):

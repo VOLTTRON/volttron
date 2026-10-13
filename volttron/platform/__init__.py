@@ -51,17 +51,20 @@ def set_home(home=None):
 
 
 def get_home():
-    """ Return the home directory with user and variables expanded.
+    """ Return the real path of the home directory, with user and variables
+    expanded.
 
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
+
+    The platform binds its abstract socket under the real path, so every
+    client has to build the address from the same path.
     """
 
-    vhome = os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    vhome = os.path.realpath(
+        os.path.expanduser(
+            os.path.expandvars(
+                os.environ.get('VOLTTRON_HOME', '~/.volttron'))))
     if vhome.endswith('/'):
         vhome = vhome[:-1]
         if os.environ.get('VOLTTRON_HOME') is not None:
