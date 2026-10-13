@@ -218,7 +218,8 @@ class RoutingService:
         ext_platform_address.identity = sock.identity
         try:
             ext_platform_address.connect(sock)
-            # Form VIP message to send to remote instance
+            # Kept so a platform on older code still gets its hello; this
+            # tree ignores the reply.
             frames = serialize_frames(['', 'VIP1', '', '', 'routing_table', 'hello', 'hello', self._my_instance_name])
             _log.debug(f"HELLO Sending hello to: {instance_name}")
             self.send_external(instance_name, frames)

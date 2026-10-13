@@ -28,14 +28,18 @@ senders that may not perform it. Fake sockets record what is sent."""
 import ast
 import logging
 import os
+from types import SimpleNamespace
 
 import pytest
 import zmq
+from mock import MagicMock
 
+from volttron.platform import jsonrpc
 from volttron.platform import main as platform_main
 from volttron.platform.vip import router as router_module
 from volttron.platform.vip.externalrpcservice import ExternalRPCService
 from volttron.platform.vip.pubsubservice import PubSubService
+from volttron.platform.vip.agent.subsystems.rpc import RPC
 from volttron.platform.vip.router import (ORIGIN_INPROC, ORIGIN_NETWORK,
                                           RouterSender)
 from volttron.platform.vip.routingservice import RoutingService
@@ -624,3 +628,49 @@ def test_every_listed_operation_is_still_dispatched():
     for path, cls in DISPATCH_TABLES:
         dispatched |= dispatched_names(path, cls)
     assert set(OPERATIONS) - dispatched == set()
+
+
+# A call relayed from another platform reaches the agent with user '', which
+# holds no capabilities, so a capability-gated method refuses it.
+
+
+class _GatedOwner:
+    def __init__(self):
+        self.calls = []
+
+    @RPC.export
+    @RPC.allow("start_stop_agents")
+    def stop_agent(self, uuid):
+        self.calls.append(uuid)
+        return "stopped"
+
+
+def _gated_rpc(owner, capabilities):
+    core = MagicMock(enable_auth=True, messagebus="zmq")
+    rpc = RPC(core, owner, MagicMock())
+    owner.vip = SimpleNamespace(
+        auth=SimpleNamespace(
+            get_capabilities=lambda user: capabilities.get(user, {})))
+    return rpc
+
+
+def _call_as(rpc, user):
+    rpc.context = SimpleNamespace(
+        vip_message=SimpleNamespace(user=user, peer="control.connection"))
+    return rpc._exports["stop_agent"]("uuid-1")
+
+
+def test_a_relayed_call_with_no_user_is_refused_by_a_gated_method():
+    owner = _GatedOwner()
+    rpc = _gated_rpc(owner, {"control": {"start_stop_agents": {}}})
+    with pytest.raises(jsonrpc.Error) as refused:
+        _call_as(rpc, "")
+    assert refused.value.code == jsonrpc.UNAUTHORIZED
+    assert owner.calls == []
+
+
+def test_a_local_user_holding_the_capability_is_not_refused():
+    owner = _GatedOwner()
+    rpc = _gated_rpc(owner, {"control": {"start_stop_agents": {}}})
+    assert _call_as(rpc, "control") == "stopped"
+    assert owner.calls == ["uuid-1"]

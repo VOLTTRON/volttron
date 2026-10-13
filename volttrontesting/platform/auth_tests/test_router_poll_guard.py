@@ -40,6 +40,7 @@ from volttron.platform.vip.routingservice import (
 from volttron.platform.vip import pubsubservice as pubsubservice_module
 from volttron.platform.vip import routingservice as routingservice_module
 from volttron.platform.vip.tracking import Tracker
+from volttron.utils.frame_serialization import deserialize_frames
 
 ROUTER_LOGGER = router_module.__name__
 BODY_MARKER = "BODYMARKER-5678"
@@ -138,7 +139,8 @@ def arrive(router, *messages, on="socket"):
 
 VIP = ["VIP1", "", "m1"]
 
-# Each message makes route() raise when nothing guards the call.
+# Each message makes an unguarded route() raise, which
+# test_these_shapes_make_an_unguarded_route_raise checks.
 CRASH_SHAPES = {
     "external_rpc with too few frames": ["agent.x", "", "VIP1", "", "m1",
                                          "external_rpc", "send_peer"],
@@ -149,16 +151,19 @@ CRASH_SHAPES = {
         "text"],
     "pubsub publish with a text body": [
         "agent.x", "", "VIP1", "", "m1", "pubsub", "publish", "t", "text"],
-    "pubsub with an unknown operation": [
-        "agent.x", "", "VIP1", "", "m1", "pubsub", "bogus"],
     "recipient that is a list": [
         "agent.x", '["r"]', "VIP1", "", "m1", "rpc", "body"],
     "recipient that is a dict": [
         "agent.x", '{"r": 1}', "VIP1", "", "m1", "rpc", "body"],
-    "sender that is a list": [
-        '["a"]', "", "VIP1", "", "m1", "ping"],
-    "sender that is a dict": [
-        '{"a": 1}', "", "VIP1", "", "m1", "ping"],
+}
+
+# These once crashed the router. route() now drops them without raising, so
+# the guard is not what protects against them.
+QUIET_SHAPES = {
+    "pubsub with an unknown operation": [
+        "agent.x", "", "VIP1", "", "m1", "pubsub", "bogus"],
+    "sender that is a list": ['["a"]', "", "VIP1", "", "m1", "ping"],
+    "sender that is a dict": ['{"a": 1}', "", "VIP1", "", "m1", "ping"],
     "probe whose sender is a list": ['["a"]', ""],
 }
 GOOD = ["agent.good", "", "VIP1", "", "m2", "ping"]
@@ -169,9 +174,24 @@ def good_replied(router):
 
 
 @pytest.mark.parametrize("shape", sorted(CRASH_SHAPES))
+def test_these_shapes_make_an_unguarded_route_raise(router, shape):
+    with pytest.raises(Exception):
+        router.route(deserialize_frames(message(*CRASH_SHAPES[shape])),
+                     ORIGIN_NETWORK)
+
+
+@pytest.mark.parametrize("shape", sorted(QUIET_SHAPES))
+def test_these_shapes_are_dropped_by_route_without_raising(router, shape):
+    router.route(deserialize_frames(message(*QUIET_SHAPES[shape])),
+                 ORIGIN_NETWORK)
+    assert router.socket.sent == [] and router.inproc_socket.sent == []
+
+
+@pytest.mark.parametrize("shape", sorted(CRASH_SHAPES))
 def test_a_message_that_makes_route_raise_does_not_stop_the_poll(
         router, shape):
     poll(router, arrive(router, message(*CRASH_SHAPES[shape])))
+    assert sum(router._drop_counts.values()) == 1
 
 
 @pytest.mark.parametrize("shape", sorted(CRASH_SHAPES))
@@ -248,7 +268,10 @@ def test_an_unreadable_message_is_dropped_and_logged(
         poll(router, arrive(router, message("agent.x")))
     (record,) = [r for r in caplog.records if r.name == ROUTER_LOGGER]
     assert "ValueError" in record.getMessage()
+    assert "'<unreadable>'" in record.getMessage()
     assert BODY_MARKER not in record.getMessage()
+    assert router._logged_senders == {"route failed ValueError":
+                                      {"<unreadable>"}}
 
 
 @pytest.mark.parametrize("exc", [KeyboardInterrupt, SystemExit, GeneratorExit])
@@ -530,3 +553,115 @@ def test_a_valid_external_list_is_stored(router, monkeypatch):
         "agent.x", '{"inst-b": ["devices/", "alerts/"], "inst-c": []}')))
     assert dict(router.pubsub._ext_subscriptions) == {
         "inst-b": ["devices/", "alerts/"], "inst-c": []}
+
+
+# Things the guard and the router rules must still do.
+
+
+class Odd(Exception):
+    pass
+
+
+def test_any_exception_subclass_from_route_is_dropped_and_polling_goes_on(
+        router):
+    calls = []
+
+    def raise_once(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise Odd("unexpected")
+        return type(router).route(router, *args, **kwargs)
+
+    router.route = raise_once
+    poll(router,
+         arrive(router, message(*GOOD)),
+         arrive(router, message(*GOOD, user="u2")))
+    assert router._drop_counts == {"route failed Odd": 1}
+    (reply,) = good_replied(router)
+    assert reply[5:7] == ["ping", "pong"]
+
+
+def test_an_agentstop_with_no_target_is_refused_not_dropped_by_the_guard(
+        router, caplog):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        poll(router, arrive(router, message(
+            "agent.x", "", "VIP1", "", "m1", "agentstop")))
+    assert router._drop_counts == {}
+    (warning,) = [r.getMessage() for r in caplog.records
+                  if r.name == ROUTER_LOGGER]
+    assert 'Refused router operation "agentstop"' in warning
+
+
+def test_an_agentstop_naming_the_sender_is_allowed(router):
+    router._peers.add("agent.x")
+    router._peers.add("agent.y")
+    poll(router, arrive(router, message(
+        "agent.x", "", "VIP1", "", "m1", "agentstop", "agent.x")))
+    assert "agent.x" not in router._peers and "agent.y" in router._peers
+
+
+# The sockets to other platforms: poll_sockets must read what arrives on an
+# outbound socket, or the level-triggered poll returns it again forever.
+
+
+def test_an_outbound_platform_socket_is_read_and_its_message_discarded(
+        router):
+    ext = FakeSocket("outbound", inbox=[message(
+        "agent.x", "", "VIP1", "", "m1", "ping")])
+    router._ext_routing._vip_sockets.add(ext)
+    routed = []
+    router.route = lambda *args, **kwargs: routed.append(args)
+    poll(router, {ext: zmq.POLLIN})
+    assert ext.inbox == []
+    assert routed == []
+    assert router.socket.sent == [] and router.inproc_socket.sent == []
+    assert router._peers == set()
+
+
+# The monitor event is the only thing that marks a platform connected.
+
+
+class MonitorHarness:
+    def __init__(self, routing, monkeypatch):
+        self.routing = routing
+        self.monitor = object()
+        self.connected = []
+        routing._instances["inst-b"] = {
+            "monitor_socket": self.monitor, "status": STATUS_CONNECTING}
+        routing.register("on_connect", self.connected.append)
+        self.event = None
+        monkeypatch.setattr(routingservice_module, "recv_monitor_message",
+                            lambda sock: {"event": self.event})
+
+    def fire(self, event):
+        self.event = event
+        self.routing.handle_monitor_event(self.monitor)
+
+    @property
+    def status(self):
+        return self.routing._instances["inst-b"]["status"]
+
+
+@pytest.fixture
+def monitored(router, monkeypatch):
+    return MonitorHarness(router._ext_routing, monkeypatch)
+
+
+def test_a_connect_event_marks_the_platform_connected_and_sends_subscriptions(
+        monitored):
+    monitored.fire(zmq.EVENT_CONNECTED)
+    assert monitored.status == STATUS_CONNECTED
+    assert monitored.connected == ["inst-b"]
+
+
+def test_a_disconnect_event_marks_the_platform_disconnected_only(monitored):
+    monitored.fire(zmq.EVENT_CONNECTED)
+    monitored.fire(zmq.EVENT_DISCONNECTED)
+    assert monitored.status == STATUS_DISCONNECTED
+    assert monitored.connected == ["inst-b"]
+
+
+def test_a_delayed_connect_event_changes_the_status_only(monitored):
+    monitored.fire(zmq.EVENT_CONNECT_DELAYED)
+    assert monitored.status == "CONNECTION_DELAY"
+    assert monitored.connected == []
