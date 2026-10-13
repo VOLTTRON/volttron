@@ -432,9 +432,7 @@ __docformat__ = 'reStructuredText'
 
 import collections
 import datetime
-import inspect
 import logging
-import re
 import sys
 
 import gevent
@@ -447,7 +445,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
-from volttron.platform.vip.agent.subsystems.rpc import _isregex
+from volttron.platform.vip.agent.subsystems.rpc import grant_refusal
 from volttron.platform.agent.known_identities import ACTUATOR_CONTROL, PLATFORM_DRIVER
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
@@ -510,30 +508,6 @@ def actuator_agent(config_path, **kwargs):
                          driver_vip_identity,
                          allow_no_lock_write,
                          **kwargs)
-
-
-def _grant_allows_call(sender, restrictions, rpc_method, rpc_args):
-    """Mirror of the argument check in the RPC subsystem's capability gate (rpc.py, _add_auth_check).
-
-    Not importable from there: the check is a closure over the RPC call context. Keep the two in step,
-    including fullmatch for "/regex/" values and refusing a restriction on a parameter the method lacks.
-    """
-    args_dict = inspect.getcallargs(getattr(ActuatorAgent, rpc_method), None, *rpc_args)
-    for name, value in restrictions.items():
-        if name not in args_dict:
-            _log.warning('Refusing pub/sub write from %r: grant restricts %r, which %s does not take.',
-                         sender, name, rpc_method)
-            return False
-        actual = args_dict[name]
-        if _isregex(value):
-            allowed = isinstance(actual, str) and re.compile('^' + value[1:-1] + '$').fullmatch(actual)
-        else:
-            allowed = actual == value
-        if not allowed:
-            _log.warning('Refusing pub/sub write from %r: grant restricts %r for %s.',
-                         sender, name, rpc_method)
-            return False
-    return True
 
 
 def _schedule_requests(message):
@@ -829,8 +803,11 @@ class ActuatorAgent(Agent):
             _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, ACTUATOR_CONTROL)
             return False
         restrictions = capabilities[ACTUATOR_CONTROL]
-        if restrictions and not _grant_allows_call(sender, restrictions, rpc_method, rpc_args):
-            return False
+        if restrictions:
+            reason = grant_refusal(restrictions, getattr(ActuatorAgent, rpc_method), (None,) + rpc_args, {})
+            if reason:
+                _log.warning('Refusing pub/sub write from %r: %s.', sender, reason)
+                return False
         return True
 
     def _refuse_pubsub_write(self, requester, point):
