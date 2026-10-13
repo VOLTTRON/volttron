@@ -561,7 +561,8 @@ UNGATED = {
     "error": "response handling",
     "request_response": "response handling",
     # Not checked by the router operation rules.
-    "external_list": "not covered by the sender rules",
+    "external_list": "any sender; the payload is checked to be a dict of "
+                     "text keys to lists of text",
     "external_publish": "not covered by the sender rules",
     # Any local agent may ask the platform to relay a call.
     "hello": "ignored: the handshake is not used and nothing acts on it",

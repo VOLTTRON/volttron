@@ -37,6 +37,7 @@ from volttron.platform.vip.router import (ORIGIN_INPROC, ORIGIN_NETWORK,
                                           INCOMING, OUTGOING)
 from volttron.platform.vip.routingservice import (
     RoutingService, STATUS_CONNECTED, STATUS_CONNECTING, STATUS_DISCONNECTED)
+from volttron.platform.vip import pubsubservice as pubsubservice_module
 from volttron.platform.vip import routingservice as routingservice_module
 from volttron.platform.vip.tracking import Tracker
 
@@ -460,3 +461,72 @@ def test_drops_of_different_types_are_counted_apart(router):
         "agent.x", "", "VIP1", "", "m1", "external_rpc", "send_peer")))
     assert router._drop_counts == {"route failed TypeError": 1,
                                    "route failed ValueError": 1}
+
+
+# An external subscription list from a peer is stored only when it is a dict
+# of text keys to lists of text; a bad one must not break later publishes.
+
+
+def external_list(sender, payload):
+    return message(sender, "", "VIP1", "", "m1", "pubsub", "external_list",
+                   payload)
+
+
+def publish(router, sender="agent.p"):
+    before = len(router.socket.sent)
+    poll(router, arrive(router, message(
+        sender, "", "VIP1", "", "m9", "pubsub", "publish", "devices/a",
+        '{"v": 1}', user="u9")))
+    return [m for m in router.socket.sent[before:] if m[0] == sender]
+
+
+MALFORMED_LISTS = {
+    "key list of numbers": '{"ghost": [1]}',
+    "value a string": '{"ghost": "devices/"}',
+    "value null": '{"ghost": null}',
+    "value a dict": '{"ghost": {"devices/": 1}}',
+    "nested list": '{"ghost": [["devices/"]]}',
+    "one good one bad": '{"good": ["devices/"], "ghost": [1]}',
+    "a list": '["ghost"]',
+    "a number": "5",
+}
+
+
+def test_a_publish_is_answered_without_any_external_list(router):
+    (reply,) = publish(router)
+    assert reply[5:7] == ["pubsub", "request_response"]
+
+
+@pytest.mark.parametrize("shape", sorted(MALFORMED_LISTS))
+def test_a_malformed_external_list_is_refused_and_publishes_still_reply(
+        router, caplog, shape):
+    router.pubsub._ext_subscriptions["kept"] = {"kept/"}
+    with caplog.at_level(logging.WARNING):
+        poll(router, arrive(router, external_list(
+            "agent.x", MALFORMED_LISTS[shape])))
+    assert dict(router.pubsub._ext_subscriptions) == {"kept": {"kept/"}}
+    (reply,) = publish(router)
+    assert reply[5:7] == ["pubsub", "request_response"]
+    refusals = [r for r in caplog.records if "external subscription"
+                in r.getMessage()]
+    assert len(refusals) == 1
+    assert "ghost" not in refusals[0].getMessage()
+
+
+def test_a_malformed_external_list_is_logged_once(router, caplog):
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            poll(router, arrive(router, external_list(
+                "agent.x", MALFORMED_LISTS["key list of numbers"])))
+    assert len([r for r in caplog.records if "external subscription"
+                in r.getMessage()]) == 1
+    assert router.pubsub._bad_external_lists == 3
+
+
+def test_a_valid_external_list_is_stored(router, monkeypatch):
+    monkeypatch.setattr(pubsubservice_module, "get_platform_instance_name",
+                        lambda: "inst-a")
+    poll(router, arrive(router, external_list(
+        "agent.x", '{"inst-b": ["devices/", "alerts/"], "inst-c": []}')))
+    assert dict(router.pubsub._ext_subscriptions) == {
+        "inst-b": ["devices/", "alerts/"], "inst-c": []}

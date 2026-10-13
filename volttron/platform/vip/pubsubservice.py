@@ -52,6 +52,15 @@ _ROUTE_ERRORS = {
 
 _log = logging.getLogger(__name__)
 
+
+def _is_subscription_list(msg):
+    """True for a dict of text keys to lists of text."""
+    return isinstance(msg, dict) and all(
+        isinstance(name, str) and isinstance(prefixes, list)
+        and all(isinstance(prefix, str) for prefix in prefixes)
+        for name, prefixes in msg.items())
+
+
 class PubSubService:
     def __init__(self, socket, protected_topics, routing_service, *args, **kwargs):
         self._logger = logging.getLogger(__name__)
@@ -68,6 +77,7 @@ class PubSubService:
         self._protected_topics = ProtectedPubSubTopics()
         self._load_protected_topics(protected_topics)
         self._ext_subscriptions = defaultdict(set)
+        self._bad_external_lists = 0
         self._ext_router = routing_service
         if self._ext_router is not None:
             self._ext_router.register('on_connect', self.external_platform_add)
@@ -730,8 +740,16 @@ class PubSubService:
         else:
             _log.debug(f"external subscription frames {frames}")
             msg = frames[7]
-            if not isinstance(msg, dict):
-                raise ValueError(f"Invalid frame passed for frame {frames[7]}")
+            if not _is_subscription_list(msg):
+                # Any authenticated peer can send this, and a stored list
+                # that is not text breaks every later publish.
+                self._bad_external_lists += 1
+                if self._bad_external_lists == 1:
+                    self._logger.warning(
+                        "Refused an external subscription list that is not "
+                        "a dict of text keys to lists of text; further "
+                        "refusals are only counted")
+                return False
 
             try:
                 this_platform_instance_name = get_platform_instance_name()
