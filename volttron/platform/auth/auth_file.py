@@ -51,6 +51,7 @@ from volttron.platform.agent.utils import (
 from volttron.platform.auth.auth_utils import isregex
 from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
+from volttron.platform.auth.reserved_user_ids import check_reserved_user_id
 
 _log = logging.getLogger(__name__)
 
@@ -457,6 +458,7 @@ class AuthFile(object):
         for file_entry in allow_list:
             try:
                 entry = AuthEntry(**file_entry)
+                check_reserved_user_id(entry)
             except TypeError:
                 _log.warning(
                     "invalid entry %r in auth file %s",
@@ -477,6 +479,7 @@ class AuthFile(object):
         for file_entry in deny_list:
             try:
                 entry = AuthEntry(**file_entry)
+                check_reserved_user_id(entry)
             except TypeError:
                 _log.warning(
                     "invalid entry %r in auth file %s",
@@ -566,6 +569,7 @@ class AuthFile(object):
         gevent.sleep(1)
 
     def _add_locked(self, auth_entry, overwrite, no_error, is_allow):
+        check_reserved_user_id(auth_entry)
         try:
             self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
@@ -762,6 +766,7 @@ class AuthFile(object):
             self._update_by_index_locked(auth_entry, index, is_allow)
 
     def _update_by_index_locked(self, auth_entry, index, is_allow):
+        check_reserved_user_id(auth_entry)
         allow_entries, deny_entries, groups, roles = self.read()
         if is_allow:
             entries = allow_entries

@@ -1,0 +1,111 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2023 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+
+"""The keys the platform holds for the user ids it reserves for itself."""
+
+import logging
+import os
+
+from volttron.platform import get_home, jsonapi
+from volttron.platform.agent.known_identities import (
+    CONTROL_CONNECTION,
+    PLATFORM,
+    PROCESS_IDENTITIES,
+    RESERVED_USER_IDS,
+    VOLTTRON_CENTRAL,
+)
+from volttron.platform.auth.auth_entry import AuthEntryInvalid
+from volttron.platform.keystore import KeyStore
+
+_log = logging.getLogger(__name__)
+
+# Platform services, in-process agents included, keep their key in
+# VOLTTRON_HOME/keystores/<identity>.
+_SERVICE_KEYSTORE_IDENTITIES = frozenset(PROCESS_IDENTITIES) | {CONTROL_CONNECTION}
+
+
+def _read_public_key(path):
+    """Reads a keystore file without creating or repairing it."""
+    try:
+        with open(path) as keystore:
+            key = jsonapi.load(keystore).get("public")
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, AttributeError) as err:
+        _log.warning("cannot read the platform's key file %s: %s", path, err)
+        return None
+    return key if isinstance(key, str) and key else None
+
+
+def _installed_agent_keys(identity):
+    """Public keys of installed agents whose identity is `identity`."""
+    agents_dir = os.path.join(get_home(), "agents")
+    try:
+        agent_ids = os.listdir(agents_dir)
+    except FileNotFoundError:
+        return frozenset()
+    keys = set()
+    for agent_id in agent_ids:
+        agent_dir = os.path.join(agents_dir, agent_id)
+        try:
+            with open(os.path.join(agent_dir, "IDENTITY")) as fil:
+                installed_identity = fil.read().strip()
+            if installed_identity != identity:
+                continue
+            names = os.listdir(agent_dir)
+        except OSError:
+            continue
+        for name in names:
+            key = _read_public_key(os.path.join(
+                agent_dir, name, name + ".dist-info", "keystore.json"))
+            if key:
+                keys.add(key)
+    return frozenset(keys)
+
+
+def platform_held_keys(user_id):
+    """The public keys the platform itself holds for a reserved user id.
+    Empty when it holds none, which makes every entry for the id refused."""
+    if user_id == PLATFORM:
+        key = _read_public_key(KeyStore.get_default_path())
+    elif user_id in _SERVICE_KEYSTORE_IDENTITIES:
+        key = _read_public_key(KeyStore.get_agent_keystore_path(user_id))
+    elif user_id == VOLTTRON_CENTRAL:
+        return _installed_agent_keys(user_id)
+    else:
+        return frozenset()
+    return frozenset((key,)) if key else frozenset()
+
+
+def check_reserved_user_id(entry):
+    """Raises AuthEntryInvalid when the entry carries a reserved user id
+    without the key the platform holds for it."""
+    if entry.user_id not in RESERVED_USER_IDS:
+        return
+    credentials = entry.credentials
+    if (entry.mechanism == "CURVE" and isinstance(credentials, str)
+            and credentials in platform_held_keys(entry.user_id)):
+        return
+    raise AuthEntryInvalid(
+        f"user_id {entry.user_id!r} is reserved for a platform service and "
+        f"this entry does not hold the key the platform holds for it")
