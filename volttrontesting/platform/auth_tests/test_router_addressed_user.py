@@ -66,8 +66,8 @@ class FakeFrame:
 
 
 class WireFrame(bytes):
-    """A received frame that also compares equal to its text, as a frame
-    would if the old protocol comparison were repaired."""
+    """A received frame that also compares equal to its text, so a protocol
+    comparison against a string would accept it."""
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -363,7 +363,7 @@ def test_a_subsystem_that_is_not_text_is_left_to_the_dispatch(
     assert harness.calls == []
 
 
-# C1: the user of a message addressed to the router.
+# The user of a message addressed to the router.
 
 def route_query(router, frame_user, origin, raw_frames=None, sender="alice"):
     frames = [sender, "", PROTO, frame_user, "m1", "query", "serverkey"]
@@ -402,13 +402,13 @@ def test_with_auth_off_the_message_carries_the_sender(context):
 
 def test_a_message_to_a_peer_still_carries_the_senders_user(context):
     router = build_router(context, _RecordingRouter)
-    frames = ["alice", "peer.b", PROTO, "forged", "m1", "rpc", "body"]
+    frames = ["alice", "peer.b", PROTO, "written", "m1", "rpc", "body"]
     router.route(frames, ORIGIN_NETWORK, [FakeFrame("alice", {"User-Id": "u1"})])
     (sent,) = [m for m in router.socket.sent if m[5] == "rpc"]
     assert sent[3] == "u1"
 
 
-def test_an_external_rpc_forged_user_reaches_the_agent_as_no_user(context):
+def test_an_external_rpc_user_frame_reaches_the_agent_as_no_user(context):
     router = build_router(context)
     sender = RouterSender(router)
     routing = RoutingService(sender, context, zmq.Socket, None, [], "inst-a")
@@ -422,7 +422,7 @@ def test_an_external_rpc_forged_user_reaches_the_agent_as_no_user(context):
     assert sent[3] == ""
 
 
-# C2
+# A call relayed from another platform.
 
 def test_a_relayed_call_carries_no_user_whatever_the_frame_held():
     out = RecordingSocket("network")
@@ -435,7 +435,7 @@ def test_a_relayed_call_carries_no_user_whatever_the_frame_held():
     assert sent[3] == ""
 
 
-# C3
+# ext_route forwards nothing for relayed frame shapes.
 
 def ext_frames(subsystem, body):
     return [WireFrame(x.encode()) for x in
@@ -481,8 +481,9 @@ def test_ext_route_has_no_branch_past_the_route_call():
     assert [type(s).__name__ for s in statements] == ["Assign", "Expr"]
 
 
-# C4: every operation the dispatch tables accept is either in OPERATIONS
-# above or listed here with the reason it needs no sender check.
+# Every operation the dispatch tables accept is either in OPERATIONS above or
+# listed here, with the reason it needs no sender check or a note that these
+# rules do not cover it.
 
 UNGATED = {
     # Subsystem names; the checked operations sit under them.
@@ -506,9 +507,9 @@ UNGATED = {
     "list": "read-only",
     "error": "response handling",
     "request_response": "response handling",
-    # Not part of this change; the pub/sub round covers them.
-    "external_list": "left to the pub/sub change",
-    "external_publish": "left to the pub/sub change",
+    # Not checked by the router operation rules.
+    "external_list": "not covered by the sender rules",
+    "external_publish": "not covered by the sender rules",
     # Any local agent may ask the platform to relay a call.
     "send_platform": "relaying an agent's own call to a connected platform",
 }
