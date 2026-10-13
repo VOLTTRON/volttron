@@ -186,6 +186,17 @@ def test_a_bad_message_does_not_stop_the_rest_of_the_same_poll(router):
     assert reply[5:7] == ["ping", "pong"]
 
 
+@pytest.mark.parametrize("shape", [
+    "recipient that is a list", "external_rpc send_peer with a text body",
+    "pubsub publish with a text body"])
+def test_a_bad_in_process_message_does_not_stop_the_poll(router, shape):
+    poll(router,
+         arrive(router, message(*CRASH_SHAPES[shape]), on="inproc_socket"),
+         arrive(router, message(*GOOD), on="inproc_socket"))
+    (reply,) = [m for m in router.inproc_socket.sent if m[0] == "agent.good"]
+    assert reply[5:7] == ["ping", "pong"]
+
+
 def test_a_failure_is_logged_once_per_sender_and_type_without_the_body(
         router, caplog):
     def bad(sender, body=BODY_MARKER):
