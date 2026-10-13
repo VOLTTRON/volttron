@@ -203,11 +203,6 @@ OPERATIONS = {
         allowed=[],
         denied=[("agent.x", "agent.x"), ("control", "control"),
                 ("keydiscovery", "keydiscovery")]),
-    "hello": dict(
-        subsystem="routing_table", payload=("welcome", "b"),
-        snapshot=lambda h: (h.routing._instances["b"]["status"],
-                            list(h.calls)),
-        **PLATFORM_PEER_ONLY),
     "auth_update": dict(
         subsystem="pubsub", payload=({"capabilities": {"u": ["c"]}},),
         snapshot=lambda h: dict(h.router.pubsub._user_capabilities),
@@ -275,11 +270,27 @@ def test_agentstop_by_an_allowed_sender_drops_only_the_named_peer(harness):
     assert harness.router._peers == {"bystander"}
 
 
-def test_welcome_from_a_platform_peer_marks_the_named_platform_connected(
-        harness):
-    run(harness, "hello", "instance.b.0.5", "u2")
-    assert harness.routing._instances["b"]["status"] == "CONNECTED"
-    assert harness.calls == [("onconnect", "b")]
+ROUTING_LOGGER = "volttron.platform.vip.routingservice"
+
+
+@pytest.mark.parametrize("sender,user", [
+    ("instance.b.0.5", "u2"), ("agent.x", "agent.x"), ("control", "control"),
+    ("keydiscovery", "keydiscovery"), ("agent.x", "")])
+@pytest.mark.parametrize("payload", [
+    ("welcome", "b"), (b"hello", "b"), ("hello", "b"), ("welcome", {"a": 1})])
+def test_hello_and_welcome_from_any_sender_change_nothing(
+        harness, caplog, sender, user, payload):
+    harness.routing.send_external = (
+        lambda name, frames: harness.calls.append(("send_external", name)))
+    with caplog.at_level(logging.DEBUG, logger=ROUTING_LOGGER):
+        result = harness.send("routing_table", "hello", sender, user, *payload)
+    assert not result
+    assert harness.routing._instances == {"b": {"status": "CONNECTING"}}
+    assert harness.calls == []
+    assert harness.router.socket.sent == []
+    assert [r.levelno for r in caplog.records if r.name == ROUTING_LOGGER] \
+        == [logging.DEBUG]
+    assert refusals(caplog) == []
 
 
 def test_a_relayed_call_from_a_platform_peer_is_delivered_with_no_user(
@@ -541,6 +552,7 @@ UNGATED = {
     "external_list": "not covered by the sender rules",
     "external_publish": "not covered by the sender rules",
     # Any local agent may ask the platform to relay a call.
+    "hello": "ignored: the handshake is not used and nothing acts on it",
     "send_platform": "relaying an agent's own call to a connected platform",
 }
 

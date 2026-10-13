@@ -343,7 +343,6 @@ _ROUTER_OPERATIONS = {
     ('routing_table', 'web-addresses'): _from_key_discovery,
     # No sender in the tree and the handler cannot run, so nobody may call it.
     ('routing_table', 'update'): _from_nobody,
-    ('routing_table', 'hello'): _from_platform_peer,
     ('pubsub', 'auth_update'): _from_auth_service,
     ('pubsub', 'protected_update'): _from_auth_service,
     ('external_rpc', 'send_peer'): _from_platform_peer,
