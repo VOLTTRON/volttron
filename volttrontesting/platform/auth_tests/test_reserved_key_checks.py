@@ -334,6 +334,47 @@ def test_a_missing_service_key_file_says_so(vhome, caplog):
                for r in reasons(caplog))
 
 
+def test_a_missing_platform_key_file_names_the_platform(vhome, caplog):
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        assert reserved_user_ids.platform_held_keys(PLATFORM) == frozenset()
+    assert [r for r in reasons(caplog) if "does not exist" in r] == [
+        "the key file {} of the platform does not exist".format(
+            KeyStore.get_default_path())]
+
+
+def test_a_missing_service_key_file_names_the_service(vhome, caplog):
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        reserved_user_ids.platform_held_keys(CONTROL)
+    assert [r for r in reasons(caplog) if "does not exist" in r] == [
+        "the key file {} of the platform service {} does not exist".format(
+            keystore_file(CONTROL), CONTROL)]
+
+
+def test_a_missing_agent_key_file_names_the_agent_not_the_platform(
+        vhome, caplog):
+    install_agent(vhome, VOLTTRON_CENTRAL)
+    path = str(vhome / "agents" / "0123" / "pkg" / "pkg.dist-info"
+               / "keystore.json")
+    os.remove(path)
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        assert reserved_user_ids.platform_held_keys(
+            VOLTTRON_CENTRAL) == frozenset()
+    assert [r for r in reasons(caplog) if "does not exist" in r] == [
+        "the key file {} of the installed agent {} does not exist".format(
+            path, VOLTTRON_CENTRAL)]
+    assert "platform's key" not in " ".join(reasons(caplog))
+
+
+def test_an_untrusted_key_file_names_whose_it_is(vhome, caplog):
+    install_agent(vhome, VOLTTRON_CENTRAL)
+    path = vhome / "agents" / "0123" / "pkg" / "pkg.dist-info" / "keystore.json"
+    os.chmod(path, 0o666)
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        reserved_user_ids.platform_held_keys(VOLTTRON_CENTRAL)
+    assert any("cannot trust the key file {} of the installed agent {}".format(
+        path, VOLTTRON_CENTRAL) in r for r in reasons(caplog))
+
+
 def test_an_unreadable_agents_folder_says_why(vhome, caplog, monkeypatch):
     real = os.listdir
 

@@ -42,6 +42,8 @@ from volttron.platform.keystore import (HomeOwnedByAnotherUser, KeyStore,
                                         create_keystore_dir,
                                         tighten_keystore_dirs,
                                         tighten_volttron_home)
+from volttron.platform.main import (report_resolved_home,
+                                    resolve_volttron_home)
 from volttrontesting.platform.auth_tests.conftest import install_agent
 
 
@@ -313,6 +315,82 @@ def test_a_symlinked_home_is_not_followed(tmp_path, monkeypatch):
     monkeypatch.setenv("VOLTTRON_HOME", str(link))
     tighten_volttron_home()
     assert mode_of(target) == 0o770
+
+
+# ---- a symlinked VOLTTRON_HOME is resolved at startup ----
+
+@pytest.fixture
+def linked_home(tmp_path, monkeypatch):
+    """A symlink to a real 0755 home, named by VOLTTRON_HOME."""
+    target = tmp_path / "real"
+    os.mkdir(target)
+    os.chmod(target, 0o755)
+    link = tmp_path / "link"
+    os.symlink(target, link)
+    monkeypatch.setenv("VOLTTRON_HOME", str(link))
+    monkeypatch.setattr("gevent.sleep", lambda *args, **kwargs: None)
+    return target, link
+
+
+def test_a_symlinked_home_is_resolved_and_the_platform_key_is_held(
+        linked_home):
+    target, link = linked_home
+    resolved, requested = resolve_volttron_home(str(link))
+    assert resolved == os.path.realpath(target)
+    assert requested == str(link)
+    assert os.environ["VOLTTRON_HOME"] == resolved
+    tighten_volttron_home()
+    key = KeyStore().public
+    assert reserved_user_ids.platform_held_keys("platform") == {key}
+    AuthFile(str(target / "auth.json")).add(AuthEntry(
+        credentials=key, user_id="platform", identity="platform"))
+
+
+def test_the_resolved_home_reaches_child_processes(linked_home):
+    target, link = linked_home
+    resolve_volttron_home(str(link))
+    assert os.environ.copy()["VOLTTRON_HOME"] == os.path.realpath(target)
+
+
+def test_a_home_with_no_symlink_is_returned_unchanged(tmp_path, monkeypatch):
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
+    assert resolve_volttron_home(str(tmp_path)) == (
+        os.path.realpath(tmp_path), str(tmp_path))
+
+
+def test_a_symlink_to_a_home_owned_by_another_user_stops_startup(
+        linked_home, monkeypatch):
+    target, link = linked_home
+    os.chmod(target, 0o770)
+    resolve_volttron_home(str(link))
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(target).st_uid + 1)
+    with pytest.raises(HomeOwnedByAnotherUser) as raised:
+        tighten_volttron_home()
+    assert str(os.path.realpath(target)) in str(raised.value)
+    assert mode_of(target) == 0o770
+
+
+def test_a_symlink_to_a_writable_home_is_tightened_once_resolved(linked_home):
+    target, link = linked_home
+    os.chmod(target, 0o770)
+    resolve_volttron_home(str(link))
+    tighten_volttron_home()
+    assert mode_of(target) == 0o750
+
+
+def test_the_resolved_path_is_logged_when_it_differs(caplog):
+    with caplog.at_level(logging.INFO):
+        report_resolved_home("/some/link", "/real/home")
+    assert [r.getMessage() for r in caplog.records
+            if "/real/home" in r.getMessage()] == [
+        "VOLTTRON_HOME /some/link goes through a symlink; using its real path "
+        "/real/home"]
+
+
+def test_nothing_is_logged_when_the_home_has_no_symlink(caplog):
+    with caplog.at_level(logging.DEBUG):
+        report_resolved_home("/real/home", "/real/home")
+    assert caplog.records == []
 
 
 # ---- keystores/ itself is checked ----

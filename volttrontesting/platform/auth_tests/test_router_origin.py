@@ -601,16 +601,18 @@ SEARCHED = ("volttron", "volttrontesting", "services", "scripts", "examples",
 
 
 def tracked_python_files():
-    """Tracked .py files under the searched directories, or a skip outside a
-    git checkout."""
+    """Tracked .py files in the searched directories and below them, or a
+    skip outside a git checkout."""
     inside = subprocess.run(
         ["git", "-C", REPO_ROOT, "rev-parse", "--is-inside-work-tree"],
         capture_output=True, text=True, check=False)
     if inside.returncode != 0 or inside.stdout.strip() != "true":
         pytest.skip("not a git checkout")
+    # Git's default pathspec matching lets * cross directory separators, so
+    # "dir/*.py" covers the files directly in dir and those below it.
     out = subprocess.run(
         ["git", "-C", REPO_ROOT, "ls-files", "-z", "--"]
-        + ["{}/**/*.py".format(d) for d in SEARCHED],
+        + ["{}/*.py".format(d) for d in SEARCHED],
         capture_output=True, check=True)
     return [name.decode() for name in out.stdout.split(b"\0") if name]
 
@@ -620,16 +622,19 @@ ENDPOINT = "inproc://vip"
 
 def inproc_address_pieces():
     """Every string in the tracked code that is the endpoint or a leading
-    piece of it ("inproc", "inproc://"), as (path, value). Parsing the code finds an address written in pieces
-    ("inproc://" + "vip") as well as one written whole. Docstrings and bare
-    string statements are not addresses."""
+    piece of it ("inproc", "inproc://"), as (path, source line, value).
+    Parsing the code finds an address written in pieces ("inproc://" + "vip")
+    as well as one written whole, and the source line keeps two sites in one
+    file apart. Docstrings and bare string statements are not addresses."""
     found = set()
     for name in tracked_python_files():
         with open(os.path.join(REPO_ROOT, name), "rb") as source:
-            try:
-                tree = ast.parse(source.read())
-            except SyntaxError:
-                continue
+            text = source.read()
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue
+        lines = text.decode().splitlines()
         docs = {id(node.value) for node in ast.walk(tree)
                 if isinstance(node, ast.Expr)}
         for node in ast.walk(tree):
@@ -638,7 +643,7 @@ def inproc_address_pieces():
                     and len(node.value) >= len("inproc")
                     and (node.value == ENDPOINT
                          or ENDPOINT.startswith(node.value))):
-                found.add((name, node.value))
+                found.add((name, lines[node.lineno - 1].strip(), node.value))
     return found
 
 
@@ -646,12 +651,17 @@ def inproc_address_pieces():
 # A new site fails the test until it is added here, with its identity checked
 # below.
 KNOWN_INPROC_VIP_SITES = {
-    ("volttron/platform/main.py", "inproc://vip"),
-    ("volttron/platform/aip.py", "inproc://vip"),
+    ("volttron/platform/main.py", "inproc.bind('inproc://vip')",
+     "inproc://vip"),
+    ("volttron/platform/main.py", "address = 'inproc://vip'", "inproc://vip"),
+    ("volttron/platform/aip.py",
+     "agent = Agent(identity='aip', address='inproc://vip',", "inproc://vip"),
     # Checks of the address scheme, not connect sites.
-    ("volttron/platform/vip/agent/core.py", "inproc:"),
-    ("volttron/platform/vip/socket.py", "inproc"),
-    ("volttron/platform/vip/router.py", "inproc"),
+    ("volttron/platform/vip/agent/core.py",
+     "if self.address.startswith('inproc:'):", "inproc:"),
+    ("volttron/platform/vip/socket.py",
+     "if url.scheme not in ['tcp', 'ipc', 'inproc']:", "inproc"),
+    ("volttron/platform/vip/router.py", "ORIGIN_INPROC = 'inproc'", "inproc"),
 }
 
 
@@ -672,8 +682,36 @@ def test_the_enumeration_catches_an_address_built_from_parts(
     monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
     monkeypatch.setattr(sys.modules[__name__], "tracked_python_files",
                         lambda: ["sample.py"])
-    assert inproc_address_pieces() == {("sample.py", "inproc://"),
-                                       ("sample.py", "inproc")}
+    assert inproc_address_pieces() == {
+        ("sample.py", "address = 'inproc://' + 'vip'", "inproc://"),
+        ("sample.py", "other = 'inproc' + '://vip'", "inproc")}
+
+
+def test_two_connects_in_one_file_are_listed_separately(
+        tmp_path, monkeypatch):
+    sample = tmp_path / "sample.py"
+    sample.write_text("first = 'inproc://vip'\nsecond = 'inproc://vip'\n"
+                      "third = 'inproc://vip'  # same text, other line\n")
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
+    monkeypatch.setattr(sys.modules[__name__], "tracked_python_files",
+                        lambda: ["sample.py"])
+    assert {line for _, line, _ in inproc_address_pieces()} == {
+        "first = 'inproc://vip'", "second = 'inproc://vip'",
+        "third = 'inproc://vip'  # same text, other line"}
+
+
+def test_the_search_covers_files_directly_in_each_directory(
+        tmp_path, monkeypatch):
+    tracked = {"{}/top.py".format(d) for d in SEARCHED}
+    tracked |= {"{}/sub/deep.py".format(d) for d in SEARCHED}
+    for name in tracked | {"elsewhere/other.py", "scripts/notes.txt"}:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x = 1\n")
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", str(tmp_path))
+    assert set(tracked_python_files()) == tracked
 
 
 def test_the_enumeration_skips_outside_a_git_checkout(tmp_path, monkeypatch):
