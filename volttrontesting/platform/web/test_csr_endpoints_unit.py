@@ -5,6 +5,7 @@ Certs and the platform instance name are patched, so no platform, broker or
 web server is started and the tests run in every CI job that collects this
 directory.
 """
+import contextlib
 from unittest import mock
 
 import pytest
@@ -13,6 +14,10 @@ from volttron.platform import jsonapi
 from volttron.platform.web.csr_endpoints import CSREndpoints
 
 INSTANCE = "volttron1"
+# The only Certs methods the handler may call. Anything else, such as a signing
+# or approval call, means the endpoint acts on a request without an administrator.
+ALLOWED_CERTS_CALLS = {"get_csr_common_name", "save_pending_csr_request",
+                       "get_csr_status", "get_cert_from_csr"}
 REMOTE_ADDR = "10.1.2.3"
 CSR_PEM = "-----BEGIN CERTIFICATE REQUEST-----\nfake\n-----END CERTIFICATE REQUEST-----\n"
 
@@ -21,6 +26,8 @@ CSR_PEM = "-----BEGIN CERTIFICATE REQUEST-----\nfake\n-----END CERTIFICATE REQUE
 def certs():
     with mock.patch("volttron.platform.web.csr_endpoints.Certs") as certs_class:
         yield certs_class.return_value
+        called = {c[0] for c in certs_class.return_value.mock_calls}
+        assert called <= ALLOWED_CERTS_CALLS, sorted(called - ALLOWED_CERTS_CALLS)
 
 
 @pytest.fixture
@@ -93,6 +100,8 @@ def test_unrecognised_status_gets_the_generic_error(endpoints, certs):
 @pytest.mark.parametrize("common_name", [
     "other_instance.agent",
     INSTANCE + "evil.agent",
+    "other." + INSTANCE + ".agent",
+    INSTANCE.upper() + ".agent",
     INSTANCE,
     ".agent",
 ])
@@ -114,18 +123,42 @@ def test_dict_body_is_accepted(endpoints, certs):
     certs.save_pending_csr_request.assert_called_once()
 
 
-def test_malformed_json_gets_an_empty_response_and_saves_nothing(endpoints, certs):
-    response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, "{not json")
+def test_approved_status_with_no_stored_cert_answers_null_cert(endpoints, certs):
+    body = _post(endpoints, certs, INSTANCE + ".agent", "APPROVED", cert=None)
 
-    assert response.status_code == 200
-    assert response.get_data() == b""
+    assert body == dict(status="APPROVED", cert=None)
+    certs.get_cert_from_csr.assert_called_once_with(INSTANCE + ".agent")
+
+
+def test_malformed_json_saves_nothing(endpoints, certs):
+    endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, "{not json")
+
     certs.save_pending_csr_request.assert_not_called()
     certs.get_cert_from_csr.assert_not_called()
 
 
-def test_body_without_csr_raises_and_saves_nothing(endpoints, certs):
-    with pytest.raises(AttributeError):
+@pytest.mark.xfail(strict=True, reason="#3381 malformed JSON gets an empty 200")
+def test_malformed_json_gets_an_error_response_with_json_body(endpoints, certs):
+    response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, "{not json")
+
+    body = jsonapi.loads(response.get_data(as_text=True))
+    assert body["status"] == "ERROR"
+    assert body["message"]
+
+
+def test_body_without_csr_saves_nothing(endpoints, certs):
+    with contextlib.suppress(Exception):
         endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, jsonapi.dumps(dict(identity="x")))
 
     certs.save_pending_csr_request.assert_not_called()
     certs.get_cert_from_csr.assert_not_called()
+
+
+@pytest.mark.xfail(strict=True, reason="#3381 a body without csr raises AttributeError")
+def test_body_without_csr_gets_an_error_response_with_json_body(endpoints, certs):
+    response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR},
+                                          jsonapi.dumps(dict(identity="x")))
+
+    body = jsonapi.loads(response.get_data(as_text=True))
+    assert body["status"] == "ERROR"
+    assert body["message"]
