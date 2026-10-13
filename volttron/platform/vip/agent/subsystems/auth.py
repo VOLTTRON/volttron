@@ -129,10 +129,16 @@ class Auth(SubsystemBase):
         return self._user_to_capabilities.get(user_id, [])
 
     def _update_capabilities(self, user_to_capabilities):
-        identity = self._rpc().context.vip_message.peer
-        if identity == AUTH:
-            self._user_to_capabilities = user_to_capabilities
-            self._dirty = True
+        message = self._rpc().context.vip_message
+        # peer is whoever the sender says it is; user is what the router
+        # authenticated.
+        if message.user != AUTH:
+            _log.warning(
+                "ignoring a capabilities update from peer %r, user %r",
+                message.peer, message.user)
+            return
+        self._user_to_capabilities = user_to_capabilities
+        self._dirty = True
 
     def get_rpc_exports(self):
         """
