@@ -1335,8 +1335,9 @@ class ActuatorAgent(Agent):
         if request_type == SCHEDULE_ACTION_NEW:
             try:
                 gate_call = ('request_new_schedule', requester_id, task_id, priority, _schedule_requests(message))
-            except TypeError:
-                # Malformed message: gate on the raw message; the handling below reports the error.
+            except (TypeError, KeyError):
+                # Malformed message (no length, or a one-key dict): gate on the raw message; the handling below
+                # reports the error.
                 gate_call = ('request_new_schedule', requester_id, task_id, priority, message)
         else:
             gate_call = ('request_cancel_schedule', requester_id, task_id)
