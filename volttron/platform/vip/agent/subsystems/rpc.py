@@ -77,8 +77,8 @@ def grant_refusal(restrictions, method, args, kwargs):
     _log.debug("args = %r kwargs= %r dict = %r", args, kwargs, args_dict)
     for name, value in restrictions.items():
         if name not in args_dict:
-            return ("capability is not defined properly. method {} does not have "
-                    "a parameter {}".format(method.__name__, name))
+            return (f"capability is not defined properly. method {method.__name__} does not have "
+                    f"a parameter {name}")
         actual = args_dict[name]
         if _isregex(value):
             # fullmatch, not match, already anchors each top-level "|" alternative to the whole string
@@ -87,19 +87,14 @@ def grant_refusal(restrictions, method, args, kwargs):
             try:
                 matches = isinstance(actual, str) and re.compile("^" + value[1:-1] + "$").fullmatch(actual)
             except re.error as ex:
-                return "capability grant is malformed: invalid pattern {} ({})".format(value, ex)
+                return f"capability grant is malformed: invalid pattern {value} ({ex})"
             if not matches:
-                return ("can call method {} only with {} matching pattern {} but "
-                        "called with {}={}".format(method.__name__, name, value, name, actual))
+                return (f"can call method {method.__name__} only with {name} matching pattern {value} but "
+                        f"called with {name}={actual}")
         elif actual != value:
-            return ("can call method {} only with {}={} but called with "
-                    "{}={}".format(method.__name__, name, value, name, actual))
+            return (f"can call method {method.__name__} only with {name}={value} but called with "
+                    f"{name}={actual}")
     return None
-
-
-def grant_allows_call(restrictions, method, args, kwargs):
-    """Whether a capability grant's argument restrictions allow calling ``method`` with ``args`` and ``kwargs``."""
-    return grant_refusal(restrictions, method, args, kwargs) is None
 
 
 class Dispatcher(jsonrpc.Dispatcher):
@@ -420,7 +415,7 @@ class RPC(SubsystemBase):
                         if reason:
                             raise jsonrpc.exception_from_json(
                                 jsonrpc.UNAUTHORIZED,
-                                "User {} {}".format(user, reason),
+                                f"User {user} {reason}",
                             )
 
             return method(*args, **kwargs)

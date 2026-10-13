@@ -511,6 +511,7 @@ def actuator_agent(config_path, **kwargs):
 
 
 def _schedule_requests(message):
+    """Return the list of schedule requests in a pub/sub message, unwrapping a single-element wrapper."""
     return message[0] if len(message) == 1 else message
 
 
