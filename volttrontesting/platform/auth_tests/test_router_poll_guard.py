@@ -32,7 +32,8 @@ from volttron.platform import main as platform_main
 from volttron.platform.vip import router as router_module
 from volttron.platform.vip.externalrpcservice import ExternalRPCService
 from volttron.platform.vip.pubsubservice import PubSubService
-from volttron.platform.vip.router import RouterSender
+from volttron.platform.vip.router import (ORIGIN_INPROC, ORIGIN_NETWORK,
+                                          RouterSender, UNROUTABLE)
 from volttron.platform.vip.routingservice import RoutingService
 
 ROUTER_LOGGER = router_module.__name__
@@ -267,3 +268,37 @@ def test_a_zmq_error_in_the_poll_is_logged_and_the_loop_goes_on(
 def test_a_poll_error_that_cannot_recover_is_raised(router, errno):
     with pytest.raises(zmq.ZMQError):
         poll(router, zmq.ZMQError(errno))
+
+
+# A sender that is not text is dropped before the router records anything.
+
+NOT_TEXT = [5, 1.5, None, ["a"], {"a": 1}, [["a"]]]
+
+
+@pytest.mark.parametrize("origin", [ORIGIN_NETWORK, ORIGIN_INPROC])
+@pytest.mark.parametrize("frames_after_sender", [
+    ["", "VIP1", "", "m1", "ping"],
+    [""],
+], ids=["full message", "router probe"])
+@pytest.mark.parametrize("sender", NOT_TEXT, ids=repr)
+def test_a_sender_that_is_not_text_is_dropped_and_recorded_nowhere(
+        router, caplog, sender, frames_after_sender, origin):
+    issued = []
+    router.issue = lambda topic, frames, extra=None: issued.append(
+        (topic, extra))
+    with caplog.at_level(logging.DEBUG, logger=ROUTER_LOGGER):
+        router.route([sender] + frames_after_sender, origin)
+    assert router._peers == set()
+    assert router._identity_sockets == {}
+    assert router._logged_senders == {}
+    assert router.socket.sent == [] and router.inproc_socket.sent == []
+    assert issued[-1] == (UNROUTABLE, "sender is not text")
+    assert [r for r in caplog.records if r.name == ROUTER_LOGGER] == []
+
+
+@pytest.mark.parametrize("frames_after_sender", [
+    ["", "VIP1", "", "m1", "ping"], [""]], ids=["full message", "router probe"])
+def test_a_text_sender_is_still_recorded(router, frames_after_sender):
+    router.route(["agent.x"] + frames_after_sender, ORIGIN_NETWORK)
+    assert router._peers == {"agent.x"}
+    assert "agent.x" in router._identity_sockets

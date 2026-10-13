@@ -335,6 +335,11 @@ class BaseRouter:
 
         issue(INCOMING, frames)
         # _log.debug(f"ROUTER Receiving frames: {frames}")
+        # Frames are JSON-decoded, so a peer can send a sender that cannot be
+        # a dict key or a set member.
+        if frames and not isinstance(frames[0], str):
+            issue(UNROUTABLE, frames, 'sender is not text')
+            return
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
