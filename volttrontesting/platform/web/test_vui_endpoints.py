@@ -9,7 +9,9 @@ from werkzeug import Response
 
 mock.patch('volttron.platform.web.vui_endpoints.endpoint', lambda x: x).start()
 
+from volttron.platform import jsonapi, jsonrpc
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.vip.agent.subsystems.rpc import Dispatcher
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform.web.platform_web_service import PlatformWebService
@@ -1201,3 +1203,35 @@ def test_handle_platforms_status_delete_response(mock_platform_web_service):
     check_response_codes(response, '204')
     vui_endpoints._rpc.assert_has_calls([mock.call('control', 'clear_status', True,
                                                    external_platform='my_instance_name')])
+
+
+class _RaisingDispatcher(Dispatcher):
+    def __init__(self, error):
+        super().__init__({}, None)
+        self._error = error
+
+    def method(self, request, ident, name, args, kwargs, batch=None, context=None):
+        raise self._error
+
+
+def _error_after_the_wire(error):
+    """The RemoteError a caller gets when the callee raises ``error``: the callee's JSON-RPC reply, decoded."""
+    reply = jsonapi.loads(_RaisingDispatcher(error).dispatch({'jsonrpc': '2.0', 'id': '1', 'method': 'm', 'params': []}))
+    return jsonrpc.exception_from_json(reply['error']['code'], reply['error']['message'], reply['error'].get('data'))
+
+
+@pytest.mark.parametrize('error, status', [
+    pytest.param(jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, UNAUTHORIZED_DETAIL), 403, id='gate_refusal'),
+    pytest.param(jsonrpc.Error(jsonrpc.UNHANDLED_EXCEPTION, 'other failure'), 500, id='other_code_stays_500'),
+    pytest.param(ValueError(jsonrpc.UNAUTHORIZED, 'not from the gate'), 500, id='same_code_other_type_stays_500'),
+])
+def test_device_write_status_for_an_error_sent_through_json_rpc(mock_platform_web_service, error, status):
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
+                               query_string='write-all=true', method='PUT', HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _refusing_actuator_rpc(_error_after_the_wire(error))
+        response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
+        assert response.status_code == status
+        if status == 403:
+            assert json.loads(response.response[0]) == DEVICE_WRITES_REFUSED
