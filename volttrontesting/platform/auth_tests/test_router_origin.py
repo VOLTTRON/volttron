@@ -209,6 +209,23 @@ def test_senders_already_warned_about_are_remembered_only_up_to_a_limit(
     assert len(router._logged_senders["no-user"]) == 5
 
 
+def test_reaching_the_log_cap_logs_one_suppressed_line(
+        context, monkeypatch, caplog):
+    monkeypatch.setattr(router_module, "_LOGGED_SENDERS_LIMIT", 3)
+    router = make_router(context)
+    with caplog.at_level(logging.WARNING, logger=router_module.__name__):
+        for number in range(7):
+            sender = "s{}x".format(number)
+            router.route(message(sender), ORIGIN_NETWORK,
+                         network_frames(sender, None))
+    warnings = [r.getMessage() for r in caplog.records
+                if r.levelno == logging.WARNING]
+    assert len(warnings) == 4
+    assert sum("suppressed" in w for w in warnings) == 1
+    assert "suppressed" in warnings[-1]
+    assert "s3x" not in " ".join(warnings)
+
+
 def test_network_frame_with_no_frame_objects_gives_empty(context):
     router = make_router(context)
     router.route(message("s5"), ORIGIN_NETWORK)

@@ -137,6 +137,58 @@ def test_a_key_directory_owned_by_another_user_is_not_chmodded(
         CONTROL_CONNECTION) == frozenset()
 
 
+def test_a_key_directory_owned_by_another_user_is_logged_as_skipped(
+        vhome, monkeypatch, caplog):
+    make_dirs(vhome, 0o770, 0o770)
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(vhome).st_uid + 1)
+    with caplog.at_level(logging.WARNING, logger="volttron.platform.keystore"):
+        tighten_keystore_dirs()
+    root, child = control_dirs(vhome)
+    skipped = [r.getMessage() for r in caplog.records
+               if r.levelno == logging.WARNING]
+    assert len(skipped) == 2
+    assert root in skipped[0] and "another user" in skipped[0]
+    assert child in skipped[1]
+
+
+def test_a_key_directory_that_cannot_be_read_is_logged_not_fatal(
+        vhome, monkeypatch, caplog):
+    make_dirs(vhome, 0o770, 0o770)
+    root, child = control_dirs(vhome)
+    real = os.lstat
+
+    def lstat(path, *args, **kwargs):
+        if str(path) == child:
+            raise PermissionError(13, "denied", str(path))
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "lstat", lstat)
+    with caplog.at_level(logging.WARNING, logger="volttron.platform.keystore"):
+        tighten_keystore_dirs()
+    monkeypatch.undo()
+    assert mode_of(root) == 0o700
+    assert mode_of(child) == 0o770
+    assert any(child in r.getMessage() and "denied" in r.getMessage()
+               for r in caplog.records)
+
+
+def test_a_key_directory_removed_during_tightening_is_skipped(
+        vhome, monkeypatch):
+    make_dirs(vhome, 0o770, 0o770)
+    root, child = control_dirs(vhome)
+    real = os.lstat
+
+    def lstat(path, *args, **kwargs):
+        if str(path) == child:
+            raise FileNotFoundError(2, "gone", str(path))
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "lstat", lstat)
+    tighten_keystore_dirs()
+    monkeypatch.undo()
+    assert mode_of(root) == 0o700
+
+
 def test_a_symlinked_key_directory_is_not_followed_when_tightening(vhome):
     make_dirs(vhome, 0o700, 0o700)
     root, child = control_dirs(vhome)
@@ -352,3 +404,18 @@ def test_install_closes_the_tree_before_the_agent_key_is_authorized(
     platform.install_agent(str(wheel))
     assert seen["dist_info"] & 0o022 == 0
     assert len(seen["key"]) == 1
+
+
+def test_a_folder_that_cannot_be_listed_is_logged_while_clearing_group_write(
+        tmp_path, caplog):
+    tree = tmp_path / "tree"
+    locked = tree / "locked"
+    os.makedirs(locked / "inner")
+    os.chmod(locked, 0o000)
+    try:
+        with caplog.at_level(logging.WARNING, logger=aip_module.__name__):
+            aip_module.remove_group_write(str(tree))
+    finally:
+        os.chmod(locked, 0o700)
+    assert any(str(locked) in r.getMessage() for r in caplog.records
+               if r.levelno >= logging.WARNING)

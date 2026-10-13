@@ -83,3 +83,42 @@ def test_an_accepted_update_logs_no_warning(caplog):
     with caplog.at_level(logging.WARNING, logger=auth_subsystem.__name__):
         subsystem._update_capabilities(UPDATE)
     assert caplog.records == []
+
+
+def refusals(caplog):
+    return [r.getMessage() for r in caplog.records
+            if r.levelno == logging.WARNING]
+
+
+def test_repeated_refusals_from_one_peer_log_one_warning(caplog):
+    subsystem = make_subsystem(peer="some.agent", user="some.user")
+    with caplog.at_level(logging.WARNING, logger=auth_subsystem.__name__):
+        for _ in range(5):
+            subsystem._update_capabilities(UPDATE)
+    assert len(refusals(caplog)) == 1
+
+
+def test_a_second_peer_gets_its_own_refusal_warning(caplog):
+    subsystem = make_subsystem(peer="some.agent", user="some.user")
+    with caplog.at_level(logging.WARNING, logger=auth_subsystem.__name__):
+        subsystem._update_capabilities(UPDATE)
+        subsystem._rpc().context.vip_message = SimpleNamespace(
+            peer="other.agent", user="other.user")
+        subsystem._update_capabilities(UPDATE)
+    warnings = refusals(caplog)
+    assert len(warnings) == 2 and "other.agent" in warnings[1]
+
+
+def test_the_refusal_log_is_capped_with_one_suppressed_line(
+        caplog, monkeypatch):
+    monkeypatch.setattr(auth_subsystem, "_REFUSED_PEERS_LIMIT", 2)
+    subsystem = make_subsystem(peer="p0", user="u")
+    with caplog.at_level(logging.WARNING, logger=auth_subsystem.__name__):
+        for number in range(6):
+            subsystem._rpc().context.vip_message = SimpleNamespace(
+                peer="p{}".format(number), user="u")
+            subsystem._update_capabilities(UPDATE)
+    warnings = refusals(caplog)
+    assert len(warnings) == 3
+    assert "suppressed" in warnings[2]
+    assert subsystem._user_to_capabilities == CURRENT

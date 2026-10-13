@@ -25,6 +25,7 @@ itself could have written, and a key that cannot be read never costs the
 auth file an entry."""
 
 import json
+import logging
 import os
 from types import SimpleNamespace
 
@@ -317,3 +318,70 @@ def test_volttron_central_key_file_is_checked_like_any_platform_key(vhome):
     path = vhome / "agents" / "0123" / "pkg" / "pkg.dist-info" / "keystore.json"
     os.chmod(path, 0o666)
     assert key not in reserved_user_ids.platform_held_keys(VOLTTRON_CENTRAL)
+
+
+# ---- every refusal says why ----
+
+def reasons(caplog):
+    return [r.getMessage() for r in caplog.records
+            if r.levelno >= logging.WARNING]
+
+
+def test_a_missing_service_key_file_says_so(vhome, caplog):
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        assert reserved_user_ids.platform_held_keys(CONTROL) == frozenset()
+    assert any(keystore_file(CONTROL) in r and "does not exist" in r
+               for r in reasons(caplog))
+
+
+def test_an_unreadable_agents_folder_says_why(vhome, caplog, monkeypatch):
+    real = os.listdir
+
+    def listdir(path):
+        if str(path).startswith(str(vhome / "agents" / "0123")):
+            raise PermissionError(13, "denied", str(path))
+        return real(path)
+
+    install_agent(vhome, VOLTTRON_CENTRAL)
+    monkeypatch.setattr(os, "listdir", listdir)
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        assert reserved_user_ids.platform_held_keys(
+            VOLTTRON_CENTRAL) == frozenset()
+    assert any("0123" in r and "denied" in r for r in reasons(caplog))
+
+
+def test_an_agent_folder_with_two_packages_says_why(vhome, caplog):
+    install_agent(vhome, VOLTTRON_CENTRAL)
+    os.makedirs(vhome / "agents" / "0123" / "pkg2" / "pkg2.dist-info")
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        assert reserved_user_ids.platform_held_keys(
+            VOLTTRON_CENTRAL) == frozenset()
+    assert any("0123" in r and "2" in r and "one" in r
+               for r in reasons(caplog))
+
+
+def test_an_agent_folder_with_no_identity_file_says_why(vhome, caplog):
+    install_agent(vhome, VOLTTRON_CENTRAL)
+    os.remove(vhome / "agents" / "0123" / "IDENTITY")
+    with caplog.at_level(logging.WARNING, logger=reserved_user_ids.__name__):
+        assert reserved_user_ids.platform_held_keys(
+            VOLTTRON_CENTRAL) == frozenset()
+    assert any("IDENTITY" in r and "0123" in r for r in reasons(caplog))
+
+
+def test_the_refusal_names_whether_the_platform_holds_no_key(vhome):
+    entry = AuthEntry(credentials=foreign_key(vhome), user_id=CONTROL,
+                      identity=CONTROL)
+    with pytest.raises(reserved_user_ids.ReservedUserIdRefused,
+                       match="holds no key"):
+        reserved_user_ids.check_reserved_user_id(entry)
+
+
+def test_the_refusal_names_a_key_that_does_not_match(vhome):
+    held_key(CONTROL)
+    entry = AuthEntry(credentials=foreign_key(vhome), user_id=CONTROL,
+                      identity=CONTROL)
+    with pytest.raises(reserved_user_ids.ReservedUserIdRefused) as raised:
+        reserved_user_ids.check_reserved_user_id(entry)
+    assert "different key" in str(raised.value)
+    assert "holds no key" not in str(raised.value)
