@@ -85,16 +85,18 @@ def _open_trusted(path):
         raise
 
 
-def _read_public_key(path):
-    """Reads a keystore file without creating or repairing it."""
+def _read_public_key(path, owner):
+    """Reads a keystore file without creating or repairing it. `owner` says
+    whose key it is, for the log lines."""
     try:
         with _open_trusted(path) as keystore:
             key = jsonapi.load(keystore).get("public")
     except FileNotFoundError:
-        _log.warning("the platform's key file %s does not exist", path)
+        _log.warning("the key file %s of %s does not exist", path, owner)
         return None
     except (OSError, ValueError, AttributeError) as err:
-        _log.warning("cannot trust the platform's key file %s: %s", path, err)
+        _log.warning("cannot trust the key file %s of %s: %s", path, owner,
+                     err)
         return None
     return key if isinstance(key, str) and key else None
 
@@ -139,7 +141,8 @@ def _installed_agent_keys(identity):
         if installed_identity != identity:
             continue
         path = _installed_agent_key_path(agent_dir)
-        key = _read_public_key(path) if path else None
+        key = _read_public_key(
+            path, "the installed agent " + identity) if path else None
         if key:
             keys.add(key)
     return frozenset(keys)
@@ -149,9 +152,10 @@ def platform_held_keys(user_id):
     """The public keys the platform itself holds for a reserved user id.
     Empty when it holds none, which makes every entry for the id refused."""
     if user_id == PLATFORM:
-        key = _read_public_key(KeyStore.get_default_path())
+        key = _read_public_key(KeyStore.get_default_path(), "the platform")
     elif user_id in _SERVICE_KEYSTORE_IDENTITIES:
-        key = _read_public_key(KeyStore.get_agent_keystore_path(user_id))
+        key = _read_public_key(KeyStore.get_agent_keystore_path(user_id),
+                               "the platform service " + user_id)
     elif user_id == VOLTTRON_CENTRAL:
         return _installed_agent_keys(user_id)
     else:
