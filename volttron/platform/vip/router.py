@@ -138,8 +138,10 @@ class BaseRouter:
         self.setup()
 
     def stop(self, linger=1):
-        '''Close the socket.'''
+        '''Close the sockets.'''
         self.socket.close(linger)
+        if self.inproc_socket is not None:
+            self.inproc_socket.close(linger)
 
     def setup(self):
         '''Called from start() method to setup the socket.
