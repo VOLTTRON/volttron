@@ -25,7 +25,8 @@ Actuator Agent Communication
     to the Platform Driver, which skips the actuator's scheduling, whether or not it holds ``actuator_control``. To make
     an agent write only through the actuator, remove ``driver_write`` from its auth entry with the ``vctl auth update``
     steps below and leave it out of the capability map. The actuator itself needs ``driver_write``, so keep it on the
-    actuator's own entry. A request from an agent without the capability is refused with an ``UNAUTHORIZED`` error (RPC), a
+    actuator's own entry. Reinstalling an agent restores ``driver_write``, because the install removes the old auth entry
+    and creates a new one that again includes it; repeat the removal after every reinstall. A request from an agent without the capability is refused with an ``UNAUTHORIZED`` error (RPC), a
     ``FAILURE`` schedule result (pub/sub schedule request) or an ``Unauthorized`` error reply (pub/sub set or revert).
 
     To grant it to an agent installed with ``vctl install``, run ``vctl auth list`` to find the agent's entry, then
@@ -38,8 +39,8 @@ Actuator Agent Communication
     ``vctl auth add --credentials <public key> --user_id <identity> --capabilities actuator_control``.
 
     A grant restricted on ``topic`` can set and revert single points but cannot schedule or set multiple points,
-    because those methods have no ``topic`` parameter. Do not restrict on ``requester_id``. A restriction that cannot be evaluated, such as an invalid ``/regex/`` pattern or a restriction that is not a map,
-    refuses the call.
+    because those methods have no ``topic`` parameter. Do not restrict on ``requester_id``. A restriction that cannot be evaluated, such as an invalid ``/regex/`` pattern, or a non-empty restriction that is not a map, refuses the call.
+    An empty restriction (``[]``, ``""``, ``0`` or ``false``) is treated as no restriction, and the grant allows any argument.
 
     Writing and reverting device points through the web interface is refused while authentication is enabled.
 

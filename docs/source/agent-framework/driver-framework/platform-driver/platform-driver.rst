@@ -95,6 +95,8 @@ When authentication is enabled, the Platform Driver checks the calling agent's c
 
 An agent installed with ``vctl install`` gets ``driver_write`` at install, so it can write to the Platform Driver
 directly, without a schedule from the Actuator Agent. (The exception is VolttronCentralPlatform, which does not.)
+If you remove ``driver_write`` from an agent, reinstalling that agent restores it: the install removes the old auth
+entry and creates a new one that again includes ``driver_write``.
 Nothing grants ``driver_override``; an operator adds it. Agents that schedule and write through the Actuator Agent
 need ``actuator_control`` instead (see :ref:`Actuator-Agent`). Platforms running with authentication disabled do not
 check these capabilities.

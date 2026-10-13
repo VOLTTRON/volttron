@@ -57,7 +57,9 @@ An agent installed with `vctl install` gets `driver_write` at install, so today 
 Driver, which skips the actuator's scheduling, whether or not it holds `actuator_control`. To make an agent write only
 through the actuator, remove `driver_write` from its auth entry with `vctl auth update`, as described under
 "Granting the capability" below, and leave it out of the capability map. The actuator itself needs `driver_write` to write to the Platform Driver, so keep that grant on the actuator's
-own auth entry. The Platform Driver README lists the methods each capability covers.
+own auth entry. Reinstalling the agent restores the grant: the install removes the old auth entry and creates a new one that again
+includes `driver_write`, so repeat the removal after every reinstall. The Platform Driver README lists the methods
+each capability covers.
 
 A call without the capability is refused with an `UNAUTHORIZED` RPC error. A pub/sub set or revert without it
 receives an `Unauthorized` error reply, and a pub/sub schedule request receives a `FAILURE` schedule result. None of
@@ -107,8 +109,9 @@ restricted parameter must match the call's argument, and a call to a method that
 A grant restricted on `topic` can set and revert single points (`set_point`, `revert_point`, `revert_device`) but
 cannot schedule or call `set_multiple_points`, because those methods have no `topic` parameter. Do not restrict on
 `requester_id`: the actuator ignores the value an RPC caller supplies for it.
-A restriction that cannot be evaluated, such as an invalid `/regex/` pattern or a restriction that is not a map,
-refuses the call.
+A restriction that cannot be evaluated, such as an invalid `/regex/` pattern, or a non-empty restriction that is not
+a map, refuses the call. An empty restriction (`[]`, `""`, `0` or `false`) is treated as no restriction, and the
+grant allows any argument.
 
 ### Web interface
 
