@@ -318,11 +318,14 @@ class Router(BaseRouter):
                  external_address_file='',
                  msgdebug=None,
                  agent_monitor_frequency=600,
-                 service_notifier=Optional[ServicePeerNotifier]):
+                 service_notifier=Optional[ServicePeerNotifier],
+                 *,
+                 enable_auth):
 
         super(Router, self).__init__(context=context,
                                      default_user_id=default_user_id,
                                      service_notifier=service_notifier)
+        self.enable_auth = enable_auth
         self.local_address = Address(local_address)
         self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
@@ -629,7 +632,9 @@ class GreenRouter(Router):
                  external_address_file='',
                  msgdebug=None,
                  volttron_central_rmq_address=None,
-                 service_notifier=Optional[ServicePeerNotifier]):
+                 service_notifier=Optional[ServicePeerNotifier],
+                 *,
+                 enable_auth):
         self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
@@ -649,7 +654,8 @@ class GreenRouter(Router):
             protected_topics=protected_topics,
             external_address_file=external_address_file,
             msgdebug=msgdebug,
-            service_notifier=service_notifier)
+            service_notifier=service_notifier,
+            enable_auth=enable_auth)
 
     def start(self):
         '''Create the socket and call setup().
@@ -939,7 +945,8 @@ def start_volttron_process(opts):
                    protected_topics=protected_topics,
                    external_address_file=external_address_file,
                    msgdebug=opts.msgdebug,
-                   service_notifier=notifier).run()
+                   service_notifier=notifier,
+                   enable_auth=opts.allow_auth).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -1160,7 +1167,8 @@ def start_volttron_process(opts):
                 protected_topics=protected_topics,
                 external_address_file=external_address_file,
                 msgdebug=opts.msgdebug,
-                service_notifier=notifier)
+                service_notifier=notifier,
+                enable_auth=opts.allow_auth)
 
             proxy_router = ZMQProxyRouter(address=address,
                                           identity=PROXY_ROUTER,
