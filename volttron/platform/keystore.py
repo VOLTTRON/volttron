@@ -109,8 +109,9 @@ def tighten_volttron_home():
     it. Every read and execute bit stays, because agent users reach their
     folders through the home's execute bit. The platform's key lives in the
     home and is refused while the home is writable by anyone else. A home
-    owned by another user raises HomeOwnedByAnotherUser. A symlink or a
-    non-directory is left alone."""
+    owned by another user raises HomeOwnedByAnotherUser. A symlinked home
+    is followed: get_home returns its real path, and that directory is
+    tightened. A non-directory is left alone."""
     home = get_home()
     info = os.lstat(home)
     if not stat.S_ISDIR(info.st_mode):
