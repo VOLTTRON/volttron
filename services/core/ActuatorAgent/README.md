@@ -51,9 +51,13 @@ Reads (`get_point`, `get_multiple_points`, `scrape_all`) do not require it. Plat
 disabled are not affected.
 
 No agent is granted `actuator_control` automatically, `vctl install` included. Holding `driver_write` does not allow
-use of the actuator. `driver_write` still allows writing straight to the Platform Driver, which skips the
-actuator's scheduling, so grant it only to agents that need that. The actuator itself needs `driver_write` to write to
-the Platform Driver, so keep that grant on the actuator's own auth entry.
+use of the actuator.
+
+An agent installed with `vctl install` gets `driver_write` at install, so today it can write straight to the Platform
+Driver, which skips the actuator's scheduling, whether or not it holds `actuator_control`. To make an agent write only
+through the actuator, remove `driver_write` from its auth entry with `vctl auth update`, as described under
+"Granting the capability" below, and leave it out of the capability map. The actuator itself needs `driver_write` to write to the Platform Driver, so keep that grant on the actuator's
+own auth entry. The Platform Driver README lists the methods each capability covers.
 
 A call without the capability is refused with an `UNAUTHORIZED` RPC error. A pub/sub set or revert without it
 receives an `Unauthorized` error reply, and a pub/sub schedule request receives a `FAILURE` schedule result. None of
@@ -74,6 +78,12 @@ vctl auth update <INDEX>
 
 ```
 {"edit_config_store": {"identity": "my.agent"}, "driver_write": null, "actuator_control": null}
+```
+
+To make the agent write only through the actuator, leave `driver_write` out of the map:
+
+```
+{"edit_config_store": {"identity": "my.agent"}, "actuator_control": null}
 ```
 
 Use the JSON form with `null`. The prompt shows the current map in Python form (`None`, single quotes), which is not
@@ -97,6 +107,8 @@ restricted parameter must match the call's argument, and a call to a method that
 A grant restricted on `topic` can set and revert single points (`set_point`, `revert_point`, `revert_device`) but
 cannot schedule or call `set_multiple_points`, because those methods have no `topic` parameter. Do not restrict on
 `requester_id`: the actuator ignores the value an RPC caller supplies for it.
+A restriction that cannot be evaluated, such as an invalid `/regex/` pattern or a restriction that is not a map,
+refuses the call.
 
 ### Web interface
 
