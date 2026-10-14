@@ -63,6 +63,23 @@ _MAX_STORED_EXTERNAL_PLATFORMS = 256
 _MAX_EXTERNAL_PREFIX_LENGTH = 256
 
 
+_UNMAPPED_LIST_REASON = ("the list names a platform this connection is not "
+                         "mapped to")
+
+
+def _platform_map_problem(platforms):
+    """None for a dict of user ids to lists of platform names, otherwise the
+    reason the auth service's map is refused."""
+    if platforms is None:
+        return "the update has no platform map"
+    if not isinstance(platforms, dict) or not all(
+            isinstance(user, str) and isinstance(names, list)
+            and all(isinstance(name, str) for name in names)
+            for user, names in platforms.items()):
+        return "not a dict of text keys to lists of text"
+    return None
+
+
 def _subscription_list_problem(msg):
     """None for a dict of text keys to lists of text within the per-message
     bounds, otherwise the reason it is refused."""
@@ -83,8 +100,10 @@ def _subscription_list_problem(msg):
 
 
 class PubSubService:
-    def __init__(self, socket, protected_topics, routing_service, *args, **kwargs):
+    def __init__(self, socket, protected_topics, routing_service, *args,
+                 enable_auth=True, **kwargs):
         self._logger = logging.getLogger(__name__)
+        self._enable_auth = enable_auth
 
         def platform_subscriptions():
             return defaultdict(subscriptions)
@@ -98,6 +117,11 @@ class PubSubService:
         self._protected_topics = ProtectedPubSubTopics()
         self._load_protected_topics(protected_topics)
         self._ext_subscriptions = defaultdict(set)
+        # User id -> the platform names it may speak for, from the auth
+        # service. Empty until the first update, which refuses everything.
+        self._platform_users = {}
+        # Platform name -> the user that stored its list.
+        self._ext_list_owners = {}
         self._bad_external_lists = 0
         self._refused_senders = set()
         self._refusals_suppressed = False
@@ -142,9 +166,18 @@ class PubSubService:
             self._send_external_subscriptions([instance_name])
 
     def external_platform_drop(self, instance_name):
+        self._ext_list_owners.pop(instance_name, None)
         if instance_name in self._ext_subscriptions:
             self._logger.debug("PUBSUBSERVICE dropping external subscriptions for {}".format(instance_name))
             del self._ext_subscriptions[instance_name]
+
+    def user_may_send_external(self, user_id):
+        """Whether a connection with this user may send `external_publish`
+        and `external_list`. With authentication disabled there is no auth
+        service and so no map, and the check is not made."""
+        if not self._enable_auth:
+            return True
+        return bool(user_id) and user_id in self._platform_users
 
     def _sync(self, peer, items):
         """
@@ -607,13 +640,46 @@ class PubSubService:
         :type frames list
         """
         if len(frames) > 7:
+            msg = frames[7]
             try:
-                msg = frames[7]
                 self._user_capabilities = msg['capabilities']
             except KeyError as exc:
                 self._logger.error("Missing key in update auth capabilities message {}".format(exc))
             except ValueError:
                 pass
+            self._set_platform_map(
+                msg.get('platforms') if isinstance(msg, dict) else None)
+
+    def _set_platform_map(self, platforms):
+        """Store the auth service's map of users to platform names. A map
+        that is missing or malformed leaves no platform mapped."""
+        problem = _platform_map_problem(platforms)
+        if problem is None:
+            users = {user: frozenset(names)
+                     for user, names in platforms.items()}
+        else:
+            self._logger.error(
+                "Platform map refused (%s): no platform is mapped, so "
+                "external publishes and lists from other platforms are "
+                "refused", problem)
+            users = {}
+        self._platform_users = users
+        self._drop_unmapped_lists()
+
+    def _drop_unmapped_lists(self):
+        """Delete the stored list of every name that is no longer mapped to
+        the user that stored it, so a removed or moved platform stops
+        receiving publishes at once."""
+        if not self._enable_auth:
+            return
+        for name in list(self._ext_subscriptions):
+            owner = self._ext_list_owners.get(name)
+            if name not in self._platform_users.get(owner, ()):
+                self._logger.debug(
+                    "PUBSUBSERVICE dropping external subscriptions for %s: "
+                    "no longer mapped to the user that sent them", name)
+                self._ext_subscriptions.pop(name, None)
+                self._ext_list_owners.pop(name, None)
 
     def _update_protected_topics(self, frames):
         """
@@ -697,7 +763,7 @@ class PubSubService:
                 self._update_protected_topics(frames)
             elif op == 'external_list':
                 # self._logger.debug("PUBSUBSERVICE external_list")
-                result = self._update_external_subscriptions(frames)
+                result = self._update_external_subscriptions(frames, user_id)
             elif op == 'external_publish':
                 self._logger.debug("PUBSUBSERVICE external to local publish")
                 self._external_to_local_publish(frames)
@@ -812,10 +878,11 @@ class PubSubService:
                if name != local and name not in self._ext_subscriptions}
         return len(self._ext_subscriptions) + len(new)
 
-    def _update_external_subscriptions(self, frames):
+    def _update_external_subscriptions(self, frames, user_id=''):
         """
         Store external subscriptions
         :param frames: frames containing external subscriptions
+        :param user_id: the user the router assigned to the connection
         :return:
         """
         results = []
@@ -824,7 +891,16 @@ class PubSubService:
             return False
         else:
             msg = frames[7]
-            problem = _subscription_list_problem(msg)
+            problem = None
+            # A connection may list only the platform names mapped to its
+            # user. This runs before the bounds, so a name it may not set
+            # never counts against the stored total.
+            if self._enable_auth and isinstance(msg, dict):
+                mapped = self._platform_users.get(user_id, ())
+                if any(name not in mapped for name in msg):
+                    problem = _UNMAPPED_LIST_REASON
+            if problem is None:
+                problem = _subscription_list_problem(msg)
             if (problem is None and self._stored_platforms_after(msg)
                     > _MAX_STORED_EXTERNAL_PLATFORMS):
                 problem = ("more than %d platforms stored"
@@ -847,6 +923,8 @@ class PubSubService:
                     prefixes = msg[instance_name]
                     # Store external subscription list for later use (during publish)
                     self._ext_subscriptions[instance_name] = prefixes
+                    if self._enable_auth:
+                        self._ext_list_owners[instance_name] = user_id
                     self._logger.debug(
                         "PUBSUBSERVICE New external list for %s: %d prefixes "
                         "(%d platforms stored)", instance_name, len(prefixes),

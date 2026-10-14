@@ -303,29 +303,34 @@ class FramesFormatter:
     __str__ = __repr__
 
 
-def _from_control(sender, user_id, frames):
+def _from_control(sender, user_id, frames, router):
     return user_id == CONTROL
 
 
-def _from_control_or_for_itself(sender, user_id, frames):
+def _from_control_or_for_itself(sender, user_id, frames, router):
     return user_id == CONTROL or (len(frames) > 6 and frames[6] == sender)
 
 
-def _from_key_discovery(sender, user_id, frames):
+def _from_key_discovery(sender, user_id, frames, router):
     return user_id == KEY_DISCOVERY
 
 
-def _from_auth_service(sender, user_id, frames):
+def _from_auth_service(sender, user_id, frames, router):
     return user_id == AUTH
 
 
-def _from_nobody(sender, user_id, frames):
+def _from_nobody(sender, user_id, frames, router):
     return False
+
+
+def _from_mapped_platform(sender, user_id, frames, router):
+    return router.pubsub.user_may_send_external(user_id)
 
 
 # Router-addressed operations that change platform state, and who may send
 # each. Keys are (subsystem, operation); the subsystems that have no operation
 # frame use None. The user is the one the router assigned, never a frame value.
+# A rule is called with the sender, the user, the frames and the router.
 _ROUTER_OPERATIONS = {
     ('quit', None): _from_control,
     ('agentstop', None): _from_control_or_for_itself,
@@ -336,6 +341,9 @@ _ROUTER_OPERATIONS = {
     ('routing_table', 'update'): _from_nobody,
     ('pubsub', 'auth_update'): _from_auth_service,
     ('pubsub', 'protected_update'): _from_auth_service,
+    # The user must map to a platform in the auth service's map.
+    ('pubsub', 'external_publish'): _from_mapped_platform,
+    ('pubsub', 'external_list'): _from_mapped_platform,
 }
 
 
@@ -452,7 +460,8 @@ class Router(BaseRouter):
                                            self._addr, self._instance_name)
 
         self.pubsub = PubSubService(self._sender, self._protected_topics,
-                                    self._ext_routing)
+                                    self._ext_routing,
+                                    enable_auth=self.enable_auth)
         self.ext_rpc = ExternalRPCService(self._sender, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
         self._poller.register(inproc, zmq.POLLIN)
@@ -513,7 +522,7 @@ class Router(BaseRouter):
             label = '{} {}'.format(subsystem, operation)
         else:
             label = subsystem
-        if rule is None or rule(frames[0], user_id, frames):
+        if rule is None or rule(frames[0], user_id, frames, self):
             return True
         self._log_once(
             'refused ' + label, frames[0],

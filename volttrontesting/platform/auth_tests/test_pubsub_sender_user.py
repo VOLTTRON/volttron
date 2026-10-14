@@ -359,3 +359,284 @@ def test_dropped_message_warnings_stop_after_a_bounded_number_of_peers(
               if r.name == agent_pubsub.__name__]
     assert len(logged) == limit + 1
     assert "suppressed" in logged[-1]
+
+
+# External publishes and lists are accepted only from a connection whose user
+# the auth service mapped to a platform, and a list may name only that platform.
+
+PUBSUB_LOGGER = "volttron.platform.vip.pubsubservice"
+ROUTER_LOGGER = router_module.__name__
+MAPPED = {"peer.b": ["inst-b"]}
+
+
+class _ServicedRouter(platform_main.Router):
+    """The real router and pub/sub service on a recording socket."""
+
+    def _add_pubsub_peers(self, peer):
+        pass
+
+    def _drop_pubsub_peers(self, peer):
+        pass
+
+
+class Serviced:
+    def __init__(self, enable_auth=True, protected=None):
+        self.context = zmq.Context()
+        self.router = _ServicedRouter(
+            "ipc://@pubsub-map-test", context=self.context,
+            enable_auth=enable_auth, service_notifier=None)
+        self.sock = RecordingSocket()
+        self.router._sender = router_module.RouterSender(self.router)
+        self.routing = MagicMock()
+        self.service = PubSubService(
+            self.sock, protected or {}, self.routing, enable_auth=enable_auth)
+        self.router.pubsub = self.service
+
+    def send(self, op, user, *payload, sender="instance.b.1"):
+        frames = [sender, "", PROTO, user, "m1", "pubsub", op, *payload]
+        return self.router.handle_subsystem(frames, user)
+
+    def publish(self, user, topic=TOPIC):
+        return self.send("external_publish", user, topic,
+                         dict(BODY, sender="victim"))
+
+    def lists(self, user, payload):
+        return self.send("external_list", user, payload)
+
+    def update(self, platforms, capabilities=None, **extra):
+        body = dict(capabilities=capabilities or {}, **extra)
+        if platforms is not None:
+            body["platforms"] = platforms
+        frames = ["platform.auth", "", PROTO, "platform.auth", "m1", "pubsub",
+                  "auth_update", body]
+        return self.router.handle_subsystem(frames, "platform.auth")
+
+    def stored(self):
+        return dict(self.service._ext_subscriptions)
+
+    def close(self):
+        self.context.term()
+
+
+@pytest.fixture
+def local_name(monkeypatch):
+    monkeypatch.setattr("volttron.platform.vip.pubsubservice."
+                        "get_platform_instance_name", lambda: "inst-a")
+
+
+@pytest.fixture
+def serviced(local_name):
+    built = Serviced()
+    built.update(MAPPED)
+    built.service._add_peer_subscription("sub.all", "", "devices",
+                                         platform="all")
+    yield built
+    built.close()
+
+
+def refusals(caplog, name=ROUTER_LOGGER):
+    return [r.getMessage() for r in caplog.records
+            if r.name == name and r.getMessage().startswith("Refused")]
+
+
+@pytest.mark.parametrize("user", ["ghost", "", "platform", "control.connection"])
+def test_an_external_publish_from_an_unmapped_user_is_refused_and_logged_once(
+        serviced, caplog, user):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        for _ in range(3):
+            serviced.publish(user)
+    assert publishes(serviced.sock) == []
+    messages = refusals(caplog)
+    assert len(messages) == 1
+    assert "pubsub external_publish" in messages[0]
+
+
+def test_an_external_publish_from_a_mapped_user_is_delivered(
+        serviced, caplog):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        serviced.publish("peer.b")
+    assert recipients(serviced.sock) == ["sub.all"]
+    assert refusals(caplog) == []
+
+
+@pytest.mark.parametrize("user", ["ghost", "", "platform"])
+def test_an_external_list_from_an_unmapped_user_stores_nothing(
+        serviced, caplog, user):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        result = serviced.lists(user, {"inst-b": ["devices/"]})
+    assert not result
+    assert serviced.stored() == {}
+    assert len(refusals(caplog)) == 1
+
+
+def test_a_mapped_user_stores_the_list_for_its_own_platform(serviced):
+    serviced.lists("peer.b", {"inst-b": ["devices/", ""]})
+    assert serviced.stored() == {"inst-b": ["devices/", ""]}
+
+
+def test_a_mapped_user_may_store_the_empty_prefix_for_its_own_platform(
+        serviced):
+    serviced.lists("peer.b", {"inst-b": [""]})
+    assert serviced.stored() == {"inst-b": [""]}
+
+
+def test_a_list_naming_another_platform_is_refused_whole_with_its_own_reason(
+        serviced, caplog):
+    serviced.lists("peer.b", {"inst-b": ["devices/"]})
+    with caplog.at_level(logging.WARNING, logger=PUBSUB_LOGGER):
+        result = serviced.lists("peer.b", {"inst-c": [""]})
+    assert result[-1] is False
+    assert serviced.stored() == {"inst-b": ["devices/"]}
+    assert serviced.service._bad_external_lists == 1
+    (line,) = [r.getMessage() for r in caplog.records
+               if r.name == PUBSUB_LOGGER and r.levelno == logging.WARNING
+               and "Refused" in r.getMessage()]
+    assert "not mapped" in line
+    assert "size limits" not in line and "not a dict" not in line
+    assert "inst-c" not in line
+
+
+def test_a_list_naming_two_platforms_is_refused_whole(serviced):
+    serviced.lists("peer.b", {"inst-b": ["a/"], "inst-c": ["b/"]})
+    assert serviced.stored() == {}
+    assert serviced.service._bad_external_lists == 1
+
+
+def test_a_refused_foreign_name_does_not_use_up_the_stored_total(serviced):
+    for number in range(300):
+        serviced.lists("peer.b", {"ghost%d" % number: []})
+    serviced.lists("peer.b", {"inst-b": ["devices/"]})
+    assert serviced.stored() == {"inst-b": ["devices/"]}
+
+
+def test_a_malformed_list_from_a_mapped_user_keeps_the_size_reason(
+        serviced, caplog):
+    with caplog.at_level(logging.WARNING, logger=PUBSUB_LOGGER):
+        serviced.lists("peer.b", ["inst-b"])
+    (line,) = [r.getMessage() for r in caplog.records
+               if r.name == PUBSUB_LOGGER and "Refused" in r.getMessage()]
+    assert "not a dict" in line
+
+
+# The map arrives in the auth service's update and is stored whole.
+
+@pytest.mark.parametrize("bad", [
+    None, [], ["peer.b"], {"peer.b": "inst-b"}, {"peer.b": [1]},
+    {"peer.b": {"inst-b": 1}}, {"peer.b": ["inst-b"], "other": None}, "x", 5,
+], ids=repr)
+def test_an_update_without_a_usable_map_empties_it_and_logs_one_error(
+        serviced, caplog, bad):
+    with caplog.at_level(logging.ERROR, logger=PUBSUB_LOGGER):
+        serviced.update(bad)
+    errors = [r for r in caplog.records
+              if r.name == PUBSUB_LOGGER and r.levelno == logging.ERROR]
+    assert len(errors) == 1
+    serviced.lists("peer.b", {"inst-b": ["devices/"]})
+    serviced.publish("peer.b")
+    assert serviced.stored() == {}
+    assert publishes(serviced.sock) == []
+
+
+def test_an_update_with_a_usable_map_logs_no_error(serviced, caplog):
+    with caplog.at_level(logging.ERROR, logger=PUBSUB_LOGGER):
+        serviced.update({"peer.c": ["inst-c"]})
+    assert [r for r in caplog.records if r.name == PUBSUB_LOGGER] == []
+    serviced.lists("peer.c", {"inst-c": ["x/"]})
+    assert serviced.stored() == {"inst-c": ["x/"]}
+    serviced.lists("peer.b", {"inst-b": ["x/"]})
+    assert serviced.stored() == {"inst-c": ["x/"]}
+
+
+def test_the_empty_user_is_refused_even_if_a_map_names_it(serviced):
+    serviced.update({"": ["inst-b"]})
+    serviced.publish("")
+    serviced.lists("", {"inst-b": ["devices/"]})
+    assert publishes(serviced.sock) == []
+    assert serviced.stored() == {}
+
+
+def test_an_update_keeps_the_capabilities_it_carries(serviced):
+    serviced.update(MAPPED, capabilities={"holder": ["c"]})
+    assert serviced.service._user_capabilities == {"holder": ["c"]}
+
+
+def test_the_map_is_empty_until_the_first_update(local_name):
+    fresh = Serviced()
+    try:
+        fresh.lists("peer.b", {"inst-b": ["devices/"]})
+        assert fresh.stored() == {}
+    finally:
+        fresh.close()
+
+
+def test_a_platform_no_longer_mapped_loses_its_stored_list(serviced):
+    serviced.update({"peer.b": ["inst-b"], "peer.c": ["inst-c"]})
+    serviced.lists("peer.b", {"inst-b": ["b/"]})
+    serviced.lists("peer.c", {"inst-c": ["c/"]})
+    serviced.update({"peer.b": ["inst-b"]})
+    assert serviced.stored() == {"inst-b": ["b/"]}
+
+
+def test_a_name_that_moves_to_another_user_loses_its_stored_list(serviced):
+    serviced.update({"peer.b": ["inst-b"], "peer.c": ["inst-c"]})
+    serviced.lists("peer.b", {"inst-b": ["b/"]})
+    serviced.lists("peer.c", {"inst-c": ["c/"]})
+    serviced.update({"peer.b2": ["inst-b"], "peer.c": ["inst-c"]})
+    assert serviced.stored() == {"inst-c": ["c/"]}
+    serviced.lists("peer.b", {"inst-b": ["old/"]})
+    assert serviced.stored() == {"inst-c": ["c/"]}
+    serviced.lists("peer.b2", {"inst-b": ["new/"]})
+    assert serviced.stored()["inst-b"] == ["new/"]
+
+
+def test_an_unchanged_map_keeps_every_stored_list(serviced):
+    serviced.lists("peer.b", {"inst-b": ["b/"]})
+    serviced.update(MAPPED)
+    assert serviced.stored() == {"inst-b": ["b/"]}
+
+
+# With authentication disabled there is no auth service, so none of the above
+# applies and external pub/sub behaves as before.
+
+@pytest.fixture
+def open_serviced(local_name):
+    built = Serviced(enable_auth=False)
+    built.service._add_peer_subscription("sub.all", "", "devices",
+                                         platform="all")
+    yield built
+    built.close()
+
+
+@pytest.mark.parametrize("user", ["", "ghost"])
+def test_with_auth_off_an_external_publish_from_any_user_is_delivered(
+        open_serviced, caplog, user):
+    with caplog.at_level(logging.WARNING, logger=ROUTER_LOGGER):
+        open_serviced.publish(user)
+    assert recipients(open_serviced.sock) == ["sub.all"]
+    assert refusals(caplog) == []
+
+
+def test_with_auth_off_a_list_from_any_user_is_stored_for_any_name(
+        open_serviced):
+    open_serviced.lists("ghost", {"inst-b": ["a/"], "inst-c": [""]})
+    assert open_serviced.stored() == {"inst-b": ["a/"], "inst-c": [""]}
+
+
+def test_with_auth_off_the_empty_map_deletes_no_stored_list(open_serviced):
+    open_serviced.lists("ghost", {"inst-b": ["a/"]})
+    open_serviced.update(None)
+    open_serviced.update({})
+    assert open_serviced.stored() == {"inst-b": ["a/"]}
+
+
+def test_with_auth_off_a_protected_topic_is_open_as_before(local_name):
+    # main.py builds the service with no protected topics when auth is off.
+    built = Serviced(enable_auth=False, protected={})
+    try:
+        built.service._add_peer_subscription("sub.a", "", "devices")
+        local_publish(built.service, "agent.a", frame_user="ghost",
+                      user="ghost", topic=PROTECTED)
+        assert recipients(built.sock) == ["sub.a"]
+        assert errors_to(built.sock, "agent.a") == []
+    finally:
+        built.close()

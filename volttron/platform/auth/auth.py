@@ -23,20 +23,26 @@
 # }}}
 
 import copy
+import json
 import logging
 import os
 
 import gevent
 import gevent.core
+import gevent.lock
 from gevent.fileobject import FileObject
 
-from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
-from volttron.platform.agent.utils import create_file_if_missing, get_messagebus, watch_file
+from volttron.platform import get_home
+from volttron.platform.agent.known_identities import (CONTROL_CONNECTION, PROCESS_IDENTITIES,
+                                                      RESERVED_USER_IDS)
+from volttron.platform.agent.utils import (create_file_if_missing, get_messagebus,
+                                           get_platform_instance_name, watch_file)
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import (AuthFile, AuthFileEntryNotOwned,
                                               AuthFileUnavailable)
 from volttron.platform.auth.auth_utils import load_user
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import RPC, Agent, Core
 from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
@@ -55,6 +61,63 @@ def _merge_agent_rpc_methods(authorizations, rpc_methods):
             merged[method] = capabilities
         enforced[method] = merged[method]
     return merged, enforced
+
+
+DISCOVERY_FILE = "external_platform_discovery.json"
+
+
+def build_platform_map(entries, discovery, own_name, own_key):
+    """Maps each user id that connects with a listed platform's key to that
+    platform's instance name.
+
+    `entries` are the auth entries the ZAP handler walks, `discovery` the
+    parsed discovery file. Returns the map and the causes to warn about. A
+    user maps only when every entry that carries it holds, as a plain string,
+    the key of one discovery entry and none carries an identity, which
+    agents' entries do.
+    """
+    causes = []
+    listed = {}
+    for file_key, info in discovery.items():
+        name = info.get("instance-name") if isinstance(info, dict) else None
+        key = info.get("serverkey") if isinstance(info, dict) else None
+        if (not isinstance(name, str) or not name
+                or not isinstance(key, str) or not key):
+            causes.append("%s entry %r has no text instance-name and "
+                          "serverkey and is skipped" % (DISCOVERY_FILE,
+                                                        file_key))
+            continue
+        listed.setdefault(key, []).append((file_key, name))
+
+    name_of_key = {}
+    for key, found in listed.items():
+        if len(found) > 1:
+            causes.append("%s lists one serverkey under %s; none of them "
+                          "maps" % (DISCOVERY_FILE,
+                                    " and ".join(repr(f) for f, _ in found)))
+        elif found[0][1] != own_name and key != own_key:
+            name_of_key[key] = found[0][1]
+
+    carried = {}
+    for entry in entries:
+        carried.setdefault(entry.user_id, []).append(entry)
+    platforms = {}
+    for user, user_entries in carried.items():
+        if not user or user in RESERVED_USER_IDS:
+            continue
+        if any(entry.identity for entry in user_entries):
+            continue
+        names = set()
+        for entry in user_entries:
+            credentials = entry.credentials
+            if (not isinstance(credentials, str)
+                    or hasattr(credentials, "regex")):
+                names = None
+                break
+            names.add(name_of_key.get(str(credentials)))
+        if names and len(names) == 1 and None not in names:
+            platforms[user] = sorted(names)
+    return platforms, causes
 
 
 class AuthService(Agent):
@@ -84,6 +147,8 @@ class AuthService(Agent):
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
+        self._platform_map_warned = set()
+        self._reload_lock = gevent.lock.Semaphore()
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(
             protected_topics_file)
@@ -161,7 +226,8 @@ class AuthService(Agent):
                 auth_service=self)
             self.authorization_server = RMQAuthorization(auth_service=self)
         self._read_protected_topics_file()
-        self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
+        self.core.spawn(watch_file, self.auth_file_path,
+                        self._hand_reload_to_hub)
         self.core.spawn(
             watch_file,
             self._protected_topics_file_path,
@@ -453,12 +519,22 @@ class AuthService(Agent):
                 pass
         return modified_entries
 
+    def _hand_reload_to_hub(self):
+        """The file watcher's callback. It runs on the watcher's native
+        thread, which must not use the VIP socket, so it only hands the
+        reload to the hub."""
+        self.core.send(self._reload_on_hub)
+
+    def _reload_on_hub(self):
+        # One reload at a time, as the watcher's thread gave before.
+        with self._reload_lock:
+            self.read_auth_file()
+
     def read_auth_file(self):
         """Reloads auth.json and pushes changed entries to peers.
 
-        The file watcher calls this on its own native thread, where an
-        exception that escapes ends the watch for good, so failures are
-        logged here instead of raised.
+        An exception that escapes would end a file watch for good, so
+        failures are logged here instead of raised.
         """
         try:
             self._load_and_push_auth_file()
@@ -473,8 +549,7 @@ class AuthService(Agent):
     def _load_and_push_auth_file(self):
         _log.debug("loading auth file %s", self.auth_file_path)
         # The snapshot is copied from freshly parsed data inside AuthFile:
-        # update_id_rpc_authorizations edits auth_data's rpc dicts in place
-        # on the hub while this runs on the watcher thread.
+        # update_id_rpc_authorizations edits auth_data's rpc dicts in place.
         if self.auth_file.auth_data:
             loaded_entries = self.auth_file.load_allow_snapshot()
             entries = self.auth_file.read_allow_entries()
@@ -508,6 +583,53 @@ class AuthService(Agent):
         self._last_loaded_allow_entries = loaded_entries
         _log.debug("auth file %s loaded", self.auth_file_path)
 
+    def platform_map(self):
+        """The map of user ids to platform names for the router, built from
+        the entries the ZAP handler walks and the discovery file. Anything
+        that stops it being built gives an empty map, which refuses all
+        external publishes and lists."""
+        platforms, causes = {}, []
+        path = os.path.join(get_home(), DISCOVERY_FILE)
+        try:
+            if self._setup_mode:
+                causes.append(
+                    "setup mode: no platform is mapped, so pub/sub from other "
+                    "platforms resumes after a restart in normal mode")
+            else:
+                with open(path) as discovery_file:
+                    discovery = json.load(discovery_file)
+                if not isinstance(discovery, dict):
+                    raise ValueError("it is not a JSON object")
+                platforms, causes = build_platform_map(
+                    self.auth_entries, discovery,
+                    get_platform_instance_name(), KeyStore().public)
+        except Exception as err:
+            # Whatever stops the map being built (a missing file, bad JSON,
+            # no instance name, an unreadable keystore) must leave it empty
+            # and still be sent, because an old map would stay in force.
+            causes.append("%s cannot be used (%s), so no platform is mapped "
+                          "and pub/sub from other platforms is refused"
+                          % (DISCOVERY_FILE, err))
+        for cause in causes:
+            if cause not in self._platform_map_warned:
+                _log.warning(cause)
+        self._platform_map_warned = set(causes)
+        return platforms
+
+    def push_router_update(self, trigger):
+        """Sends the router the capabilities and the platform map. A failure
+        is logged with its trigger, and the router keeps its previous map."""
+        try:
+            self.authorization_server.update_user_capabilites(
+                self.get_user_to_capabilities())
+        except Exception:
+            # The push is the last step of a refresh and of the ZAP loop's
+            # start, and neither may stop because the router did not take it.
+            _log.exception(
+                "auth update to the router failed (%s); the router keeps its "
+                "previous capabilities and platform map until a later push "
+                "succeeds", trigger)
+
     def get_protected_topics(self):
         protected = self._protected_topics
         return protected
@@ -534,6 +656,9 @@ class AuthService(Agent):
         to the auth file.
         :type modified_entries: list
         """
+        # The map goes first and does not wait on the peer loop below, which
+        # raises when no peer is connected.
+        self.push_router_update("auth file reload")
         user_to_caps = self.get_user_to_capabilities()
         i = 0
         peers = None
@@ -572,8 +697,6 @@ class AuthService(Agent):
                              modified_entries).join(timeout=15)
             except gevent.Timeout:
                 _log.error("Timed out updating methods from auth file!")
-        self.authorization_server.update_user_capabilites(
-            self.get_user_to_capabilities())
 
     @RPC.export
     def get_user_to_capabilities(self):

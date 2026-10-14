@@ -84,5 +84,10 @@ def test_every_enable_auth_in_main_comes_from_the_allow_auth_option():
     # Denominator: the routers and the agents main.py starts.
     assert set(ROUTER_CLASSES) <= names
     assert len(found) >= 9, found
-    wrong = [item for item in found if item[1] != "opts.allow_auth"]
+    # The router hands its own value, which is opts.allow_auth, to the pub/sub
+    # service it builds.
+    handed_on = ("PubSubService", "self.enable_auth")
+    wrong = [item for item in found
+             if item[1] != "opts.allow_auth" and item[:2] != handed_on]
     assert wrong == []
+    assert any(item[:2] == handed_on for item in found)
