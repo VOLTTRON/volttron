@@ -283,8 +283,8 @@ def agent_pubsub_subsystem():
     yield subsystem
 
 
-def deliver(subsystem, peer, args, msg_id=""):
-    message = SimpleNamespace(peer=peer, user="", id=msg_id,
+def deliver(subsystem, peer, args, msg_id="", user=""):
+    message = SimpleNamespace(peer=peer, user=user, id=msg_id,
                               subsystem="pubsub", args=args)
     subsystem._handle_subsystem(message)
     while not subsystem._event_queue.empty():
@@ -361,6 +361,68 @@ def test_dropped_message_warnings_stop_after_a_bounded_number_of_peers(
               if r.name == agent_pubsub.__name__]
     assert len(logged) == limit + 1
     assert "suppressed" in logged[-1]
+
+
+# A subscriber callback can read the user the router delivered the publish for.
+
+@pytest.fixture
+def user_seen(agent_pubsub_subsystem):
+    seen = []
+    agent_pubsub_subsystem._add_subscription(
+        "users", lambda *args: seen.append(
+            (args[1], agent_pubsub_subsystem.delivered_user())), "")
+    return seen
+
+
+def user_args(sender="victim"):
+    return ["publish", "users/x", dict(sender=sender, bus="", headers={},
+                                       message="m")]
+
+
+def test_a_callback_reads_the_user_of_the_delivered_publish(
+        agent_pubsub_subsystem, user_seen):
+    deliver(agent_pubsub_subsystem, "", user_args("victim"), user="attacker")
+    assert user_seen == [("victim", "attacker")]
+
+
+def test_each_delivery_reads_its_own_user(agent_pubsub_subsystem, user_seen):
+    deliver(agent_pubsub_subsystem, "", user_args("a"), user="user.a")
+    deliver(agent_pubsub_subsystem, "", user_args("b"), user="user.b")
+    assert user_seen == [("a", "user.a"), ("b", "user.b")]
+
+
+def test_overlapping_deliveries_each_read_their_own_user(
+        agent_pubsub_subsystem):
+    subsystem = agent_pubsub_subsystem
+    seen = []
+
+    def slow(peer, sender, bus, topic, headers, message):
+        gevent.sleep(0.05 if sender == "first" else 0)
+        seen.append((sender, subsystem.delivered_user()))
+
+    subsystem._add_subscription("slow", slow, "")
+    greenlets = []
+    for sender, user in [("first", "user.1"), ("second", "user.2")]:
+        msg = SimpleNamespace(
+            peer="", user=user, id="", subsystem="pubsub",
+            args=["publish", "slow/x", dict(sender=sender, bus="", headers={},
+                                            message="m")])
+        greenlets.append(subsystem._process_incoming_message(msg))
+    gevent.joinall(greenlets)
+    assert sorted(seen) == [("first", "user.1"), ("second", "user.2")]
+
+
+def test_no_user_is_readable_outside_a_delivery(agent_pubsub_subsystem,
+                                                user_seen):
+    assert agent_pubsub_subsystem.delivered_user() is None
+    deliver(agent_pubsub_subsystem, "", user_args(), user="attacker")
+    assert agent_pubsub_subsystem.delivered_user() is None
+
+
+def test_a_dropped_message_sets_no_user(agent_pubsub_subsystem, user_seen):
+    deliver(agent_pubsub_subsystem, "agent.x", user_args(), user="attacker")
+    assert user_seen == []
+    assert agent_pubsub_subsystem.delivered_user() is None
 
 
 # External publishes and lists are accepted only from a connection whose user

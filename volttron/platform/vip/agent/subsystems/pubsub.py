@@ -94,6 +94,7 @@ class PubSub(SubsystemBase):
         self._foreign_peers = set()
         self._foreign_suppressed = False
         self._processgreenlet = None
+        self._delivery = gevent.local.local()
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -151,6 +152,13 @@ class PubSub(SubsystemBase):
         if not handled:
             # No callbacks for topic; synchronize with sender
             self.synchronize()
+
+    def delivered_user(self):
+        """The authenticated user of the publish being delivered to the calling callback, else None.
+
+        ``sender`` is the name the publisher chose; this is the user the router authenticated.
+        """
+        return getattr(self._delivery, 'user', None)
 
     def _viperror(self, sender, error, **kwargs):
         if isinstance(error, Unreachable):
@@ -558,6 +566,8 @@ class PubSub(SubsystemBase):
                 result.set(response)
 
         elif op == 'publish':
+            # Read before `message` is rebound to the publisher's payload below.
+            user = message.user
             try:
                 topic = message.args[1]
                 msg = message.args[2]
@@ -571,6 +581,8 @@ class PubSub(SubsystemBase):
             except KeyError as exc:
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
+                # Each message is processed in its own greenlet, so this local dies with it.
+                self._delivery.user = user
                 self._process_callback(sender, bus, topic, headers, message)
 
         elif op == 'list_response':
