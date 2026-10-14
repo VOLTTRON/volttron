@@ -29,7 +29,6 @@ import json
 import gevent
 import pytest
 from pytest import approx
-from copy import deepcopy
 from datetime import datetime
 
 from volttron.platform import get_services_core
@@ -42,9 +41,11 @@ from volttron.platform.keystore import KnownHostsStore
 # import types
 # The forwarder drops topics its topic_replace_list does not rewrite, so the
 # published topic must contain the "from" string and the destination sees the
-# rewritten one.
-DEVICES_ALL_TOPIC = "devices/PNNL/BUILDING_1/Device/all"
-FORWARDED_DEVICES_ALL_TOPIC = "devices/PNNL/BUILDING1_ANON/Device/all"
+# rewritten one. test_reconnect_forwarder uses its own pair, which the
+# module-level forwarders (rewriting only PNNL/BUILDING_1) drop, so they
+# cannot also deliver its messages.
+DEVICES_ALL_TOPIC = "devices/RECONNECT_SRC/Device/all"
+FORWARDED_DEVICES_ALL_TOPIC = "devices/RECONNECT_DST/Device/all"
 
 forwarder_uuid = None
 forwarder_config = {
@@ -659,9 +660,14 @@ def test_reconnect_forwarder(volttron_instances):
     publisher = volttron_instance1.build_agent()
     receiver = volttron_instance2.build_agent()
 
-    config = deepcopy(forwarder_config)
-    config['destination-vip'] = volttron_instance2.vip_address
-    config['destination-serverkey'] = volttron_instance2.keystore.public
+    # Built fresh: forwarder_config is module state that other tests change
+    # (test_old_config adds an identity), and this forwarder must not inherit it.
+    config = {
+        "destination-vip": volttron_instance2.vip_address,
+        "destination-serverkey": volttron_instance2.keystore.public,
+        "custom_topic_list": [],
+        "topic_replace_list": [{"from": "RECONNECT_SRC", "to": "RECONNECT_DST"}],
+    }
 
     fuuid = volttron_instance1.install_agent(
         agent_dir=get_services_core("ForwardHistorian"), start=True, config_file=config)
@@ -669,7 +675,7 @@ def test_reconnect_forwarder(volttron_instances):
     print('Before Subscribing')
     # Only the rewritten device topic: heartbeats and other platform traffic
     # on the destination must not count as, or mask, forwarded data.
-    receiver.vip.pubsub.subscribe('pubsub', FORWARDED_DEVICES_ALL_TOPIC, callback=onmessage)
+    receiver.vip.pubsub.subscribe('pubsub', FORWARDED_DEVICES_ALL_TOPIC, callback=onmessage).get(timeout=10)
     publisher.vip.pubsub.publish('pubsub', 'stuff', message='Fuzzy')
     gevent.sleep(3)
 
@@ -678,10 +684,13 @@ def test_reconnect_forwarder(volttron_instances):
         do_publish(publisher)
 
     # Poll with a bound instead of a fixed sleep; fewer messages than
-    # published means forwarding did not work after the reconnect.
+    # published means not every message was forwarded.
     with gevent.Timeout(30, False):
         while len(allforwardedmessage) < num_messages:
             gevent.sleep(0.5)
+    # Let any duplicate delivery (a second forwarder on the same topic) arrive
+    # before the exact count is checked.
+    gevent.sleep(3)
 
     assert len(allforwardedmessage) == num_messages, \
         "expected {} forwarded messages, got {}".format(num_messages, len(allforwardedmessage))
