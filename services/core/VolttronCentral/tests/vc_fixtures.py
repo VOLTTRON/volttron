@@ -46,7 +46,7 @@ def vc_and_vcp_together(volttron_instance_web):
     volttron_instance_web.allow_all_connections()
     # Allow all rmq based csr connections.
     if volttron_instance_web.messagebus == 'rmq':
-        volttron_instance_web.enable_auto_csr()
+        volttron_instance_web.start_csr_approver()
     gevent.sleep(7)
 
     # vcp_config = PLATFORM_AGENT_CONFIG.copy()
@@ -91,7 +91,7 @@ def vc_instance(volttron_instance_web):
     volttron_instance_web.allow_all_connections()
     # Allow all rmq based csr connections.
     if volttron_instance_web.messagebus == 'rmq':
-        volttron_instance_web.enable_auto_csr()
+        volttron_instance_web.start_csr_approver()
         # volttron_instance_web.web_admin_api.create_web_admin('admin', 'admin')
 
     yield volttron_instance_web, agent_uuid, rpc_addr

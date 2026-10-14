@@ -15,15 +15,6 @@ class CSREndpoints:
     def __init__(self, core):
         self._core = weakref.ref(core)
         self._certs = Certs()
-        self._auto_allow_csr = False
-
-    @property
-    def auto_allow_csr(self):
-        return self._auto_allow_csr
-
-    @auto_allow_csr.setter
-    def auto_allow_csr(self, value):
-        self._auto_allow_csr = value
 
     def get_routes(self):
         """
@@ -66,54 +57,28 @@ class CSREndpoints:
             json_response = dict(status="ERROR",
                                  message="CSR must start with instance name: {}".format(
                                      get_platform_instance_name()))
-            Response(jsonapi.dumps(json_response),
-                     content_type='application/json',
-                     headers={'Content-type': 'application/json'})
+            return Response(jsonapi.dumps(json_response),
+                            content_type='application/json',
+                            headers={'Content-type': 'application/json'})
 
-        csr_file = self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
+        # Every request is recorded as pending.  Approval is an administrator
+        # action performed through the auth service (``vctl auth approve`` or
+        # the admin web UI); this endpoint never signs a CSR on its own.
+        self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
 
-        if self._auto_allow_csr:
-            _log.debug("Creating cert and permissions for user: {}".format(identity))
-            status = self._certs.get_csr_status(identity)
-            json_response = dict(status=status)
-            if status == 'APPROVED':
-                try:
-                    json_response['cert'] = self._certs.get_cert_from_csr(identity)
-                except Exception as e:
-                    _log.error(f"Exception getting cert from csr {e}")
+        status = self._certs.get_csr_status(identity)
 
-            else:
-                try:
-                    cert = self._certs.approve_csr(identity)
-                    #permissions = self._core().rmq_mgmt.get_default_permissions(identity)
-                    _log.debug(f"CREATING NEW RMQ USER: {identity}")
-                    permissions = dict(configure=".*", read=".*",
-                                       write=".*")
-                    self._core().rmq_mgmt.create_user_with_permissions(identity,
-                                                                       permissions,
-                                                                       True)
-                    json_response = dict(
-                        status="SUCCESSFUL",
-                        cert=cert
-                    )
-                except BaseException as e:
-                    _log.error(f"Exception in approving csr/creating user in auto_allow_csr mode: {e}")
+        json_response = dict(status=status)
+        if status == "APPROVED":
+            json_response['cert'] = self._certs.get_cert_from_csr(identity)
+        elif status == "PENDING":
+            json_response['message'] = "The request is pending administrator approval."
+        elif status == "DENIED":
+            json_response['message'] = "The request has been denied by the administrator."
+        elif status == "UNKNOWN":
+            json_response['message'] = "An unknown common name was specified to the server {}".format(identity)
         else:
-
-            status = self._certs.get_csr_status(identity)
-            cert = self._certs.get_cert_from_csr(identity)
-
-            json_response = dict(status=status)
-            if status == "APPROVED":
-                json_response['cert'] = self._certs.get_cert_from_csr(identity)
-            elif status == "PENDING":
-                json_response['message'] = "The request is pending admininstrator approval."
-            elif status == "DENIED":
-                json_response['message'] = "The request has been denied by the administrator."
-            elif status == "UNKNOWN":
-                json_response['message'] = "An unknown common name was specified to the server {}".format(identity)
-            else:
-                json_response['message'] = "An unkonwn error has occured during the respons phase"
+            json_response['message'] = "An unknown error has occurred during the response phase"
 
         response = None
         try:

@@ -540,7 +540,7 @@ def federated_rmq_instances(request, **kwargs):
                              bind_web_address=web_address,
                              instance_name='volttron1',
                              **kwargs)
-    upstream.enable_auto_csr()
+    upstream.start_csr_approver()
     downstream_vip = get_rand_vip()
     hostname, https_port = get_hostname_and_random_port()
     downstream_web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=https_port)
@@ -617,7 +617,7 @@ def two_way_federated_rmq_instances(request, **kwargs):
                                instance_name='volttron1',
                                **kwargs)
 
-    instance_1.enable_auto_csr()
+    instance_1.start_csr_approver()
 
     instance_2_vip = get_rand_vip()
     instance_2_hostname, instance_2_https_port = get_hostname_and_random_port()
@@ -654,7 +654,7 @@ def two_way_federated_rmq_instances(request, **kwargs):
 
         instance_2.setup_federation(config_path)
         instance_2.startup_platform(vip_address=instance_2_vip, bind_web_address=instance_2_webaddress)
-        instance_2.enable_auto_csr()
+        instance_2.start_csr_approver()
         # Check federation link status
         with with_os_environ(instance_2.env):
             rmq_mgmt = RabbitMQMgmt()
