@@ -22,7 +22,6 @@ from cryptography.x509.oid import NameOID
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.agent.utils import execute_command
-from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
 from volttrontesting.skip_if_handlers import skip_zmq
 
 
@@ -49,13 +48,15 @@ def _request_csr(instance, common_name: str, csr_pem: str) -> dict:
     payload = dict(csr=csr_pem, identity=common_name, hostname="localhost")
     response = requests.post(instance.bind_web_address + "/csr/request_new",
                              json=jsonapi.dumps(payload),
-                             verify=False)
+                             verify=instance.requests_ca_bundle or True,
+                             timeout=10)
     response.raise_for_status()
     return response.json()
 
 
 @pytest.fixture
 def csr_instance(volttron_instance_web):
+    # volttron_instance_web comes from volttrontesting/conftest.py.
     skip_zmq(volttron_instance_web)
     yield volttron_instance_web
     volttron_instance_web.stop_csr_approver()
