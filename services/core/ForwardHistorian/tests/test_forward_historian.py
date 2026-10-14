@@ -40,7 +40,11 @@ from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.keystore import KnownHostsStore
 
 # import types
-DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+# The forwarder drops topics its topic_replace_list does not rewrite, so the
+# published topic must contain the "from" string and the destination sees the
+# rewritten one.
+DEVICES_ALL_TOPIC = "devices/PNNL/BUILDING_1/Device/all"
+FORWARDED_DEVICES_ALL_TOPIC = "devices/PNNL/BUILDING1_ANON/Device/all"
 
 forwarder_uuid = None
 forwarder_config = {
@@ -663,7 +667,9 @@ def test_reconnect_forwarder(volttron_instances):
         agent_dir=get_services_core("ForwardHistorian"), start=True, config_file=config)
     assert volttron_instance1.is_agent_running(fuuid)
     print('Before Subscribing')
-    receiver.vip.pubsub.subscribe('pubsub', '', callback=onmessage)
+    # Only the rewritten device topic: heartbeats and other platform traffic
+    # on the destination must not count as, or mask, forwarded data.
+    receiver.vip.pubsub.subscribe('pubsub', FORWARDED_DEVICES_ALL_TOPIC, callback=onmessage)
     publisher.vip.pubsub.publish('pubsub', 'stuff', message='Fuzzy')
     gevent.sleep(3)
 
@@ -671,8 +677,17 @@ def test_reconnect_forwarder(volttron_instances):
     for i in range(num_messages):
         do_publish(publisher)
 
+    # Poll with a bound instead of a fixed sleep; fewer messages than
+    # published means forwarding did not work after the reconnect.
+    with gevent.Timeout(30, False):
+        while len(allforwardedmessage) < num_messages:
+            gevent.sleep(0.5)
+
+    assert len(allforwardedmessage) == num_messages, \
+        "expected {} forwarded messages, got {}".format(num_messages, len(allforwardedmessage))
     for a, p in zip(allforwardedmessage, publishedmessages):
         assert a[0] == approx(p[0])
+        assert a[1] == p[1]
 
 
 @pytest.mark.historian
