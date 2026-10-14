@@ -1,5 +1,5 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/b542686cd3db4e6ea56f17c808f2a70c)](https://app.codacy.com/gh/VOLTTRON/volttron/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![CodeQL](https://github.com/VOLTTRON/volttron/actions/workflows/code_analysis.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/code_analysis.yml)
 
 [![Testing platform auth](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-auth.yml/badge.svg?branch=develop)](https://github.com/VOLTTRON/volttron/actions/workflows/pytest-auth.yml)
