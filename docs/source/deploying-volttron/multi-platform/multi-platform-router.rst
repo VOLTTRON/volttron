@@ -133,7 +133,7 @@ connection.
 
 Name of the file: `external_platform_discovery.json`
 
-Directory path:   Each platform’s VOLTTRON_HOME directory.
+Directory path:   Each platform's VOLTTRON_HOME directory.
 
 For example, since VOLTTRON instance 1 is connecting to VOLTTRON instance 2 and 3, contents of
 ``external_platform_discovery.json`` will be
