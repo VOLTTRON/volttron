@@ -233,8 +233,8 @@ def test_conflict_override():
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
-    assert data2 == {('Agent1', 'Task1')}
-    assert not info_string2
+    assert data2 == [('Agent1', 'Task1')]
+    assert info_string2 == 'TASK_WERE_PREEMPTED'
     assert event_time2 == parse('2013-11-27 12:30:00')
 
 
@@ -279,8 +279,8 @@ def test_conflict_override_success_running_agent():
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
-    assert data2 == {('Agent1', 'Task1')}
-    assert info_string2 == ''
+    assert data2 == [('Agent1', 'Task1')]
+    assert info_string2 == 'TASK_WERE_PREEMPTED'
     assert event_time2 == parse('2013-11-27 12:16:00')
 
     state = sch_man.get_schedule_state(now2 + timedelta(seconds=30))
@@ -360,6 +360,6 @@ def test_conflict_override_success_running_agent2():
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
-    assert data2 == {('Agent1', 'Task1')}
-    assert info_string2 == ''
+    assert data2 == [('Agent1', 'Task1')]
+    assert info_string2 == 'TASK_WERE_PREEMPTED'
     assert event_time2 == parse('2013-11-27 12:26:00')
