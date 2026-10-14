@@ -32,6 +32,8 @@ from types import SimpleNamespace
 import gevent
 import pytest
 from mock import MagicMock
+from watchdog.events import (FileClosedEvent, FileCreatedEvent,
+                             FileDeletedEvent, FileMovedEvent)
 
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import AUTH
@@ -39,6 +41,7 @@ from volttron.platform.auth import AuthEntry, AuthService
 from volttron.platform.auth import auth as auth_module
 from volttron.platform.auth.auth_protocols import auth_zmq
 from volttron.platform.keystore import KeyStore
+from volttron.platform.vip.pubsubservice import MAX_PLATFORM_MAP_PAIRS
 
 AUTH_LOGGER = auth_module.__name__
 DISCOVERY = "external_platform_discovery.json"
@@ -422,4 +425,235 @@ def test_two_reloads_handed_to_the_hub_do_not_overlap(service):
     service.read_auth_file = slow_reload
     gevent.joinall([gevent.spawn(service._reload_on_hub),
                     gevent.spawn(service._reload_on_hub)])
+    assert log == ["start", "end", "start", "end"]
+
+
+# The map bound, on the builder's side.
+
+def many(count):
+    """`count` listed platforms and one exact-key entry for each."""
+    keys = {"k%d" % n: ("inst-%d" % n, "%043d" % n) for n in range(count)}
+    entries = [entry("peer.%d" % n, key)
+               for n, (_, key) in enumerate(keys.values())]
+    return keys, entries
+
+
+def map_errors(caplog):
+    return [r.getMessage() for r in caplog.records
+            if r.name == AUTH_LOGGER and r.levelno == logging.ERROR]
+
+
+def test_a_map_at_its_bound_is_sent_whole(service, tmp_path, caplog):
+    keys, entries = many(MAX_PLATFORM_MAP_PAIRS)
+    write_discovery(tmp_path, keys)
+    with caplog.at_level(logging.ERROR, logger=AUTH_LOGGER):
+        sent = platform_map(service, entries)
+    assert len(sent) == MAX_PLATFORM_MAP_PAIRS
+    assert sent["peer.0"] == ["inst-0"]
+    assert map_errors(caplog) == []
+
+
+def test_a_map_over_its_bound_is_sent_empty_with_one_error(
+        service, tmp_path, caplog):
+    keys, entries = many(MAX_PLATFORM_MAP_PAIRS + 1)
+    write_discovery(tmp_path, keys)
+    with caplog.at_level(logging.ERROR, logger=AUTH_LOGGER):
+        sent = platform_map(service, entries)
+        platform_map(service, entries)
+    assert sent == {}
+    (error,) = map_errors(caplog)
+    assert "more than %d user and platform pairs" % MAX_PLATFORM_MAP_PAIRS \
+        in error
+
+
+# The discovery file watcher.
+
+def PATH_OF(tmp_path):
+    return str(tmp_path / DISCOVERY)
+
+
+def handler_for(tmp_path):
+    calls = []
+    handler = auth_module._DiscoveryFileHandler(
+        PATH_OF(tmp_path), lambda: calls.append(1))
+    return handler, calls
+
+
+def test_the_discovery_watcher_acts_on_created_closed_moved_in_and_deleted(
+        tmp_path):
+    path = PATH_OF(tmp_path)
+    handler, calls = handler_for(tmp_path)
+    for kind, event in [
+            ("created", FileCreatedEvent(path)),
+            ("closed", FileClosedEvent(path)),
+            ("moved in", FileMovedEvent(path + ".tmp", path)),
+            ("deleted", FileDeletedEvent(path))]:
+        before = len(calls)
+        handler.dispatch(event)
+        assert len(calls) == before + 1, kind
+
+
+def test_the_discovery_watcher_acts_when_the_file_is_moved_away(tmp_path):
+    handler, calls = handler_for(tmp_path)
+    handler.dispatch(FileMovedEvent(PATH_OF(tmp_path),
+                                    PATH_OF(tmp_path) + ".old"))
+    assert calls == [1]
+
+
+def test_the_discovery_watcher_ignores_other_files_in_the_directory(tmp_path):
+    handler, calls = handler_for(tmp_path)
+    other = str(tmp_path / "auth.json")
+    for event in (FileCreatedEvent(other), FileClosedEvent(other),
+                  FileMovedEvent(other + ".tmp", other),
+                  FileDeletedEvent(other),
+                  FileCreatedEvent(PATH_OF(tmp_path) + ".tmp")):
+        handler.dispatch(event)
+    assert calls == []
+
+
+def test_a_real_file_replaced_by_rename_reaches_the_callback(tmp_path):
+    """The file is replaced the way key discovery replaces it, under a real
+    watcher on a native thread."""
+    calls = []
+    observer = auth_module.watch_discovery_file(PATH_OF(tmp_path),
+                                                lambda: calls.append(1))
+    try:
+        staged = tmp_path / "staged.tmp"
+        staged.write_text("{}")
+        staged.rename(PATH_OF(tmp_path))
+        for _ in range(50):
+            if calls:
+                break
+            gevent.sleep(0.1)
+        assert calls
+    finally:
+        observer.stop()
+
+
+def test_the_discovery_watcher_is_given_the_hand_off_to_the_hub(
+        service, tmp_path):
+    registered = []
+    service.core.spawn = lambda func, *args: registered.append((func, args))
+    service.setup_authentication_server(None)
+    watched = {func: args for func, args in registered}
+    assert watched[auth_module.watch_discovery_file] == (
+        PATH_OF(tmp_path), service._hand_discovery_to_hub)
+
+
+def test_a_discovery_change_on_the_watcher_thread_is_pushed_on_the_hub(
+        service, listed):
+    service.auth_entries = [entry("peer.b", KEY_B)]
+    service._is_connected = True
+    queued = []
+    service.core.send = lambda func, *a, **k: queued.append((func, a, k))
+    service.core.socket.send_vip.reset_mock()
+    pushed_on = []
+    service.core.socket.send_vip.side_effect = (
+        lambda *a, **k: pushed_on.append(threading.get_ident()))
+
+    worker = threading.Thread(target=service._hand_discovery_to_hub)
+    worker.start()
+    worker.join()
+    assert pushed_on == []
+    assert len(queued) == 1
+    func, args, kwargs = queued[0]
+    func(*args, **kwargs)
+    assert pushed_on == [threading.get_ident()]
+    (update,) = sent_updates(service)
+    assert update["platforms"] == {"peer.b": ["inst-b"]}
+
+
+def test_a_new_discovery_file_changes_the_map_that_is_pushed(
+        service, tmp_path):
+    service.auth_entries = [entry("peer.b", KEY_B)]
+    service._is_connected = True
+    service.core.send = lambda func, *a, **k: func(*a, **k)
+    service.core.socket.send_vip.reset_mock()
+    service._hand_discovery_to_hub()
+    write_discovery(tmp_path, {"inst-b": ("inst-b", KEY_B)})
+    service._hand_discovery_to_hub()
+    write_discovery(tmp_path, {})
+    service._hand_discovery_to_hub()
+    assert [u["platforms"] for u in sent_updates(service)] == [
+        {}, {"peer.b": ["inst-b"]}, {}]
+
+
+def test_a_discovery_change_before_the_router_is_connected_pushes_nothing(
+        service, listed):
+    service._is_connected = False
+    service.core.send = lambda func, *a, **k: func(*a, **k)
+    service.core.socket.send_vip.reset_mock()
+    service._hand_discovery_to_hub()
+    assert sent_updates(service) == []
+
+
+def test_a_failed_discovery_push_is_logged_as_an_error_naming_the_trigger(
+        service, listed, caplog):
+    service._is_connected = True
+    service.core.send = lambda func, *a, **k: func(*a, **k)
+    service.core.socket.send_vip.side_effect = RuntimeError("router gone")
+    with caplog.at_level(logging.ERROR, logger=AUTH_LOGGER):
+        service._hand_discovery_to_hub()
+    (error,) = map_errors(caplog)
+    assert "discovery file change" in error
+
+
+# The protected topics watcher hands its work to the hub as well.
+
+def sent_protected(service):
+    return [jsonapi.loads(call[0][2][1].bytes)
+            for call in service.core.socket.send_vip.call_args_list
+            if call[0][2][0].bytes == b"protected_update"]
+
+
+def test_the_protected_topics_watcher_is_given_the_hand_off_to_the_hub(
+        service):
+    registered = []
+    service.core.spawn = lambda func, *args: registered.append((func, args))
+    service.setup_authentication_server(None)
+    watched = {args[0]: args[1] for func, args in registered}
+    assert (watched[service._protected_topics_file_path]
+            == service._hand_protected_topics_to_hub)
+
+
+def test_a_protected_topics_change_is_sent_to_the_router_on_the_hub(
+        service, tmp_path):
+    topics = {"write-protect": [{"topic": "devices/locked",
+                                 "capabilities": ["write_locked"]}]}
+    (tmp_path / "protected_topics.json").write_text(json.dumps(topics))
+    service._is_connected = True
+    registered = []
+    service.core.spawn = lambda func, *args: registered.append((func, args))
+    service.setup_authentication_server(None)
+    callback = {args[0]: args[1] for func, args in registered}[
+        service._protected_topics_file_path]
+    queued = []
+    service.core.send = lambda func, *a, **k: queued.append((func, a, k))
+    service.core.socket.send_vip.reset_mock()
+    sent_on = []
+    service.core.socket.send_vip.side_effect = (
+        lambda *a, **k: sent_on.append(threading.get_ident()))
+
+    worker = threading.Thread(target=callback)
+    worker.start()
+    worker.join()
+    assert sent_on == []
+    assert len(queued) == 1
+    func, args, kwargs = queued[0]
+    func(*args, **kwargs)
+    assert sent_on == [threading.get_ident()]
+    assert service.get_protected_topics() == topics
+
+
+def test_two_protected_topics_reads_handed_to_the_hub_do_not_overlap(service):
+    log = []
+
+    def slow_read():
+        log.append("start")
+        gevent.sleep(0.05)
+        log.append("end")
+
+    service._read_protected_topics_file = slow_read
+    gevent.joinall([gevent.spawn(service._read_protected_topics_on_hub),
+                    gevent.spawn(service._read_protected_topics_on_hub)])
     assert log == ["start", "end", "start", "end"]

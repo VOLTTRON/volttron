@@ -31,6 +31,8 @@ import gevent
 import gevent.core
 import gevent.lock
 from gevent.fileobject import FileObject
+from watchdog.events import FileSystemEventHandler
+from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent.known_identities import (CONTROL_CONNECTION, PROCESS_IDENTITIES,
@@ -45,7 +47,8 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import RPC, Agent, Core
 from volttron.platform.vip.agent.errors import Unreachable
-from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
+from volttron.platform.vip.pubsubservice import (MAX_PLATFORM_MAP_PAIRS,
+                                                 ProtectedPubSubTopics)
 
 _log = logging.getLogger(__name__)
 
@@ -120,6 +123,48 @@ def build_platform_map(entries, discovery, own_name, own_key):
     return platforms, causes
 
 
+class _DiscoveryFileHandler(FileSystemEventHandler):
+    """Calls `callback` for every event that creates, finishes writing,
+    moves into or out of place, or deletes the discovery file. Key discovery
+    replaces the file by rename, which a watch on close events alone misses."""
+
+    def __init__(self, path, callback):
+        super().__init__()
+        self._path = os.path.abspath(path)
+        self._callback = callback
+
+    def _named(self, *paths):
+        return any(path and os.path.abspath(os.fsdecode(path)) == self._path
+                   for path in paths)
+
+    def on_created(self, event):
+        if self._named(event.src_path):
+            self._callback()
+
+    def on_closed(self, event):
+        if self._named(event.src_path):
+            self._callback()
+
+    def on_moved(self, event):
+        if self._named(event.src_path, event.dest_path):
+            self._callback()
+
+    def on_deleted(self, event):
+        if self._named(event.src_path):
+            self._callback()
+
+
+def watch_discovery_file(path, callback):
+    """Runs `callback` on the watcher's native thread whenever the file at
+    `path` appears, changes, moves or goes."""
+    observer = Observer()
+    observer.schedule(_DiscoveryFileHandler(path, callback),
+                      os.path.dirname(os.path.abspath(path)))
+    observer.start()
+    _log.debug("Added file watch for %s", path)
+    return observer
+
+
 class AuthService(Agent):
 
     def __init__(self, auth_file, protected_topics_file, setup_mode, aip,
@@ -148,7 +193,9 @@ class AuthService(Agent):
         self.auth_entries = []
         self._is_connected = False
         self._platform_map_warned = set()
+        self._platform_map_errored = set()
         self._reload_lock = gevent.lock.Semaphore()
+        self._protected_topics_lock = gevent.lock.Semaphore()
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(
             protected_topics_file)
@@ -231,8 +278,11 @@ class AuthService(Agent):
         self.core.spawn(
             watch_file,
             self._protected_topics_file_path,
-            self._read_protected_topics_file,
+            self._hand_protected_topics_to_hub,
         )
+        self.core.spawn(watch_discovery_file,
+                        os.path.join(get_home(), DISCOVERY_FILE),
+                        self._hand_discovery_to_hub)
         self.authentication_server.setup_authentication()
 
     @Core.receiver("onstart")
@@ -530,6 +580,30 @@ class AuthService(Agent):
         with self._reload_lock:
             self.read_auth_file()
 
+    def _hand_protected_topics_to_hub(self):
+        """The protected topics file watcher's callback. Reading the file
+        sends the topics to the router on the VIP socket, which the watcher's
+        native thread must not use."""
+        self.core.send(self._read_protected_topics_on_hub)
+
+    def _read_protected_topics_on_hub(self):
+        with self._protected_topics_lock:
+            self._read_protected_topics_file()
+
+    def _hand_discovery_to_hub(self):
+        """The discovery file watcher's callback, on the watcher's native
+        thread. The map is rebuilt and pushed on the hub."""
+        self.core.send(self._push_map_on_hub)
+
+    def _push_map_on_hub(self):
+        if not self._is_connected:
+            # The push at the start of the ZAP loop builds the map from the
+            # file as it is by then.
+            _log.debug("discovery file changed before the router could be "
+                       "updated; the start push carries the map")
+            return
+        self.push_router_update("discovery file change")
+
     def read_auth_file(self):
         """Reloads auth.json and pushes changed entries to peers.
 
@@ -588,7 +662,7 @@ class AuthService(Agent):
         the entries the ZAP handler walks and the discovery file. Anything
         that stops it being built gives an empty map, which refuses all
         external publishes and lists."""
-        platforms, causes = {}, []
+        platforms, causes, errors = {}, [], []
         path = os.path.join(get_home(), DISCOVERY_FILE)
         try:
             if self._setup_mode:
@@ -603,6 +677,14 @@ class AuthService(Agent):
                 platforms, causes = build_platform_map(
                     self.auth_entries, discovery,
                     get_platform_instance_name(), KeyStore().public)
+                if (sum(len(names) for names in platforms.values())
+                        > MAX_PLATFORM_MAP_PAIRS):
+                    platforms = {}
+                    errors.append(
+                        "the platform map has more than %d user and "
+                        "platform pairs, so no platform is mapped and "
+                        "pub/sub from other platforms is refused"
+                        % MAX_PLATFORM_MAP_PAIRS)
         except Exception as err:
             # Whatever stops the map being built (a missing file, bad JSON,
             # no instance name, an unreadable keystore) must leave it empty
@@ -614,6 +696,10 @@ class AuthService(Agent):
             if cause not in self._platform_map_warned:
                 _log.warning(cause)
         self._platform_map_warned = set(causes)
+        for error in errors:
+            if error not in self._platform_map_errored:
+                _log.error(error)
+        self._platform_map_errored = set(errors)
         return platforms
 
     def push_router_update(self, trigger):

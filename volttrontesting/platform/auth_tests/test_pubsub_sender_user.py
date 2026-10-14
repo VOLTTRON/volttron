@@ -38,7 +38,9 @@ from volttron.platform import main as platform_main
 from volttron.platform.vip import router as router_module
 from volttron.platform.vip.agent.subsystems import pubsub as agent_pubsub
 from volttron.platform.vip.agent.subsystems.pubsub import PubSub
-from volttron.platform.vip.pubsubservice import PubSubService
+from volttron.platform.vip import pubsubservice
+from volttron.platform.vip.pubsubservice import (MAX_PLATFORM_MAP_PAIRS,
+                                                 PubSubService)
 from volttron.platform.vip.router import ORIGIN_INPROC, ORIGIN_NETWORK
 from volttron.utils.frame_serialization import deserialize_frames
 
@@ -640,3 +642,45 @@ def test_with_auth_off_a_protected_topic_is_open_as_before(local_name):
         assert errors_to(built.sock, "agent.a") == []
     finally:
         built.close()
+
+
+# The map has its own bound, no higher than the total the router stores.
+
+def pairs(count):
+    """A map of `count` users, each speaking for one platform."""
+    return {"peer.%d" % n: ["inst-%d" % n] for n in range(count)}
+
+
+def test_the_map_bound_is_no_higher_than_the_stored_total_bound():
+    assert MAX_PLATFORM_MAP_PAIRS <= pubsubservice._MAX_STORED_EXTERNAL_PLATFORMS
+
+
+def test_a_map_with_one_pair_too_many_is_emptied_with_one_error(
+        serviced, caplog):
+    with caplog.at_level(logging.ERROR, logger=PUBSUB_LOGGER):
+        serviced.update(pairs(MAX_PLATFORM_MAP_PAIRS + 1))
+    errors = [r.getMessage() for r in caplog.records
+              if r.name == PUBSUB_LOGGER and r.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "more than %d user and platform pairs" % MAX_PLATFORM_MAP_PAIRS \
+        in errors[0]
+    serviced.lists("peer.0", {"inst-0": ["devices/"]})
+    assert serviced.stored() == {}
+
+
+def test_a_map_counts_pairs_not_users(serviced, caplog):
+    wide = {"peer.0": ["inst-%d" % n for n in range(MAX_PLATFORM_MAP_PAIRS + 1)]}
+    with caplog.at_level(logging.ERROR, logger=PUBSUB_LOGGER):
+        serviced.update(wide)
+    assert len([r for r in caplog.records if r.name == PUBSUB_LOGGER]) == 1
+
+
+def test_a_full_map_stores_every_mapped_platforms_own_list(serviced, caplog):
+    full = pairs(MAX_PLATFORM_MAP_PAIRS)
+    with caplog.at_level(logging.ERROR, logger=PUBSUB_LOGGER):
+        serviced.update(full)
+    assert [r for r in caplog.records if r.name == PUBSUB_LOGGER] == []
+    for user, (name,) in full.items():
+        serviced.lists(user, {name: ["devices/"]})
+    assert serviced.stored() == {
+        name: ["devices/"] for (name,) in full.values()}

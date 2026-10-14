@@ -61,6 +61,11 @@ _MAX_EXTERNAL_PLATFORMS = 64
 _MAX_EXTERNAL_PREFIXES = 1024
 _MAX_STORED_EXTERNAL_PLATFORMS = 256
 _MAX_EXTERNAL_PREFIX_LENGTH = 256
+# The platform map's own bound, on (user, platform name) pairs. The names the
+# map allows are the only names that can be stored, so keeping this at or
+# below the stored total keeps that total from ever refusing a mapped
+# platform's own list.
+MAX_PLATFORM_MAP_PAIRS = 64
 
 
 _UNMAPPED_LIST_REASON = ("the list names a platform this connection is not "
@@ -77,6 +82,8 @@ def _platform_map_problem(platforms):
             and all(isinstance(name, str) for name in names)
             for user, names in platforms.items()):
         return "not a dict of text keys to lists of text"
+    if sum(len(names) for names in platforms.values()) > MAX_PLATFORM_MAP_PAIRS:
+        return "more than %d user and platform pairs" % MAX_PLATFORM_MAP_PAIRS
     return None
 
 
