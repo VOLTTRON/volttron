@@ -755,7 +755,9 @@ def test_senders_past_the_limit_are_counted_without_a_line_each(
         for n in range(5):
             poll(router, arrive(router, external_list(
                 "agent.%d" % n, MALFORMED_LISTS["a list"])))
-    assert len(refusal_warnings(caplog)) == 2
+    warnings = refusal_warnings(caplog)
+    assert len(warnings) == 3
+    assert "suppressed" in warnings[2]
     assert router.pubsub._bad_external_lists == 5
 
 
@@ -768,6 +770,175 @@ def test_the_reply_to_an_external_list_says_whether_it_was_stored(
     poll(router, arrive(router, external_list("agent.x", payload)))
     (reply,) = [m for m in router.socket.sent if m[0] == "agent.x"]
     assert reply[5:8] == ["pubsub", "request_response", answer]
+
+
+def names(first, count, prefixes=1):
+    """A JSON list: `count` platforms named s<first> up, `prefixes` each."""
+    return json.dumps({"s%d" % n: ["x/%d" % m for m in range(prefixes)]
+                       for n in range(first, first + count)})
+
+
+def fill_store(router):
+    """Store 256 platforms, the most the router keeps, 64 at a time."""
+    for first in range(0, 256, 64):
+        poll(router, arrive(router, external_list("agent.x",
+                                                  names(first, 64))))
+    assert len(router.pubsub._ext_subscriptions) == 256
+
+
+def test_a_new_name_past_the_stored_total_is_refused(router, local_name):
+    fill_store(router)
+    poll(router, arrive(router, external_list("agent.x", names(256, 1))))
+    assert len(router.pubsub._ext_subscriptions) == 256
+    assert "s256" not in router.pubsub._ext_subscriptions
+    assert router.pubsub._bad_external_lists == 1
+
+
+def test_a_list_for_a_stored_name_replaces_it_when_the_store_is_full(
+        router, local_name):
+    fill_store(router)
+    poll(router, arrive(router, external_list(
+        "agent.x", '{"s0": ["new/"]}')))
+    assert len(router.pubsub._ext_subscriptions) == 256
+    assert router.pubsub._ext_subscriptions["s0"] == ["new/"]
+    assert router.pubsub._bad_external_lists == 0
+
+
+def test_a_list_with_a_stored_and_a_new_name_is_refused_whole_when_full(
+        router, local_name):
+    fill_store(router)
+    poll(router, arrive(router, external_list(
+        "agent.x", '{"s0": ["new/"], "fresh": []}')))
+    assert router.pubsub._ext_subscriptions["s0"] == ["x/0"]
+    assert "fresh" not in router.pubsub._ext_subscriptions
+    assert router.pubsub._bad_external_lists == 1
+
+
+def test_the_last_name_under_the_stored_total_is_stored(router, local_name):
+    for first in range(0, 192, 64):
+        poll(router, arrive(router, external_list("agent.x",
+                                                  names(first, 64))))
+    poll(router, arrive(router, external_list("agent.x", names(192, 64))))
+    assert len(router.pubsub._ext_subscriptions) == 256
+    assert router.pubsub._bad_external_lists == 0
+
+
+def test_a_dropped_platform_frees_a_place_in_the_store(router, local_name):
+    fill_store(router)
+    router.pubsub.external_platform_drop("s0")
+    poll(router, arrive(router, external_list("agent.x", names(256, 1))))
+    assert len(router.pubsub._ext_subscriptions) == 256
+    assert "s256" in router.pubsub._ext_subscriptions
+
+
+def test_the_local_name_is_not_counted_against_the_stored_total(
+        router, local_name):
+    fill_store(router)
+    frames = ["agent.x", "", "VIP1", "", "m1", "pubsub", "external_list",
+              {"inst-a": ["devices/"]}]
+    assert router.pubsub._update_external_subscriptions(frames) is True
+    assert len(router.pubsub._ext_subscriptions) == 256
+
+
+def test_a_prefix_of_256_characters_is_stored(router, local_name):
+    prefix = "p" * 256
+    poll(router, arrive(router, external_list(
+        "agent.x", json.dumps({"inst-b": [prefix]}))))
+    assert router.pubsub._ext_subscriptions["inst-b"] == [prefix]
+
+
+def test_a_prefix_of_257_characters_is_refused(router, local_name):
+    poll(router, arrive(router, external_list(
+        "agent.x", json.dumps({"inst-b": ["p" * 257]}))))
+    assert dict(router.pubsub._ext_subscriptions) == {}
+    assert router.pubsub._bad_external_lists == 1
+
+
+def refused_text(router, caplog, payload):
+    with caplog.at_level(logging.WARNING):
+        poll(router, arrive(router, external_list("agent.x", payload)))
+    (first, *_) = refusal_warnings(caplog)
+    return first
+
+
+@pytest.mark.parametrize("payload, limit", [
+    (names(0, 65), "more than 64 platforms"),
+    (many(1, 1025), "more than 1024 prefixes for a platform"),
+    (json.dumps({"inst-b": ["p" * 257]}),
+     "a prefix longer than 256 characters"),
+    ('["ghost"]', "not a dict of text keys to lists of text"),
+])
+def test_the_refusal_warning_names_the_limit_it_hit(
+        router, local_name, caplog, payload, limit):
+    assert limit in refused_text(router, caplog, payload)
+
+
+def test_the_refusal_warning_names_the_stored_total_when_that_is_hit(
+        router, local_name, caplog):
+    fill_store(router)
+    text = refused_text(router, caplog, names(256, 1))
+    assert "more than 256 platforms stored" in text
+
+
+def test_the_refusal_warnings_stop_with_one_line_saying_so(
+        router, caplog, monkeypatch):
+    monkeypatch.setattr(pubsubservice_module, "_LOGGED_SENDERS_LIMIT", 2)
+    with caplog.at_level(logging.WARNING):
+        for n in range(6):
+            poll(router, arrive(router, external_list(
+                "agent.%d" % n, MALFORMED_LISTS["a list"])))
+    warnings = refusal_warnings(caplog)
+    suppressed = [w for w in warnings if "suppressed" in w]
+    assert len(warnings) == 3
+    assert len(suppressed) == 1
+    assert "after 2 senders" in suppressed[0]
+
+
+def test_a_list_over_the_caps_is_not_formatted_at_debug(router, local_name,
+                                                        caplog):
+    CountingDict.formatted = 0
+    frames = ["agent.x", "", "VIP1", "", "m1", "pubsub", "external_list",
+              CountingDict(set, {"p%d" % n: [] for n in range(65)})]
+    with caplog.at_level(logging.DEBUG, logger=pubsubservice_module.__name__):
+        assert router.pubsub._update_external_subscriptions(frames) is False
+    assert CountingDict.formatted == 0
+
+
+def test_the_sender_of_a_refused_list_is_shown_as_not_text_when_it_is_bytes(
+        router, caplog):
+    with caplog.at_level(logging.WARNING):
+        router.pubsub._note_refused_list(b"agent.x", "a reason")
+    (text,) = refusal_warnings(caplog)
+    assert "'<not text>'" in text and "agent.x" not in text
+    assert "a reason" in text
+
+
+def test_the_refusal_warning_carries_the_count_so_far(router, caplog):
+    with caplog.at_level(logging.WARNING):
+        router.pubsub._note_refused_list("agent.x", "a reason")
+        router.pubsub._note_refused_list("agent.y", "a reason")
+    first, second = refusal_warnings(caplog)
+    assert "(1 refused so far)" in first
+    assert "(2 refused so far)" in second
+
+
+def test_send_external_leaves_the_frames_alone_for_an_unknown_platform(router):
+    frames = ["", "VIP1", "u", "m1", "pubsub", "external_publish", "t", "d"]
+    router._ext_routing.send_external("nowhere", frames)
+    assert frames == ["", "VIP1", "u", "m1", "pubsub", "external_publish",
+                      "t", "d"]
+
+
+def test_unknown_names_stored_ahead_of_a_platform_do_not_lengthen_its_frames(
+        router):
+    remote = connect_platform(router, "inst-b")
+    for n in range(300):
+        router.pubsub._ext_subscriptions["u%d" % n] = [""]
+    router.pubsub._ext_subscriptions["inst-b"] = [""]
+    publish(router)
+    (forwarded,) = remote.sent
+    assert len(forwarded) == 8
+    assert forwarded[4:7] == ["pubsub", "external_publish", "devices/a"]
 
 
 # Things the guard and the router rules must still do.

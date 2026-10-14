@@ -348,7 +348,6 @@ class RoutingService:
             #             raise
         except KeyError:
             _log.debug(f"******************My instance name is: {self._my_instance_name}")
-            frames[:0] = [self._my_instance_name]
             _log.debug("Key error for platform {0}".format(instance_name))
             #success = self._send(self._socket, frames)
         return success
