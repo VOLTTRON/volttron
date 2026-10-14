@@ -374,45 +374,57 @@ class ForwardHistorian(BaseHistorian):
                 _log.error(
                     'A timeout has occurred so breaking out of publishing')
                 break
-            with gevent.Timeout(30):
-                try:
-                    self._target_platform.vip.pubsub.publish(
-                        peer='pubsub',
-                        topic=topic,
-                        headers=headers,
-                        message=payload['message']).get()
-                except gevent.Timeout:
-                    _log.debug("Timeout occurred email should send!")
-                    timeout_occurred = True
-                    self._last_timeout = self.timestamp()
-                    self._num_failures += 1
-                    # Stop the current platform from attempting to
-                    # connect
-                    self.historian_teardown()
-                    self.vip.health.set_status(
-                        STATUS_BAD, "Timeout occured")
-                except Unreachable:
-                    _log.error("Target not reachable. Wait till it's ready!")
-                except ZMQError as exc:
-                    if exc.errno == ENOTSOCK:
+            reconnected = False
+            while True:
+                retry = False
+                with gevent.Timeout(30):
+                    try:
+                        self._target_platform.vip.pubsub.publish(
+                            peer='pubsub',
+                            topic=topic,
+                            headers=headers,
+                            message=payload['message']).get()
+                    except gevent.Timeout:
+                        _log.debug("Timeout occurred email should send!")
+                        timeout_occurred = True
+                        self._last_timeout = self.timestamp()
+                        self._num_failures += 1
                         # Stop the current platform from attempting to
                         # connect
-                        _log.error("Target disconnected. Stopping target platform agent")
                         self.historian_teardown()
                         self.vip.health.set_status(
-                            STATUS_BAD, "Target platform disconnected")
-                except Exception as e:
-                    err = "Unhandled error publishing to target platfom."
-                    _log.error(err)
-                    _log.error(traceback.format_exc())
-                    self.vip.health.set_status(
-                        STATUS_BAD, err)
-                    # Before returning lets mark any that weren't errors
-                    # as sent.
-                    self.report_handled(handled_records)
-                    return
-                else:
-                    handled_records.append(x)
+                            STATUS_BAD, "Timeout occured")
+                    except Unreachable:
+                        _log.error("Target not reachable. Wait till it's ready!")
+                    except ZMQError as exc:
+                        if exc.errno == ENOTSOCK:
+                            # Stop the current platform from attempting to
+                            # connect
+                            _log.error("Target disconnected. Stopping target platform agent")
+                            self.historian_teardown()
+                            self.vip.health.set_status(
+                                STATUS_BAD, "Target platform disconnected")
+                            # The target restarted or dropped the link;
+                            # reconnect and resend this record once instead of
+                            # leaving it for the next retry_period.
+                            if not reconnected:
+                                reconnected = True
+                                self.historian_setup()
+                                retry = self._target_platform is not None
+                    except Exception as e:
+                        err = "Unhandled error publishing to target platfom."
+                        _log.error(err)
+                        _log.error(traceback.format_exc())
+                        self.vip.health.set_status(
+                            STATUS_BAD, err)
+                        # Before returning lets mark any that weren't errors
+                        # as sent.
+                        self.report_handled(handled_records)
+                        return
+                    else:
+                        handled_records.append(x)
+                if not retry:
+                    break
 
         _log.debug("handled: {} number of items".format(
             len(to_publish_list)))
