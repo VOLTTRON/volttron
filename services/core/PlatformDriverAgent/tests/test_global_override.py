@@ -30,7 +30,11 @@ import pytest
 import os
 
 from volttron.platform import get_services_core, get_volttron_root, jsonapi
-from volttron.platform.agent.known_identities import DRIVER_WRITES, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import (
+    DRIVER_OVERRIDES,
+    DRIVER_WRITES,
+    PLATFORM_DRIVER,
+)
 import gevent
 from volttron.platform.jsonrpc import RemoteError
 
@@ -69,12 +73,13 @@ def test_agent(volttron_instance):
     gevent.sleep(1)
 
     if volttron_instance.auth_enabled:
-        # set_point/revert_device are gated on driver_write (#3298);
-        # edit_config_store alone no longer authorizes them. The override
-        # methods this module also exercises (set_override_on/off) are
-        # gated on a separate driver_override capability, tracked in #3301
-        # and deliberately not granted here.
-        capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}, DRIVER_WRITES]
+        # set_point/revert_device need driver_write, and the override
+        # methods (set_override_on/off) need driver_override.
+        capabilities = [
+            {"edit_config_store": {"identity": PLATFORM_DRIVER}},
+            DRIVER_WRITES,
+            DRIVER_OVERRIDES,
+        ]
         volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
     # Clean out platform driver configurations
@@ -130,6 +135,33 @@ def test_agent(volttron_instance):
 
     volttron_instance.stop_agent(PLATFORM_UUID)
     md_agent.core.stop()
+
+
+@pytest.mark.driver
+def test_set_override_refused_without_driver_override(test_agent, volttron_instance):
+    if not volttron_instance.auth_enabled:
+        pytest.skip("capabilities are not enforced when authentication is disabled")
+
+    no_override_agent = volttron_instance.build_agent(identity="test_no_override_agent")
+    try:
+        volttron_instance.add_capabilities(
+            no_override_agent.core.publickey, [DRIVER_WRITES]
+        )
+        with pytest.raises(RemoteError) as excinfo:
+            no_override_agent.vip.rpc.call(
+                PLATFORM_DRIVER, "set_override_on", "fakedriver1", 1.0
+            ).get(timeout=10)
+        assert DRIVER_OVERRIDES in excinfo.value.message
+        assert "requires capabilities" in excinfo.value.message
+
+        # A refused call must leave no override behind: the granted agent
+        # can still write to the device.
+        result = test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "set_point", "fakedriver1", "SampleWritableShort1", 20.0
+        ).get(timeout=10)
+        assert result == 20.0
+    finally:
+        no_override_agent.core.stop()
 
 
 @pytest.mark.driver
