@@ -57,7 +57,7 @@ def test_basic():
           now)
     result1, event_time1 = verify_add_task(sch_man, *ag)
     success, data, info_string = result1
-    assert all((success, not data, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success, data == {}, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
 
     state = sch_man.get_schedule_state(now + timedelta(minutes=30))
     assert state == {'campus/building/rtu1': DeviceState('Agent1', 'Task1', 3600.0)}
@@ -75,7 +75,7 @@ def test_two_devices():
           now)
     result1, event_time1 = verify_add_task(sch_man, *ag)
     success, data, info_string = result1
-    assert all((success, not data, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success, data == {}, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
 
     state = sch_man.get_schedule_state(now + timedelta(minutes=30))
     assert state == {
@@ -100,10 +100,10 @@ def test_two_agents_two_devices():
            now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success, data, info_string = result1
-    assert all((success, not data, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success, data == {}, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
-    assert all((success2, not data2, not info_string2, event_time2 == parse('2013-11-27 12:00:00')))
+    assert all((success2, data2 == {}, not info_string2, event_time2 == parse('2013-11-27 12:00:00')))
 
     state = sch_man.get_schedule_state(now + timedelta(minutes=30))
     assert state == {
@@ -127,10 +127,10 @@ def test_touching_requests():
            now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
-    assert all((success2, not data2, not info_string2, event_time2 == parse('2013-11-27 12:00:00')))
+    assert all((success2, data2 == {}, not info_string2, event_time2 == parse('2013-11-27 12:00:00')))
 
     state = sch_man.get_schedule_state(now + timedelta(minutes=30))
     assert state == {'campus/building/rtu1': DeviceState('Agent1', 'Task1', 1800.0)}
@@ -207,7 +207,7 @@ def test_schedule_conflict():
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
 
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     conflicts2 = data2
@@ -229,7 +229,7 @@ def test_conflict_override():
            now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
@@ -252,7 +252,7 @@ def test_conflict_override_fail_on_running_agent():
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
 
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     conflicts2 = data2
@@ -275,7 +275,7 @@ def test_conflict_override_success_running_agent():
            now2)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
@@ -302,7 +302,7 @@ def test_conflict_override_error():
            now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     conflicts2 = data2
@@ -329,11 +329,11 @@ def test_non_conflict_schedule():
            now2)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
-    assert not data2
+    assert data2 == {}
     assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:30:00')
 
@@ -356,7 +356,7 @@ def test_conflict_override_success_running_agent2():
            now2)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
-    assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
+    assert all((success1, data1 == {}, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
