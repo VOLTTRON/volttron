@@ -138,7 +138,17 @@ def test_agent(volttron_instance):
 
 
 @pytest.mark.driver
-def test_set_override_refused_without_driver_override(test_agent, volttron_instance):
+@pytest.mark.parametrize(
+    "method, args",
+    [
+        ("set_override_on", ("fakedriver1", 1.0)),
+        ("set_override_off", ("fakedriver1",)),
+        ("clear_overrides", ()),
+    ],
+)
+def test_override_methods_refused_without_driver_override(
+    test_agent, volttron_instance, method, args
+):
     if not volttron_instance.auth_enabled:
         pytest.skip("capabilities are not enforced when authentication is disabled")
 
@@ -147,15 +157,29 @@ def test_set_override_refused_without_driver_override(test_agent, volttron_insta
         volttron_instance.add_capabilities(
             no_override_agent.core.publickey, [DRIVER_WRITES]
         )
+        before = test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "get_override_devices"
+        ).get(timeout=10)
         with pytest.raises(RemoteError) as excinfo:
-            no_override_agent.vip.rpc.call(
-                PLATFORM_DRIVER, "set_override_on", "fakedriver1", 1.0
-            ).get(timeout=10)
-        assert DRIVER_OVERRIDES in excinfo.value.message
-        assert "requires capabilities" in excinfo.value.message
+            no_override_agent.vip.rpc.call(PLATFORM_DRIVER, method, *args).get(
+                timeout=10
+            )
+        message = excinfo.value.message
+        assert method in message
+        assert DRIVER_OVERRIDES in message
+        # The refused agent held driver_write, so it is listed among the
+        # capabilities it was provided.
+        assert DRIVER_WRITES in message
+        # The missing-capability branch, not the auth-unavailable one.
+        assert "was provided for user" in message
 
-        # A refused call must leave no override behind: the granted agent
-        # can still write to the device.
+        # A refused call must leave the override state untouched.
+        after = test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "get_override_devices"
+        ).get(timeout=10)
+        assert after == before == []
+
+        # The granted agent can still write to the device.
         result = test_agent.vip.rpc.call(
             PLATFORM_DRIVER, "set_point", "fakedriver1", "SampleWritableShort1", 20.0
         ).get(timeout=10)
