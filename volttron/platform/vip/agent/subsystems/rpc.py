@@ -65,6 +65,38 @@ def _isregex(obj):
     )
 
 
+def grant_refusal(restrictions, method, args, kwargs):
+    """Return why a capability grant's argument restrictions refuse this call, or None if they allow it.
+
+    ``restrictions`` maps parameter names of ``method`` to a required value, or to a "/regex/" that must
+    match the whole argument. A grant that cannot be evaluated refuses.
+    """
+    if not isinstance(restrictions, dict):
+        return "capability grant is malformed: restrictions must be a mapping of parameter names"
+    args_dict = inspect.getcallargs(method, *args, **kwargs)
+    _log.debug("args = %r kwargs= %r dict = %r", args, kwargs, args_dict)
+    for name, value in restrictions.items():
+        if name not in args_dict:
+            return (f"capability is not defined properly. method {method.__name__} does not have "
+                    f"a parameter {name}")
+        actual = args_dict[name]
+        if _isregex(value):
+            # fullmatch, not match, already anchors each top-level "|" alternative to the whole string
+            # on its own (CWE-625, #3242); it also refuses a trailing newline that a bare "$" would let
+            # through under match (#3237).
+            try:
+                matches = isinstance(actual, str) and re.compile("^" + value[1:-1] + "$").fullmatch(actual)
+            except re.error as ex:
+                return f"capability grant is malformed: invalid pattern {value} ({ex})"
+            if not matches:
+                return (f"can call method {method.__name__} only with {name} matching pattern {value} but "
+                        f"called with {name}={actual}")
+        elif actual != value:
+            return (f"can call method {method.__name__} only with {name}={value} but called with "
+                    f"{name}={actual}")
+    return None
+
+
 class Dispatcher(jsonrpc.Dispatcher):
     def __init__(self, methods, local):
         super(Dispatcher, self).__init__()
@@ -374,62 +406,17 @@ class RPC(SubsystemBase):
                         # if the user capability has argument restrictions,
                         # check if the args passed to method match the
                         # requirement
-                        _log.debug("args = {} kwargs= {}".format(args, kwargs))
-                        args_dict = inspect.getcallargs(method, *args, **kwargs)
-                        _log.debug("dict = {}".format(args_dict))
                         _log.debug(
                             "name= %r parameters allowed=%r",
                             cap_name,
                             param_dict
                         )
-                        for name, value in param_dict.items():
-                            _log.debug("name= {} value={}".format(name, value))
-                            if name not in args_dict:
-                                raise jsonrpc.exception_from_json(
-                                    jsonrpc.UNAUTHORIZED,
-                                    "User {} capability is not defined "
-                                    "properly. method {} does not have "
-                                    "a parameter {}".format(
-                                        user, method.__name__, name
-                                    ),
-                                )
-                            if _isregex(value):
-                                # fullmatch, not match, already anchors
-                                # each top-level "|" alternative to the
-                                # whole string on its own (CWE-625,
-                                # #3242), so no extra grouping is needed
-                                # here; fullmatch also refuses a trailing
-                                # newline that a bare "$" would let
-                                # through under match (#3237).
-                                regex = re.compile("^" + value[1:-1] + "$")
-                                if not regex.fullmatch(args_dict[name]):
-                                    raise jsonrpc.exception_from_json(
-                                        jsonrpc.UNAUTHORIZED,
-                                        "User {} can call method {} only "
-                                        "with {} matching pattern {} but "
-                                        "called with {}={}".format(
-                                            user,
-                                            method.__name__,
-                                            name,
-                                            value,
-                                            name,
-                                            args_dict[name],
-                                        ),
-                                    )
-                            elif args_dict[name] != value:
-                                raise jsonrpc.exception_from_json(
-                                    jsonrpc.UNAUTHORIZED,
-                                    "User {} can call method {} only "
-                                    "with {}={} but called with "
-                                    "{}={}".format(
-                                        user,
-                                        method.__name__,
-                                        name,
-                                        value,
-                                        name,
-                                        args_dict[name],
-                                    ),
-                                )
+                        reason = grant_refusal(param_dict, method, args, kwargs)
+                        if reason:
+                            raise jsonrpc.exception_from_json(
+                                jsonrpc.UNAUTHORIZED,
+                                f"User {user} {reason}",
+                            )
 
             return method(*args, **kwargs)
 

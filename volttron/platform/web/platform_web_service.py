@@ -237,18 +237,6 @@ class PlatformWebService(Agent):
 
         self._vui_endpoints: VUIEndpoints = None
 
-    # pylint: disable=unused-argument
-    @Core.receiver('onsetup')
-    def onsetup(self, sender, **kwargs):
-        self.vip.rpc.export(self._auto_allow_csr, 'auto_allow_csr')
-        self.vip.rpc.export(self._is_auto_allow_csr, 'is_auto_allow_csr')
-
-    def _is_auto_allow_csr(self):
-        return self._csr_endpoints.auto_allow_csr
-
-    def _auto_allow_csr(self, auto_allow_csr):
-        self._csr_endpoints.auto_allow_csr = auto_allow_csr
-
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
 
@@ -1000,8 +988,6 @@ class PlatformWebService(Agent):
         # these routes are only available for rmq based message bus
         # at present.
         if self.core.messagebus == 'rmq':
-            # We need reference to the object so we can change the behavior of
-            # whether or not to have auto certs be created or not.
             self._csr_endpoints = CSREndpoints(self.core)
             for rt in self._csr_endpoints.get_routes():
                 self.registeredroutes.append(rt)

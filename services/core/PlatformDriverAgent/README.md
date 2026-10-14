@@ -17,6 +17,49 @@ The easiest way to install the requirements for drivers included in the VOLTTRON
 python3 bootstrap.py --drivers
 ```
 
+## Permissions
+
+When authentication is enabled, the Platform Driver checks the calling agent's capabilities.
+
+* `driver_write` is required by `set_point`, `set_multiple_points`, `revert_point` and `revert_device`.
+* `driver_override` is required by `set_override_on`, `set_override_off` and `clear_overrides`.
+
+An agent installed with `vctl install` gets `driver_write` at install, so it can write to the Platform Driver
+directly, without a schedule from the Actuator Agent. (The exception is VolttronCentralPlatform, which does not.)
+If you remove `driver_write` from an agent, reinstalling that agent restores it: the install removes the old auth entry
+and creates a new one that again includes `driver_write`.
+Nothing grants `driver_override`; an operator adds it. Agents that schedule and write through the Actuator Agent
+need `actuator_control` instead (see the Actuator Agent README). Platforms running with authentication disabled
+do not check these capabilities.
+
+To change an installed agent's capabilities, find its entry and update it:
+
+```bash
+vctl auth list
+vctl auth update <INDEX>
+```
+
+`<INDEX>` is the number of the agent's entry in the `vctl auth list` output. Press Enter to keep each field. At the
+`capabilities` prompt, type the agent's whole capability map as JSON, keeping the existing entries and adding or
+removing the one you want, for example:
+
+```
+{"edit_config_store": {"identity": "my.agent"}, "driver_write": null, "driver_override": null}
+```
+
+Use the JSON form with `null`. The prompt shows the current map in Python form (`None`, single quotes), which is
+not valid JSON. A comma-separated list such as `edit_config_store,driver_override` is accepted, but it removes the
+restrictions on the existing capabilities.
+
+For an agent that connects with its own credentials and has no auth entry yet:
+
+```bash
+vctl auth add --credentials <agent public key> --user_id my.agent --capabilities driver_override
+```
+
+`vctl auth add` refuses a user id or credentials that already have an entry, so it cannot add a capability to an
+installed agent.
+
 ## Configuration
 
 ### Agent Configuration

@@ -76,7 +76,7 @@ def shovel_pubsub_rmq_instances(request, **kwargs):
                          instance_name='volttron2',
                          **kwargs)
 
-    sink.enable_auto_csr()
+    sink.start_csr_approver()
     link_name = None
     try:
         # create shovel config and save in volttron home of 'source' instance
@@ -168,7 +168,7 @@ def two_way_shovel_connection(request, **kwargs):
                          instance_name=sink_instance_name,
                          **kwargs)
 
-    sink.enable_auto_csr()
+    sink.start_csr_approver()
     source_link_name = None
     try:
         # create shovel config and save in volttron home of 'source' instance
@@ -187,7 +187,7 @@ def two_way_shovel_connection(request, **kwargs):
         # setup shovel from 'source' to 'sink'
         source.setup_shovel(config_path)
         source.startup_platform(vip_address=source_vip, bind_web_address=source_web_address)
-        source.enable_auto_csr()
+        source.start_csr_approver()
 
         # Check shovel link status
         with with_os_environ(source.env):

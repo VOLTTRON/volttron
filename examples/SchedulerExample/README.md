@@ -11,4 +11,8 @@ Install the Scheduler Example Agent using this command:
 vctl install --agent-config examples/SchedulerExample/config examples/SchedulerExample/
 ```
 
+When authentication is enabled, grant this agent the `actuator_control` capability after installing it, or the
+actuator refuses its requests. The steps are in the Actuator Agent README, section "Required capability for
+scheduling and writing".
+
 Once the agent is installed you can start it up using `vctl start ...`
