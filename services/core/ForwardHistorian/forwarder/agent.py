@@ -342,6 +342,8 @@ class ForwardHistorian(BaseHistorian):
                     STATUS_BAD, err)
                 return
 
+        reconnected = False
+        batch_abandoned = False
         for x in to_publish_list:
             topic = x['topic']
             value = x['value']
@@ -374,9 +376,8 @@ class ForwardHistorian(BaseHistorian):
                 _log.error(
                     'A timeout has occurred so breaking out of publishing')
                 break
-            reconnected = False
             while True:
-                retry = False
+                reconnect_needed = False
                 with gevent.Timeout(30):
                     try:
                         self._target_platform.vip.pubsub.publish(
@@ -404,13 +405,9 @@ class ForwardHistorian(BaseHistorian):
                             self.historian_teardown()
                             self.vip.health.set_status(
                                 STATUS_BAD, "Target platform disconnected")
-                            # The target restarted or dropped the link;
-                            # reconnect and resend this record once instead of
-                            # leaving it for the next retry_period.
-                            if not reconnected:
-                                reconnected = True
-                                self.historian_setup()
-                                retry = self._target_platform is not None
+                            reconnect_needed = True
+                        else:
+                            _log.error("ZMQ error publishing to target platform: {}".format(exc))
                     except Exception as e:
                         err = "Unhandled error publishing to target platfom."
                         _log.error(err)
@@ -423,8 +420,23 @@ class ForwardHistorian(BaseHistorian):
                         return
                     else:
                         handled_records.append(x)
-                if not retry:
+                if not reconnect_needed:
                     break
+                # The target restarted or dropped the link. Reconnect at most
+                # once per batch, outside the publish timer so a timeout
+                # keeps its backoff, and resend this record on the new
+                # connection. A second failure leaves the rest for the next
+                # retry_period.
+                if reconnected:
+                    batch_abandoned = True
+                    break
+                reconnected = True
+                self.historian_setup()
+                if self._target_platform is None:
+                    batch_abandoned = True
+                    break
+            if batch_abandoned:
+                break
 
         _log.debug("handled: {} number of items".format(
             len(to_publish_list)))
@@ -435,10 +447,13 @@ class ForwardHistorian(BaseHistorian):
             status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                        status)
+        elif not handled_records and to_publish_list:
+            _log.warning("Published nothing; {} items left for the next attempt".format(
+                len(to_publish_list)))
         else:
             self.vip.health.set_status(
                 STATUS_GOOD,"published {} items".format(
-                    len(to_publish_list)))
+                    len(handled_records)))
 
     @doc_inherit
     def historian_setup(self):
