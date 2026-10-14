@@ -313,6 +313,9 @@ class PubSubService:
         Number of subscribers to whom the message was sent
         """
         if len(frames) > 8:
+            # A subscriber reads the user from this frame, so it is the one
+            # the router authenticated, whatever the publisher wrote.
+            frames[3] = user_id
             try:
                 msg = frames[8]
                 headers = msg['headers']
@@ -430,15 +433,8 @@ class PubSubService:
         :return: Number of local subscribers
         """
         publisher = frames[0]
-        topic = frames[7]
-        try:
-            msg = frames[8]
-            bus = msg['bus']
-        except KeyError as exc:
-            self._logger.error("Missing key in _peer_publish message {}".format(exc))
-            return 0
-        except ValueError:
-            self._logger.error("JSON decode error. Invalid character")
+        bus = self._publish_bus(frames)
+        if bus is None:
             return 0
 
         all_subscriptions = dict()
@@ -456,8 +452,40 @@ class PubSubService:
 
         subs.update(all_subscriptions)
         subs.update(subscriptions)
+        return self._deliver(frames, publisher, subs)
+
+    def _distribute_all_platforms(self, frames):
+        """
+        Distribute a publish that came from another platform. Only subscribers
+        that asked for other platforms' messages receive it. This does not
+        share _distribute_internal's merge of the two subscription sets, which
+        is keyed by prefix: an internal subscriber on the same prefix would
+        hide the 'all' one.
+        :param frames: list of frames
+        :return: Number of subscribers the message was sent to
+        """
+        publisher = frames[0]
+        bus = self._publish_bus(frames)
+        if bus is None:
+            return 0
+        return self._deliver(frames, publisher,
+                             self._peer_subscriptions['all'][bus])
+
+    def _publish_bus(self, frames):
+        """The bus a publish names, or None when the message is malformed."""
+        try:
+            return frames[8]['bus']
+        except KeyError as exc:
+            self._logger.error("Missing key in _peer_publish message {}".format(exc))
+        except ValueError:
+            self._logger.error("JSON decode error. Invalid character")
+        return None
+
+    def _deliver(self, frames, publisher, subs):
+        """Send a publish to every peer subscribed to its topic in `subs`, a
+        mapping of prefix to subscriber set. Returns the subscriber count."""
+        topic = frames[7]
         subscribers = set()
-        # Check for local subscribers
         for prefix, subscription in subs.items():
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
@@ -711,7 +739,11 @@ class PubSubService:
             try:
                 caps = self._user_capabilities[user]
             except KeyError:
-                return
+                # Fail closed: '' and users the auth service has not reported
+                # (setup-mode peers, remote publishers) hold no capability.
+                return ('to publish to topic "{}" requires capabilities {},'
+                        ' but the publisher holds none').format(
+                            topic, required_caps)
             if not set(required_caps) <= set(caps):
                 msg = ('to publish to topic "{}" requires capabilities {},'
                        ' but capability list {} was'
@@ -857,13 +889,15 @@ class PubSubService:
                 except ValueError:
                     self._logger.debug("Value error")
 
-            # Make it an internal publish
+            # Make it an internal publish. The remote platform's connection
+            # user says nothing about the publisher, so subscribers see none.
             frames[6] = 'publish'
+            frames[3] = ''
             subscribers_count = 1
             if self._rabbitmq_agent:
                 self._publish_on_rmq_bus(frames)
             else:
-                subscribers_count = self._distribute_internal(frames)
+                subscribers_count = self._distribute_all_platforms(frames)
             # There are no subscribers, send error message back to source platform
             if not subscribers_count:
                 try:
