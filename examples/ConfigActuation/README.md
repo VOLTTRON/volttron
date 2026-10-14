@@ -10,6 +10,10 @@ To use this agent as-is, install it as normal with the provided configuration
 file ("config" in the agent's directory). For more information on installing and
 running agents, see the [Agent Control Commands](https://volttron.readthedocs.io/en/main/platform-features/control/agent-management-control.html).
 
+When authentication is enabled, grant this agent the `actuator_control` capability after installing it, or the
+actuator refuses its requests. The steps are in the Actuator Agent README, section "Required capability for
+scheduling and writing".
+
 This agent may be used as an example for scheduling and acutation of devices
 when a configstore item is added or updated, and serve as a jumping-off point 
 for other simple test agents.

@@ -107,7 +107,7 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
 
     if destination_instance.messagebus == 'rmq':
         remote_address = destination_instance.bind_web_address
-        destination_instance.enable_auto_csr()
+        destination_instance.start_csr_approver()
     else:
         remote_address = destination_instance.vip_address
 
