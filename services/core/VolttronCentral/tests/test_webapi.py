@@ -4,6 +4,7 @@ import gevent
 import pytest
 
 from volttron.platform import get_examples, jsonapi
+from volttron.platform.jsonrpc import METHOD_NOT_FOUND
 from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
@@ -28,7 +29,7 @@ def test_platform_list(auto_registered_local):
     assert len(webapi.list_platforms()) == 1
 
 
-def test_platform_inspect(auto_registered_local):
+def test_platform_inspect_through_the_generic_agent_route_is_refused(auto_registered_local):
     webapi = auto_registered_local
     gevent.sleep(5)
     platforms = webapi.list_platforms()
@@ -36,12 +37,10 @@ def test_platform_inspect(auto_registered_local):
 
     agents = webapi.list_agents(platform_uuid)
 
+    assert agents
     for agent in agents:
-        agent_uuid = agent['uuid']
-        result = webapi.inspect(platform_uuid, agent_uuid)
-        print(result)
-        method = 'health.get_status'
-        assert method in result['methods']
+        result = webapi.inspect(platform_uuid, agent['uuid'])
+        assert result['code'] == METHOD_NOT_FOUND
 
 
 @pytest.fixture(scope="module")

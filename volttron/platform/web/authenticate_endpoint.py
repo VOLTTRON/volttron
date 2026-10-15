@@ -38,6 +38,10 @@ tplenv = Environment(
 )
 
 
+MAX_USERNAME_LENGTH = 256
+MAX_PASSWORD_LENGTH = 1024
+
+
 class AuthenticateEndpoints:
 
     def __init__(self, tls_private_key=None, tls_public_key=None, web_secret_key=None):
@@ -231,6 +235,29 @@ class AuthenticateEndpoints:
         # TODO: Blacklist old token? Immediately close websockets?
         return Response('DELETE /authenticate is not yet implemented', status='501 Not Implemented',
                         content_type='text/plain')
+
+    def authenticate_web_user(self, username, password):
+        """Check a login against the user store without minting a token.
+
+        Returns exactly {'user': ..., 'groups': [...]} for a valid pair and {}
+        for anything else, including input that is not a string or is over
+        the length bounds, so no hash runs on an oversized value.
+        """
+        if not (isinstance(username, str) and isinstance(password, str)):
+            return {}
+        if not username or not password:
+            return {}
+        if len(username) > MAX_USERNAME_LENGTH or len(password) > MAX_PASSWORD_LENGTH:
+            return {}
+        if not self._userdict:
+            return {}
+        record = self.__get_user(username, password)
+        if record is None:
+            return {}
+        groups = record.get('groups', [])
+        if not isinstance(groups, (list, tuple)) or not all(isinstance(g, str) for g in groups):
+            return {}
+        return {'user': username, 'groups': list(groups)}
 
     def __get_user(self, username, password):
         """

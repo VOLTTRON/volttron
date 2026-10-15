@@ -14,6 +14,8 @@ class APITester:
         self._username = username
         self._password = password
 
+        # The login sets the session cookie that every later request needs.
+        self._session = requests.Session()
         self._auth_token = None
         self._auth_token = self.get_auth_token()
 
@@ -29,11 +31,11 @@ class APITester:
         print('Posting: {}'.format(data))
 
         if self._wrapper.ssl_auth:
-            r = requests.post(self._url, json=data,
-                              verify=self._wrapper.certsobj.cert_file(self._wrapper.certsobj.root_ca_name))
+            r = self._session.post(self._url, json=data,
+                                   verify=self._wrapper.certsobj.cert_file(self._wrapper.certsobj.root_ca_name))
         else:
-            r = requests.post(self._url, json=data,
-                              verify=False)
+            r = self._session.post(self._url, json=data,
+                                   verify=False)
         validate_response(r)
 
         rpcjson = r.json()
