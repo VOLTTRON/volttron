@@ -55,7 +55,8 @@ from volttron.platform.agent.utils import (get_aware_utc_now)
 from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
                                            format_timestamp, normalize_identity)
 from volttron.platform.auth.auth_file import AuthFile
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
+                                       METHOD_NOT_FOUND)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import GOOD_STATUS
 from volttron.platform.messaging.health import Status
@@ -67,6 +68,16 @@ from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from .vcconnection import VCConnection
 
 __version__ = '4.8'
+
+MAX_UPLOAD_BYTES = 64 * 1024 * 1024
+# Base64 length of MAX_UPLOAD_BYTES, so an oversized upload is refused before
+# it is decoded.
+_MAX_UPLOAD_ENCODED = 4 * -(-MAX_UPLOAD_BYTES // 3)
+
+
+class _UploadRefused(ValueError):
+    pass
+
 
 RegistrationStates = Enum('AgentStates',
                           'NotRegistered Unregistered Registered '
@@ -1013,10 +1024,6 @@ class VolttronCentralPlatform(Agent):
         # First handle the elements that are going to this platform
         if method in method_map:
             result = method_map[method]()
-        elif method == 'set_setting':
-            result = self.set_setting(**params)
-        elif method == 'get_setting':
-            result = self.get_setting(**params)
         elif method == 'get_devices':
             result = self.get_devices()
         elif method == 'status_agents':
@@ -1062,60 +1069,15 @@ class VolttronCentralPlatform(Agent):
                 fileargs = params.get('files')[0]
                 result = self._install_agent(fileargs)
 
+        elif method == 'start_bacnet_scan':
+            result = self._route_bacnet_scan(id, params)
+        elif method == 'publish_bacnet_props':
+            result = self._route_bacnet_props(id, params)
         else:
-
-            fields = method.split('.')
-
-            if fields[0] == 'historian':
-                if 'platform.historian' in self.vip.peerlist().get(timeout=30):
-                    agent_method = fields[1]
-                    result = self.vip.rpc.call('platform.historian',
-                                               agent_method,
-                                               **params).get(timeout=45)
-                else:
-                    result = jsonrpc.json_error(
-                        id, INVALID_PARAMS, 'historian unavailable')
-            else:
-                agent_uuid = fields[2]
-                agent_method = '.'.join(fields[3:])
-                _log.debug("Calling method {} on agent {}"
-                           .format(agent_method, agent_uuid))
-                _log.debug("Params is: {}".format(params))
-                if agent_method in (
-                'start_bacnet_scan', 'publish_bacnet_props'):
-                    identity = params.pop("proxy_identity")
-                    if agent_method == 'start_bacnet_scan':
-                        result = self.start_bacnet_scan(identity, **params)
-                    elif agent_method == 'publish_bacnet_props':
-                        result = self.publish_bacnet_props(identity, **params)
-                else:
-                    # find the identity of the agent so we can call it by name.
-                    identity = self.vip.rpc.call(CONTROL,
-                                                 'agent_vip_identity',
-                                                 agent_uuid).get(timeout=5)
-                    if params:
-                        if isinstance(params, list):
-                            result = self.vip.rpc.call(identity, agent_method,
-                                                       *params).get(timeout=30)
-                        else:
-                            result = self.vip.rpc.call(identity, agent_method,
-                                                       **params).get(timeout=30)
-                    else:
-                        result = self.vip.rpc.call(identity, agent_method).get(
-                            timeout=30)
-                # find the identity of the agent so we can call it by name.
-                identity = self.vip.rpc.call(CONTROL, 'agent_vip_identity',
-                                             agent_uuid).get(timeout=5)
-                if params:
-                    if isinstance(params, list):
-                        result = self.vip.rpc.call(identity, agent_method,
-                                                   *params).get(timeout=30)
-                    else:
-                        result = self.vip.rpc.call(identity, agent_method,
-                                                   **params).get(timeout=30)
-                else:
-                    result = self.vip.rpc.call(identity, agent_method).get(
-                        timeout=30)
+            _log.warning('Refusing unknown platform method: {!r}'.format(method))
+            result = jsonrpc.json_error(
+                ident=id, code=METHOD_NOT_FOUND,
+                message='Unknown method {}'.format(method))
 
         if isinstance(result, dict):
             if 'result' in result:
@@ -1126,7 +1088,74 @@ class VolttronCentralPlatform(Agent):
             return
         return result
 
+    def _route_bacnet_scan(self, id, params):
+        # Only these named values reach the scan, so a caller cannot supply
+        # an instance_address or instance_serverkey.
+        if (not isinstance(params, dict) or
+                'iam_vc_response_topic' not in params or
+                'proxy_identity' not in params):
+            return jsonrpc.json_error(
+                ident=id, code=INVALID_PARAMS,
+                message='iam_vc_response_topic and proxy_identity are required')
+        return self.start_bacnet_scan(
+            iam_vc_response_topic=params['iam_vc_response_topic'],
+            proxy_identity=params['proxy_identity'],
+            low_device_id=params.get('low_device_id'),
+            high_device_id=params.get('high_device_id'),
+            target_address=params.get('target_address'),
+            scan_length=params.get('scan_length', 5))
+
+    def _route_bacnet_props(self, id, params):
+        if not isinstance(params, dict) or not all(
+                key in params for key in
+                ('proxy_identity', 'publish_topic', 'address', 'device_id')):
+            return jsonrpc.json_error(
+                ident=id, code=INVALID_PARAMS,
+                message='proxy_identity, publish_topic, address and '
+                        'device_id are required')
+        return self.publish_bacnet_props(
+            params['proxy_identity'], params['publish_topic'],
+            params['address'], params['device_id'],
+            filter=params.get('filter', []))
+
+    @staticmethod
+    def _decode_upload(fileargs):
+        """Validate the upload fields and return (file_name, decoded bytes).
+
+        Every check runs before anything is written.
+        """
+        if not isinstance(fileargs, dict):
+            raise _UploadRefused('Invalid file arguments.')
+        if 'local' in fileargs:
+            raise _UploadRefused("The 'local' install option is not accepted.")
+        file_name = fileargs.get('file_name')
+        encoded = fileargs.get('file')
+        if not isinstance(file_name, str) or not isinstance(encoded, str):
+            raise _UploadRefused('file_name and file must be strings.')
+        if (not file_name or file_name in ('.', '..') or '\0' in file_name or
+                file_name != os.path.basename(file_name)):
+            raise _UploadRefused('Invalid file_name.')
+        base64_sep = 'base64,'
+        if base64_sep not in encoded:
+            raise _UploadRefused('File must be base64 encoded.')
+        payload = encoded.split(base64_sep)[1]
+        if len(payload) > _MAX_UPLOAD_ENCODED:
+            raise _UploadRefused('File is larger than the upload limit.')
+        decoded = base64.decodebytes(payload.encode('utf-8'))
+        if len(decoded) > MAX_UPLOAD_BYTES:
+            raise _UploadRefused('File is larger than the upload limit.')
+        return file_name, decoded
+
     def _install_agent(self, fileargs):
+        try:
+            file_name, decoded = self._decode_upload(fileargs)
+        except _UploadRefused as e:
+            _log.warning('Refusing agent install: {}'.format(e))
+            return dict(error=dict(code=INVALID_PARAMS, message=str(e)))
+        except Exception as e:
+            _log.warning('Refusing agent install: {!r}'.format(e))
+            return dict(error=dict(code=INVALID_PARAMS,
+                                   message='File could not be decoded.'))
         tmpdir = tempfile.mkdtemp()
 
         try:
@@ -1140,23 +1169,15 @@ class VolttronCentralPlatform(Agent):
             agent_csv = fileargs.get('csv', None)
             agent_json = fileargs.get('json', None)
             agent_st = fileargs.get('st', 5)
-            if 'local' in fileargs:
-                path = fileargs['file_name']
-            else:
-                path = os.path.join(tmpdir, fileargs['file_name'])
-
-                base64_sep = 'base64,'
-                if base64_sep not in fileargs['file']:
-                    raise Exception('File must be base64 encoded.')
-
-                # The start of the string representing the file is right
-                # after base64,
-                with open(path, 'wb') as fout:
-                    fout.write(
-                        base64.decodebytes(
-                            fileargs['file'].split(base64_sep)[1].encode('utf-8')
-                        )
-                    )
+            path = os.path.join(tmpdir, file_name)
+            if os.path.commonpath(
+                    [os.path.realpath(tmpdir), os.path.realpath(path)]
+            ) != os.path.realpath(tmpdir):
+                raise _UploadRefused('Invalid file_name.')
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                         os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as fout:
+                fout.write(decoded)
             opts = Namespace(connection=self._vc_connection,
                              install_path=path,
                              vip_identity=vip_identity,

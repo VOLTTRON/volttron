@@ -25,13 +25,41 @@
 
 
 
+import functools
 import logging
 
+from volttron.platform import jsonrpc
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, CONTROL)
 from volttron.platform.vip.agent import (Agent, RPC)
 
 _log = logging.getLogger(__name__)
+
+
+def _vc_only(method):
+    """Refuse a call that did not come from the volttron.central user.
+
+    The check runs whether or not authentication is enabled: with it off the
+    router sets the user to the sender, so the real volttron.central passes.
+    A caller that cannot be identified is refused.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        try:
+            user = str(self.vip.rpc.context.vip_message.user)
+        except AttributeError:
+            user = None
+        if user != VOLTTRON_CENTRAL:
+            _log.warning("Refusing call to %s from user %r; only %s may "
+                         "call it", method.__name__, user, VOLTTRON_CENTRAL)
+            raise jsonrpc.exception_from_json(
+                jsonrpc.UNAUTHORIZED,
+                "method '{}' may only be called by {}".format(
+                    method.__name__, VOLTTRON_CENTRAL))
+        return method(self, *args, **kwargs)
+
+    return wrapper
 
 
 class VCConnection(Agent):
@@ -71,6 +99,7 @@ class VCConnection(Agent):
         self.vip.pubsub.publish('pubsub', topic, headers, message).get(timeout=5)
 
     @RPC.export
+    @_vc_only
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5):
@@ -94,6 +123,7 @@ class VCConnection(Agent):
                                            scan_length=scan_length)
 
     @RPC.export
+    @_vc_only
     def get_instance_uuid(self):
         """
         Retrieve the instance uuid for the vcp agent's instance.
@@ -103,6 +133,7 @@ class VCConnection(Agent):
         return self._main_agent.get_instance_uuid()
 
     @RPC.export
+    @_vc_only
     def get_health(self):
         """
         Retrieve the health of the vcp agent.
@@ -112,6 +143,7 @@ class VCConnection(Agent):
         return self._main_agent.vip.health.get_status()
 
     @RPC.export
+    @_vc_only
     def start_agent(self, agent_uuid):
         """
         Start an agent that is already present on the vcp instance.
@@ -122,6 +154,7 @@ class VCConnection(Agent):
         return self._main_agent.start_agent(agent_uuid)
 
     @RPC.export
+    @_vc_only
     def stop_agent(self, agent_uuid):
         """
         Stop an agent already running on the vcp instance.
@@ -132,6 +165,7 @@ class VCConnection(Agent):
         return self._main_agent.start_agent(agent_uuid)
 
     @RPC.export
+    @_vc_only
     def restart(self, agent_uuid):
         """
         Performs the stop and start operations on the vcp instance for an agent.
@@ -145,6 +179,7 @@ class VCConnection(Agent):
         return stop_result, start_result
 
     @RPC.export
+    @_vc_only
     def agent_status(self, agent_uuid):
         """
         Retrieves the status of a particular agent executing on the vcp
@@ -157,6 +192,7 @@ class VCConnection(Agent):
         return self._main_agent.agent_status(agent_uuid)
 
     @RPC.export
+    @_vc_only
     def status_agents(self):
         """
         Return all of the installed agents' statuses for the vcp instance.
@@ -167,6 +203,7 @@ class VCConnection(Agent):
 
 
     @RPC.export
+    @_vc_only
     def get_devices(self):
         """
         Retrieves configuration entries from the config store that begin with
@@ -178,6 +215,7 @@ class VCConnection(Agent):
         return self._main_agent.get_devices()
 
     @RPC.export
+    @_vc_only
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
                              device_id, filter=[]):
         self._log.debug('Publishing bacnet props to topic: {}'.format(
@@ -190,6 +228,7 @@ class VCConnection(Agent):
             filter=[])
 
     @RPC.export
+    @_vc_only
     def store_agent_config(self, agent_identity, config_name, raw_contents,
                            config_type='raw'):
         """
@@ -206,6 +245,7 @@ class VCConnection(Agent):
                                             raw_contents, config_type)
 
     @RPC.export
+    @_vc_only
     def list_agent_configs(self, agent_identity):
         """
         List the agent configuration files stored on the volttron instance
@@ -217,6 +257,7 @@ class VCConnection(Agent):
         return self._main_agent.list_agent_configs(agent_identity)
 
     @RPC.export
+    @_vc_only
     def get_agent_config(self, agent_identity, config_name, raw=True):
         """
         Retrieve the configuration from the config store of the passed agent
@@ -231,6 +272,7 @@ class VCConnection(Agent):
                                                  raw)
 
     @RPC.export
+    @_vc_only
     def delete_agent_config(self, agent_identity, config_name):
         """
         Deletes the configuration from the config store of the passed agent
@@ -243,6 +285,7 @@ class VCConnection(Agent):
         return self._main_agent.delete_agent_config(agent_identity, config_name)
 
     @RPC.export
+    @_vc_only
     def subscribe_to_vcp(self, prefix, prefix_on_vc):
         """
         Allows volttron.central to listen to the message bus on vcp instance.
@@ -272,7 +315,6 @@ class VCConnection(Agent):
                                               prefix,
                                               subscription_wrapper)
 
-    @RPC.export
     def call(self, platform_method, *args, **kwargs):
         return self._main_agent.call(platform_method, *args, **kwargs)
 
@@ -291,6 +333,7 @@ class VCConnection(Agent):
         return connected
 
     @RPC.export
+    @_vc_only
     def route_to_agent_method(self, id, agent_method, params):
         """
         Calls a method on an installed agent running on the platform.
@@ -308,6 +351,7 @@ class VCConnection(Agent):
         return self._main_agent.route_request(id, agent_method, params)
 
     @RPC.export
+    @_vc_only
     def get_vip_addresses(self):
         """
         Retrieves the vip addresses that were specified in the configuration
@@ -318,10 +362,12 @@ class VCConnection(Agent):
         return self._main_agent.get_external_vip_addresses()
 
     @RPC.export
+    @_vc_only
     def get_instance_name(self):
         return self._main_agent.get_instance_name()
 
     @RPC.export
+    @_vc_only
     def restart_agent(self, agent_uuid):
         """
         Calls restart method on the vcp main agent instance.
@@ -336,6 +382,7 @@ class VCConnection(Agent):
         return self._main_agent.restart(agent_uuid)
 
     @RPC.export
+    @_vc_only
     def list_agents(self):
         """
         Calls list_agents method on the vcp main agent instance.
@@ -348,7 +395,6 @@ class VCConnection(Agent):
         """
         return self._main_agent.list_agents()
 
-    @RPC.export
     def install_agent(self, local_wheel_file):
         """
         Installs

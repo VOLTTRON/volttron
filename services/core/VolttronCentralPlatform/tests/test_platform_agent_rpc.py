@@ -30,9 +30,11 @@ import subprocess
 import gevent
 
 from volttron.platform import get_volttron_root, jsonapi, get_services_core
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONFIGURATION_STORE
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONFIGURATION_STORE)
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttrontesting.utils.agent_additions import add_volttron_central_platform, add_listener, add_volttron_central
+from volttrontesting.utils.agent_additions import add_volttron_central_platform, add_listener
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, PlatformWrapper
 
 SQLITE_HISTORIAN_CONFIG = {
@@ -100,8 +102,11 @@ def vc_agent(setup_platform):
     assert setup_platform.instance_name is not None
     setup_platform.allow_all_connections()
     gevent.sleep(5)
-    add_volttron_central(setup_platform)
-    agent = setup_platform.dynamic_agent
+    # VCConnection serves only the volttron.central user, so the proxy is
+    # built under that identity.
+    agent = setup_platform.build_agent(
+        identity=VOLTTRON_CENTRAL,
+        capabilities={'edit_config_store': {'identity': '/.*/'}})
     vcp_identity = None
 
     look_for_identity = setup_platform.instance_name + ".platform.agent"
@@ -117,6 +122,7 @@ def vc_agent(setup_platform):
         pytest.fail("vcp_identity was not connected to the instance.")
     gevent.sleep(5)
     yield agent, vcp_identity
+    agent.core.stop()
 
 
 @pytest.mark.vcp
@@ -124,17 +130,31 @@ def test_list_agents(setup_platform, vc_agent, caplog):
     # split vc_agent into it's respective parts.
     vc, vcp_identity = vc_agent
     agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
-    assert agent_list and len(agent_list) == 2
+    assert agent_list and len(agent_list) == 1
     listener_uuid = None
     try:
         listener_uuid = add_listener(setup_platform)
         agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
-        assert agent_list and len(agent_list) == 3
+        assert agent_list and len(agent_list) == 2
     except Exception as e:
         _log.debug("EXCEPTION: {}".format(e.args))
     finally:
         if listener_uuid:
             setup_platform.remove_agent(listener_uuid)
+
+
+@pytest.mark.vcp
+def test_connection_refuses_callers_that_are_not_volttron_central(
+        setup_platform, vc_agent):
+    _, vcp_identity = vc_agent
+    other = setup_platform.build_agent(identity="not_volttron_central")
+    try:
+        with pytest.raises(RemoteError) as err:
+            other.vip.rpc.call(vcp_identity, "list_agents").get(
+                timeout=STANDARD_GET_TIMEOUT)
+        assert "may only be called by volttron.central" in str(err.value)
+    finally:
+        other.core.stop()
 
 
 @pytest.mark.vcp
