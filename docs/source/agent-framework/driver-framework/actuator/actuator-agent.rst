@@ -17,8 +17,11 @@ Actuator Agent Communication
 
     When authentication is enabled, scheduling a task and setting or reverting points, whether by RPC or through the
     ``devices/actuators`` pub/sub topics, require the requesting agent to hold the ``actuator_control`` capability.
-    On the pub/sub topics the actuator checks the capability of the sender. Reading values does not require it, and
-    platforms running with authentication disabled are not affected.
+    On the pub/sub topics the actuator checks the capability of the publisher's authenticated user, not the
+    ``sender`` name in the message. A pub/sub request published on another platform is not delivered to the
+    actuator, which subscribes to local messages only; if it were, it would carry no authenticated user and be
+    refused. Reading values does not require it, and platforms running with authentication disabled are not
+    affected.
 
     No agent is granted ``actuator_control`` automatically, and holding ``driver_write`` does not allow use of the
     actuator. An agent installed with ``vctl install`` gets ``driver_write`` at install, so today it can write straight
