@@ -21,6 +21,8 @@ def make_agent(monkeypatch, login=None):
     agent._websocket_endpoints = set()
     agent.vip = mock.Mock()
     agent._platforms = mock.Mock()
+    agent._platform_scan_running = False
+    agent._platform_scan_skip_logged = False
     monkeypatch.setattr(vc_agent.gevent, 'spawn_later', lambda *a, **k: None)
     monkeypatch.setattr(vc_agent.gevent, 'spawn',
                         lambda fn, *a, **k: fn(*a, **k))

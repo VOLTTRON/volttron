@@ -96,8 +96,6 @@ def _sweep_harness(agent):
     agent.core.schedule.side_effect = (
         lambda when, fn: scheduled.append(fn) or mock.Mock())
     agent._platform_scan_event = None
-    agent._platform_scan_running = False
-    agent._platform_scan_skip_logged = False
     agent._platforms.get_platform_vip_identities.return_value = set()
     return scheduled
 
