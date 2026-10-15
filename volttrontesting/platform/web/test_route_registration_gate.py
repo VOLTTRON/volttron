@@ -68,7 +68,7 @@ def _install_entry(tmp_path, monkeypatch, identity):
 def test_install_grants_the_capability_to_volttron_central(tmp_path, monkeypatch):
     # The reserved-id rule accepts the key of an installed agent only: its
     # IDENTITY file and the keystore in its dist-info, as an install lays them out.
-    with pytest.raises(ReservedUserIdRefused):
+    with pytest.raises(ReservedUserIdRefused, match='holds no key'):
         _install_entry(tmp_path, monkeypatch, VOLTTRON_CENTRAL)
     agent_dir = tmp_path / 'agents' / 'agent-uuid'
     dist_info = agent_dir / 'volttroncentral' / 'volttroncentral.dist-info'
