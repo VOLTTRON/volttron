@@ -25,6 +25,8 @@ CAPABILITY = 'register_web_routes'
 GATED = {'register_endpoint', 'register_agent_route', 'register_path_route',
          'register_websocket'}
 OWNER_SCOPED = {'unregister_all_agent_routes', 'unregister_websocket', 'websocket_send'}
+# Callable by one fixed principal (volttron.central), checked in the method.
+FIXED_PRINCIPAL = {'authenticate_web_user'}
 READ_ONLY = {'get_user_claims', 'print_websocket_clients', 'get_bind_web_address',
              'get_serverkey', 'get_volttron_central_address'}
 
@@ -40,7 +42,7 @@ def _required_capabilities(name):
 
 
 def test_every_export_is_classified():
-    assert _exported_methods() == GATED | OWNER_SCOPED | READ_ONLY
+    assert _exported_methods() == GATED | OWNER_SCOPED | FIXED_PRINCIPAL | READ_ONLY
 
 
 @pytest.mark.parametrize('name', sorted(GATED))
@@ -48,7 +50,7 @@ def test_registration_export_requires_the_capability(name):
     assert _required_capabilities(name) == {CAPABILITY}
 
 
-@pytest.mark.parametrize('name', sorted(OWNER_SCOPED | READ_ONLY))
+@pytest.mark.parametrize('name', sorted(OWNER_SCOPED | FIXED_PRINCIPAL | READ_ONLY))
 def test_other_exports_need_no_capability(name):
     # Unregister and send stay callable after a revoked grant; ownership
     # limits them to the caller's own entries instead.
