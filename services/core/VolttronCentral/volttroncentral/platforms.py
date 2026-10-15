@@ -336,15 +336,32 @@ class PlatformHandler:
             ('configure/', self._on_platform_message)
         )
 
-        for topic, funct in vcp_topics:
-            self._vc.vip.pubsub.subscribe('pubsub',
-                                          platform_prefix + topic, funct)
-            self._log.info('Subscribing to {} with from vcp {}'.format(
-                platform_prefix + topic, topic))
+        subscribed = []
+        try:
+            for topic, funct in vcp_topics:
+                self._vc.vip.pubsub.subscribe('pubsub',
+                                              platform_prefix + topic, funct)
+                subscribed.append((platform_prefix + topic, funct))
+                self._log.info('Subscribing to {} with from vcp {}'.format(
+                    platform_prefix + topic, topic))
 
-            # method will subscribe to devices/ on the collector and publish
-            # the regular device topics with the prefix platform_prefix.
-            self.call("subscribe_to_vcp", topic, platform_prefix)
+                # method will subscribe to devices/ on the collector and
+                # publish the regular device topics with the prefix
+                # platform_prefix.
+                self.call("subscribe_to_vcp", topic, platform_prefix)
+        except BaseException:
+            # No handler is stored on failure, so the next scan builds a new
+            # one; drop these subscriptions or it would subscribe again.
+            self._drop_subscriptions(subscribed)
+            raise
+
+    def _drop_subscriptions(self, subscribed):
+        for prefix, funct in subscribed:
+            try:
+                self._vc.vip.pubsub.unsubscribe('pubsub', prefix, funct)
+            except Exception:
+                self._log.exception(
+                    'Unable to drop subscription to {}'.format(prefix))
 
     @property
     def vip_identity(self):

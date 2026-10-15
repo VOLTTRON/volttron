@@ -236,6 +236,8 @@ class PlatformWebService(Agent):
         self._admin_endpoints: AdminEndpoints = None
 
         self._vui_endpoints: VUIEndpoints = None
+        # Set when the web service starts; None until then.
+        self._authenticate_endpoints: AuthenticateEndpoints = None
 
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
@@ -279,6 +281,18 @@ class PlatformWebService(Agent):
     @RPC.export
     def print_websocket_clients(self):
         _log.debug(self.appContainer.endpoint_clients)
+
+    @RPC.export
+    def authenticate_web_user(self, username, password):
+        """Check a web login for volttron.central; returns {'user', 'groups'} or {}."""
+        user = str(self.vip.rpc.context.vip_message.user)
+        if user != VOLTTRON_CENTRAL:
+            _log.warning('authenticate_web_user refused for caller %r: only %s may call it',
+                         user, VOLTTRON_CENTRAL)
+            raise PermissionError(f'only {VOLTTRON_CENTRAL} may call authenticate_web_user')
+        if self._authenticate_endpoints is None:
+            return {}
+        return self._authenticate_endpoints.authenticate_web_user(username, password)
 
     @RPC.export
     def get_bind_web_address(self):
@@ -782,7 +796,8 @@ class PlatformWebService(Agent):
                                res[1])
                 return res[0]
             elif len(res) == 3:
-                start_response(res[0], res[2])
+                # Headers that crossed the bus arrive as lists; WSGI wants tuples.
+                start_response(res[0], [tuple(header) for header in res[2]])
                 if isinstance(res[1], str):
                     return [res[1].encode('utf-8')]
                 return [res[1]]
@@ -1010,11 +1025,14 @@ class PlatformWebService(Agent):
             else:
                 ssl_private_key = CertWrapper.get_private_key(ssl_key)
                 ssl_public_key = CertWrapper.get_cert_public_key(self.web_ssl_cert)
-            for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key, tls_public_key=ssl_public_key).get_routes():
+            self._authenticate_endpoints = AuthenticateEndpoints(
+                tls_private_key=ssl_private_key, tls_public_key=ssl_public_key)
+            for rt in self._authenticate_endpoints.get_routes():
                 self.registeredroutes.append(rt)
         else:
             # We don't have a private ssl key if we aren't using ssl.
-            for rt in AuthenticateEndpoints(web_secret_key=self._web_secret_key).get_routes():
+            self._authenticate_endpoints = AuthenticateEndpoints(web_secret_key=self._web_secret_key)
+            for rt in self._authenticate_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
         static_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "static"))
