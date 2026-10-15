@@ -9,6 +9,26 @@ if connection is disrupted. VCP has many configuration options available
 that can be set via the configuration store and/or initial configuration
 file.
 
+## Granting agent control
+
+The VolttronCentralPlatform (VCP) agent is not granted `install_remove_agents` or `start_stop_agents` when
+it is installed. Until an operator grants them, VOLTTRON Central cannot install,
+remove, start or stop agents on this platform. With the platform running, find
+the index of the entry whose `identity` is `platform.agent` with `vctl auth list`
+(confirm the identity before you go on), then run `vctl auth update <INDEX>`. Press Enter to keep each value, and at the
+`capabilities` prompt enter the entry's current capabilities plus the two new
+ones. A newly installed VCP agent has only `edit_config_store`, so enter:
+
+```
+{"edit_config_store": {"identity": "/.*/"}, "install_remove_agents": null, "start_stop_agents": null}
+```
+
+The update command empties the entry's `rpc_method_authorizations`. Restart the
+agent with `vctl restart <TAG>` (the tag or UUID from `vctl status`) so it fills
+the field again. Then run `vctl auth list` and check that the entry at your index
+still has the identity `platform.agent`, lists both new capabilities, and lists
+its `rpc_method_authorizations` methods again.
+
 ## Publish Specifications
 
 During connection to the VC agent\'s instance the instance-name from the
