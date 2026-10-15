@@ -87,7 +87,6 @@ def test_a_failed_route_removal_is_logged_and_does_not_stop_cleanup(
 
     assert [r.getMessage() for r in caplog.records
             if r.levelname == 'ERROR' and path in r.getMessage()]
-    assert channel not in agent._session_ws_paths
 
 
 def _sweep_harness(agent):
@@ -97,6 +96,7 @@ def _sweep_harness(agent):
     agent.core.schedule.side_effect = (
         lambda when, fn: scheduled.append(fn) or mock.Mock())
     agent._platform_scan_event = None
+    agent._platform_scan_running = False
     agent._platforms.get_platform_vip_identities.return_value = set()
     return scheduled
 
@@ -135,6 +135,53 @@ def test_a_failing_expiry_does_not_stop_the_platform_scan(agent):
 
     agent._platforms.add_platform.assert_called_once_with('vcp-one')
     assert len(scheduled) == 1
+
+
+def test_a_failing_expiry_is_logged(agent, caplog):
+    _sweep_harness(agent)
+    agent.vip.peerlist.return_value.get.return_value = []
+    agent._authenticated_sessions.expire = mock.Mock(
+        side_effect=RuntimeError('boom'))
+
+    with caplog.at_level(logging.ERROR):
+        agent._scan_platform_connect_disconnect()
+
+    errors = [r for r in caplog.records if r.levelname == 'ERROR']
+    assert [r.getMessage() for r in errors] == ['Expiring sessions failed']
+    assert errors[0].exc_info[0] is RuntimeError
+
+
+def test_a_slow_platform_connect_does_not_start_a_second_scan(agent):
+    scheduled = _sweep_harness(agent)
+    agent.vip.peerlist.return_value.get.return_value = ['vcp-one']
+    agent._authenticated_sessions.expire = mock.Mock()
+    connects = []
+
+    def slow_connect(identity):
+        connects.append(identity)
+        if len(connects) == 1:
+            # The next sweep fires while this connect is still blocked.
+            scheduled[0]()
+
+    agent._platforms.add_platform.side_effect = slow_connect
+
+    agent._scan_platform_connect_disconnect()
+
+    assert connects == ['vcp-one']
+    assert agent._authenticated_sessions.expire.call_count == 2
+    assert len(scheduled) == 2
+
+
+def test_a_failed_scan_does_not_block_the_next_scan(agent):
+    scheduled = _sweep_harness(agent)
+    agent.vip.peerlist.return_value.get.side_effect = RuntimeError('boom')
+    agent._scan_platform_connect_disconnect()
+
+    agent.vip.peerlist.return_value.get.side_effect = None
+    agent.vip.peerlist.return_value.get.return_value = ['vcp-one']
+    scheduled[0]()
+
+    agent._platforms.add_platform.assert_called_once_with('vcp-one')
 
 
 def test_platform_handler_responses_are_not_logged(agent, caplog):

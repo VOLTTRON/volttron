@@ -304,6 +304,7 @@ class VolttronCentralAgent(Agent):
         self._platforms = Platforms(self)
 
         self._platform_scan_event = None
+        self._platform_scan_running = False
 
         # Sessions that have been authentication with the system.
         self._authenticated_sessions = None
@@ -410,10 +411,19 @@ class VolttronCentralAgent(Agent):
         except Exception:
             _log.exception("Expiring sessions failed")
 
+        # A platform connect can block longer than the sweep interval; a
+        # second scan would see the same platform as new and connect it twice.
+        if self._platform_scan_running:
+            _log.debug("Previous platform scan still running; skipping")
+            return
+
+        self._platform_scan_running = True
         try:
             self._scan_platforms()
         except (Exception, gevent.Timeout):
             _log.exception("Scanning for platform connections failed")
+        finally:
+            self._platform_scan_running = False
 
     def _scan_platforms(self):
         # Identities of all platform agents that are connecting to us should
