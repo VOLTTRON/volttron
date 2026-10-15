@@ -97,6 +97,7 @@ def _sweep_harness(agent):
         lambda when, fn: scheduled.append(fn) or mock.Mock())
     agent._platform_scan_event = None
     agent._platform_scan_running = False
+    agent._platform_scan_skip_logged = False
     agent._platforms.get_platform_vip_identities.return_value = set()
     return scheduled
 
@@ -172,6 +173,28 @@ def test_a_slow_platform_connect_does_not_start_a_second_scan(agent):
     assert len(scheduled) == 2
 
 
+def test_skipped_scans_log_one_warning_until_the_scan_finishes(agent, caplog):
+    scheduled = _sweep_harness(agent)
+    agent.vip.peerlist.return_value.get.return_value = ['vcp-one']
+    agent._authenticated_sessions.expire = mock.Mock()
+    stuck_scans = []
+
+    def slow_connect(identity):
+        stuck_scans.append(identity)
+        scheduled[0]()
+        scheduled[0]()
+
+    agent._platforms.add_platform.side_effect = slow_connect
+
+    with caplog.at_level(logging.WARNING):
+        agent._scan_platform_connect_disconnect()
+        agent._scan_platform_connect_disconnect()
+
+    warnings = [r for r in caplog.records if r.levelname == 'WARNING']
+    assert len(warnings) == 2
+    assert all('still running' in r.getMessage() for r in warnings)
+
+
 def test_a_failed_scan_does_not_block_the_next_scan(agent):
     scheduled = _sweep_harness(agent)
     agent.vip.peerlist.return_value.get.side_effect = RuntimeError('boom')
@@ -198,3 +221,24 @@ def test_platform_handler_responses_are_not_logged(agent, caplog):
     for record in caplog.records:
         assert SECRET not in record.getMessage()
         assert SECRET not in str(record.args)
+
+
+def test_a_scan_ended_by_a_greenlet_kill_does_not_block_the_next_scan(agent):
+    scheduled = _sweep_harness(agent)
+    agent.vip.peerlist.return_value.get.side_effect = gevent.GreenletExit()
+    with pytest.raises(gevent.GreenletExit):
+        agent._scan_platform_connect_disconnect()
+
+    agent.vip.peerlist.return_value.get.side_effect = None
+    agent.vip.peerlist.return_value.get.return_value = ['vcp-one']
+    scheduled[0]()
+
+    agent._platforms.add_platform.assert_called_once_with('vcp-one')
+
+
+def test_a_new_agent_starts_with_no_scan_running(monkeypatch, tmp_path):
+    monkeypatch.setenv('VOLTTRON_HOME', str(tmp_path))
+    agent = vc_agent.VolttronCentralAgent()
+
+    assert agent._platform_scan_running is False
+    assert agent._platform_scan_skip_logged is False
