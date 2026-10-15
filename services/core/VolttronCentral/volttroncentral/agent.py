@@ -399,9 +399,23 @@ class VolttronCentralAgent(Agent):
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
 
-        if self._authenticated_sessions is not None:
-            self._authenticated_sessions.expire()
+        # Schedule first so no error below can end the sweep for good.
+        self._platform_scan_event = self.core.schedule(
+            VolttronCentralAgent._get_next_time_seconds(),
+            self._scan_platform_connect_disconnect)
 
+        try:
+            if self._authenticated_sessions is not None:
+                self._authenticated_sessions.expire()
+        except Exception:
+            _log.exception("Expiring sessions failed")
+
+        try:
+            self._scan_platforms()
+        except (Exception, gevent.Timeout):
+            _log.exception("Scanning for platform connections failed")
+
+    def _scan_platforms(self):
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
@@ -416,12 +430,6 @@ class VolttronCentralAgent(Agent):
         not_known = connected_platforms - self._platforms.get_platform_vip_identities()
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
-
-        next_platform_scan = VolttronCentralAgent._get_next_time_seconds()
-
-        # reschedule the next scan.
-        self._platform_scan_event = self.core.schedule(
-            next_platform_scan, self._scan_platform_connect_disconnect)
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -502,6 +510,9 @@ class VolttronCentralAgent(Agent):
         """Close the routes and sockets of a session that expired or was
         replaced."""
         paths = self._session_ws_paths.pop(channel, set())
+        # The platform closes these sockets without telling VC, so VC must
+        # stop sending to them here.
+        self._websocket_endpoints.difference_update(paths)
         for path in paths:
             gevent.spawn(self._unregister_session_ws, channel, path)
 
@@ -1025,7 +1036,7 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(id, INVALID_PARAMS,
                                       "params must be an object")
         response = method_ref(session_user, params)
-        _log.debug("Response is {}".format(response))
+        _log.debug("Handler returned a %s", type(response).__name__)
         return response
 
     def _route_historian(self, name, params, err):
