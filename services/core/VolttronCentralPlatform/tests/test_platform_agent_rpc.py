@@ -136,8 +136,6 @@ def test_list_agents(setup_platform, vc_agent, caplog):
         listener_uuid = add_listener(setup_platform)
         agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
         assert agent_list and len(agent_list) == 2
-    except Exception as e:
-        _log.debug("EXCEPTION: {}".format(e.args))
     finally:
         if listener_uuid:
             setup_platform.remove_agent(listener_uuid)
