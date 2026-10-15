@@ -72,7 +72,9 @@ from volttron.platform.auth.auth import AuthService
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.control.control import ControlService
-from volttron.platform.vip.router import BaseRouter, ERROR, INCOMING, UNROUTABLE
+from volttron.platform.vip.router import (BaseRouter, ERROR, INCOMING, UNROUTABLE,
+                                          ORIGIN_INPROC, ORIGIN_NETWORK,
+                                          RouterSender)
 from volttron.platform.vip.socket import Address, decode_key, encode_key
 from volttron.platform.vip.tracking import Tracker
 
@@ -103,7 +105,9 @@ from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      PLATFORM, PLATFORM_HEALTH, PLATFORM_WEB,
                                      PROXY_ROUTER, CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
                                      START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
-from .keystore import KeyStore, KnownHostsStore
+from .keystore import (HomeOwnedByAnotherUser, KeyStore, KnownHostsStore,
+                       create_keystore_dir, tighten_keystore_dirs,
+                       tighten_volttron_home)
 from .store import ConfigStoreService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
@@ -318,11 +322,14 @@ class Router(BaseRouter):
                  external_address_file='',
                  msgdebug=None,
                  agent_monitor_frequency=600,
-                 service_notifier=Optional[ServicePeerNotifier]):
+                 service_notifier=Optional[ServicePeerNotifier],
+                 *,
+                 enable_auth):
 
         super(Router, self).__init__(context=context,
                                      default_user_id=default_user_id,
                                      service_notifier=service_notifier)
+        self.enable_auth = enable_auth
         self.local_address = Address(local_address)
         self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
@@ -359,9 +366,19 @@ class Router(BaseRouter):
         identity = str(uuid.uuid4())
         sock.identity = identity.encode("utf-8")
         _log.debug("ROUTER SOCK identity: {}".format(sock.identity))
+        # In-process peers get a socket of their own, bound only to inproc://vip
+        # and with no ZAP domain, so the socket a message arrives on says
+        # whether it came from inside the platform process.
+        inproc = self._socket_class(self.context, zmq.ROUTER)
+        inproc.identity = sock.identity
+        inproc.router_mandatory = True
+        inproc.sndtimeo = sock.sndtimeo
+        inproc.set_hwm(6000)
+        self.inproc_socket = inproc
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
-        sock.bind('inproc://vip')
+            Monitor(inproc.get_monitor_socket()).start()
+        inproc.bind('inproc://vip')
         _log.debug('In-process VIP router bound to inproc://vip')
         sock.zap_domain = b'vip'
         addr = self.local_address
@@ -391,14 +408,16 @@ class Router(BaseRouter):
             _log.debug('Additional VIP router bound to %s' % address)
         self._ext_routing = None
 
-        self._ext_routing = RoutingService(self.socket, self.context,
+        self._sender = RouterSender(self)
+        self._ext_routing = RoutingService(self._sender, self.context,
                                            self._socket_class, self._poller,
                                            self._addr, self._instance_name)
 
-        self.pubsub = PubSubService(self.socket, self._protected_topics,
+        self.pubsub = PubSubService(self._sender, self._protected_topics,
                                     self._ext_routing)
-        self.ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
+        self.ext_rpc = ExternalRPCService(self._sender, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
+        self._poller.register(inproc, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
     def issue(self, topic, frames, extra=None):
@@ -541,7 +560,12 @@ class Router(BaseRouter):
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames))
+                    self.route(deserialize_frames(frames), ORIGIN_NETWORK,
+                               frames)
+            elif sock == self.inproc_socket:
+                if sockets[sock] == zmq.POLLIN:
+                    frames = sock.recv_multipart(copy=False)
+                    self.route(deserialize_frames(frames), ORIGIN_INPROC)
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -561,7 +585,9 @@ class Router(BaseRouter):
         # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
-        self.route(deserialize_frames(frames))
+        # No raw frames: this socket is the platform's own outgoing
+        # connection, so any User-Id on a frame came from the remote peer.
+        self.route(deserialize_frames(frames), ORIGIN_NETWORK)
         # for f in frames:
         #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
@@ -584,7 +610,7 @@ class Router(BaseRouter):
                 peer, sender, proto, usr_id, msg_id, 'external_rpc', msg
             ]
             try:
-                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
+                self._sender.send_multipart(frames, flags=NOBLOCK, copy=False)
             except ZMQError as ex:
                 _log.debug("ZMQ error: {}".format(ex))
                 pass
@@ -629,7 +655,9 @@ class GreenRouter(Router):
                  external_address_file='',
                  msgdebug=None,
                  volttron_central_rmq_address=None,
-                 service_notifier=Optional[ServicePeerNotifier]):
+                 service_notifier=Optional[ServicePeerNotifier],
+                 *,
+                 enable_auth):
         self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
@@ -649,7 +677,8 @@ class GreenRouter(Router):
             protected_topics=protected_topics,
             external_address_file=external_address_file,
             msgdebug=msgdebug,
-            service_notifier=service_notifier)
+            service_notifier=service_notifier,
+            enable_auth=enable_auth)
 
     def start(self):
         '''Create the socket and call setup().
@@ -715,6 +744,9 @@ def start_volttron_process(opts):
         if error:
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
+
+    report_resolved_home(getattr(opts, 'requested_home', opts.volttron_home),
+                         opts.volttron_home)
 
     if opts.agent_isolation_mode == "True":
         _log.info("VOLTTRON starting in agent isolation mode")
@@ -829,11 +861,15 @@ def start_volttron_process(opts):
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
-    # Check for agent isolation mode/permissions on VOLTTRON_HOME directory
-    mode = os.stat(opts.volttron_home).st_mode
-    if mode & (stat.S_IWGRP | stat.S_IWOTH):
-        _log.warning('insecure access control on directory: %s',
-                     opts.volttron_home)
+    # The platform's key lives in VOLTTRON_HOME and is refused while the
+    # directory is writable by group or others.
+    try:
+        tighten_volttron_home()
+    except HomeOwnedByAnotherUser as err:
+        _log.error('%s', err)
+        sys.exit(1)
+
+    tighten_keystore_dirs()
 
     # Initialize public and secret keys for Non-auth.
     publickey = None
@@ -872,7 +908,7 @@ def start_volttron_process(opts):
         # Add the control.connection so that volttron-ctl can access the bus
         control_conn_path = KeyStore.get_agent_keystore_path(
             CONTROL_CONNECTION)
-        os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+        create_keystore_dir(os.path.dirname(control_conn_path))
         ks_control_conn = KeyStore(
             KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
         entry = AuthEntry(credentials=encode_key(
@@ -939,7 +975,8 @@ def start_volttron_process(opts):
                    protected_topics=protected_topics,
                    external_address_file=external_address_file,
                    msgdebug=opts.msgdebug,
-                   service_notifier=notifier).run()
+                   service_notifier=notifier,
+                   enable_auth=opts.allow_auth).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -1160,7 +1197,8 @@ def start_volttron_process(opts):
                 protected_topics=protected_topics,
                 external_address_file=external_address_file,
                 msgdebug=opts.msgdebug,
-                service_notifier=notifier)
+                service_notifier=notifier,
+                enable_auth=opts.allow_auth)
 
             proxy_router = ZMQProxyRouter(address=address,
                                           identity=PROXY_ROUTER,
@@ -1320,6 +1358,23 @@ def setup_auth_service(opts, address, services):
     AuthFile().add(entry, overwrite=True)
 
 
+def resolve_volttron_home(raw):
+    """Sets VOLTTRON_HOME to the real path of `raw` and returns (real path,
+    requested path). The key checks read directories with lstat, which does
+    not follow a symlink, so every reader and child process gets the real
+    path."""
+    requested = os.path.normpath(config.expandall(raw))
+    resolved = os.path.realpath(requested)
+    os.environ['VOLTTRON_HOME'] = resolved
+    return resolved, requested
+
+
+def report_resolved_home(requested, resolved):
+    if requested != resolved:
+        _log.warning('VOLTTRON_HOME %s goes through a symlink; using its real '
+                     'path %s', requested, resolved)
+
+
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -1327,9 +1382,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(
-        config.expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    os.environ['VOLTTRON_HOME'] = volttron_home
+    volttron_home, requested_home = resolve_volttron_home(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
@@ -1573,6 +1627,7 @@ def main(argv=sys.argv):
         monitor=False,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
+        requested_home=requested_home,
         autostart=True,
         publish_address=ipc + 'publish',
         subscribe_address=ipc + 'subscribe',

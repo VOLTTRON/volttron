@@ -1,6 +1,7 @@
 """Registering web endpoints, routes, static paths and websockets requires the
 register_web_routes capability, which only VolttronCentral is given at install."""
 
+import json
 import ssl
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -14,6 +15,7 @@ from volttron.platform.agent.known_identities import (PLATFORM_WEB, VOLTTRON_CEN
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth.auth_file import AuthFile
+from volttron.platform.auth.reserved_user_ids import ReservedUserIdRefused
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent.decorators import annotations
 from volttron.platform.web.platform_web_service import PlatformWebService
@@ -64,6 +66,16 @@ def _install_entry(tmp_path, monkeypatch, identity):
 
 
 def test_install_grants_the_capability_to_volttron_central(tmp_path, monkeypatch):
+    # The reserved-id rule accepts the key of an installed agent only: its
+    # IDENTITY file and the keystore in its dist-info, as an install lays them out.
+    with pytest.raises(ReservedUserIdRefused, match='holds no key'):
+        _install_entry(tmp_path, monkeypatch, VOLTTRON_CENTRAL)
+    agent_dir = tmp_path / 'agents' / 'agent-uuid'
+    dist_info = agent_dir / 'volttroncentral' / 'volttroncentral.dist-info'
+    dist_info.mkdir(parents=True)
+    (agent_dir / 'IDENTITY').write_text(VOLTTRON_CENTRAL)
+    (dist_info / 'keystore.json').write_text(json.dumps({'public': 'A' * 43}))
+
     entry = _install_entry(tmp_path, monkeypatch, VOLTTRON_CENTRAL)
     assert entry.identity == VOLTTRON_CENTRAL
     assert entry.capabilities == {'edit_config_store': {'identity': VOLTTRON_CENTRAL},

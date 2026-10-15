@@ -32,15 +32,26 @@ from typing import Optional
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
+from volttron.platform.agent.known_identities import IN_PROCESS_IDENTITIES
 from volttron.platform.vip.servicepeer import ServicePeerNotifier
-from volttron.utils.frame_serialization import serialize_frames
+from volttron.utils.frame_serialization import ENCODE_FORMAT, serialize_frames
 
-__all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
+__all__ = ['BaseRouter', 'RouterSender', 'OUTGOING', 'INCOMING', 'UNROUTABLE',
+           'ERROR', 'ORIGIN_INPROC', 'ORIGIN_NETWORK']
 
 OUTGOING = 0
 INCOMING = 1
 UNROUTABLE = 2
 ERROR = 3
+
+# Where a message arrived: the inproc-only socket, or the socket every network
+# and ipc peer connects to. Only the socket tells the two apart.
+ORIGIN_INPROC = 'inproc'
+ORIGIN_NETWORK = 'network'
+
+# Bounds the sets that remember which senders were already logged, so a peer
+# choosing new identities cannot grow them without limit.
+_LOGGED_SENDERS_LIMIT = 1024
 
 _log = logging.getLogger(__name__)
 
@@ -75,6 +86,10 @@ class BaseRouter:
     _socket_class = zmq.Socket
     _poller_class = zmq.Poller
 
+    # Whether a message's user comes from the connection. Router sets it from
+    # the platform option; any other subclass is held to the strict rule.
+    enable_auth = True
+
     def __init__(self, context=None, default_user_id=None, service_notifier=Optional[ServicePeerNotifier]):
         '''Initialize the object instance.
 
@@ -84,6 +99,11 @@ class BaseRouter:
         self.context = context or self._context_class.instance()
         self.default_user_id = default_user_id
         self.socket = None
+        # In-process peers arrive on this socket. None until a subclass binds it.
+        self.inproc_socket = None
+        self._identity_sockets = {}
+        self._logged_senders = {}
+        self._suppression_logged = set()
         self._peers = set()
         self._poller = self._poller_class()
         self._ext_sockets = []
@@ -118,8 +138,10 @@ class BaseRouter:
         self.setup()
 
     def stop(self, linger=1):
-        '''Close the socket.'''
+        '''Close the sockets.'''
         self.socket.close(linger)
+        if self.inproc_socket is not None:
+            self.inproc_socket.close(linger)
 
     def setup(self):
         '''Called from start() method to setup the socket.
@@ -128,6 +150,71 @@ class BaseRouter:
         options, etc.
         '''
         raise NotImplementedError()
+
+    def socket_for(self, identity):
+        '''Return the socket a message for identity must be sent on.
+
+        A peer is reached on the socket it last arrived on. An identity not
+        seen yet is reached on the inproc socket if it is an in-process
+        identity and on the network socket otherwise, so an unknown peer
+        fails with EHOSTUNREACH as before.
+        '''
+        mapped = self._identity_sockets.get(identity)
+        if mapped is not None:
+            return mapped
+        if self.inproc_socket is not None and identity in IN_PROCESS_IDENTITIES:
+            return self.inproc_socket
+        return self.socket
+
+    def _origin_socket(self, origin):
+        if origin == ORIGIN_INPROC:
+            return self.inproc_socket if self.inproc_socket is not None else self.socket
+        if origin == ORIGIN_NETWORK:
+            return self.socket
+        raise ValueError('unknown message origin: {!r}'.format(origin))
+
+    def _log_once(self, kind, sender, message):
+        seen = self._logged_senders.setdefault(kind, set())
+        if sender in seen:
+            return
+        if len(seen) >= _LOGGED_SENDERS_LIMIT:
+            if kind not in self._suppression_logged:
+                self._suppression_logged.add(kind)
+                _log.warning(
+                    'Further "%s" warnings are suppressed after %d senders',
+                    kind, _LOGGED_SENDERS_LIMIT)
+            return
+        seen.add(sender)
+        _log.warning(message, sender)
+
+    def _claim_identity(self, sender, origin):
+        '''Record the socket sender arrived on, or refuse the message.
+
+        Returns False when the message must be dropped: a network peer using
+        an in-process identity, or one whose identity is already held by the
+        inproc socket. An identity first seen on the network that then
+        appears on the inproc socket moves to the inproc socket.
+        '''
+        sock = self._origin_socket(origin)
+        if origin == ORIGIN_NETWORK and sender in IN_PROCESS_IDENTITIES:
+            self._log_once(
+                'reserved', sender,
+                'Dropping network message from reserved in-process identity %r')
+            return False
+        held = self._identity_sockets.get(sender)
+        if held is None or held is sock:
+            self._identity_sockets[sender] = sock
+            return True
+        if origin == ORIGIN_NETWORK:
+            self._log_once(
+                'taken', sender,
+                'Dropping network message from %r: identity is in use on the inproc socket')
+            return False
+        self._log_once(
+            'moved', sender,
+            'Identity %r moved from the network socket to the inproc socket')
+        self._identity_sockets[sender] = sock
+        return True
 
     def poll_sockets(self):
         '''Called inside run method
@@ -165,33 +252,30 @@ class BaseRouter:
     def issue(self, topic, frames, extra=None):
         pass
 
-    if zmq.zmq_version_info() >= (4, 1, 0):
-        def lookup_user_id(self, sender, recipient, auth_token):
-            '''Find and return a user identifier.
+    def lookup_user_id(self, sender, recipient, auth_token, origin,
+                       raw_frames=None):
+        '''Find and return the user identifier of a message's sender.
 
-            Returns the UTF-8 encoded User-Id property from the sender
-            frame or None if the authenticator did not set the User-Id
-            metadata. May be extended to perform additional lookups.
-            '''
-            # pylint: disable=unused-argument
-            # A user id might/should be set by the ZAP authenticator
-            try:
-                # _log.debug(f"THE TYPE IS:::::::: {type(recipient)}")
-                # recipient.get('User-Id').encode('utf-8') returns sender !!!
-                return sender
-            except ZMQError as exc:
-                if exc.errno != EINVAL:
-                    raise
-            return self.default_user_id
-    else:
-        def lookup_user_id(self, sender, recipient, auth_token):
-            '''Find and return a user identifier.
-
-            A no-op by default, this method must be overridden to map
-            the sender and auth_token to a user ID. The returned value
-            must be a string or None (if the token was not found).
-            '''
-            return self.default_user_id
+        With auth off the user is the sender. With auth on, a message from the
+        inproc socket has the sender as its user, and a message from the
+        network socket has the User-Id the ZAP handler set on the connection,
+        read from raw_frames. A network message with no User-Id gets '' and
+        one warning per sender. Nothing else yields the sender.
+        '''
+        # pylint: disable=unused-argument
+        if not self.enable_auth:
+            return sender
+        if origin == ORIGIN_INPROC:
+            return sender
+        if origin != ORIGIN_NETWORK:
+            raise ValueError('unknown message origin: {!r}'.format(origin))
+        user_id = _connection_user_id(raw_frames)
+        if user_id is None:
+            self._log_once(
+                'no-user', sender,
+                'Network peer %r has no authenticated user; using the empty user')
+            return ''
+        return user_id
 
     def _distribute(self, *parts):
         drop = set()
@@ -229,11 +313,16 @@ class BaseRouter:
             self._peers.remove(peer)
         except KeyError:
             return
+        self._identity_sockets.pop(peer, None)
         self._distribute(b'peerlist', b'drop', peer)
         self._drop_pubsub_peers(peer)
 
-    def route(self, frames):
+    def route(self, frames, origin, raw_frames=None):
         '''Route one message and return.
+
+        origin says which socket the message arrived on (ORIGIN_INPROC or
+        ORIGIN_NETWORK) and has no default. raw_frames are the received frame
+        objects, read for the connection's User-Id before they were decoded.
 
         One message is read from the socket and processed. If the
         recipient is the router (empty recipient), the standard hello
@@ -241,7 +330,7 @@ class BaseRouter:
         handle_subsystem() for processing. Messages destined for other
         entities are routed appropriately.
         '''
-        socket = self.socket
+        socket = self._origin_socket(origin)
         issue = self.issue
 
         issue(INCOMING, frames)
@@ -250,6 +339,9 @@ class BaseRouter:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
             if len(frames) == 2 and frames[0] and not frames[1]:
+                if not self._claim_identity(frames[0], origin):
+                    issue(UNROUTABLE, frames, 'identity not allowed on socket')
+                    return
                 issue(UNROUTABLE, frames, 'router probe')
                 self._add_peer(frames[0])
             else:
@@ -261,10 +353,13 @@ class BaseRouter:
             # Peer is not talking a protocol we understand
             issue(UNROUTABLE, frames, 'bad VIP signature')
             return
-        user_id = self.lookup_user_id(sender, recipient, auth_token)
+        if not self._claim_identity(sender, origin):
+            issue(UNROUTABLE, frames, 'identity not allowed on socket')
+            return
+        user_id = self.lookup_user_id(sender, recipient, auth_token, origin,
+                                      raw_frames)
         if user_id is None:
             user_id = ''
-        # _log.debug(f"user_id is {user_id}")
         self._add_peer(sender)
         subsystem = frames[5]
         if not recipient:
@@ -311,9 +406,9 @@ class BaseRouter:
 
     def _send(self, frames):
         issue = self.issue
-        socket = self.socket
         drop = []
         recipient, sender = frames[:2]
+        socket = self.socket_for(recipient)
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         try:
@@ -339,7 +434,8 @@ class BaseRouter:
                           'error', errnum, errmsg, recipient, subsystem]
                 serialized_frames = serialize_frames(frames)
                 try:
-                    socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
+                    self.socket_for(sender).send_multipart(
+                        serialized_frames, flags=NOBLOCK, copy=False)
                     issue(OUTGOING, serialized_frames)
                 except ZMQError as exc:
                     try:
@@ -352,3 +448,39 @@ class BaseRouter:
                     if exc.errno == EHOSTUNREACH:
                         drop.append(sender)
         return drop
+
+
+def _connection_user_id(raw_frames):
+    """Return the User-Id the ZAP handler set on the connection the frames
+    arrived on, or None when the connection carries none."""
+    if not raw_frames:
+        return None
+    try:
+        return raw_frames[0].get('User-Id')
+    except ZMQError as exc:
+        if exc.errno != EINVAL:
+            raise
+    except (AttributeError, NotImplementedError):
+        # Bytes, or a libzmq without connection metadata: no User-Id to read.
+        pass
+    return None
+
+
+class RouterSender:
+    """The send side of the router's sockets for the services built on it.
+
+    Each message goes on the socket its recipient is reached on, so a service
+    cannot write to the wrong socket.
+    """
+
+    def __init__(self, router):
+        self._router = router
+
+    def send_multipart(self, frames, flags=0, copy=True):
+        recipient = frames[0]
+        if isinstance(recipient, Frame):
+            recipient = recipient.bytes
+        if isinstance(recipient, bytes):
+            recipient = recipient.decode(ENCODE_FORMAT)
+        self._router.socket_for(recipient).send_multipart(
+            frames, flags=flags, copy=copy)
