@@ -133,7 +133,7 @@ connection.
 
 Name of the file: `external_platform_discovery.json`
 
-Directory path:   Each platform’s VOLTTRON_HOME directory.
+Directory path:   Each platform's VOLTTRON_HOME directory.
 
 For example, since VOLTTRON instance 1 is connecting to VOLTTRON instance 2 and 3, contents of
 ``external_platform_discovery.json`` will be
@@ -164,8 +164,9 @@ Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 is
 
 After this, you will need to add the server keys of the connecting platforms using the ``vctl`` utility.  Type
 **vctl auth add** command on the command prompt and simply hit Enter to select defaults on all fields
-except **credentials**.  Here, we can either add serverkey of connecting platform or type `/.*/` to allow ALL
-connections.
+except **credentials**.  Here, we can add the serverkey of the connecting platform, which is what pub/sub between
+platforms needs (see :ref:`Pub/Sub Between Platforms <Multi-Platform-Router-PubSub-Authorization>`).
+Typing `/.*/` to allow ALL connections lets platforms connect, but it does not allow pub/sub between them.
 
 .. warning:: `/.*/` allows ALL agent and platform connections without authentication.
 
@@ -193,6 +194,42 @@ Once the initial configuration are setup, you can start all the VOLTTRON instanc
     $ ./start-volttron
 
 Next step is to start agents in each platform to observe the multi-platform PubSub communication behavior.
+
+
+.. _Multi-Platform-Router-PubSub-Authorization:
+
+Pub/Sub Between Platforms
+-------------------------
+
+A platform accepts publishes and subscription lists from another platform only when the connection is a known
+platform. Each of these must hold for every peer platform:
+
+- **An exact auth entry.** The entry's credentials are the peer's serverkey (the output of ``vctl auth serverkey`` on
+  the peer), written as plain text and not as a regular expression. The entry uses the ``CURVE`` mechanism and has no
+  ``identity``. The platform tries exact entries before wildcard entries, whatever their order in the auth file, so a
+  wildcard entry such as `/.*/` does not hide the peer's exact entry. A peer admitted only by a wildcard entry has its
+  pub/sub traffic refused.
+- **A discovery file entry.** ``external_platform_discovery.json`` lists the peer under the ``instance-name`` that the
+  peer itself reports. Each serverkey appears under one instance name only; a key listed under two names maps to
+  neither.
+- **Normal mode.** Pub/sub from other platforms is off while a platform runs in setup mode. It resumes after the
+  platform restarts in normal mode, once the auth entries and the discovery file are in place.
+
+With authentication disabled, none of this applies and pub/sub between platforms works as before.
+
+Things to know when you operate this:
+
+- A publish that comes from another platform reaches only subscriptions made with ``all_platforms=True``. A
+  subscription without it receives local publishes only.
+- ``sender`` names the connection that published. It is not proof of which agent sent the message, so do not use it to
+  authorize an action. Authorization is on the user, which the platform assigns from the connection's auth entry.
+- Discovery in setup mode is not authenticated. Use ``https`` web addresses, and compare each ``serverkey`` in the
+  discovery file with the output of ``vctl auth serverkey`` run on that peer.
+- The list of topics a peer wants is sent when the peer connects and when its agents change their subscriptions. If
+  the platform refused a list, or had no discovery file when the list arrived, publishes start again only at the
+  peer's next reconnect or subscription change. Fixing an auth entry or the discovery file does not send them at once.
+- A change to the discovery file or to ``auth.json`` takes effect on the running platform: a platform that is removed
+  from either stops receiving publishes without a restart.
 
 
 Start Platform driver on VOLTTRON instance 1

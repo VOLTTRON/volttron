@@ -1,6 +1,7 @@
 """Registering web endpoints, routes, static paths and websockets requires the
 register_web_routes capability, which only VolttronCentral is given at install."""
 
+import json
 import ssl
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -14,6 +15,7 @@ from volttron.platform.agent.known_identities import (PLATFORM_WEB, VOLTTRON_CEN
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth.auth_file import AuthFile
+from volttron.platform.auth.reserved_user_ids import ReservedUserIdRefused
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent.decorators import annotations
 from volttron.platform.web.platform_web_service import PlatformWebService
@@ -25,6 +27,8 @@ CAPABILITY = 'register_web_routes'
 GATED = {'register_endpoint', 'register_agent_route', 'register_path_route',
          'register_websocket'}
 OWNER_SCOPED = {'unregister_all_agent_routes', 'unregister_websocket', 'websocket_send'}
+# Callable by one fixed principal (volttron.central), checked in the method.
+FIXED_PRINCIPAL = {'authenticate_web_user'}
 READ_ONLY = {'get_user_claims', 'print_websocket_clients', 'get_bind_web_address',
              'get_serverkey', 'get_volttron_central_address'}
 
@@ -40,7 +44,7 @@ def _required_capabilities(name):
 
 
 def test_every_export_is_classified():
-    assert _exported_methods() == GATED | OWNER_SCOPED | READ_ONLY
+    assert _exported_methods() == GATED | OWNER_SCOPED | FIXED_PRINCIPAL | READ_ONLY
 
 
 @pytest.mark.parametrize('name', sorted(GATED))
@@ -48,7 +52,7 @@ def test_registration_export_requires_the_capability(name):
     assert _required_capabilities(name) == {CAPABILITY}
 
 
-@pytest.mark.parametrize('name', sorted(OWNER_SCOPED | READ_ONLY))
+@pytest.mark.parametrize('name', sorted(OWNER_SCOPED | FIXED_PRINCIPAL | READ_ONLY))
 def test_other_exports_need_no_capability(name):
     # Unregister and send stay callable after a revoked grant; ownership
     # limits them to the caller's own entries instead.
@@ -64,6 +68,16 @@ def _install_entry(tmp_path, monkeypatch, identity):
 
 
 def test_install_grants_the_capability_to_volttron_central(tmp_path, monkeypatch):
+    # The reserved-id rule accepts the key of an installed agent only: its
+    # IDENTITY file and the keystore in its dist-info, as an install lays them out.
+    with pytest.raises(ReservedUserIdRefused, match='holds no key'):
+        _install_entry(tmp_path, monkeypatch, VOLTTRON_CENTRAL)
+    agent_dir = tmp_path / 'agents' / 'agent-uuid'
+    dist_info = agent_dir / 'volttroncentral' / 'volttroncentral.dist-info'
+    dist_info.mkdir(parents=True)
+    (agent_dir / 'IDENTITY').write_text(VOLTTRON_CENTRAL)
+    (dist_info / 'keystore.json').write_text(json.dumps({'public': 'A' * 43}))
+
     entry = _install_entry(tmp_path, monkeypatch, VOLTTRON_CENTRAL)
     assert entry.identity == VOLTTRON_CENTRAL
     assert entry.capabilities == {'edit_config_store': {'identity': VOLTTRON_CENTRAL},

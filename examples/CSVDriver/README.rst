@@ -43,6 +43,10 @@ the listener agent and logging from this agent which indicates that the driver
 is functioning (some values in the scrape_all publish should oscillate to 
 demonstrate that the driver is working).
 
+When authentication is enabled, grant this agent the ``actuator_control`` capability after installing it, or the
+actuator refuses its requests. The steps are in the Actuator Agent README, section "Required capability for
+scheduling and writing".
+
 This agent is not intended for any kind of production use, and it may require
 additional adaptation based on the testing needs of a given driver. This agent
 may be used as an example for interacting with an actuator agent, and serve

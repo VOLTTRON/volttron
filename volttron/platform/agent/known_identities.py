@@ -54,6 +54,8 @@ TAG_AGENTS = 'tag_agents'
 CLEAR_AGENT_STATUS = 'clear_agent_status'
 DRIVER_OVERRIDES = 'driver_override'
 DRIVER_WRITES = 'driver_write'
+# Required to schedule, cancel, set or revert through the Actuator Agent. Not granted to any agent by default.
+ACTUATOR_CONTROL = 'actuator_control'
 # Required to register web endpoints, routes, static paths and websockets with
 # platform_web. A holder serves requests under its own path namespace, so grant
 # it with the same care as admin access.
@@ -70,3 +72,14 @@ ALL_KNOWN_IDENTITIES = sorted((ROUTER, VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFO
 
 PROCESS_IDENTITIES = sorted((AUTH, PLATFORM_HEALTH, CONFIGURATION_STORE, CONTROL, PLATFORM_WEB, KEY_DISCOVERY,
                              PROXY_ROUTER))
+
+# aip connects to the router over inproc and is in no other list here.
+AIP = 'aip'
+VIP_SERVICE = 'vip.service'
+
+# Identities that connect to the router from inside the platform process.
+IN_PROCESS_IDENTITIES = frozenset(PROCESS_IDENTITIES) | {AIP}
+
+# User ids that capability checks treat as fixed platform principals. An auth
+# entry may carry one only with the key the platform holds for it.
+RESERVED_USER_IDS = IN_PROCESS_IDENTITIES | {CONTROL_CONNECTION, PLATFORM, VOLTTRON_CENTRAL, VIP_SERVICE}

@@ -110,47 +110,21 @@ def list_remotes(opts):
         return
 
     output_view = []
-    # try:
-    #     pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(
-    #         timeout=4)
-    #     for csr in pending_csrs:
-    #         output_view.append(
-    #             {
-    #                 "entry": {
-    #                     "user_id": csr["identity"],
-    #                     "address": csr["remote_ip_address"],
-    #                 },
-    #                 "status": csr["status"],
-    #             }
-    #         )
-    # except TimeoutError:
-    #     print("Certs timed out")
-    try:
-        approved_certs = conn.server.vip.rpc.call(
-            AUTH, "get_approved_authorizations"
-        ).get(timeout=4)
-        for value in approved_certs:
-            output_view.append({"entry": value, "status": "APPROVED"})
-    except TimeoutError:
-        print("Approved credentials timed out")
-    try:
-        denied_certs = conn.server.vip.rpc.call(AUTH,
-                                                "get_denied_authorizations").get(
-            timeout=4
-        )
-        for value in denied_certs:
-            output_view.append({"entry": value, "status": "DENIED"})
-    except TimeoutError:
-        print("Denied credentials timed out")
-    try:
-        pending_certs = conn.server.vip.rpc.call(AUTH,
-                                                 "get_pending_authorizations").get(
-            timeout=4
-        )
-        for value in pending_certs:
-            output_view.append({"entry": value, "status": "PENDING"})
-    except TimeoutError:
-        print("Pending credentials timed out")
+    approved_certs = conn.server.vip.rpc.call(
+        AUTH, "get_approved_authorizations"
+    ).get(timeout=opts.timeout)
+    for value in approved_certs:
+        output_view.append({"entry": value, "status": "APPROVED"})
+    denied_certs = conn.server.vip.rpc.call(
+        AUTH, "get_denied_authorizations"
+    ).get(timeout=opts.timeout)
+    for value in denied_certs:
+        output_view.append({"entry": value, "status": "DENIED"})
+    pending_certs = conn.server.vip.rpc.call(
+        AUTH, "get_pending_authorizations"
+    ).get(timeout=opts.timeout)
+    for value in pending_certs:
+        output_view.append({"entry": value, "status": "PENDING"})
 
     if not output_view:
         print("No remote certificates or credentials")
@@ -229,7 +203,7 @@ def approve_remote(opts):
         return
     conn.server.vip.rpc.call(AUTH, "approve_authorization",
                              opts.user_id).get(
-        timeout=4
+        timeout=opts.timeout
     )
 
 
@@ -248,7 +222,7 @@ def deny_remote(opts):
         return
     conn.server.vip.rpc.call(AUTH, "deny_authorization",
                              opts.user_id).get(
-        timeout=4
+        timeout=opts.timeout
     )
 
 
@@ -267,7 +241,7 @@ def delete_remote(opts):
         return
     conn.server.vip.rpc.call(AUTH, "delete_authorization",
                              opts.user_id).get(
-        timeout=4
+        timeout=opts.timeout
     )
 
 
@@ -287,7 +261,8 @@ def list_auth(opts, indices=None):
         )
         return
 
-    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)[
         "allow_list"]
     print_out = []
     if entries:
@@ -489,7 +464,8 @@ def add_auth(opts):
         add_server_key(opts)
 
     try:
-        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry).get(timeout=4)
+        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry).get(
+            timeout=opts.timeout)
         _stdout.write("added entry {}\n".format(entry))
     except AuthException as err:
         _stderr.write("ERROR: %s\n" % str(err))
@@ -504,7 +480,8 @@ def remove_auth(opts):
         )
         return
     entry_count = len(
-        conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
+        conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+            timeout=opts.timeout)["allow_list"]
     )
 
     for i in opts.indices:
@@ -518,11 +495,11 @@ def remove_auth(opts):
         return
     try:
         conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices",
-                                 opts.indices).get(timeout=4)
+                                 opts.indices).get(timeout=opts.timeout)
         if len(opts.indices) > 1:
-            msg = "removed entries at indices {}".format(opts.indices)
+            msg = f"removed entries at indices {opts.indices}"
         else:
-            msg = msg = "removed entry at index {}".format(opts.indices)
+            msg = f"removed entry at index {opts.indices}"
         _stdout.write(msg + "\n")
     except AuthException as err:
         _stderr.write("ERROR: %s\n" % str(err))
@@ -537,7 +514,8 @@ def update_auth(opts):
         )
         return
 
-    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)[
         "allow_list"]
     try:
         if opts.index < 0:
@@ -549,7 +527,7 @@ def update_auth(opts):
         updated_entry = response
         conn.server.vip.rpc.call(
             AUTH, "auth_file.update_by_index", updated_entry, opts.index
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
         _stdout.write("updated entry at index {}\n".format(opts.index))
     except IndexError:
         _stderr.write("ERROR: invalid index %s\n" % opts.index)
@@ -566,12 +544,14 @@ def add_role(opts):
         )
         return
 
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     if opts.role in roles:
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
     roles[opts.role] = list(set(opts.capabilities))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(
+        timeout=opts.timeout)
     _stdout.write('added role "{}"\n'.format(opts.role))
 
 
@@ -583,7 +563,8 @@ def list_roles(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     _print_two_columns(roles, "ROLE", "CAPABILITIES")
 
 
@@ -595,7 +576,8 @@ def update_role(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -604,7 +586,8 @@ def update_role(opts):
         roles[opts.role] = list(set(caps) - set(opts.capabilities))
     else:
         roles[opts.role] = list(set(caps) | set(opts.capabilities))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(
+        timeout=opts.timeout)
     _stdout.write('updated role "{}"\n'.format(opts.role))
 
 
@@ -616,12 +599,14 @@ def remove_role(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
     del roles[opts.role]
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles).get(
+        timeout=opts.timeout)
     _stdout.write('removed role "{}"\n'.format(opts.role))
 
 
@@ -633,12 +618,14 @@ def add_group(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
     groups[opts.group] = list(set(opts.roles))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(
+        timeout=opts.timeout)
     _stdout.write('added group "{}"\n'.format(opts.group))
 
 
@@ -650,7 +637,8 @@ def list_groups(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     _print_two_columns(groups, "GROUPS", "ROLES")
 
 
@@ -662,7 +650,8 @@ def update_group(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -671,7 +660,8 @@ def update_group(opts):
         groups[opts.group] = list(set(roles) - set(opts.roles))
     else:
         groups[opts.group] = list(set(roles) | set(opts.roles))
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(
+        timeout=opts.timeout)
     _stdout.write('updated group "{}"\n'.format(opts.group))
 
 
@@ -683,12 +673,14 @@ def remove_group(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get(
+        timeout=opts.timeout)["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
     del groups[opts.group]
-    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(timeout=4)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups).get(
+        timeout=opts.timeout)
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
@@ -713,15 +705,10 @@ def add_agent_rpc_authorizations(opts):
     try:
         conn.server.vip.rpc.call(
             AUTH, "add_rpc_authorizations", agent_id, agent_method, added_auths
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
     except RemoteError:
-        # vctl reports a RemoteError as an error; the handlers below only log.
+        # vctl reports a RemoteError as an error; the handler below only logs.
         raise
-    except TimeoutError:
-        _log.error(
-            f"Adding RPC authorizations {added_auths} for {agent_id}'s "
-            f"method {agent_method} timed out"
-        )
     except Exception as e:
         _log.error(
             f"{e}) \nCommand format should be agent_id.method "
@@ -755,15 +742,10 @@ def remove_agent_rpc_authorizations(opts):
             agent_id,
             agent_method,
             removed_auths,
-        ).get(timeout=4)
+        ).get(timeout=opts.timeout)
     except RemoteError:
-        # vctl reports a RemoteError as an error; the handlers below only log.
+        # vctl reports a RemoteError as an error; the handler below only logs.
         raise
-    except TimeoutError:
-        _log.error(
-            f"Adding RPC authorizations {removed_auths} for {agent_id}'s "
-            f"method {agent_method} timed out"
-        )
     except Exception as e:
         _log.error(
             f"{e}) \nCommand format should be agent_id.method "

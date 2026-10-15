@@ -265,4 +265,7 @@ class AuthEntry(object):
 
     def _check_validity(self):
         """Raises AuthEntryInvalid if entry is invalid."""
+        # '' is the router's no-user value, so no entry may hold it.
+        if self.user_id == "":
+            raise AuthEntryInvalid("user_id must not be empty")
         AuthEntry.valid_credentials(self.credentials, self.mechanism)

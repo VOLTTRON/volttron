@@ -40,7 +40,8 @@ from volttron.platform.auth.auth_file import AuthFileUnavailable
 from volttron.platform.auth.auth_protocols import (
     BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization)
 from volttron.platform.auth.auth_utils import dump_user
-from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.keystore import (KeyStore, KnownHostsStore,
+                                        create_keystore_dir)
 from volttron.platform.parameters import Parameters
 from volttron.platform.vip.socket import encode_key
 
@@ -121,6 +122,8 @@ class ZMQClientAuthentication(BaseAuthentication):
             keystore_dir = os.path.join(
                 self.volttron_home, 'keystores',
                 self.identity)
+
+            create_keystore_dir(keystore_dir)
 
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
@@ -220,6 +223,9 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         timeout = None
 
         self.authorization.update_protected_topics(protected_topics)
+        # The router refuses external pub/sub until it has a map, so send it
+        # before the first ZAP reply rather than at the next file change.
+        self.auth_service.push_router_update("start")
         while True:
             events = sock.poll(timeout)
             now = gevent.time.time()
@@ -494,7 +500,9 @@ class ZMQAuthorization(BaseServerAuthorization):
 
     def update_user_capabilites(self, user_to_caps):
         # Send auth update message to router
-        json_msg = jsonapi.dumpb(dict(capabilities=user_to_caps))
+        json_msg = jsonapi.dumpb(dict(
+            capabilities=user_to_caps,
+            platforms=self.auth_service.platform_map()))
         frames = [zmq.Frame(b"auth_update"), zmq.Frame(json_msg)]
         # <recipient, subsystem, args, msg_id, flags>
         self.auth_service.core.socket.send_vip(b"", b"pubsub", frames, copy=False)

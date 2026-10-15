@@ -23,6 +23,18 @@ def onmessage(peer, sender, bus, topic, headers, message):
     print("subscription_results[{}] = {}".format(topic, subscription_results[topic]))
 
 
+def delivered(results, topic, expected, seconds=10):
+    """True when the subscriber's results hold `expected` for `topic` within
+    `seconds`; a publish that never arrives gives False. Results hold either
+    the message itself or a dict with a 'message' key."""
+    def arrived():
+        got = results.get(topic)
+        if isinstance(got, dict) and 'message' in got:
+            got = got['message']
+        return got == expected
+    return poll_gevent_sleep(seconds, arrived)
+
+
 @pytest.fixture(scope="module")
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
@@ -113,7 +125,12 @@ def build_instances(request):
     """
     all_instances = []
 
-    def build_n_volttron_instances(n, bad_config=False, add_my_address=True):
+    def build_n_volttron_instances(n, bad_config=False, add_my_address=True,
+                                   peer_entries=True):
+        """peer_entries: True gives every platform an exact entry for every
+        other one; otherwise a collection of (i, j) pairs, where platform i
+        gets an exact entry for platform j. The wildcard entry is always
+        added, and an exact entry wins over it."""
         build_n_volttron_instances.count = n
         instances = []
         vip_addresses = []
@@ -158,6 +175,12 @@ def build_instances(request):
             address = vip_addresses.pop(0)
             instances[i].startup_platform(address)
             instances[i].allow_all_connections()
+            for j in range(0, n):
+                if j != i and (peer_entries is True or
+                               (i, j) in (peer_entries or ())):
+                    instances[i].allow_platform_peer(
+                        instances[j].serverkey,
+                        "peer.{}".format(instances[j].instance_name))
         gevent.sleep(11)
         instances = instances if n > 1 else instances[0]
 
@@ -463,17 +486,50 @@ def test_multiplatform_without_setup_mode(request, build_instances):
 
     gevent.sleep(1)
     for i in range(0, 2):
+        expected = [{'point': 'value' + str(i)}]
         agent1.vip.pubsub.publish(peer='pubsub', topic='devices/building1',
-                                 message=[{'point': 'value' + str(i)}])
-        gevent.sleep(0.5)
-        try:
-            message = subscription_results3['devices/building1']['message']
-            assert message == [{'point': 'value' + str(i)}]
+                                  message=expected)
+        assert delivered(subscription_results3, 'devices/building1', expected)
+        assert delivered(subscription_results1, 'devices/building1', expected)
 
-            message = subscription_results1['devices/building1']['message']
-            assert message == [{'point': 'value' + str(i)}]
-        except KeyError:
-            pass
+
+@pytest.mark.multiplatform
+def test_a_peer_admitted_only_by_a_wildcard_entry_has_its_publish_refused(
+        request, build_instances):
+    refused, admitted = {}, {}
+    # Platforms 1 and 3 hold exact entries for each other, and 1 holds one
+    # for 2, so 1 stores 2's subscription list. Platform 2 holds only the
+    # wildcard entry for 1, so it must refuse what 1 publishes.
+    p1, p2, p3 = build_instances(3, peer_entries={(0, 1), (0, 2), (2, 0)})
+    gevent.sleep(1)
+
+    def stop():
+        p1.shutdown_platform()
+        p2.shutdown_platform()
+        p3.shutdown_platform()
+    request.addfinalizer(stop)
+
+    def on_refused(peer, sender, bus, topic, headers, message):
+        refused[topic] = message
+
+    def on_admitted(peer, sender, bus, topic, headers, message):
+        admitted[topic] = message
+
+    p2.dynamic_agent.vip.pubsub.subscribe(
+        peer='pubsub', prefix='devices', callback=on_refused,
+        all_platforms=True)
+    p3.dynamic_agent.vip.pubsub.subscribe(
+        peer='pubsub', prefix='devices', callback=on_admitted,
+        all_platforms=True)
+    gevent.sleep(2)
+
+    topic = 'devices/building1'
+    expected = [{'point': 'value'}]
+    p1.dynamic_agent.vip.pubsub.publish(peer='pubsub', topic=topic,
+                                        message=expected)
+    assert delivered(admitted, topic, expected)
+    gevent.sleep(2)
+    assert refused == {}
 
 
 @pytest.mark.multiplatform
@@ -502,15 +558,11 @@ def test_multiplatform_local_subscription(request, build_instances):
 
     gevent.sleep(1)
     for i in range(1, 5):
+        expected = [{'point': 'value' + str(i)}]
         agent2.vip.pubsub.publish(peer='pubsub', topic='devices/building1',
-                                 message=[{'point': 'value' + str(i)}])
-        gevent.sleep(1)
-        try:
-            message = subscription_results1['devices/building1']['message']
-            assert message == [{'point': 'value' + str(i)}]
-            assert i == subscription_results1['devices/building1']['count']
-        except KeyError:
-            pass
+                                  message=expected)
+        assert delivered(subscription_results1, 'devices/building1', expected)
+        assert i == subscription_results1['devices/building1']['count']
 
 
 @pytest.mark.multiplatform

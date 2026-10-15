@@ -63,53 +63,52 @@ def test_topic_forwarding(setup_instances, topic_root, topic, replace, headers):
         pubsub_retrieved.append((topic, headers, message))
 
     pub_listener = inst_target.build_agent()
-    pub_listener.vip.pubsub.subscribe(peer="pubsub",
-                                      prefix=topic_root,
-                                      callback=_device_capture).get()
+    try:
+        pub_listener.vip.pubsub.subscribe(peer="pubsub",
+                                          prefix=topic_root,
+                                          callback=_device_capture).get()
 
-    gevent.sleep(0.5)
+        gevent.sleep(0.5)
 
-    full_topic = '/'.join([topic_root, topic])
+        full_topic = '/'.join([topic_root, topic])
 
-    if topic_root == 'devices':
-        headers, message = publish_device_messages(inst_forward,
-                                                   all_topic=full_topic)
-        validate_published_device_data(headers, message,
-                                       pubsub_retrieved[0][1],
-                                       pubsub_retrieved[0][2])
+        if topic_root == 'devices':
+            headers, message = publish_device_messages(inst_forward,
+                                                       all_topic=full_topic)
+            validate_published_device_data(headers, message,
+                                           pubsub_retrieved[0][1],
+                                           pubsub_retrieved[0][2])
 
-    elif topic_root == 'record':
-        headers, message = publish_message(inst_forward, full_topic,
-                                           headers=dict(foo='bar'),
-                                           message=dict(bim='baz'))
-        for k, v in headers.items():
-            assert k in pubsub_retrieved[0][1]
-            assert v == pubsub_retrieved[0][1][k]
-        for k, v in message.items():
-            assert k in pubsub_retrieved[0][2]
-            assert v == pubsub_retrieved[0][2][k]
+        elif topic_root == 'record':
+            headers, message = publish_message(inst_forward, full_topic,
+                                               headers=dict(foo='bar'),
+                                               message=dict(bim='baz'))
+            for k, v in headers.items():
+                assert k in pubsub_retrieved[0][1]
+                assert v == pubsub_retrieved[0][1][k]
+            for k, v in message.items():
+                assert k in pubsub_retrieved[0][2]
+                assert v == pubsub_retrieved[0][2][k]
 
-    elif topic_root == 'datalogger':
-        raise ValueError('not implemented yet')
-    else:
-        headers, message = publish_message(inst_forward, full_topic,
-                                           headers=dict(foo='bar'),
-                                           message='A simple string')
-        for k, v in headers.items():
-            assert k in pubsub_retrieved[0][1]
-            assert v == pubsub_retrieved[0][1][k]
-        assert message == pubsub_retrieved[0][2]
-        assert full_topic == pubsub_retrieved[0][0]
+        elif topic_root == 'datalogger':
+            raise ValueError('not implemented yet')
+        else:
+            headers, message = publish_message(inst_forward, full_topic,
+                                               headers=dict(foo='bar'),
+                                               message='A simple string')
+            for k, v in headers.items():
+                assert k in pubsub_retrieved[0][1]
+                assert v == pubsub_retrieved[0][1][k]
+            assert message == pubsub_retrieved[0][2]
+            assert full_topic == pubsub_retrieved[0][0]
 
-    if replace:
-        new_topic = full_topic
-        for item in replace:
-            new_topic = new_topic.replace(item['from'], item['to'])
-        assert new_topic == pubsub_retrieved[0][0]
-
-
-    # Stop the listener
-    pub_listener.core.stop()
+        if replace:
+            new_topic = full_topic
+            for item in replace:
+                new_topic = new_topic.replace(item['from'], item['to'])
+            assert new_topic == pubsub_retrieved[0][0]
+    finally:
+        pub_listener.core.stop()
 
 
 def test_target_shutdown(setup_instances):
@@ -136,19 +135,21 @@ def test_target_shutdown(setup_instances):
         pubsub_retrieved.append((topic, headers, message))
 
     pub_listener = inst_target.build_agent()
-    pub_listener.vip.pubsub.subscribe(peer="pubsub",
-                                      prefix="devices",
-                                      callback=_device_capture)
+    try:
+        pub_listener.vip.pubsub.subscribe(peer="pubsub",
+                                          prefix="devices",
+                                          callback=_device_capture)
 
-    gevent.sleep(0.1)
+        gevent.sleep(0.1)
 
-    all_topic = 'devices/campus/building/all'
-    headers, message = publish_device_messages(inst_forward, all_topic=all_topic)
+        all_topic = 'devices/campus/building/all'
+        headers, message = publish_device_messages(inst_forward, all_topic=all_topic)
 
-    validate_published_device_data(headers, message,
-                                   pubsub_retrieved[0][1], pubsub_retrieved[0][2])
+        validate_published_device_data(headers, message,
+                                       pubsub_retrieved[0][1], pubsub_retrieved[0][2])
 
-    pub_listener.core.stop()
+    finally:
+        pub_listener.core.stop()
     inst_target.stop_platform()
 
     assert not inst_target.is_running()
@@ -160,19 +161,22 @@ def test_target_shutdown(setup_instances):
     assert inst_target.is_running()
     gevent.sleep(3)
     pub_listener = inst_target.build_agent()
-    pub_listener.vip.pubsub.subscribe(peer="pubsub",
-                                      prefix="devices",
-                                      callback=_device_capture)
+    try:
+        pub_listener.vip.pubsub.subscribe(peer="pubsub",
+                                          prefix="devices",
+                                          callback=_device_capture)
 
-    gevent.sleep(3)
+        gevent.sleep(3)
 
-    all_topic = 'devices/campus/building/all'
-    headers, message = publish_device_messages(inst_forward,
-                                               all_topic=all_topic)
-    gevent.sleep(3)
-    validate_published_device_data(headers, message,
-                                   pubsub_retrieved[0][1],
-                                   pubsub_retrieved[0][2])
+        all_topic = 'devices/campus/building/all'
+        headers, message = publish_device_messages(inst_forward,
+                                                   all_topic=all_topic)
+        gevent.sleep(3)
+        validate_published_device_data(headers, message,
+                                       pubsub_retrieved[0][1],
+                                       pubsub_retrieved[0][2])
+    finally:
+        pub_listener.core.stop()
 
 
 def test_can_pause_publishing(setup_instances):

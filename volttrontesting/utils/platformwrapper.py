@@ -27,7 +27,7 @@ from .agent_additions import (add_volttron_central,
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi, is_rabbitmq_available
-from volttron.platform.agent.known_identities import (PLATFORM_WEB, CONTROL, CONTROL_CONNECTION,
+from volttron.platform.agent.known_identities import (AUTH, PLATFORM_WEB, CONTROL, CONTROL_CONNECTION,
                                                        PROCESS_IDENTITIES, CLEAR_AGENT_STATUS,
                                                        INSTALL_REMOVE_AGENTS, START_STOP_AGENTS,
                                                        STOP_PLATFORM, TAG_AGENTS)
@@ -425,6 +425,7 @@ class PlatformWrapper:
                 self.debug_mode = self.env.get('DEBUG', False)
             self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
             self._web_admin_api = None
+            self._csr_approver: Optional[gevent.Greenlet] = None
 
     @property
     def web_admin_api(self):
@@ -453,9 +454,20 @@ class PlatformWrapper:
                 pass
 
             if self.messagebus == 'rmq' and self.bind_web_address is not None:
-                self.enable_auto_csr()
-            # if self.bind_web_address is not None:
-            #     self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
+                self.start_csr_approver()
+
+    def allow_platform_peer(self, serverkey, user_id):
+        """ Add an exact CURVE entry for a peer platform's public key, the
+        entry that lets that platform send pub/sub messages to this one.
+        """
+        with with_os_environ(self.env):
+            entry = AuthEntry(user_id=user_id, credentials=serverkey,
+                              comments="Added by platformwrapper for a peer")
+            authfile = AuthFile(self.volttron_home + "/auth.json")
+            try:
+                authfile.add(entry)
+            except AuthFileEntryAlreadyExists:
+                pass
 
     def get_agent_identity(self, agent_uuid):
         identity = None
@@ -665,22 +677,99 @@ class PlatformWrapper:
         os.environ.update(self.env)
         return add_volttron_central_platform(self)
 
-    def is_auto_csr_enabled(self):
-        assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
-        assert self.bind_web_address, 'Must have a web based instance'
-        return self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'is_auto_allow_csr').get()
+    # ------------------------------------------------------------------
+    # CSR approval helpers (rmq + web instances only)
+    #
+    # A remote rmq instance or agent obtains its certificate by POSTing a CSR
+    # to this instance's /csr/request_new endpoint.  The platform records the
+    # request as PENDING and an administrator approves it through the auth
+    # service (``vctl auth approve`` or the admin web UI).  These helpers play
+    # the administrator from inside the test process, using dynamic_agent's
+    # ``allow_auth_modifications`` capability and the same auth service RPCs
+    # the real tools use.  Nothing here changes platform behaviour.
+    # ------------------------------------------------------------------
 
-    def enable_auto_csr(self):
+    def _assert_csr_capable(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'auto_allow_csr', True).get()
-        assert self.is_auto_csr_enabled()
+        assert self.dynamic_agent is not None, 'Platform must be running'
 
-    def disable_auto_csr(self):
-        assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
-        assert self.bind_web_address, 'Must have a web based instance'
-        self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'auto_allow_csr', False).get()
-        assert not self.is_auto_csr_enabled()
+    def pending_csrs(self):
+        """Return the identities (common names) of CSRs awaiting approval."""
+        self._assert_csr_capable()
+        pending = self.dynamic_agent.vip.rpc(AUTH, 'get_pending_authorizations').get(timeout=10)
+        return [p['identity'] for p in pending if p.get('status') == 'PENDING']
+
+    def approve_csr(self, identity):
+        """Approve one pending CSR by identity through the auth service."""
+        self._assert_csr_capable()
+        self.dynamic_agent.vip.rpc(AUTH, 'approve_authorization', identity).get(timeout=10)
+        self.logit(f"Approved CSR for {identity}")
+
+    def approve_pending_csrs(self, expected=None, timeout=60, poll_interval=1.0):
+        """Approve pending CSRs, waiting until the expected ones have arrived.
+
+        :param expected: iterable of identities that must be approved before
+            returning.  ``None`` approves whatever is pending right now and
+            returns immediately.
+        :param timeout: seconds to wait for every expected identity to show
+            up as pending.
+        :returns: set of identities approved by this call.
+        :raises AssertionError: if any expected identity never arrived.
+        """
+        self._assert_csr_capable()
+        expected = set(expected) if expected is not None else None
+        approved = set()
+        deadline = time.time() + timeout
+        while True:
+            for identity in self.pending_csrs():
+                if expected is None or identity in expected:
+                    self.approve_csr(identity)
+                    approved.add(identity)
+            if expected is None or expected <= approved:
+                return approved
+            if time.time() >= deadline:
+                raise AssertionError(
+                    f"Timed out waiting for CSRs {sorted(expected - approved)} to be requested")
+            gevent.sleep(poll_interval)
+
+    def start_csr_approver(self, poll_interval=1.0):
+        """Approve every CSR that arrives, for as long as the platform runs.
+
+        Spawns a greenlet in the test process that polls the auth service and
+        approves each pending CSR as it appears.  Remote agents and the
+        shovel/federation setup code already retry while a request is
+        PENDING, so this stands in for an administrator without the platform
+        ever auto-signing anything itself.  Idempotent; stopped automatically
+        by stop_platform/shutdown_platform.
+        """
+        self._assert_csr_capable()
+        if self._csr_approver is not None and not self._csr_approver.dead:
+            return
+
+        def _approve_forever():
+            while True:
+                try:
+                    self.approve_pending_csrs(expected=None)
+                except gevent.GreenletExit:
+                    raise
+                except Exception as e:  # keep approving across transient rpc errors
+                    self.logit(f"csr approver: {e!r}")
+                gevent.sleep(poll_interval)
+
+        self._csr_approver = gevent.spawn(_approve_forever)
+        self.logit("Started CSR approver")
+
+    def stop_csr_approver(self):
+        """Stop the background approver started by start_csr_approver, if any."""
+        g, self._csr_approver = self._csr_approver, None
+        if g is not None and not g.dead:
+            g.kill(block=True, timeout=5)
+            self.logit("Stopped CSR approver")
+
+    @property
+    def csr_approver_running(self):
+        return self._csr_approver is not None and not self._csr_approver.dead
 
     def add_capabilities(self, publickey, capabilities):
         if not self.auth_enabled:
@@ -1668,6 +1757,7 @@ class PlatformWrapper:
             if not self.is_running():
                 return
 
+            self.stop_csr_approver()
             self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
             self.dynamic_agent.core.stop()
             if self.p_process is not None:
@@ -1721,6 +1811,7 @@ class PlatformWrapper:
                 return
 
             running_pids = []
+            self.stop_csr_approver()
             if self.dynamic_agent:
                 try:# because we are not creating dynamic agent in setupmode
                     for agnt in self.list_agents():

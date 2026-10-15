@@ -33,6 +33,7 @@
 from volttron.platform import jsonapi
 import logging
 import os
+import stat
 import urllib.parse
 
 from zmq import curve_keypair
@@ -42,6 +43,92 @@ from .vip.socket import encode_key
 from volttron.platform import get_home
 
 _log = logging.getLogger(__name__)
+
+
+KEYSTORES_DIRNAME = "keystores"
+_PRIVATE_DIR_MODE = 0o700
+
+
+def _make_private_dir(path):
+    """Creates path owner-only whatever the umask. An existing directory is
+    left as it is; tighten_keystore_dirs repairs those."""
+    try:
+        os.mkdir(path, _PRIVATE_DIR_MODE)
+    except FileExistsError:
+        return
+    os.chmod(path, _PRIVATE_DIR_MODE)
+
+
+def create_keystore_dir(directory):
+    """Creates VOLTTRON_HOME/keystores and keystores/<id> owner-only.
+    Agent isolation mode runs with umask 007, which would leave them
+    group-writable, and the platform refuses reserved keys stored there."""
+    root = os.path.dirname(directory)
+    os.makedirs(os.path.dirname(root), exist_ok=True)
+    _make_private_dir(root)
+    _make_private_dir(directory)
+
+
+def tighten_keystore_dirs():
+    """Makes keystores/ and keystores/<id> owner-only when this user owns
+    them, for homes made by releases that created them group-writable.
+    Directories owned by anyone else, and symlinks, are left alone."""
+    root = os.path.join(get_home(), KEYSTORES_DIRNAME)
+    try:
+        children = [os.path.join(root, name) for name in os.listdir(root)]
+    except FileNotFoundError:
+        return
+    for path in [root] + children:
+        try:
+            info = os.lstat(path)
+        except FileNotFoundError:
+            continue
+        except OSError as err:
+            _log.warning("cannot check key directory %s: %s", path, err)
+            continue
+        if not stat.S_ISDIR(info.st_mode):
+            continue
+        if info.st_uid != os.getuid():
+            _log.warning("not tightening key directory %s: it is owned by "
+                         "another user", path)
+            continue
+        if stat.S_IMODE(info.st_mode) == _PRIVATE_DIR_MODE:
+            continue
+        os.chmod(path, _PRIVATE_DIR_MODE)
+        _log.info("tightened %s from mode %o to %o", path,
+                  stat.S_IMODE(info.st_mode), _PRIVATE_DIR_MODE)
+
+
+class HomeOwnedByAnotherUser(Exception):
+    """VOLTTRON_HOME is writable by group or others and is owned by someone
+    other than the user running the platform, so the platform cannot fix it."""
+
+
+def tighten_volttron_home():
+    """Removes group and other write from VOLTTRON_HOME when this user owns
+    it. Every read and execute bit stays, because agent users reach their
+    folders through the home's execute bit. The platform's key lives in the
+    home and is refused while the home is writable by anyone else. A home
+    owned by another user raises HomeOwnedByAnotherUser. A symlinked home
+    is followed: get_home returns its real path, and that directory is
+    tightened. A non-directory is left alone."""
+    home = get_home()
+    info = os.lstat(home)
+    if not stat.S_ISDIR(info.st_mode):
+        return
+    loose = info.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+    if not loose:
+        return
+    if info.st_uid != os.getuid():
+        raise HomeOwnedByAnotherUser(
+            "VOLTTRON_HOME {0} is writable by its group or others and is "
+            "owned by another user. Ask its owner to run: chmod go-w {0}"
+            .format(home))
+    before = stat.S_IMODE(info.st_mode)
+    after = before & ~loose
+    os.chmod(home, after)
+    _log.warning("removed group and other write access from %s: mode %o "
+                 "changed to %o", home, before, after)
 
 
 class BaseJSONStore:
@@ -98,6 +185,9 @@ class KeyStore(BaseJSONStore):
     def __init__(self, filename=None, encoded_public=None, encoded_secret=None):
         if filename is None:
             filename = self.get_default_path()
+        directory = os.path.dirname(filename)
+        if os.path.basename(os.path.dirname(directory)) == KEYSTORES_DIRNAME:
+            create_keystore_dir(directory)
         super(KeyStore, self).__init__(filename)
         if not self.isvalid():
             if encoded_public and encoded_secret:

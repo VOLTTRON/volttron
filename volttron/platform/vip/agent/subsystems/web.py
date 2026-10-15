@@ -57,6 +57,7 @@ class WebSubSystem(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._opened, 'client.opened')
+            rpc.export(self._authorize, 'client.authorize')
             rpc.export(self._closed, 'client.closed')
             rpc.export(self._message, 'client.message')
             rpc.export(self._route_callback, 'route.callback')
@@ -125,7 +126,7 @@ class WebSubSystem(SubsystemBase):
                          static_path).get(timeout=10)
 
     def register_websocket(self, endpoint, opened=None, closed=None,
-                           received=None):
+                           received=None, authorize=None):
         """
         The :meth:`register_websocket` method registers a websocket endpoint
         that can be connected to through the
@@ -141,6 +142,12 @@ class WebSubSystem(SubsystemBase):
 
             def ws_closed(self, endpoint):
                 print('ws_closed endpoint {}'.format(endpoint))
+
+        The authorize event is called before the connection is upgraded, with
+        a dict of the request's REMOTE_ADDR, PATH_INFO, HTTP_HOST, HTTP_ORIGIN
+        and HTTP_COOKIE (without the platform login cookie), and must return
+        True to allow it.  Without an authorize callback every request is
+        allowed.
 
         The received event is triggered when the websocket is written to from
         the client.  The received event must have a signature such as the
@@ -162,13 +169,17 @@ class WebSubSystem(SubsystemBase):
             the endpoint.
         :param received:
             An event triggered when data comes in on the endpoint's websocket.
+        :param authorize:
+            Called before the upgrade; the connection proceeds only when it
+            returns True.
         :type endpoint: str
         :type opened: function
         :type closed: function
         :type received: function
+        :type authorize: function
         """
         _log.info("Agent registering websocket at: {}".format(endpoint))
-        self._ws_endpoint[endpoint] = (opened, closed, received)
+        self._ws_endpoint[endpoint] = (opened, closed, received, authorize)
         self._rpc().call(PLATFORM_WEB, 'register_websocket', endpoint).get(
             timeout=5)
 
@@ -208,10 +219,24 @@ class WebSubSystem(SubsystemBase):
         if callbacks is None:
             _log.error('Websocket endpoint {} is not available'.format(
                 endpoint))
-        elif callbacks[0]:
+            return False
+        if callbacks[0]:
             return callbacks[0](fromip, endpoint)
+        # Known endpoint with no opened callback: None keeps the socket open.
+        return None
 
-        return False
+    def _authorize(self, request):
+        user = str(self._rpc().context.vip_message.user)
+        if user != PLATFORM_WEB:
+            _log.warning('client.authorize refused for caller %r: only %s may call it',
+                         user, PLATFORM_WEB)
+            return False
+        endpoint = request.get('PATH_INFO') if isinstance(request, dict) else None
+        callbacks = self._ws_endpoint.get(endpoint) if isinstance(endpoint, str) else None
+        if callbacks is None:
+            _log.error('Websocket endpoint {} is not available'.format(endpoint))
+            return False
+        return callbacks[3](request) if callbacks[3] else True
 
     def _closed(self, endpoint):
         _log.info('Client closed websocket endpoint: {}'.format(endpoint))

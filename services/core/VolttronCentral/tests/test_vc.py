@@ -34,101 +34,45 @@ from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.web import DiscoveryInfo
 # noinspection PyUnresolvedReferences
 from vc_fixtures import vc_instance, vcp_instance, vc_and_vcp_together
-from volttrontesting.utils.utils import AgentMock
 from volttron.platform import jsonapi, jsonrpc, get_services_core
-from volttron.platform.web.websocket import VolttronWebSocket
-from volttrontesting.utils.web_utils import get_test_web_env
-from volttron.platform.vip.agent import Agent
-from services.core.VolttronCentral.volttroncentral.agent import VolttronCentralAgent
 import gevent
-import grequests
-
-
-@pytest.fixture
-def mock_vc():
-    VolttronCentralAgent.__bases__ = (AgentMock.imitate(Agent, VolttronCentralAgent()),)
-    vc = VolttronCentralAgent()
-    vc._configure("test_config", "NEW", {})
-    yield vc
-
-
-@pytest.fixture
-def mock_jsonrpc_env(path="jsonrpc", input_data=None, method="POST"):
-    yield get_test_web_env(path, input_data, method=method)
-
-
-@pytest.fixture
-def mock_response(monkeypatch):
-    def mock_resp(*args, **kwargs):
-        class MockResp:
-            def __init__(self):
-                mock_args = kwargs['json']
-                if mock_args['username'] == 'test' and mock_args['password'] == 'test':
-                    self.ok = True
-                    self.text = '{"refresh_token": "super_secret_refresh_token", "access_token": "super_secret_access_token"}'
-                else:
-                    self.ok = False
-                    self.text = "invalid username/password"
-            def send(self) -> MockResp:
-                return self
-            @property
-            def response(self) -> MockResp:
-                return self
-        return MockResp()
-    monkeypatch.setattr(grequests, "post", mock_resp)
+from vc_agent_factory import env, login, make_agent, rpc, set_login_answer
 
 
 @pytest.mark.vc
-def test_jsonrpc_get_authorization(mock_response, mock_vc, mock_jsonrpc_env, monkeypatch):
+def test_jsonrpc_get_authorization(monkeypatch):
+    vc = make_agent(monkeypatch)
+    assert len(vc._authenticated_sessions._sessions) == 0
 
-    mock_claims = {"groups": ["test_admin"]}
-    mock_vc.vip.web.configure_mock(**{"get_user_claims.return_value": mock_claims})
+    login(vc, user='test', groups=['test_admin'])
 
-    data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "test"}, None)
+    assert len(vc._authenticated_sessions._sessions) == 1
 
-    assert len(mock_vc._authenticated_sessions._sessions) == 0
-
-    mock_vc.jsonrpc(mock_jsonrpc_env, data)
-
-    assert len(mock_vc._authenticated_sessions._sessions) == 1
-
-    data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "nah"}, None)
-    response = mock_vc.jsonrpc(mock_jsonrpc_env, data)
+    set_login_answer(vc, {})
+    response = vc.jsonrpc(env(), rpc("get_authorization",
+                                     {"username": "test", "password": "nah"}))
     assert response['error']['message'] == "Invalid username/password specified."
 
 
-@pytest.fixture
-def mock_vc_jsonrpc(mock_response, mock_vc, mock_jsonrpc_env, monkeypatch):
+@pytest.mark.vc
+def test_jsonrpc_is_authorized(monkeypatch):
+    vc = make_agent(monkeypatch)
+    vc._platforms.get_platform_list.return_value = []
+    cookie, channel = login(vc, user='test', groups=['test_admin'])
 
-    #with mock.patch('volttroncentral.agent.grequests', new=grequests_mock):
-    mock_claims = {"groups": ["test_admin"]}
-    mock_vc.vip.web.configure_mock(**{"get_user_claims.return_value": mock_claims})
-    # mock_vc.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
-    data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "test"}, None)
-    mock_vc.jsonrpc(mock_jsonrpc_env, data)
-    yield mock_vc
+    response = vc.jsonrpc(env(cookie=cookie), rpc("list_platforms", None, channel))
 
-
-@pytest.fixture
-def mock_websocket(mock_vc):
-    mock_vc.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
-    #.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
+    assert response['result'] == []
 
 
 @pytest.mark.vc
-def test_jsonrpc_is_authorized(mock_vc_jsonrpc, mock_jsonrpc_env):
+def test_jsonrpc_is_unauthorized(monkeypatch):
+    vc = make_agent(monkeypatch)
+    cookie, _ = login(vc, user='test', groups=['test_admin'])
 
-    data = jsonrpc.json_method("12345", "list_platforms", None, None)
-    data['authorization'] = '{"refresh_token": "super_secret_refresh_token", "access_token": "super_secret_access_token"}'
-    response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
-    assert len(response['result']) is 0 and type(response['result']) is list
+    response = vc.jsonrpc(env(cookie=cookie),
+                          rpc("list_platforms", None, "really_bad_channel"))
 
-
-@pytest.mark.vc
-def test_jsonrpc_is_unauthorized(mock_vc_jsonrpc, mock_jsonrpc_env):
-    data = jsonrpc.json_method("12345", "list_platforms", None, None)
-    data['authorization'] = "really_bad_access_token"
-    response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
     assert response['error']['message'] == "Invalid authentication token"
 
 
