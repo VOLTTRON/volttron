@@ -136,19 +136,21 @@ def test_target_shutdown(setup_instances):
         pubsub_retrieved.append((topic, headers, message))
 
     pub_listener = inst_target.build_agent()
-    pub_listener.vip.pubsub.subscribe(peer="pubsub",
-                                      prefix="devices",
-                                      callback=_device_capture)
+    try:
+        pub_listener.vip.pubsub.subscribe(peer="pubsub",
+                                          prefix="devices",
+                                          callback=_device_capture)
 
-    gevent.sleep(0.1)
+        gevent.sleep(0.1)
 
-    all_topic = 'devices/campus/building/all'
-    headers, message = publish_device_messages(inst_forward, all_topic=all_topic)
+        all_topic = 'devices/campus/building/all'
+        headers, message = publish_device_messages(inst_forward, all_topic=all_topic)
 
-    validate_published_device_data(headers, message,
-                                   pubsub_retrieved[0][1], pubsub_retrieved[0][2])
+        validate_published_device_data(headers, message,
+                                       pubsub_retrieved[0][1], pubsub_retrieved[0][2])
 
-    pub_listener.core.stop()
+    finally:
+        pub_listener.core.stop()
     inst_target.stop_platform()
 
     assert not inst_target.is_running()
@@ -160,19 +162,22 @@ def test_target_shutdown(setup_instances):
     assert inst_target.is_running()
     gevent.sleep(3)
     pub_listener = inst_target.build_agent()
-    pub_listener.vip.pubsub.subscribe(peer="pubsub",
-                                      prefix="devices",
-                                      callback=_device_capture)
+    try:
+        pub_listener.vip.pubsub.subscribe(peer="pubsub",
+                                          prefix="devices",
+                                          callback=_device_capture)
 
-    gevent.sleep(3)
+        gevent.sleep(3)
 
-    all_topic = 'devices/campus/building/all'
-    headers, message = publish_device_messages(inst_forward,
-                                               all_topic=all_topic)
-    gevent.sleep(3)
-    validate_published_device_data(headers, message,
-                                   pubsub_retrieved[0][1],
-                                   pubsub_retrieved[0][2])
+        all_topic = 'devices/campus/building/all'
+        headers, message = publish_device_messages(inst_forward,
+                                                   all_topic=all_topic)
+        gevent.sleep(3)
+        validate_published_device_data(headers, message,
+                                       pubsub_retrieved[0][1],
+                                       pubsub_retrieved[0][2])
+    finally:
+        pub_listener.core.stop()
 
 
 def test_can_pause_publishing(setup_instances):
