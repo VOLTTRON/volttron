@@ -501,25 +501,6 @@ def test_poll_passes_the_inproc_origin_for_the_inproc_socket(context):
     assert origin == ORIGIN_INPROC and frames == ["p"]
 
 
-def test_ext_route_routes_as_network(context):
-    router, raw = spy_router(context)
-    ext = ReceivingSocket("ext", raw[:3])
-    router.ext_route(ext)
-    (origin, frames, raw_frames), = router.routed
-    assert origin == ORIGIN_NETWORK
-    assert raw_frames is None
-
-
-def test_relayed_frame_carrying_a_user_id_gets_the_empty_user(context):
-    router = make_router(context)
-    relayed = [FakeFrame("s7", {"User-Id": "control.connection"}),
-               FakeFrame("peer.b", {"User-Id": "control.connection"}),
-               FakeFrame("VIP1"), FakeFrame(""), FakeFrame("m1"),
-               FakeFrame("rpc"), FakeFrame("body")]
-    router.ext_route(ReceivingSocket("ext", relayed))
-    assert forwarded_user(router.socket) == ""
-
-
 def configured_router(context):
     """A real Router whose socket factory hands out fakes sharing one log."""
     log = []

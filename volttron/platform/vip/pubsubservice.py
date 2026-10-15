@@ -40,6 +40,7 @@ from volttron.utils.frame_serialization import serialize_frames
 
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
+from .router import _LOGGED_SENDERS_LIMIT, is_power_of_ten
 from volttron.platform.jsonrpc import (INVALID_REQUEST, UNAUTHORIZED)
 from volttron.platform import jsonapi
 
@@ -51,6 +52,35 @@ _ROUTE_ERRORS = {
 }
 
 _log = logging.getLogger(__name__)
+
+
+# Bounds on external subscription lists. One message, the platforms stored in
+# all and each prefix are bounded, so a peer cannot grow what the router keeps
+# and scans on every publish without limit.
+_MAX_EXTERNAL_PLATFORMS = 64
+_MAX_EXTERNAL_PREFIXES = 1024
+_MAX_STORED_EXTERNAL_PLATFORMS = 256
+_MAX_EXTERNAL_PREFIX_LENGTH = 256
+
+
+def _subscription_list_problem(msg):
+    """None for a dict of text keys to lists of text within the per-message
+    bounds, otherwise the reason it is refused."""
+    if not isinstance(msg, dict) or not all(
+            isinstance(name, str) and isinstance(prefixes, list)
+            and all(isinstance(prefix, str) for prefix in prefixes)
+            for name, prefixes in msg.items()):
+        return "not a dict of text keys to lists of text"
+    if len(msg) > _MAX_EXTERNAL_PLATFORMS:
+        return "more than %d platforms" % _MAX_EXTERNAL_PLATFORMS
+    if any(len(prefixes) > _MAX_EXTERNAL_PREFIXES for prefixes in msg.values()):
+        return "more than %d prefixes for a platform" % _MAX_EXTERNAL_PREFIXES
+    if any(len(prefix) > _MAX_EXTERNAL_PREFIX_LENGTH
+           for prefixes in msg.values() for prefix in prefixes):
+        return ("a prefix longer than %d characters"
+                % _MAX_EXTERNAL_PREFIX_LENGTH)
+    return None
+
 
 class PubSubService:
     def __init__(self, socket, protected_topics, routing_service, *args, **kwargs):
@@ -68,6 +98,9 @@ class PubSubService:
         self._protected_topics = ProtectedPubSubTopics()
         self._load_protected_topics(protected_topics)
         self._ext_subscriptions = defaultdict(set)
+        self._bad_external_lists = 0
+        self._refused_senders = set()
+        self._refusals_suppressed = False
         self._ext_router = routing_service
         if self._ext_router is not None:
             self._ext_router.register('on_connect', self.external_platform_add)
@@ -645,8 +678,9 @@ class PubSubService:
             elif op == 'request_response':
                 pass
             else:
-                self._logger.error("PUBSUBSERVICE Unknown pubsub request {}".format(op.decode("utf-8")))
-                pass
+                # The operation is chosen by the peer and may not be text.
+                self._logger.error(
+                    "PUBSUBSERVICE Unknown pubsub request %s", repr(op)[:100])
 
         if result is not None:
             # Form response frame
@@ -716,6 +750,36 @@ class PubSubService:
             for name in external_platforms:
                 self._ext_router.send_external(name, frames)
 
+    def _note_refused_list(self, sender, reason):
+        """Count a refused external list; warn once per sender, and again at
+        each power of ten. Any authenticated peer can send one, and the
+        senders remembered are bounded."""
+        self._bad_external_lists += 1
+        count = self._bad_external_lists
+        if not isinstance(sender, str):
+            sender = '<not text>'
+        if sender not in self._refused_senders:
+            if len(self._refused_senders) < _LOGGED_SENDERS_LIMIT:
+                self._refused_senders.add(sender)
+                self._logger.warning(
+                    "Refused an external subscription list from %r: %s "
+                    "(%d refused so far)", sender, reason, count)
+            elif not self._refusals_suppressed:
+                self._refusals_suppressed = True
+                self._logger.warning(
+                    "Further refused external subscription list warnings "
+                    "are suppressed after %d senders", _LOGGED_SENDERS_LIMIT)
+        if is_power_of_ten(count):
+            self._logger.warning(
+                "%d external subscription lists refused so far", count)
+
+    def _stored_platforms_after(self, msg):
+        """How many platforms would be stored once `msg` is applied."""
+        local = get_platform_instance_name()
+        new = {name for name in msg
+               if name != local and name not in self._ext_subscriptions}
+        return len(self._ext_subscriptions) + len(new)
+
     def _update_external_subscriptions(self, frames):
         """
         Store external subscriptions
@@ -727,10 +791,16 @@ class PubSubService:
         if len(frames) <= 7:
             return False
         else:
-            _log.debug(f"external subscription frames {frames}")
             msg = frames[7]
-            if not isinstance(msg, dict):
-                raise ValueError(f"Invalid frame passed for frame {frames[7]}")
+            problem = _subscription_list_problem(msg)
+            if (problem is None and self._stored_platforms_after(msg)
+                    > _MAX_STORED_EXTERNAL_PLATFORMS):
+                problem = ("more than %d platforms stored"
+                           % _MAX_STORED_EXTERNAL_PLATFORMS)
+            if problem is not None:
+                self._note_refused_list(frames[0], problem)
+                return False
+            _log.debug("external subscription frames %s", frames)
 
             try:
                 this_platform_instance_name = get_platform_instance_name()
@@ -745,8 +815,10 @@ class PubSubService:
                     prefixes = msg[instance_name]
                     # Store external subscription list for later use (during publish)
                     self._ext_subscriptions[instance_name] = prefixes
-                    self._logger.debug("PUBSUBSERVICE New external list from {0}: List: {1}".
-                                       format(instance_name, self._ext_subscriptions))
+                    self._logger.debug(
+                        "PUBSUBSERVICE New external list for %s: %d prefixes "
+                        "(%d platforms stored)", instance_name, len(prefixes),
+                        len(self._ext_subscriptions))
                     if self._rabbitmq_agent:
                         for prefix in prefixes:
                             self._rabbitmq_agent.vip.pubsub.subscribe('pubsub',

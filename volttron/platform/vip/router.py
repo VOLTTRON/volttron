@@ -67,6 +67,12 @@ _INVALID_SUBSYSTEM = (
 )
 
 
+def is_power_of_ten(count):
+    """True for 10, 100, 1000, ...; 1 is excluded because the first
+    occurrence is logged by name."""
+    return count >= 10 and str(count).rstrip('0') == '1'
+
+
 class BaseRouter:
     '''Abstract base class of VIP router implementation.
 
@@ -104,6 +110,7 @@ class BaseRouter:
         self._identity_sockets = {}
         self._logged_senders = {}
         self._suppression_logged = set()
+        self._drop_counts = {}
         self._peers = set()
         self._poller = self._poller_class()
         self._ext_sockets = []
@@ -173,7 +180,12 @@ class BaseRouter:
             return self.socket
         raise ValueError('unknown message origin: {!r}'.format(origin))
 
-    def _log_once(self, kind, sender, message):
+    def _log_once(self, kind, sender, message, *args):
+        """Warn once per sender and kind.
+
+        `message` is a %-format string whose first argument is the sender;
+        `args` fill the rest.
+        """
         seen = self._logged_senders.setdefault(kind, set())
         if sender in seen:
             return
@@ -185,7 +197,19 @@ class BaseRouter:
                     kind, _LOGGED_SENDERS_LIMIT)
             return
         seen.add(sender)
-        _log.warning(message, sender)
+        _log.warning(message, sender, *args)
+
+    def _count_drop(self, kind):
+        """Count a dropped message and return the count for its kind.
+
+        The count includes senders whose warning is suppressed. A summary is
+        logged at each power of ten, so a sustained drop stays visible
+        without a line per message.
+        """
+        count = self._drop_counts[kind] = self._drop_counts.get(kind, 0) + 1
+        if is_power_of_ten(count):
+            _log.warning('%d messages dropped so far: %s', count, kind)
+        return count
 
     def _claim_identity(self, sender, origin):
         '''Record the socket sender arrived on, or refuse the message.
@@ -335,6 +359,11 @@ class BaseRouter:
 
         issue(INCOMING, frames)
         # _log.debug(f"ROUTER Receiving frames: {frames}")
+        # Frames are JSON-decoded, so a peer can send a sender that cannot be
+        # a dict key or a set member.
+        if frames and not isinstance(frames[0], str):
+            issue(UNROUTABLE, frames, 'sender is not text')
+            return
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
@@ -386,6 +415,9 @@ class BaseRouter:
             elif name == 'error':
                 return
             else:
+                # Whatever USER_ID the peer wrote is replaced, so a response
+                # built from the frames carries the router's value.
+                frames[3] = user_id
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:
                     # Handler does not know of the subsystem

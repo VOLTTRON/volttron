@@ -103,33 +103,10 @@ class RoutingService:
                 instance_config = frames[7]  # jsonapi.loads(instance_config)
                 self._build_connection(instance_config)
                 return False
-            # Respond to Hello/Welcome messages from other instances
             elif op == 'hello':
-                handshake_request = frames[7]
-                try:
-                    # Respond to 'hello' request with 'welcome'
-                    if handshake_request == b'hello':
-                        name = frames[8]
-                        frames.pop(0)
-                        _log.debug("HELLO Recieved hello, sending welcome to {}".format(name))
-                        frames[6] = 'welcome'
-                        frames[7] = self._my_instance_name
-                        try:
-                            _log.debug("Sending welcome message to sender {}".format(name))
-                            self.send_external(name, frames)
-                        except ZMQError as exc:
-                            _log.error("ZMQ error: ")
-                    # Respond to 'welcome' response by sending Pubsub subscription list
-                    elif handshake_request == 'welcome':
-                        name = frames[8]
-                        _log.debug("HELLO Received welcome. Connection established with: {}".format(name))
-                        try:
-                            self._instances[name]['status'] = STATUS_CONNECTED
-                            self._onconnect_pubsub_handler(name)
-                        except KeyError as exc:
-                            _log.error("Welcome message received from unknown platform: {}".format(name))
-                except IndexError as exc:
-                    _log.error("Insufficient frames in hello message {}".format(exc))
+                # The handshake is not used; connections are made from the
+                # monitor events, so a hello or welcome acts on nothing.
+                _log.debug("Ignoring a routing_table hello message")
             elif op == "web-addresses":
                 self._web_addresses = frames[7]
                 self._web_addresses = self._web_addresses
@@ -241,7 +218,8 @@ class RoutingService:
         ext_platform_address.identity = sock.identity
         try:
             ext_platform_address.connect(sock)
-            # Form VIP message to send to remote instance
+            # Kept so a platform on older code still gets its hello; this
+            # tree ignores the reply.
             frames = serialize_frames(['', 'VIP1', '', '', 'routing_table', 'hello', 'hello', self._my_instance_name])
             _log.debug(f"HELLO Sending hello to: {instance_name}")
             self.send_external(instance_name, frames)
@@ -370,7 +348,6 @@ class RoutingService:
             #             raise
         except KeyError:
             _log.debug(f"******************My instance name is: {self._my_instance_name}")
-            frames[:0] = [self._my_instance_name]
             _log.debug("Key error for platform {0}".format(instance_name))
             #success = self._send(self._socket, frames)
         return success

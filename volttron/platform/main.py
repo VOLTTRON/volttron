@@ -55,8 +55,9 @@ from urllib.parse import urlparse
 
 import gevent
 import zmq
-from zmq import ZMQError, green, NOBLOCK
+from zmq import ZMQError, green
 
+from volttron.platform.agent.known_identities import AUTH, CONTROL, KEY_DISCOVERY
 from volttron.platform.agent.utils import get_platform_instance_name
 # Create a context common to the green and non-green zmq modules.
 from volttron.platform.instance_setup import _update_config_file
@@ -296,9 +297,46 @@ class FramesFormatter:
         self.frames = frames
 
     def __repr__(self):
-        return str([bytes(f) for f in self.frames])
+        return str([bytes(f) if isinstance(f, zmq.Frame) else f
+                    for f in self.frames])
 
     __str__ = __repr__
+
+
+def _from_control(sender, user_id, frames):
+    return user_id == CONTROL
+
+
+def _from_control_or_for_itself(sender, user_id, frames):
+    return user_id == CONTROL or (len(frames) > 6 and frames[6] == sender)
+
+
+def _from_key_discovery(sender, user_id, frames):
+    return user_id == KEY_DISCOVERY
+
+
+def _from_auth_service(sender, user_id, frames):
+    return user_id == AUTH
+
+
+def _from_nobody(sender, user_id, frames):
+    return False
+
+
+# Router-addressed operations that change platform state, and who may send
+# each. Keys are (subsystem, operation); the subsystems that have no operation
+# frame use None. The user is the one the router assigned, never a frame value.
+_ROUTER_OPERATIONS = {
+    ('quit', None): _from_control,
+    ('agentstop', None): _from_control_or_for_itself,
+    ('routing_table', 'setupmode_platform_connection'): _from_key_discovery,
+    ('routing_table', 'normalmode_platform_connection'): _from_key_discovery,
+    ('routing_table', 'web-addresses'): _from_key_discovery,
+    # No sender in the tree and the handler cannot run, so nobody may call it.
+    ('routing_table', 'update'): _from_nobody,
+    ('pubsub', 'auth_update'): _from_auth_service,
+    ('pubsub', 'protected_update'): _from_auth_service,
+}
 
 
 class Router(BaseRouter):
@@ -463,21 +501,34 @@ class Router(BaseRouter):
     #            result.append(f.bytes)
     #    return result
 
+    def _operation_allowed(self, frames, user_id):
+        subsystem = frames[5]
+        operation = frames[6] if len(frames) > 6 else None
+        # Frames are JSON-decoded, so an operation may not be hashable text.
+        if not isinstance(subsystem, str):
+            return True
+        rule = _ROUTER_OPERATIONS.get((subsystem, None))
+        if rule is None and isinstance(operation, str):
+            rule = _ROUTER_OPERATIONS.get((subsystem, operation))
+            label = '{} {}'.format(subsystem, operation)
+        else:
+            label = subsystem
+        if rule is None or rule(frames[0], user_id, frames):
+            return True
+        self._log_once(
+            'refused ' + label, frames[0],
+            'Refused router operation "%s" from %%r' % label)
+        return False
+
     def handle_subsystem(self, frames, user_id):
         subsystem = frames[5]
+        if not self._operation_allowed(frames, user_id):
+            return False
         if subsystem == 'quit':
-            sender = frames[0]
-            # was if sender == 'control' and user_id == self.default_user_id:
-            # now we serialize frames and if user_id is always the sender and not
-            # recipents.get('User-Id') or default user name
-            if sender == 'control':
-                if self._ext_routing:
-                    self._ext_routing.close_external_connections()
-                self.stop()
-                raise KeyboardInterrupt()
-            else:
-                _log.error(
-                    f"Sender {sender} not authorized to shutdown platform")
+            if self._ext_routing:
+                self._ext_routing.close_external_connections()
+            self.stop()
+            raise KeyboardInterrupt()
         elif subsystem == 'agentstop':
             try:
                 drop = frames[6]
@@ -547,6 +598,34 @@ class Router(BaseRouter):
     def _add_pubsub_peers(self, peer):
         self.pubsub.peer_add(peer)
 
+    def _route_guarded(self, frames, origin, raw_frames=None):
+        """Route one message; a message that makes routing raise is dropped.
+
+        Any peer can send frames the services do not expect, and an exception
+        here would stop the whole platform. The warning names the exception
+        type and subsystem once per sender; the message body is
+        peer-controlled and is not logged, and the traceback is kept at DEBUG.
+        """
+        sender = '<unreadable>'
+        subsystem = '<unknown>'
+        try:
+            decoded = deserialize_frames(frames)
+            sender = decoded[0] if decoded and isinstance(
+                decoded[0], str) else '<not text>'
+            if len(decoded) > 5:
+                subsystem = repr(decoded[5])[:100]
+            self.route(decoded, origin, raw_frames)
+        except Exception as ex:
+            name = type(ex).__name__
+            kind = 'route failed ' + name
+            count = self._count_drop(kind)
+            _log.debug('Dropped a message from %r in subsystem %s',
+                       sender, subsystem, exc_info=True)
+            self._log_once(
+                kind, sender,
+                'Dropped a message from %%r in subsystem %%s: routing raised '
+                '%s (%%d dropped so far)' % name, subsystem, count)
+
     def poll_sockets(self):
         """
         Poll for incoming messages through router socket or other external socket connections
@@ -554,18 +633,20 @@ class Router(BaseRouter):
         try:
             sockets = dict(self._poller.poll())
         except ZMQError as ex:
+            if ex.errno in (zmq.ETERM, zmq.ENOTSOCK):
+                raise
             _log.error("ZMQ Error while polling: {}".format(ex))
+            return
 
         for sock in sockets:
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames), ORIGIN_NETWORK,
-                               frames)
+                    self._route_guarded(frames, ORIGIN_NETWORK, frames)
             elif sock == self.inproc_socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames), ORIGIN_INPROC)
+                    self._route_guarded(frames, ORIGIN_INPROC)
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -582,55 +663,10 @@ class Router(BaseRouter):
         :param socket: socket affected files: {}
         :return:
         """
-        # Expecting incoming frames to follow this VIP format:
-        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
-        # No raw frames: this socket is the platform's own outgoing
-        # connection, so any User-Id on a frame came from the remote peer.
-        self.route(deserialize_frames(frames), ORIGIN_NETWORK)
-        # for f in frames:
-        #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
-        if len(frames) < 6:
-            return
-
-        sender, proto, user_id, msg_id, subsystem = frames[:5]
-        if proto != 'VIP1':
-            return
-
-        # Handle 'EXT_RPC' subsystem messages
-        name = subsystem
-        if name == 'external_rpc':
-            # Reframe the frames
-            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loads(msg)
-            peer = msg_data['to_peer']
-            # Send to destionation agent/peer
-            # Form new frame for local
-            frames[:9] = [
-                peer, sender, proto, usr_id, msg_id, 'external_rpc', msg
-            ]
-            try:
-                self._sender.send_multipart(frames, flags=NOBLOCK, copy=False)
-            except ZMQError as ex:
-                _log.debug("ZMQ error: {}".format(ex))
-                pass
-        # Handle 'pubsub' subsystem messages
-        elif name == 'pubsub':
-            if frames[1] == 'VIP1':
-                recipient = ''
-                frames[:1] = ['', '']
-                # for f in frames:
-                #     _log.debug("frames: {}".format(bytes(f)))
-            result = self.pubsub.handle_subsystem(frames, user_id)
-            return result
-        # Handle 'routing_table' subsystem messages
-        elif name == 'routing_table':
-            # for f in frames:
-            #     _log.debug("frames: {}".format(bytes(f)))
-            if frames[1] == 'VIP1':
-                frames[:1] = ['', '']
-            result = self._ext_routing.handle_subsystem(frames)
-            return result
+        # Read the socket empty and drop the message: a remote platform
+        # chooses every frame, and nothing it sends on this socket may act on
+        # local peers or claim an identity.
+        socket.recv_multipart(copy=False)
 
 
 class GreenRouter(Router):
