@@ -24,8 +24,8 @@ VOLTTRON Central will allow you to:
 .. note::
 
     Installing, removing, starting and stopping agents from VOLTTRON Central works only after an operator grants the
-    ``install_remove_agents`` and ``start_stop_agents`` capabilities to the Platform Agent on the managed platform. See
-    :ref:`Granting agent control to the VCP agent <VCP-Grant-Agent-Control>`.
+    ``install_remove_agents`` and ``start_stop_agents`` capabilities to the VolttronCentralPlatform (VCP) agent on the
+    managed platform. See :ref:`Granting agent control to the VCP agent <VCP-Grant-Agent-Control>`.
 
 
 Volttron Central Agent

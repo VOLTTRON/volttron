@@ -27,12 +27,13 @@ name is normalized into a identity.
 Granting agent control to the VCP agent
 ---------------------------------------
 
-The VCP agent is not granted the capabilities to install, remove, start or stop agents when it is installed. Until an
-operator grants them, VOLTTRON Central cannot install or remove agents on the platform (``install_remove_agents``) or
-start, stop or restart them (``start_stop_agents``). Grant both on each managed platform, with the platform running
-and the VCP agent installed:
+The VolttronCentralPlatform (VCP) agent is not granted the capabilities to install, remove, start or stop agents when
+it is installed. Until an operator grants them, VOLTTRON Central cannot install or remove agents on the platform
+(``install_remove_agents``) or start, stop or restart them (``start_stop_agents``). Grant both on each managed
+platform, with the platform running and the VCP agent installed:
 
-1. Find the index of the VCP agent's entry. It is the entry whose ``identity`` is ``platform.agent``:
+1. Find the index of the VCP agent's entry. It is the entry whose ``identity`` is ``platform.agent``. Confirm the
+   identity before you go on:
 
    .. code-block:: bash
 
@@ -52,11 +53,18 @@ and the VCP agent installed:
 
        {"edit_config_store": {"identity": "/.*/"}, "install_remove_agents": null, "start_stop_agents": null}
 
-3. Run ``vctl auth list`` again and check that the entry now lists ``install_remove_agents`` and ``start_stop_agents``
-   under ``capabilities``.
+3. The update empties the entry's ``rpc_method_authorizations``. Restart the VCP agent so it fills the field again,
+   replacing ``<TAG>`` with the agent's tag or UUID from ``vctl status``:
 
-The ``capabilities`` answer replaces the old value, so include every capability the entry already has. The update
-command also resets the entry's ``rpc_method_authorizations`` to empty, so check that field in the listing afterwards.
+   .. code-block:: bash
+
+       vctl restart <TAG>
+
+4. Run ``vctl auth list`` again. Check that the entry at your index still has the ``identity`` ``platform.agent``,
+   that it lists ``install_remove_agents`` and ``start_stop_agents`` under ``capabilities``, and that
+   ``rpc_method_authorizations`` lists its methods again (for example ``get_health`` and ``list_agents``).
+
+The ``capabilities`` answer replaces the old value, so include every capability the entry already has.
 
 FAQ / Notes
 -----------
