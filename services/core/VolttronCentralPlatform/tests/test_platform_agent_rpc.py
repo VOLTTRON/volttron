@@ -118,30 +118,33 @@ def vc_agent(setup_platform):
     # accepts that user only with the key of an installed VOLTTRON Central. The
     # installed agent is stopped and its key reused for the proxy.
     vc_uuid = add_volttron_central(setup_platform)
-    setup_platform.stop_agent(vc_uuid)
-    keystore = _installed_keystore(setup_platform, vc_uuid)
-    setup_platform.add_capabilities(
-        keystore['public'], {'edit_config_store': {'identity': '/.*/'}})
-    agent = setup_platform.build_agent(
-        identity=VOLTTRON_CENTRAL,
-        publickey=keystore['public'], secretkey=keystore['secret'])
-    vcp_identity = None
+    try:
+        setup_platform.stop_agent(vc_uuid)
+        keystore = _installed_keystore(setup_platform, vc_uuid)
+        # Wider than an install grants; only this test's config-store writes need it.
+        setup_platform.add_capabilities(
+            keystore['public'], {'edit_config_store': {'identity': '/.*/'}})
+        agent = setup_platform.build_agent(
+            identity=VOLTTRON_CENTRAL,
+            publickey=keystore['public'], secretkey=keystore['secret'])
+        vcp_identity = None
 
-    look_for_identity = setup_platform.instance_name + ".platform.agent"
-    print("looking for identity: {}".format(look_for_identity))
-    print("peerlist: {}".format(agent.vip.peerlist().get(timeout=STANDARD_GET_TIMEOUT)))
-    for peer in agent.vip.peerlist().get(timeout=STANDARD_GET_TIMEOUT):
-        # For vcp in this context there are two interfaces to the the connect.
-        # the first is platform.agent and the second is <instancename>.platform.agent.
-        if peer == look_for_identity:
-            vcp_identity = peer
-            break
-    if vcp_identity is None:
-        pytest.fail("vcp_identity was not connected to the instance.")
-    gevent.sleep(5)
-    yield agent, vcp_identity
-    agent.core.stop()
-    setup_platform.remove_agent(vc_uuid)
+        look_for_identity = setup_platform.instance_name + ".platform.agent"
+        print("looking for identity: {}".format(look_for_identity))
+        print("peerlist: {}".format(agent.vip.peerlist().get(timeout=STANDARD_GET_TIMEOUT)))
+        for peer in agent.vip.peerlist().get(timeout=STANDARD_GET_TIMEOUT):
+            # For vcp in this context there are two interfaces to the the connect.
+            # the first is platform.agent and the second is <instancename>.platform.agent.
+            if peer == look_for_identity:
+                vcp_identity = peer
+                break
+        if vcp_identity is None:
+            pytest.fail("vcp_identity was not connected to the instance.")
+        gevent.sleep(5)
+        yield agent, vcp_identity
+        agent.core.stop()
+    finally:
+        setup_platform.remove_agent(vc_uuid)
 
 
 @pytest.mark.vcp
