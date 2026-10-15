@@ -187,8 +187,9 @@ Start the VOLTTRON platform with the following command:
 .. note::
 
    At start, VOLTTRON 9.2.0 removes group and other write permission from :code:`VOLTTRON_HOME` (by default
-   :code:`~/.volttron`). If you share :code:`VOLTTRON_HOME` with another user or group, change that arrangement
-   before you start the platform.
+   :code:`~/.volttron`) when you own it. If the directory is writable by group or others and is owned by another
+   user, the platform logs an error and refuses to start. Ask the owner to run :code:`chmod go-w` on the directory,
+   then start the platform again.
 
 Check the status of VOLTTRON with the following command:
 
@@ -251,9 +252,9 @@ From the above result, we can tell the listener agent is functioning properly!
 
 .. tip::
 
-    While the :code:`--tag` sub-command is optional, a tag is helpful for managing agents by adding semantic tags to different topics, so that topic can be queried by tags instead of specific topic name or topic name pattern. 
+    The :code:`--tag` sub-command is optional. A tag is a label that :code:`vctl` stores with the agent, and you can use it to address the agent later (for example with :code:`--tag` in other :code:`vctl` commands) instead of its UUID.
 
-    You can choose any tag name that makes sense to you. The tag is a label that :code:`vctl` stores with the agent. It is separate from the tags of the tagging service. (Read more about :ref:`tagging service tags <Tagging-Service-Specification>`.)
+    You can choose any tag name that makes sense to you. A :code:`vctl` tag is separate from the tags of the tagging service. (Read more about :ref:`tagging service tags <Tagging-Service-Specification>`.)
 
 In addition to the :code:`vctl status`, another way to check VOLTTRON status is by inspecting the :code:`volttron.log` file. The file provides rich information about the platform and becomes handy for debug purposes.
 
