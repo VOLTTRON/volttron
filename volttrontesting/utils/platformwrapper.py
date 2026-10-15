@@ -456,6 +456,19 @@ class PlatformWrapper:
             if self.messagebus == 'rmq' and self.bind_web_address is not None:
                 self.start_csr_approver()
 
+    def allow_platform_peer(self, serverkey, user_id):
+        """ Add an exact CURVE entry for a peer platform's public key, the
+        entry that lets that platform send pub/sub messages to this one.
+        """
+        with with_os_environ(self.env):
+            entry = AuthEntry(user_id=user_id, credentials=serverkey,
+                              comments="Added by platformwrapper for a peer")
+            authfile = AuthFile(self.volttron_home + "/auth.json")
+            try:
+                authfile.add(entry)
+            except AuthFileEntryAlreadyExists:
+                pass
+
     def get_agent_identity(self, agent_uuid):
         identity = None
         path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
