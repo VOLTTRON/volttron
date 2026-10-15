@@ -16,9 +16,9 @@ This tutorial has been written with the intent of helping folks get up-and-runni
 Prerequisites
 ==============================
 
-In this tutorial we will demonstrate installing the VOLTTRON platform at an `Ubuntu 20.04 LTS (Focal Fossa) <https://releases.ubuntu.com/20.04/>`_ Virtual machine. In order to follow the tutorial, the prerequisites are as follows:
+In this tutorial we will demonstrate installing the VOLTTRON platform at an `Ubuntu 22.04 LTS (Jammy Jellyfish) <https://releases.ubuntu.com/22.04/>`_ Virtual machine. In order to follow the tutorial, the prerequisites are as follows:
 
--   Linux OS image (e.g., Ubuntu 20.04)
+-   Linux OS image (e.g., Ubuntu 22.04)
 -   Virtualization software (e.g., VirtualBox, VMware)
 -   Internet accessibility
 -   sudo capability
@@ -36,7 +36,7 @@ The first step is to make sure required dependencies are fulfilled. Install the 
        $ sudo apt-get update
        $ sudo apt-get install build-essential python3-dev python3-venv openssl libssl-dev libevent-dev git
 
-Verify python installation with the following command:
+VOLTTRON 9.2.0 needs Python 3.10 or greater. Verify python installation with the following command:
 
 .. code-block:: bash
 
@@ -45,7 +45,7 @@ Verify python installation with the following command:
 .. code-block:: bash
 
        # expected output similar to this
-       Python 3.8.10
+       Python 3.10.12
 
 
 Similarly, verify git installation.
@@ -57,7 +57,7 @@ Similarly, verify git installation.
 .. code-block:: bash
 
        # expected output similar to this
-       git version 2.25.1
+       git version 2.34.1
 
 2. Download VOLTTRON code
 ------------------------------
@@ -103,11 +103,13 @@ After successfully downloading the VOLTTRON package, change the current working 
 .. code-block:: bash
 
        # expected output similar to this
-       bootstrap.py     deprecated    pylintrc          requirements.py  stop-volttron
-       ci-integration   docs          pytest.ini        scripts          TERMS.md
-       CONTRIBUTING.md  examples      README.md         services         volttron
-       COPYRIGHT        integrations  readthedocs.yml   setup.py         volttron_data
-       debugging_utils  LICENSE.md    RELEASE_NOTES.md  start-volttron   volttrontesting
+       bandit.yml          DISCLAIMER    pytest.ini       services          volttron
+       bootstrap.py        docs          README.md        setup.py          volttron_data
+       ci-integration      examples      readthedocs.yml  start-volttron    volttrontesting
+       CODE_OF_CONDUCT.md  integrations  RELEASING.md     stop-volttron
+       CONTRIBUTING.md     LICENSE       requirements.py  TERMS.md
+       debugging_utils     pylintrc      scripts          tests
+       deprecated          SECURITY.md   update_copyright.py
 
 3. Bootstrap VOLTTRON environment
 ------------------------------
@@ -156,7 +158,7 @@ Alternatively, you can use the following command to verify if the virtual enviro
        # expected output 1(virtual environment is up) or 0 (not up)
 
 
-Use `deactivate` command to deactivate the virtual environment, i.e., :code:`$ deactivate volttron`. Note: if you run this command, remember to re-activate the virtual environment to follow the rest of the steps.            
+Use `deactivate` command to deactivate the virtual environment, i.e., :code:`$ deactivate`. Note: if you run this command, remember to re-activate the virtual environment to follow the rest of the steps.            
 
 .. note::
 
@@ -181,6 +183,12 @@ Start the VOLTTRON platform with the following command:
        Starting VOLTTRON verbosely in the background with VOLTTRON_HOME=/home/user/.volttron
        Waiting for VOLTTRON to startup..
        VOLTTRON startup complete
+
+.. note::
+
+   At start, VOLTTRON 9.2.0 removes group and other write permission from :code:`VOLTTRON_HOME` (by default
+   :code:`~/.volttron`). If you share :code:`VOLTTRON_HOME` with another user or group, change that arrangement
+   before you start the platform.
 
 Check the status of VOLTTRON with the following command:
 
@@ -245,7 +253,7 @@ From the above result, we can tell the listener agent is functioning properly!
 
     While the :code:`--tag` sub-command is optional, a tag is helpful for managing agents by adding semantic tags to different topics, so that topic can be queried by tags instead of specific topic name or topic name pattern. 
 
-    You can choose any tag name that makes sense to you, as long as the tags are already defined in the VOLTTRON tagging schema. (Read more about :ref:`tag <Tagging-Service-Specification>`.)
+    You can choose any tag name that makes sense to you. The tag is a label that :code:`vctl` stores with the agent. It is separate from the tags of the tagging service. (Read more about :ref:`tagging service tags <Tagging-Service-Specification>`.)
 
 In addition to the :code:`vctl status`, another way to check VOLTTRON status is by inspecting the :code:`volttron.log` file. The file provides rich information about the platform and becomes handy for debug purposes.
 
@@ -270,6 +278,7 @@ In addition to the :code:`vctl status`, another way to check VOLTTRON status is 
        2022-03-04 13:16:05,469 (listeneragent-3.3 3233) volttron.platform.vip.agent.core ERROR: A common reason for this is a conflicting VIP IDENTITY.
        2022-03-04 13:16:05,469 (listeneragent-3.3 3233) volttron.platform.vip.agent.core ERROR: Another common reason is not having an auth entry onthe target instance.
        2022-03-04 13:16:05,469 (listeneragent-3.3 3233) volttron.platform.vip.agent.core ERROR: Shutting down agent.
+       2022-03-04 13:16:05,470 (listeneragent-3.3 3233) volttron.platform.vip.agent.core ERROR: Possible conflicting identity is: listeneragent-3.3_1
        ...
 
 5. Stop VOLTTRON (Optional)
@@ -324,5 +333,7 @@ platform:
 *   :ref:`Agent Framework <Agent-Framework>`
 *   :ref:`Driver Framework <Driver-Framework>`
 *   Demonstration of the :ref:`management UI <Device-Configuration-in-VOLTTRON-Central>`
+*   An agent that schedules or sets points through the actuator needs the :code:`actuator_control` capability.
+    See the :ref:`Actuator Agent <Actuator-Agent>` page for how to grant it.
 *   :ref:`RabbitMQ setup <RabbitMQ-Overview>` with Federation and Shovel plugins
 
