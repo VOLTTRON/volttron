@@ -775,39 +775,44 @@ class ActuatorAgent(Agent):
                                      point, headers, error)
         _log.debug('Actuator Agent Error: ' + str(error))
 
-    def _sender_may_write(self, sender, rpc_method, *rpc_args):
-        """Whether the pub/sub sender may make the call that RPC method ``rpc_method`` would make.
+    def _sender_may_write(self, user, rpc_method, *rpc_args):
+        """Whether the pub/sub publisher may make the call that RPC method ``rpc_method`` would make.
 
         The RPC write and schedule methods are gated on actuator_control by
         @RPC.allow. The pub/sub interface (devices/actuators/set, revert and
         schedule/request) reaches the same code, so it applies the same rule
         here, including parameter restrictions on the grant, evaluated against
-        ``rpc_args`` as the RPC gate would bind them. Enforcement is skipped
+        ``rpc_args`` as the RPC gate would bind them. The check is on ``user``, the
+        publisher's authenticated user, not the ``sender`` name the publisher chose,
+        and an empty user is refused. Enforcement is skipped
         only when the platform runs with authentication disabled (a real
         ``False``, as in the RPC gate), and fails closed when the auth
-        subsystem is unavailable or the sender's capabilities cannot be read.
+        subsystem is unavailable or the user's capabilities cannot be read.
         """
         if getattr(self.core, 'enable_auth', True) is False:
             return True
+        if not user:
+            _log.warning('Refusing pub/sub write: the message carries no authenticated user.')
+            return False
         auth = getattr(self.vip, 'auth', None)
         if auth is None:
-            _log.warning('Refusing pub/sub write from %r: auth subsystem unavailable.', sender)
+            _log.warning('Refusing pub/sub write from user %r: auth subsystem unavailable.', user)
             return False
         try:
-            capabilities = auth.get_capabilities(sender) or {}
+            capabilities = auth.get_capabilities(user) or {}
         # gevent.Timeout is a BaseException; a lookup that times out must refuse like any other failure.
         except (Exception, gevent.Timeout) as ex:
-            _log.warning('Refusing pub/sub write from %r: capabilities unavailable (%s).',
-                         sender, ex.__class__.__name__)
+            _log.warning('Refusing pub/sub write from user %r: capabilities unavailable (%s).',
+                         user, ex.__class__.__name__)
             return False
         if ACTUATOR_CONTROL not in capabilities:
-            _log.warning('Refusing pub/sub write from %r: requires capability %r.', sender, ACTUATOR_CONTROL)
+            _log.warning('Refusing pub/sub write from user %r: requires capability %r.', user, ACTUATOR_CONTROL)
             return False
         restrictions = capabilities[ACTUATOR_CONTROL]
         if restrictions:
             reason = grant_refusal(restrictions, getattr(ActuatorAgent, rpc_method), (None,) + rpc_args, {})
             if reason:
-                _log.warning('Refusing pub/sub write from %r: %s.', sender, reason)
+                _log.warning('Refusing pub/sub write from user %r: %s.', user, reason)
                 return False
         return True
 
@@ -889,7 +894,7 @@ class ActuatorAgent(Agent):
 
         point = topic.replace(topics.ACTUATOR_SET() + '/', '', 1)
         requester = sender
-        if not self._sender_may_write(requester, 'set_point', requester, point, message):
+        if not self._sender_may_write(self.vip.pubsub.delivered_user(), 'set_point', requester, point, message):
             return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
         if not message:
@@ -1133,7 +1138,7 @@ class ActuatorAgent(Agent):
         """
         point = topic.replace(topics.ACTUATOR_REVERT_POINT() + '/', '', 1)
         requester = sender
-        if not self._sender_may_write(requester, 'revert_point', requester, point):
+        if not self._sender_may_write(self.vip.pubsub.delivered_user(), 'revert_point', requester, point):
             return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
 
@@ -1175,7 +1180,7 @@ class ActuatorAgent(Agent):
         """
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE() + '/', '', 1)
         requester = sender
-        if not self._sender_may_write(requester, 'revert_device', requester, point):
+        if not self._sender_may_write(self.vip.pubsub.delivered_user(), 'revert_device', requester, point):
             return self._refuse_pubsub_write(requester, point)
         headers = self._get_headers(requester)
 
@@ -1342,7 +1347,7 @@ class ActuatorAgent(Agent):
                 gate_call = ('request_new_schedule', requester_id, task_id, priority, message)
         else:
             gate_call = ('request_cancel_schedule', requester_id, task_id)
-        if not self._sender_may_write(requester_id, *gate_call):
+        if not self._sender_may_write(self.vip.pubsub.delivered_user(), *gate_call):
             results = {'result': SCHEDULE_RESPONSE_FAILURE,
                        'data': {},
                        'info': "UNAUTHORIZED: requires capability '{}'".format(ACTUATOR_CONTROL)}

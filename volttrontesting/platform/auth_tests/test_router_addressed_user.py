@@ -151,6 +151,12 @@ class Harness:
                                       "inst-a")
         self.router._ext_routing = self.routing
         self.router.pubsub = PubSubService(sender, {}, self.routing)
+        self.router.pubsub._update_caps_users(
+            ["platform.auth", "", PROTO, "platform.auth", "m1", "pubsub",
+             "auth_update", {"capabilities": {},
+                             "platforms": {"peer.b": ["b"]}}])
+        self.router.pubsub._add_peer_subscription(
+            "sub.all", "", "devices", platform="all")
         self.router.ext_rpc = ExternalRPCService(sender, self.routing)
         self.calls = []
         self.routing._setup_authorization = (
@@ -170,7 +176,10 @@ class Harness:
 
 
 @pytest.fixture
-def harness(context):
+def harness(context, monkeypatch):
+    monkeypatch.setattr(
+        "volttron.platform.vip.pubsubservice.get_platform_instance_name",
+        lambda: "inst-a")
     return Harness(context)
 
 
@@ -185,7 +194,21 @@ AUTH_SERVICE_ONLY = dict(
     allowed=[("platform.auth", "platform.auth")],
     denied=[("agent.x", "agent.x"), ("keydiscovery", "keydiscovery"),
             ("platform.auth", "u1")])
+MAPPED_PLATFORM_ONLY = dict(
+    allowed=[("instance.b.1", "peer.b")],
+    denied=[("agent.x", "agent.x"), ("instance.b.1", "u1"),
+            ("instance.b.1", ""), ("control", "control")])
 OPERATIONS = {
+    "external_list": dict(
+        subsystem="pubsub", payload=({"b": ["x/"]},),
+        snapshot=lambda h: dict(h.router.pubsub._ext_subscriptions),
+        **MAPPED_PLATFORM_ONLY),
+    "external_publish": dict(
+        subsystem="pubsub",
+        payload=("devices/a", {"bus": "", "headers": {}, "message": 1,
+                               "sender": "victim"}),
+        snapshot=lambda h: list(h.router.socket.sent),
+        **MAPPED_PLATFORM_ONLY),
     "setupmode_platform_connection": dict(
         subsystem="routing_table", payload=({"instance-name": "b"},),
         snapshot=lambda h: list(h.calls), **KEY_DISCOVERY_ONLY),
@@ -564,10 +587,6 @@ UNGATED = {
     "list": "read-only",
     "error": "response handling",
     "request_response": "response handling",
-    # Not checked by the router operation rules.
-    "external_list": "any sender; the payload is checked to be a dict of "
-                     "text keys to lists of text",
-    "external_publish": "not covered by the sender rules",
     # Any local agent may ask the platform to relay a call.
     "hello": "ignored: the handshake is not used and nothing acts on it",
     "send_peer": "any sender: the router blanks the user and sender of the "

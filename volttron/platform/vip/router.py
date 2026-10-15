@@ -364,6 +364,13 @@ class BaseRouter:
         if frames and not isinstance(frames[0], str):
             issue(UNROUTABLE, frames, 'sender is not text')
             return
+        if frames and frames[0] == '':
+            # The agent side takes an empty peer to mean the router, and a
+            # real connection always has an identity (zmq adds one).
+            issue(UNROUTABLE, frames, 'sender is empty')
+            self._log_once('empty sender', '',
+                           'Dropping a message from sender %r: the sender is empty')
+            return
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.

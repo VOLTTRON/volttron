@@ -197,27 +197,37 @@ def test_handle_schedule_request_refuses_with_failure_result():
     agent.vip.pubsub.publish.assert_called_once()
 
 
+def _delivered_by(agent, user):
+    """The message arrives from the router with ``user`` as the publisher's authenticated user."""
+    agent.vip.pubsub.delivered_user.return_value = user
+
+
 def _call_set(agent, sender, headers):
+    _delivered_by(agent, sender)
     ActuatorAgent.handle_set(agent, 'pubsub', sender, 'bus', topics.ACTUATOR_SET() + '/dev/point', headers, 1)
 
 
 def _call_revert_point(agent, sender, headers):
+    _delivered_by(agent, sender)
     ActuatorAgent.handle_revert_point(agent, 'pubsub', sender, 'bus', topics.ACTUATOR_REVERT_POINT() + '/dev/point',
                                       headers, None)
 
 
 def _call_revert_device(agent, sender, headers):
+    _delivered_by(agent, sender)
     ActuatorAgent.handle_revert_device(agent, 'pubsub', sender, 'bus', topics.ACTUATOR_REVERT_DEVICE() + '/dev',
                                        headers, None)
 
 
 def _call_schedule_new(agent, sender, headers):
+    _delivered_by(agent, sender)
     headers = dict(headers, type='NEW_SCHEDULE', taskID='t', priority='LOW')
     ActuatorAgent.handle_schedule_request(agent, 'pubsub', sender, 'bus', topics.ACTUATOR_SCHEDULE_REQUEST,
                                           headers, [['dev', 'a', 'b']])
 
 
 def _call_schedule_cancel(agent, sender, headers):
+    _delivered_by(agent, sender)
     headers = dict(headers, type='CANCEL_SCHEDULE', taskID='t')
     ActuatorAgent.handle_schedule_request(agent, 'pubsub', sender, 'bus', topics.ACTUATOR_SCHEDULE_REQUEST,
                                           headers, None)
@@ -395,6 +405,7 @@ def test_sender_may_write_allows_when_the_shared_check_allows():
 def test_malformed_new_schedule_message_gets_a_malformed_request_reply(message):
     agent = _gated_agent({'s': {ACTUATOR_CONTROL: None}})
     agent._handle_unknown_schedule_error = lambda *a: ActuatorAgent._handle_unknown_schedule_error(agent, *a)
+    _delivered_by(agent, 's')
     headers = {'type': 'NEW_SCHEDULE', 'taskID': 't', 'priority': 'LOW'}
     result = ActuatorAgent.handle_schedule_request(agent, 'pubsub', 's', 'bus', topics.ACTUATOR_SCHEDULE_REQUEST,
                                                    headers, message)

@@ -123,7 +123,9 @@ def router(context):
     router._sender = sender
     routing = RoutingService(sender, context, zmq.Socket, None, [], "inst-a")
     router._ext_routing = routing
-    router.pubsub = PubSubService(sender, {}, routing)
+    # These tests exercise the bounds on a list; which user may send one is
+    # covered where the platform map is.
+    router.pubsub = PubSubService(sender, {}, routing, enable_auth=False)
     router.ext_rpc = ExternalRPCService(sender, routing)
     return router
 

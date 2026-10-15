@@ -31,6 +31,7 @@ import random
 import re
 import weakref
 import gevent
+import gevent.local
 
 from zmq import green as zmq
 from zmq import SNDMORE
@@ -45,6 +46,8 @@ from gevent.queue import Queue
 from collections import defaultdict
 
 __all__ = ['PubSub']
+
+_MAX_LOGGED_PEERS = 64
 
 min_compatible_version = '3.0'
 max_compatible_version = ''
@@ -89,7 +92,10 @@ class PubSub(SubsystemBase):
         self._results = ResultsDictionary()
         self._event_queue = Queue()
         self._retry_period = 300.0
+        self._foreign_peers = set()
+        self._foreign_suppressed = False
         self._processgreenlet = None
+        self._delivery = gevent.local.local()
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -147,6 +153,13 @@ class PubSub(SubsystemBase):
         if not handled:
             # No callbacks for topic; synchronize with sender
             self.synchronize()
+
+    def delivered_user(self):
+        """The authenticated user of the publish being delivered to the calling callback, else None.
+
+        ``sender`` is the name the publisher chose; this is the user the router authenticated.
+        """
+        return getattr(self._delivery, 'user', None)
 
     def _viperror(self, sender, error, **kwargs):
         if isinstance(error, Unreachable):
@@ -502,7 +515,29 @@ class PubSub(SubsystemBase):
         param message: VIP message from PubSubService
         type message: dict
         """
+        # Every in-tree pubsub message comes from the router, whose peer is
+        # empty. Any other peer could name any sender, answer a pending
+        # request, or return a list in the router's place.
+        if message.peer != '':
+            self._note_foreign_message(message.peer)
+            return
         self._event_queue.put(message)
+
+    def _note_foreign_message(self, peer):
+        """Log a dropped message once per peer, for a bounded number of peers."""
+        if not isinstance(peer, str):
+            peer = '<not text>'
+        if peer in self._foreign_peers:
+            return
+        if len(self._foreign_peers) >= _MAX_LOGGED_PEERS:
+            if not self._foreign_suppressed:
+                self._foreign_suppressed = True
+                _log.warning('Further dropped pubsub message warnings are '
+                             'suppressed after %d peers', _MAX_LOGGED_PEERS)
+            return
+        self._foreign_peers.add(peer)
+        _log.warning('Dropped a pubsub message from peer %r: only the router '
+                     'may send one', peer[:100])
 
     @spawn
     def _process_incoming_message(self, message):
@@ -532,6 +567,8 @@ class PubSub(SubsystemBase):
                 result.set(response)
 
         elif op == 'publish':
+            # Read before `message` is rebound to the publisher's payload below.
+            user = message.user
             try:
                 topic = message.args[1]
                 msg = message.args[2]
@@ -545,6 +582,8 @@ class PubSub(SubsystemBase):
             except KeyError as exc:
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
+                # Each message is processed in its own greenlet, so this local dies with it.
+                self._delivery.user = user
                 self._process_callback(sender, bus, topic, headers, message)
 
         elif op == 'list_response':

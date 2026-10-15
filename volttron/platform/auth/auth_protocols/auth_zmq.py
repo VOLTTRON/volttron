@@ -223,6 +223,9 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         timeout = None
 
         self.authorization.update_protected_topics(protected_topics)
+        # The router refuses external pub/sub until it has a map, so send it
+        # before the first ZAP reply rather than at the next file change.
+        self.auth_service.push_router_update("start")
         while True:
             events = sock.poll(timeout)
             now = gevent.time.time()
@@ -497,7 +500,9 @@ class ZMQAuthorization(BaseServerAuthorization):
 
     def update_user_capabilites(self, user_to_caps):
         # Send auth update message to router
-        json_msg = jsonapi.dumpb(dict(capabilities=user_to_caps))
+        json_msg = jsonapi.dumpb(dict(
+            capabilities=user_to_caps,
+            platforms=self.auth_service.platform_map()))
         frames = [zmq.Frame(b"auth_update"), zmq.Frame(json_msg)]
         # <recipient, subsystem, args, msg_id, flags>
         self.auth_service.core.socket.send_vip(b"", b"pubsub", frames, copy=False)
