@@ -99,6 +99,7 @@ def test_subscribe_refuses_any_other_prefix(prefix, caplog):
     with pytest.raises(Exception) as err:
         conn.subscribe_to_vcp(prefix, 'platforms/x/')
     assert 'not one volttron.central subscribes to' in str(err.value)
+    assert err.value.code == jsonrpc.INVALID_PARAMS
     assert conn._main_agent.mock_calls == []
     assert [r for r in caplog.records if r.levelname == 'WARNING'
             and 'Refusing subscription' in r.getMessage()]
