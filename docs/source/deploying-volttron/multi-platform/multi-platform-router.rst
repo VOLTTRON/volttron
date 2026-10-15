@@ -205,9 +205,10 @@ A platform accepts publishes and subscription lists from another platform only w
 platform. Each of these must hold for every peer platform:
 
 - **An exact auth entry.** The entry's credentials are the peer's serverkey (the output of ``vctl auth serverkey`` on
-  the peer), written as plain text and not as a regular expression. The entry has no ``identity``. If a wildcard entry
-  such as `/.*/` comes before the peer's exact entry, the peer is given the wildcard entry's user and its pub/sub
-  traffic is refused, so put the exact entry first.
+  the peer), written as plain text and not as a regular expression. The entry uses the ``CURVE`` mechanism and has no
+  ``identity``. The platform tries exact entries before wildcard entries, whatever their order in the auth file, so a
+  wildcard entry such as `/.*/` does not hide the peer's exact entry. A peer admitted only by a wildcard entry has its
+  pub/sub traffic refused.
 - **A discovery file entry.** ``external_platform_discovery.json`` lists the peer under the ``instance-name`` that the
   peer itself reports. Each serverkey appears under one instance name only; a key listed under two names maps to
   neither.

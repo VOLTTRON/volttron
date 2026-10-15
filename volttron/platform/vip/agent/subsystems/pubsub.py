@@ -31,6 +31,7 @@ import random
 import re
 import weakref
 import gevent
+import gevent.local
 
 from zmq import green as zmq
 from zmq import SNDMORE

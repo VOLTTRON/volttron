@@ -56,6 +56,7 @@ def service(tmp_path, monkeypatch):
     a running platform stubbed and the router socket recorded."""
     monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
     (tmp_path / "config").write_text("[volttron]\ninstance-name = inst-a\n")
+    KeyStore()
     monkeypatch.setattr(auth_module, "watch_file", lambda *a, **k: None)
     monkeypatch.setattr(auth_zmq.ZMQServerAuthentication,
                         "setup_authentication", lambda self: None)
@@ -76,8 +77,8 @@ def service(tmp_path, monkeypatch):
             processor.kill()
 
 
-def entry(user, key, identity=None):
-    return AuthEntry(user_id=user, credentials=key, mechanism="CURVE",
+def entry(user, key, identity=None, mechanism="CURVE"):
+    return AuthEntry(user_id=user, credentials=key, mechanism=mechanism,
                      identity=identity)
 
 
@@ -157,6 +158,21 @@ def test_a_regex_credential_equal_to_a_listed_key_text_maps_to_nothing(
     pattern = "/" + "B" * 41 + "/"
     write_discovery(tmp_path, {"inst-b": ("inst-b", pattern)})
     assert platform_map(service, [entry("peer.b", pattern)]) == {}
+
+
+@pytest.mark.parametrize("mechanism", ["PLAIN", "NULL"])
+def test_an_entry_that_is_not_curve_maps_to_nothing(
+        service, listed, mechanism):
+    assert platform_map(service, [entry("peer.b", KEY_B,
+                                        mechanism=mechanism)]) == {}
+
+
+@pytest.mark.parametrize("mechanism", ["PLAIN", "NULL"])
+def test_a_user_with_a_curve_entry_and_another_mechanism_maps_to_nothing(
+        service, listed, mechanism):
+    assert platform_map(service, [
+        entry("peer.b", KEY_B), entry("peer.b", KEY_B,
+                                      mechanism=mechanism)]) == {}
 
 
 def test_an_entry_with_other_credentials_maps_to_nothing(service, listed):
@@ -280,6 +296,35 @@ def test_a_map_that_cannot_be_built_is_sent_empty_not_skipped(
         raise KeyError("no instance name")
     monkeypatch.setattr(auth_module, "get_platform_instance_name", broken)
     assert platform_map(service, [entry("peer.b", KEY_B)]) == {}
+
+
+def test_an_empty_keystore_is_not_rewritten_and_maps_nothing(
+        service, listed, tmp_path, caplog):
+    keystore = tmp_path / "keystore"
+    keystore.write_text("")
+    with caplog.at_level(logging.ERROR, logger=AUTH_LOGGER):
+        assert platform_map(service, [entry("peer.b", KEY_B)]) == {}
+        platform_map(service, [entry("peer.b", KEY_B)])
+    assert keystore.read_text() == ""
+    (error,) = map_errors(caplog)
+    assert "key cannot be read" in error
+
+
+def test_a_keystore_without_a_public_key_is_left_as_it_is(
+        service, listed, tmp_path, caplog):
+    keystore = tmp_path / "keystore"
+    keystore.write_text('{"secret": "x"}')
+    with caplog.at_level(logging.ERROR, logger=AUTH_LOGGER):
+        assert platform_map(service, [entry("peer.b", KEY_B)]) == {}
+    assert keystore.read_text() == '{"secret": "x"}'
+    assert len(map_errors(caplog)) == 1
+
+
+def test_a_valid_keystore_is_left_byte_identical(service, listed, tmp_path):
+    before = (tmp_path / "keystore").read_bytes()
+    assert platform_map(service, [entry("peer.b", KEY_B)]) == {
+        "peer.b": ["inst-b"]}
+    assert (tmp_path / "keystore").read_bytes() == before
 
 
 # The push: at start, first in every refresh, on the hub, and a failure is
@@ -498,6 +543,18 @@ def test_the_discovery_watcher_acts_when_the_file_is_moved_away(tmp_path):
     handler.dispatch(FileMovedEvent(PATH_OF(tmp_path),
                                     PATH_OF(tmp_path) + ".old"))
     assert calls == [1]
+
+
+def test_a_watch_that_cannot_start_is_logged_as_an_error(
+        tmp_path, caplog, monkeypatch):
+    def broken(*args, **kwargs):
+        raise OSError("inotify watch limit reached")
+    monkeypatch.setattr(auth_module.Observer, "start", broken)
+    with caplog.at_level(logging.ERROR, logger=AUTH_LOGGER):
+        with pytest.raises(OSError):
+            auth_module.watch_discovery_file(PATH_OF(tmp_path), lambda: None)
+    (error,) = map_errors(caplog)
+    assert DISCOVERY in error and "auth file is reloaded" in error
 
 
 def test_the_discovery_watcher_ignores_other_files_in_the_directory(tmp_path):

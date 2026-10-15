@@ -653,6 +653,65 @@ def test_a_name_that_moves_to_another_user_loses_its_stored_list(serviced):
     assert serviced.stored()["inst-b"] == ["new/"]
 
 
+BAD_MAPS = [
+    None, [], ["peer.b"], {"peer.b": "inst-b"}, {"peer.b": [1]},
+    {"peer.b": {"inst-b": 1}}, {"peer.b": ["inst-b"], "other": None}, "x", 5,
+]
+
+
+@pytest.mark.parametrize("bad", BAD_MAPS, ids=repr)
+def test_a_refused_map_deletes_the_stored_list_of_a_mapped_platform(
+        serviced, bad):
+    serviced.lists("peer.b", {"inst-b": ["devices/"]})
+    assert serviced.stored() == {"inst-b": ["devices/"]}
+    serviced.update(bad)
+    assert serviced.stored() == {}
+
+
+def dropped_warnings(caplog):
+    return [r.getMessage() for r in caplog.records
+            if r.name == PUBSUB_LOGGER and r.levelno == logging.WARNING
+            and "dropping external subscriptions" in r.getMessage()]
+
+
+def test_a_deleted_list_is_logged_as_one_warning_naming_the_platform(
+        serviced, caplog):
+    serviced.update({"peer.b": ["inst-b"], "peer.c": ["inst-c"]})
+    serviced.lists("peer.b", {"inst-b": ["b/"]})
+    serviced.lists("peer.c", {"inst-c": ["c/"]})
+    with caplog.at_level(logging.WARNING, logger=PUBSUB_LOGGER):
+        serviced.update({"peer.b": ["inst-b"]})
+        serviced.update({"peer.b": ["inst-b"]})
+    (line,) = dropped_warnings(caplog)
+    assert "inst-c" in line and "inst-b" not in line
+    assert "returns when the peer reconnects" in line
+
+
+def test_a_refused_map_logs_a_warning_for_each_deleted_list(serviced, caplog):
+    serviced.lists("peer.b", {"inst-b": ["b/"]})
+    with caplog.at_level(logging.WARNING, logger=PUBSUB_LOGGER):
+        serviced.update(None)
+    (line,) = dropped_warnings(caplog)
+    assert "inst-b" in line
+
+
+def test_a_map_that_keeps_every_list_logs_no_deletion_warning(
+        serviced, caplog):
+    serviced.lists("peer.b", {"inst-b": ["b/"]})
+    with caplog.at_level(logging.WARNING, logger=PUBSUB_LOGGER):
+        serviced.update(MAPPED)
+    assert dropped_warnings(caplog) == []
+
+
+def test_the_owner_of_a_list_is_the_user_that_wrote_it_last(serviced):
+    serviced.update({"peer.b": ["inst-b"], "peer.b2": ["inst-b"]})
+    serviced.lists("peer.b", {"inst-b": ["first/"]})
+    serviced.lists("peer.b2", {"inst-b": ["second/"]})
+    assert serviced.stored() == {"inst-b": ["second/"]}
+    serviced.update({"peer.b": ["inst-b"]})
+    assert serviced.stored() == {}
+
+
 def test_an_unchanged_map_keeps_every_stored_list(serviced):
     serviced.lists("peer.b", {"inst-b": ["b/"]})
     serviced.update(MAPPED)

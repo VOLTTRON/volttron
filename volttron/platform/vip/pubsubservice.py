@@ -682,9 +682,10 @@ class PubSubService:
         for name in list(self._ext_subscriptions):
             owner = self._ext_list_owners.get(name)
             if name not in self._platform_users.get(owner, ()):
-                self._logger.debug(
+                self._logger.warning(
                     "PUBSUBSERVICE dropping external subscriptions for %s: "
-                    "no longer mapped to the user that sent them", name)
+                    "no longer mapped to the user that sent them; the list "
+                    "returns when the peer reconnects", name)
                 self._ext_subscriptions.pop(name, None)
                 self._ext_list_owners.pop(name, None)
 

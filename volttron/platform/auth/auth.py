@@ -75,9 +75,11 @@ def build_platform_map(entries, discovery, own_name, own_key):
 
     `entries` are the auth entries the ZAP handler walks, `discovery` the
     parsed discovery file. Returns the map and the causes to warn about. A
-    user maps only when every entry that carries it holds, as a plain string,
-    the key of one discovery entry and none carries an identity, which
-    agents' entries do.
+    user maps only when every entry that carries it is a CURVE entry holding,
+    as a plain string, the key of one discovery entry, and none carries an
+    identity, which agents' entries do. Only a CURVE match proves the peer
+    holds the secret key; a PLAIN entry matches on the username alone and a
+    NULL entry on any connection.
     """
     causes = []
     listed = {}
@@ -108,7 +110,8 @@ def build_platform_map(entries, discovery, own_name, own_key):
     for user, user_entries in carried.items():
         if not user or user in RESERVED_USER_IDS:
             continue
-        if any(entry.identity for entry in user_entries):
+        if any(entry.identity or entry.mechanism != "CURVE"
+               for entry in user_entries):
             continue
         names = set()
         for entry in user_entries:
@@ -121,6 +124,25 @@ def build_platform_map(entries, discovery, own_name, own_key):
         if names and len(names) == 1 and None not in names:
             platforms[user] = sorted(names)
     return platforms, causes
+
+
+def _read_own_public_key(errors):
+    """The platform's public key as the keystore file holds it, or None after
+    adding an error. Reading through KeyStore() would write a new key pair
+    over an empty or damaged file."""
+    path = KeyStore.get_default_path()
+    try:
+        with open(path) as keystore_file:
+            stored = json.load(keystore_file)
+        key = stored.get("public") if isinstance(stored, dict) else None
+        if not isinstance(key, str) or not key:
+            raise ValueError("it holds no public key")
+    except (OSError, ValueError) as err:
+        errors.append("the platform's key cannot be read from %s (%s), so no "
+                      "platform is mapped and pub/sub from other platforms "
+                      "is refused" % (path, err))
+        return None
+    return key
 
 
 class _DiscoveryFileHandler(FileSystemEventHandler):
@@ -157,10 +179,16 @@ class _DiscoveryFileHandler(FileSystemEventHandler):
 def watch_discovery_file(path, callback):
     """Runs `callback` on the watcher's native thread whenever the file at
     `path` appears, changes, moves or goes."""
-    observer = Observer()
-    observer.schedule(_DiscoveryFileHandler(path, callback),
-                      os.path.dirname(os.path.abspath(path)))
-    observer.start()
+    try:
+        observer = Observer()
+        observer.schedule(_DiscoveryFileHandler(path, callback),
+                          os.path.dirname(os.path.abspath(path)))
+        observer.start()
+    except Exception:
+        _log.exception(
+            "cannot watch %s, so the platform map changes only when the "
+            "auth file is reloaded", path)
+        raise
     _log.debug("Added file watch for %s", path)
     return observer
 
@@ -669,14 +697,14 @@ class AuthService(Agent):
                 causes.append(
                     "setup mode: no platform is mapped, so pub/sub from other "
                     "platforms resumes after a restart in normal mode")
-            else:
+            elif (own_key := _read_own_public_key(errors)):
                 with open(path) as discovery_file:
                     discovery = json.load(discovery_file)
                 if not isinstance(discovery, dict):
                     raise ValueError("it is not a JSON object")
                 platforms, causes = build_platform_map(
                     self.auth_entries, discovery,
-                    get_platform_instance_name(), KeyStore().public)
+                    get_platform_instance_name(), own_key)
                 if (sum(len(names) for names in platforms.values())
                         > MAX_PLATFORM_MAP_PAIRS):
                     platforms = {}
