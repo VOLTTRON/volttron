@@ -34,8 +34,8 @@ triaged quickly:
 
 | Version | Supported |
 | ------- | --------- |
-| 9.1.x and later | Yes |
-| Earlier than 9.1 | No |
+| 9.2.x and later | Yes |
+| Earlier than 9.2 | No |
 
 Security fixes ship in the latest release of a supported line, as a patch
 version or, when a fix adds a capability, a minor version.
