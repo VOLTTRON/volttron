@@ -46,7 +46,9 @@ drivers are configured to do so.
 When authentication is enabled, the actuator's scheduling and writing methods (`request_new_schedule`,
 `request_cancel_schedule`, `set_point`, `set_multiple_points`, `revert_point` and `revert_device`) require the
 calling agent to hold the `actuator_control` capability. This applies to RPC calls and to the
-`devices/actuators/...` pub/sub topics; on the pub/sub topics the actuator checks the capability of the sender.
+`devices/actuators/...` pub/sub topics; on the pub/sub topics the actuator checks the capability of the publisher's authenticated user,
+not the `sender` name in the message. A pub/sub request published from another platform carries no authenticated
+user and is refused.
 Reads (`get_point`, `get_multiple_points`, `scrape_all`) do not require it. Platforms running with authentication
 disabled are not affected.
 
