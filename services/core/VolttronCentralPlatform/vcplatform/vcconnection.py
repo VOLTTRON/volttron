@@ -35,6 +35,9 @@ from volttron.platform.vip.agent import (Agent, RPC)
 
 _log = logging.getLogger(__name__)
 
+# The only prefixes volttron.central subscribes to on this platform.
+VC_SUBSCRIPTION_PREFIXES = ('status', 'iam/', 'configure/')
+
 
 def _vc_only(method):
     """Refuse a call that did not come from the volttron.central user.
@@ -294,6 +297,12 @@ class VCConnection(Agent):
         :param prefix_on_vc:
             The prefix to publish to on volttron central instance.
         """
+        if prefix not in VC_SUBSCRIPTION_PREFIXES:
+            _log.warning("Refusing subscription to prefix %r; only %s are "
+                         "allowed", prefix, VC_SUBSCRIPTION_PREFIXES)
+            raise jsonrpc.exception_from_json(
+                jsonrpc.INVALID_PARAMS,
+                "prefix is not one volttron.central subscribes to")
         self._log.info("VC subscribing to prefix: {}".format(prefix))
         self._log.info("VCP will publish to {} on VC".format(prefix_on_vc))
 

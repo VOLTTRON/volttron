@@ -82,6 +82,28 @@ def test_connection_allows_volttron_central(name):
     assert conn._main_agent.mock_calls != []
 
 
+@pytest.mark.parametrize('prefix', ['status', 'iam/', 'configure/'])
+def test_subscribe_accepts_the_prefixes_volttron_central_uses(prefix):
+    conn = _connection(VC_USER)
+    conn.subscribe_to_vcp(prefix, 'platforms/x/')
+    subscribe = conn._main_agent.vip.pubsub.subscribe
+    subscribe.assert_called_once()
+    assert subscribe.call_args.args[:2] == ('pubsub', prefix)
+
+
+@pytest.mark.parametrize('prefix', [
+    '', 'devices/', 'devices', 'status/x', 'Status', 'iam', 'configure',
+    'iam/x', '/status', None, 5, ['status']])
+def test_subscribe_refuses_any_other_prefix(prefix, caplog):
+    conn = _connection(VC_USER)
+    with pytest.raises(Exception) as err:
+        conn.subscribe_to_vcp(prefix, 'platforms/x/')
+    assert 'not one volttron.central subscribes to' in str(err.value)
+    assert conn._main_agent.mock_calls == []
+    assert [r for r in caplog.records if r.levelname == 'WARNING'
+            and 'Refusing subscription' in r.getMessage()]
+
+
 def test_connection_refuses_when_caller_cannot_be_identified():
     conn = _connection(VC_USER)
     conn.vip = types.SimpleNamespace(rpc=types.SimpleNamespace(context=None))
@@ -330,3 +352,13 @@ def test_existing_file_is_never_overwritten(installer):
     assert flags_seen[0] & os.O_EXCL
     assert flags_seen[0] & os.O_NOFOLLOW
     assert flags_seen[0] & os.O_CREAT
+
+
+def test_upload_that_is_not_valid_base64_is_refused_and_logged(
+        installer, caplog):
+    vcp, fake, _ = installer
+    args = {'file_name': 'a.whl', 'file': 'data:x;base64,AAAAA'}
+    with caplog.at_level('WARNING'):
+        _assert_refused(vcp, fake, args, 'File could not be decoded.')
+    assert [r for r in caplog.records if r.levelname == 'WARNING'
+            and 'Refusing agent install' in r.getMessage()]
