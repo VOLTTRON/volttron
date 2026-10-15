@@ -34,7 +34,8 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONFIGURATION_STORE)
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttrontesting.utils.agent_additions import add_volttron_central_platform, add_listener
+from volttrontesting.utils.agent_additions import (
+    add_volttron_central, add_volttron_central_platform, add_listener)
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, PlatformWrapper
 
 SQLITE_HISTORIAN_CONFIG = {
@@ -86,6 +87,17 @@ def setup_platform(volttron_instance_web):
     vcp.remove_agent(vcp_uuid)
 
 
+def _installed_keystore(wrapper, agent_uuid):
+    """The keystore.json of the agent installed under `agent_uuid`."""
+    agent_dir = os.path.join(wrapper.volttron_home, "agents", agent_uuid)
+    names = [name for name in os.listdir(agent_dir)
+             if os.path.isdir(os.path.join(agent_dir, name, name + ".dist-info"))]
+    assert len(names) == 1, "expected one installed package in {}".format(agent_dir)
+    path = os.path.join(agent_dir, names[0], names[0] + ".dist-info", "keystore.json")
+    with open(path) as keystore_file:
+        return json.load(keystore_file)
+
+
 @pytest.fixture(scope="module")
 def vc_agent(setup_platform):
     """
@@ -102,11 +114,17 @@ def vc_agent(setup_platform):
     assert setup_platform.instance_name is not None
     setup_platform.allow_all_connections()
     gevent.sleep(5)
-    # VCConnection serves only the volttron.central user, so the proxy is
-    # built under that identity.
+    # VCConnection serves only the volttron.central user, and the platform
+    # accepts that user only with the key of an installed VOLTTRON Central. The
+    # installed agent is stopped and its key reused for the proxy.
+    vc_uuid = add_volttron_central(setup_platform)
+    setup_platform.stop_agent(vc_uuid)
+    keystore = _installed_keystore(setup_platform, vc_uuid)
+    setup_platform.add_capabilities(
+        keystore['public'], {'edit_config_store': {'identity': '/.*/'}})
     agent = setup_platform.build_agent(
         identity=VOLTTRON_CENTRAL,
-        capabilities={'edit_config_store': {'identity': '/.*/'}})
+        publickey=keystore['public'], secretkey=keystore['secret'])
     vcp_identity = None
 
     look_for_identity = setup_platform.instance_name + ".platform.agent"
@@ -123,6 +141,7 @@ def vc_agent(setup_platform):
     gevent.sleep(5)
     yield agent, vcp_identity
     agent.core.stop()
+    setup_platform.remove_agent(vc_uuid)
 
 
 @pytest.mark.vcp
@@ -130,12 +149,12 @@ def test_list_agents(setup_platform, vc_agent, caplog):
     # split vc_agent into it's respective parts.
     vc, vcp_identity = vc_agent
     agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
-    assert agent_list and len(agent_list) == 1
+    assert agent_list and len(agent_list) == 2
     listener_uuid = None
     try:
         listener_uuid = add_listener(setup_platform)
         agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
-        assert agent_list and len(agent_list) == 2
+        assert agent_list and len(agent_list) == 3
     finally:
         if listener_uuid:
             setup_platform.remove_agent(listener_uuid)
