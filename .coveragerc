@@ -1,0 +1,26 @@
+# Coverage config for the CI pytest workflows (#3363).
+# One source root with repo-relative paths keeps the Cobertura file names
+# matching the repository layout that Codacy maps coverage onto.
+[run]
+source = .
+relative_files = True
+omit =
+    env/*
+    deprecated/*
+    docs/*
+    examples/*
+    scripts/*
+    volttron_data/*
+    services/contrib/*
+    services/unsupported/*
+    volttrontesting/*
+    tests/*
+    */tests/*
+    *test_*.py
+    *_test.py
+    conftest.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
