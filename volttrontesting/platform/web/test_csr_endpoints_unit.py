@@ -137,7 +137,6 @@ def test_malformed_json_saves_nothing(endpoints, certs):
     certs.get_cert_from_csr.assert_not_called()
 
 
-@pytest.mark.xfail(strict=True, reason="#3381 malformed JSON gets an empty 200")
 def test_malformed_json_gets_an_error_response_with_json_body(endpoints, certs):
     response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, "{not json")
 
@@ -154,7 +153,6 @@ def test_body_without_csr_saves_nothing(endpoints, certs):
     certs.get_cert_from_csr.assert_not_called()
 
 
-@pytest.mark.xfail(strict=True, reason="#3381 a body without csr raises AttributeError")
 def test_body_without_csr_gets_an_error_response_with_json_body(endpoints, certs):
     response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR},
                                           jsonapi.dumps(dict(identity="x")))
@@ -162,3 +160,13 @@ def test_body_without_csr_gets_an_error_response_with_json_body(endpoints, certs
     body = jsonapi.loads(response.get_data(as_text=True))
     assert body["status"] == "ERROR"
     assert body["message"]
+
+
+@pytest.mark.parametrize("body", [dict(csr=""), dict(csr=None), dict(csr=12), ["csr"], "[1, 2]"])
+def test_unusable_csr_gets_an_error_response_and_saves_nothing(endpoints, certs, body):
+    data = body if isinstance(body, str) else jsonapi.dumps(body)
+    response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, data)
+
+    assert jsonapi.loads(response.get_data(as_text=True))["status"] == "ERROR"
+    certs.save_pending_csr_request.assert_not_called()
+    certs.get_cert_from_csr.assert_not_called()

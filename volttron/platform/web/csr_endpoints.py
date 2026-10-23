@@ -38,6 +38,17 @@ class CSREndpoints:
             (re.compile('^/csr/request_new$'), 'callable', self._csr_request_new)
         ]
 
+    @staticmethod
+    def _error_response(message):
+        """Build the JSON error response returned for a rejected CSR request.
+
+        :param message: reason shown to the caller
+        :return: werkzeug Response with status ERROR
+        """
+        return Response(jsonapi.dumps(dict(status="ERROR", message=message)),
+                        content_type='application/json',
+                        headers={'Content-type': 'application/json'})
+
     def _csr_request_new(self, env, data):
         _log.debug("New csr request")
         if not isinstance(data, dict):
@@ -45,11 +56,15 @@ class CSREndpoints:
                 request_data = jsonapi.loads(data)
             except:
                 _log.error("Invalid data for csr request.  Must be json serializable")
-                return Response()
+                return self._error_response("Invalid data for csr request.  Must be json serializable")
         else:
             request_data = data.copy()
 
-        csr = request_data.get('csr').encode("utf-8")
+        csr = request_data.get('csr') if isinstance(request_data, dict) else None
+        if not isinstance(csr, str) or not csr:
+            _log.error("Invalid data for csr request.  Missing csr")
+            return self._error_response("Invalid data for csr request.  The csr field is required")
+        csr = csr.encode("utf-8")
         identity = self._certs.get_csr_common_name(csr)
 
         # The identity must start with the current instances name or it is a failure.
