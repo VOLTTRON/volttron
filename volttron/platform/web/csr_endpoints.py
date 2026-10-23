@@ -40,6 +40,11 @@ class CSREndpoints:
 
     @staticmethod
     def _error_response(message):
+        """Build the JSON error response returned for a rejected CSR request.
+
+        :param message: reason shown to the caller
+        :return: werkzeug Response with status ERROR
+        """
         return Response(jsonapi.dumps(dict(status="ERROR", message=message)),
                         content_type='application/json',
                         headers={'Content-type': 'application/json'})
