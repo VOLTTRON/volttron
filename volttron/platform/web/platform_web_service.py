@@ -56,7 +56,6 @@ from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
 from volttron.platform.auth.certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
-                       json_validate_request,
                        INVALID_REQUEST,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
@@ -146,6 +145,10 @@ def _without_login_cookie(cookie_header):
     kept = (c.strip() for c in cookie_header.split(';')
             if c.split('=', 1)[0].strip().casefold() != LOGIN_COOKIE)
     return '; '.join(c for c in kept if c)
+
+
+# A CURVE public key as VOLTTRON credentials: URL-safe base64 without padding (vip.socket.encode_key).
+_CURVE_PUBLIC_KEY_RE = re.compile(r'^[A-Za-z0-9_-]{43}$')
 
 
 class CouldNotRegister(Exception):
@@ -532,6 +535,32 @@ class PlatformWebService(Agent):
         return [jsonapi.dumpb(
             jsonrpc.json_error(request_id, UNAUTHORIZED, status))]
 
+    def _bad_request(self, environ, start_response, request_id='NA'):
+        start_response('400 Bad Request', [('Content-Type', 'application/json')])
+        return [jsonapi.dumpb(jsonrpc.json_error(request_id, INVALID_PARAMS, '400 Bad Request'))]
+
+    @staticmethod
+    def _allowvc_public_key(jsondata):
+        """Return the VC public key from a well-formed ``allowvc`` request, else None.
+
+        Explicit checks rather than assert statements: assertions vanish under ``python -O`` and this is
+        network input, even though only an authenticated admin reaches it.
+        """
+        if not isinstance(jsondata, dict) or jsondata.get('jsonrpc') != '2.0' or not jsondata.get('id'):
+            return None
+        if jsondata.get('method') != 'allowvc':
+            return None
+        params = jsondata.get('params')
+        if isinstance(params, list) and params:
+            key = params[0]
+        elif isinstance(params, dict):
+            key = params.get('vcpublickey')
+        else:
+            return None
+        if not isinstance(key, str) or not _CURVE_PUBLIC_KEY_RE.fullmatch(key):
+            return None
+        return key
+
     def _allow(self, environ, start_response, data=None):
         _log.info('Allowing new vc instance to connect to server.')
         # GHSA-j9rp-3mvh-v57x (VO-001): the allow-list mutates platform trust
@@ -544,20 +573,19 @@ class PlatformWebService(Agent):
         if get_media_type(environ) != 'application/json':
             return self._unauthorized(environ, start_response, '415 Unsupported Media Type')
         # app_routing has already decoded a JSON body.
-        jsondata = data if isinstance(data, dict) else jsonapi.loads(data)
-        json_validate_request(jsondata)
-
-        assert jsondata.get('method') == 'allowvc'
-        assert jsondata.get('params')
-
-        params = jsondata.get('params')
-        if isinstance(params, list):
-            vcpublickey = params[0]
-        else:
-            vcpublickey = params.get('vcpublickey')
-
-        assert vcpublickey
-        assert len(vcpublickey) == 43
+        jsondata = data
+        if not isinstance(jsondata, dict):
+            try:
+                jsondata = jsonapi.loads(data)
+            except (TypeError, ValueError):
+                jsondata = None
+        request_id = jsondata.get('id') if isinstance(jsondata, dict) else None
+        if not isinstance(request_id, (str, int)) or isinstance(request_id, bool):
+            request_id = 'NA'
+        vcpublickey = self._allowvc_public_key(jsondata)
+        if vcpublickey is None:
+            _log.warning('Refused a malformed allowvc request.')
+            return self._bad_request(environ, start_response, request_id)
 
         authentry = {"credentials": vcpublickey, "identity": VOLTTRON_CENTRAL}
         try:
@@ -568,7 +596,7 @@ class PlatformWebService(Agent):
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
         return [jsonapi.dumpb(
-            json_result(jsondata['id'], "Added")
+            json_result(request_id, "Added")
         )]
 
     def _get_discovery(self, environ, start_response, data=None):
