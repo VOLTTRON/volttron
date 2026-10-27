@@ -5,8 +5,8 @@ Authentication EndPoints
 ========================
 
 The VOLTTRON Web API requires the use of bearer tokens to access resources.  These tokens
-are JSON Web Tokens (JWT) and are provided by the two ``/authenticate`` endpoints (``POST``
-and ``PUT``).  Two classes of token are provided to the user:
+are JSON Web Tokens (JWT) and are provided by the ``/authenticate`` endpoints: ``POST`` to log
+in, ``PUT`` to renew, and ``DELETE`` to log out.  Two classes of token are provided to the user:
 
 - Refresh Tokens:
     Refresh tokens are long-lived, and used can be used to obtain a new short-lived access
@@ -24,10 +24,15 @@ and ``PUT``).  Two classes of token are provided to the user:
     ``PUT`` being used thereafter to obtain new access tokens until the refresh token has
     also expired.
 
+Both tokens of a login, and every access token later renewed from its refresh token, belong to
+one login session. ``DELETE /authenticate`` ends that session: every one of its tokens is refused
+from then on, whichever of them was presented.
+
 .. note:: Authentication begins by obtaining a JWT bearer refresh token from the
-    ``POST /authenticate`` endpoint. An initial access token is provided by this endpoint
+    ``POST /authenticate`` endpoint. An initial access token is provided by this endpoint
     as well. Subsequent access tokens are then obtained by providing the refresh token to the
-    ``PUT /authenticate`` endpoint without resending of credentials.
+    ``PUT /authenticate`` endpoint without resending of credentials. When the client is
+    finished, or a token may have been exposed, ``DELETE /authenticate`` revokes the session.
 
 ----------------------------------------------------------------------------
 
@@ -111,3 +116,38 @@ Response:
 
 * **With invalid or mismatched username, password, or token:**
    ``401 Unauthorized``
+
+--------------
+
+DELETE /authenticate
+====================
+
+Revoke the login session (log out).
+
+The user provides either token of the session (the refresh token, or any access token obtained
+from it) in the Authorization header. The session is revoked: the refresh token can no longer
+be used with ``PUT /authenticate``, every access token of the session is refused by every
+other endpoint, and any websocket subscriptions opened with them are closed. Revocation
+persists across a restart of the web service and lasts until the last token of the session
+would have expired anyway.
+
+The token is read from the Authorization header only. A ``Bearer`` cookie is not accepted
+for this request, so a page served by another site cannot log the user out.
+
+Request:
+--------
+
+- Authorization: ``BEARER <jwt_refresh_token or jwt_access_token>``
+- Body: none
+
+Response:
+---------
+
+* **With a valid token of this server:** ``204 No Content``
+    - Returned also when the session was already revoked.
+
+* **With no token, or an invalid or expired token:** ``401 Unauthorized``
+
+.. note:: Tokens issued before the server supported revocation carry no session identifier
+    and are refused everywhere; clients holding one must log in again with
+    ``POST /authenticate``.
