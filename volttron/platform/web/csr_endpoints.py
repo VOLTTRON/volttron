@@ -79,7 +79,12 @@ class CSREndpoints:
         # Every request is recorded as pending.  Approval is an administrator
         # action performed through the auth service (``vctl auth approve`` or
         # the admin web UI); this endpoint never signs a CSR on its own.
-        self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
+        try:
+            self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
+        except ValueError as err:
+            # The common name passed the instance-name prefix check but is not a safe file name.
+            _log.error("Refused csr request: %s", err)
+            return self._error_response(str(err))
 
         status = self._certs.get_csr_status(identity)
 

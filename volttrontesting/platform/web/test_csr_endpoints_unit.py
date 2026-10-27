@@ -170,3 +170,16 @@ def test_unusable_csr_gets_an_error_response_and_saves_nothing(endpoints, certs,
     assert jsonapi.loads(response.get_data(as_text=True))["status"] == "ERROR"
     certs.save_pending_csr_request.assert_not_called()
     certs.get_cert_from_csr.assert_not_called()
+
+
+def test_unsafe_common_name_gets_an_error_response_and_saves_nothing(endpoints, certs):
+    # The prefix check lets "volttron1.x/../../web-users" through; Certs refuses it as a file name.
+    certs.get_csr_common_name.return_value = INSTANCE + ".x/../../web-users"
+    certs.save_pending_csr_request.side_effect = ValueError("Invalid common name for a certificate signing request")
+    response = endpoints._csr_request_new({"REMOTE_ADDR": REMOTE_ADDR}, jsonapi.dumps(dict(csr="x")))
+
+    body = jsonapi.loads(response.get_data(as_text=True))
+    assert body["status"] == "ERROR"
+    assert "common name" in body["message"]
+    certs.get_csr_status.assert_not_called()
+    certs.get_cert_from_csr.assert_not_called()

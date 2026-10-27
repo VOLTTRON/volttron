@@ -26,6 +26,7 @@ from collections import namedtuple
 import datetime
 import logging
 import os
+import re
 import six
 import time
 from shutil import copyfile
@@ -230,6 +231,29 @@ def _load_key(key_file_path):
             f.read(),
             passphrase)
         return key
+
+
+# A CSR common name that is safe to use as a file stem: letters, digits, '.', '_' and '-', starting with a
+# letter or digit (so neither '.' nor '..' nor a hidden file), at most 255 characters. Instance names and
+# identities only use these characters (see is_valid_identity).
+_CSR_COMMON_NAME_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$')
+
+
+def validate_csr_common_name(common_name):
+    """Return ``common_name`` when it can safely name files under the pending CSR directory.
+
+    The common name is taken from the subject of a CSR sent by a remote peer. A prefix check against the
+    instance name is not a path sanitiser, so the name is required to be a bare file stem with a fixed
+    character set before it is joined to any directory.
+
+    :raises ValueError: when the name is not a str or does not fit the pattern. The message does not echo
+        the name, which is attacker-supplied.
+    """
+    # fullmatch: ``$`` alone would still match before a trailing newline.
+    if not isinstance(common_name, str) or not _CSR_COMMON_NAME_RE.fullmatch(common_name) \
+            or os.path.basename(common_name) != common_name:
+        raise ValueError("Invalid common name for a certificate signing request")
+    return common_name
 
 
 def _get_cert_attribute_value(cert, attribute):
@@ -466,18 +490,35 @@ class Certs:
         csr = self.load_csr(data)
         return csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
+    def _pending_csr_paths(self, common_name):
+        """Return the (meta .json, .csr) paths of a pending request, refusing an unsafe common name."""
+        common_name = validate_csr_common_name(common_name)
+        return (os.path.join(self.csr_pending_dir, common_name + ".json"),
+                os.path.join(self.csr_pending_dir, common_name + ".csr"))
+
     def save_pending_csr_request(self, ip_addr, common_name, csr):
+        """Record a CSR as pending administrator approval.
+
+        The common name comes from the CSR subject, i.e. from the remote peer, so it is validated as a bare
+        file stem before it is joined to the pending directory. An existing request for the name - either of
+        its two files - is never overwritten; the files are created exclusively so a concurrent request cannot
+        replace them either.
+
+        :raises ValueError: the common name is not a safe file stem.
+        """
+        metafile, csrfile = self._pending_csr_paths(common_name)
         meta = dict(remote_ip_address=ip_addr, identity=common_name,
                     csr=csr.decode("utf-8"), status="PENDING")
-        metafile = os.path.join(self.csr_pending_dir, common_name+".json")
-        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
-        if os.path.exists(metafile):
+        if os.path.exists(metafile) or os.path.exists(csrfile):
             _log.debug("csr file already exists, not saving")
-        else:
-            with open(metafile, 'w') as fp:
+            return csrfile
+        try:
+            with open(metafile, 'x') as fp:
                 fp.write(jsonapi.dumps(meta))
-            with open(csrfile, "wb") as fw:
+            with open(csrfile, "xb") as fw:
                 fw.write(csr)
+        except FileExistsError:
+            _log.debug("csr file already exists, not saving")
         return csrfile
 
     def create_csr(self, fully_qualified_identity, remote_instance_name):
@@ -502,7 +543,7 @@ class Certs:
         return csr.public_bytes(serialization.Encoding.PEM)
 
     def get_csr_status(self, common_name):
-        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
+        metafile, _ = self._pending_csr_paths(common_name)
         if not os.path.isfile(metafile):
             return "UNKNOWN"
 
@@ -515,8 +556,7 @@ class Certs:
             return self.cert(common_name, True).public_bytes(encoding=serialization.Encoding.PEM)
 
     def approve_csr(self, common_name):
-        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
-        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
+        metafile, csrfile = self._pending_csr_paths(common_name)
         if not os.path.isfile(metafile):
             raise ValueError("Unknown csr for common_name {}".format(common_name))
         if not os.path.isfile(csrfile):
@@ -531,8 +571,7 @@ class Certs:
         return cert
 
     def delete_csr(self, common_name):
-        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
-        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
+        metafile, csrfile = self._pending_csr_paths(common_name)
 
         self.delete_remote_cert(common_name)
         if os.path.exists(metafile):
@@ -541,8 +580,7 @@ class Certs:
             os.remove(csrfile)
 
     def deny_csr(self, common_name):
-        metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
-        csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
+        metafile, csrfile = self._pending_csr_paths(common_name)
 
         if not os.path.isfile(metafile):
             raise ValueError("Unknown csr for common_name {}".format(common_name))
