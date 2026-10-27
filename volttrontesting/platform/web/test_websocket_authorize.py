@@ -410,7 +410,9 @@ def test_the_service_keeps_its_authenticate_endpoints_on_an_https_bind(tmp_path,
         certs.get_cert_public_key.return_value = 'public'
         endpoints.return_value.get_routes.return_value = []
         start_web_service(service)
-    endpoints.assert_called_once_with(tls_private_key='private', tls_public_key='public')
+    endpoints.assert_called_once_with(tls_private_key='private', tls_public_key='public',
+                                      revoked_sessions=service._revoked_sessions,
+                                      on_revoke=service._session_revoked)
     assert service._authenticate_endpoints is endpoints.return_value
 
 

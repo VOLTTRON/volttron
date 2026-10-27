@@ -46,6 +46,7 @@ from .admin_endpoints import AdminEndpoints
 from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
+from .token_revocation import RevokedSessions, REVOKED_SESSIONS_FILE
 from .webapp import WebApplicationWrapper
 from .static_roots import configured_roots, file_to_serve, open_checked, root_refusal
 from volttron.platform.agent.known_identities import \
@@ -241,6 +242,9 @@ class PlatformWebService(Agent):
         self._vui_endpoints: VUIEndpoints = None
         # Set when the web service starts; None until then.
         self._authenticate_endpoints: AuthenticateEndpoints = None
+        # Login sessions revoked through DELETE /authenticate. Shared with the authenticate endpoint and
+        # consulted on every token check, so a revoked token is refused everywhere at once.
+        self._revoked_sessions = RevokedSessions(os.path.join(get_home(), REVOKED_SESSIONS_FILE))
 
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
@@ -265,7 +269,18 @@ class PlatformWebService(Agent):
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
 
-        return claims if claims.get('grant_type') == 'access_token' else {}
+        if claims.get('grant_type') != 'access_token' or not self._revoked_sessions.allows(claims):
+            return {}
+        return claims
+
+    def _session_revoked(self, sid):
+        """Close the websockets that were opened with tokens of a revoked login session."""
+        manager = getattr(self._vui_endpoints, 'pubsub_manager', None)
+        if manager is None:
+            return
+        closed = manager.close_session_sockets(sid)
+        if closed:
+            _log.info('Closed %d websocket(s) of a revoked web session.', closed)
 
     @RPC.export
     def websocket_send(self, endpoint, message):
@@ -1054,12 +1069,15 @@ class PlatformWebService(Agent):
                 ssl_private_key = CertWrapper.get_private_key(ssl_key)
                 ssl_public_key = CertWrapper.get_cert_public_key(self.web_ssl_cert)
             self._authenticate_endpoints = AuthenticateEndpoints(
-                tls_private_key=ssl_private_key, tls_public_key=ssl_public_key)
+                tls_private_key=ssl_private_key, tls_public_key=ssl_public_key,
+                revoked_sessions=self._revoked_sessions, on_revoke=self._session_revoked)
             for rt in self._authenticate_endpoints.get_routes():
                 self.registeredroutes.append(rt)
         else:
             # We don't have a private ssl key if we aren't using ssl.
-            self._authenticate_endpoints = AuthenticateEndpoints(web_secret_key=self._web_secret_key)
+            self._authenticate_endpoints = AuthenticateEndpoints(
+                web_secret_key=self._web_secret_key,
+                revoked_sessions=self._revoked_sessions, on_revoke=self._session_revoked)
             for rt in self._authenticate_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 

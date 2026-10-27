@@ -148,12 +148,14 @@ def test_invalid_token_does_not_publish_through_the_real_manager():
     assert len(vui.pubsub_manager.user_websockets) == 0
 
 
-@pytest.mark.parametrize('claims', [{'groups': ['admin']}, {'groups': []}, {}, {'groups': None}])
+@pytest.mark.parametrize('claims, status', [({'groups': ['admin']}, 403), ({'groups': []}, 403), ({}, 401),
+                                            ({'groups': None}, 403)])
 @pytest.mark.parametrize('method', ['GET', 'PUT'])
-def test_vui_group_is_required(claims, method):
+def test_vui_group_is_required(claims, status, method):
+    # Empty claims (a refresh token, or a revoked session) are 401: log in again.
     vui, agent = _vui(claims=claims)
     response = _send(vui, TOPIC_PATH, method)
-    assert response.status_code == 403
+    assert response.status_code == status
     assert _nothing_done(vui, agent)
 
 

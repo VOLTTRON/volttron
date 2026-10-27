@@ -2,6 +2,7 @@ import json
 from weakref import WeakValueDictionary
 from collections import defaultdict
 
+import jwt
 from ws4py.server.geventserver import WebSocketWSGIApplication
 from ws4py.websocket import WebSocket
 import logging
@@ -36,6 +37,31 @@ class VUIPubsubManager:
             self.user_websockets[access_token][topic] = ws
             _log.debug('reached end, returning ws.')
         return ws
+
+    def close_session_sockets(self, sid):
+        """Close and forget every websocket opened with a token of the revoked login session ``sid``.
+
+        The tokens were verified when the sockets were opened; they are only decoded here to read the session
+        id. Returns the number of sockets closed.
+        """
+        from volttron.platform.web.token_revocation import session_id
+        closed = 0
+        for access_token in list(self.user_websockets):
+            try:
+                claims = jwt.decode(access_token, options={'verify_signature': False})
+            except jwt.PyJWTError:
+                claims = None
+            if session_id(claims) != sid:
+                continue
+            for ws in self.user_websockets.pop(access_token).values():
+                if not isinstance(ws, WebSocket) or ws.terminated:
+                    continue
+                try:
+                    ws.close(reason='Session revoked')
+                    closed += 1
+                except Exception as err:
+                    _log.warning('Could not close a websocket of a revoked session: %s', type(err).__name__)
+        return closed
 
     def close_socket(self, access_token, topic=None):
         # TODO: Cancel subscription to a topic (or all topics for ../pubsub).

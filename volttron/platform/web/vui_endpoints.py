@@ -98,6 +98,9 @@ def _refuse_request(agent, env, admin_request):
         if not bearer:
             raise ValueError('no bearer token')
         claims = agent.get_user_claims(bearer)
+        if not claims:
+            # A refresh token, or a revoked session: the caller must log in again, not ask for more rights.
+            raise ValueError('not a valid access token')
     except Exception as e:
         _log.warning(f"Unauthorized user attempted to connect to {path}. Caught Exception: {e}")
         return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
