@@ -234,26 +234,31 @@ class _FakeSocket(WebSocket):
         self.client_terminated = self.server_terminated = True
 
 
-def _token(secret, sid):
-    return jwt.encode({SESSION_CLAIM: sid, "grant_type": "access_token", "groups": ["vui"]}, secret, "HS256")
+def _open(manager, token, topic, sid, sock=None):
+    """Open a subscription as the endpoint does, then stand in a fake socket for the WSGI application."""
+    manager.open_subscription_socket(token, topic, sid=sid)
+    if sock is not None:
+        manager.user_websockets[token][topic] = sock
 
 
 def test_close_session_sockets_closes_only_the_revoked_session():
-    secret = get_random_key()
     manager = VUIPubsubManager(MagicMock())
-    doomed_a, doomed_b, kept = _FakeSocket(), _FakeSocket(), _FakeSocket()
-    manager.user_websockets[_token(secret, "doomed")] = {"devices/a": doomed_a, "devices/b": doomed_b}
-    manager.user_websockets[_token(secret, "kept")] = {"devices/a": kept}
-    manager.user_websockets["garbage-token"] = {"devices/a": _FakeSocket()}
+    doomed_a, doomed_b, kept, legacy = _FakeSocket(), _FakeSocket(), _FakeSocket(), _FakeSocket()
+    _open(manager, "doomed-token", "devices/a", "doomed", doomed_a)
+    _open(manager, "doomed-token", "devices/b", "doomed", doomed_b)
+    _open(manager, "kept-token", "devices/a", "kept", kept)
+    _open(manager, "legacy-token", "devices/a", None, legacy)  # opened without a session id
     # A pending entry still holds the WSGI application, not a socket.
-    manager.user_websockets[_token(secret, "doomed") + "2"] = {}
+    _open(manager, "doomed-token-2", "devices/c", "doomed")
 
     assert manager.close_session_sockets("doomed") == 2
     assert doomed_a.closed_with == "Session revoked" and doomed_b.terminated
-    assert kept.closed_with is None
-    assert _token(secret, "doomed") not in manager.user_websockets
-    assert _token(secret, "kept") in manager.user_websockets
+    assert kept.closed_with is None and legacy.closed_with is None
+    assert "doomed-token" not in manager.user_websockets and "doomed-token-2" not in manager.user_websockets
+    assert "kept-token" in manager.user_websockets and "legacy-token" in manager.user_websockets
+    assert "doomed" not in manager.session_tokens
     assert manager.close_session_sockets("doomed") == 0
+    assert manager.close_session_sockets("never-seen") == 0
 
 
 def test_service_closes_websockets_of_a_revoked_session(server):
@@ -265,7 +270,8 @@ def test_service_closes_websockets_of_a_revoked_session(server):
     svc._vui_endpoints.pubsub_manager = VUIPubsubManager(MagicMock())
     tokens = _login(endpoints)
     sock = _FakeSocket()
-    svc._vui_endpoints.pubsub_manager.user_websockets[tokens["access_token"]] = {"devices/a": sock}
+    sid = session_id(jwt.decode(tokens["access_token"], secret, algorithms=["HS256"]))
+    _open(svc._vui_endpoints.pubsub_manager, tokens["access_token"], "devices/a", sid, sock)
 
     assert "204" in _revoke(endpoints, tokens["refresh_token"]).status
     assert sock.terminated

@@ -111,7 +111,16 @@ def test_vui_subscribe_opens_one_socket():
                      HTTP_COOKIE='Bearer=tok', HTTP_ORIGIN='http://v2:8080')
     assert isinstance(response, list)
     vui.pubsub_manager.open_subscription_socket.assert_called_once_with(
-        'tok', 'devices/campus/building/point')
+        'tok', 'devices/campus/building/point', sid=None)
+
+
+def test_vui_subscribe_records_the_login_session():
+    # The verified token's session id is handed to the manager so that revoking the session closes the socket.
+    vui, agent = _vui(claims={'groups': ['vui'], 'sid': 'session-1'})
+    response = _send(vui, TOPIC_PATH, 'GET', content_type=None)
+    assert isinstance(response, list)
+    vui.pubsub_manager.open_subscription_socket.assert_called_once_with(
+        'tok', 'devices/campus/building/point', sid='session-1')
 
 
 def test_vui_lists_its_sockets():

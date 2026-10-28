@@ -513,7 +513,7 @@ class Certs:
             _log.debug("csr file already exists, not saving")
             return csrfile
         try:
-            with open(metafile, 'x') as fp:
+            with open(metafile, 'x', encoding='utf-8') as fp:
                 fp.write(jsonapi.dumps(meta))
             with open(csrfile, "xb") as fw:
                 fw.write(csr)

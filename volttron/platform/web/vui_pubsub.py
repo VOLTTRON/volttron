@@ -2,7 +2,6 @@ import json
 from weakref import WeakValueDictionary
 from collections import defaultdict
 
-import jwt
 from ws4py.server.geventserver import WebSocketWSGIApplication
 from ws4py.websocket import WebSocket
 import logging
@@ -16,15 +15,23 @@ class VUIPubsubManager:
         self.subscription_websockets = WeakValueDictionary() # Websockets for all topics with current subscriptions.
         self.publication_websockets = {}  # Websockets for all topics with current publication queue.
         self.user_websockets = defaultdict(dict)  # References to all websockets for each user access_token.
+        self.session_tokens = defaultdict(set)  # Access tokens that opened websockets, per login session id.
 
     def get_socket_routes(self, access_token, topic=None):
         _log.debug('In get_socket_routes. subscription_websockets is: ')
         _log.debug(self.subscription_websockets)
         return {t: str(w) for t, w in self.user_websockets[access_token].items()}
 
-    def open_subscription_socket(self, access_token, topic):
+    def open_subscription_socket(self, access_token, topic, sid=None):
+        """Open (or join) the websocket for ``topic`` on behalf of the holder of ``access_token``.
+
+        ``sid`` is the login session id of the already verified token; it lets
+        :meth:`close_session_sockets` find the socket when that session is revoked.
+        """
         _log.debug('In open_subscription_socket:')
         _log.debug(f'topic: {topic!r}')
+        if sid is not None:
+            self.session_tokens[sid].add(access_token)
         ws = self.subscription_websockets.get(topic)
         _log.debug(f'subscription_websockets has: {ws}')
         if not ws:
@@ -41,19 +48,11 @@ class VUIPubsubManager:
     def close_session_sockets(self, sid):
         """Close and forget every websocket opened with a token of the revoked login session ``sid``.
 
-        The tokens were verified when the sockets were opened; they are only decoded here to read the session
-        id. Returns the number of sockets closed.
+        Returns the number of sockets closed.
         """
-        from volttron.platform.web.token_revocation import session_id
         closed = 0
-        for access_token in list(self.user_websockets):
-            try:
-                claims = jwt.decode(access_token, options={'verify_signature': False})
-            except jwt.PyJWTError:
-                claims = None
-            if session_id(claims) != sid:
-                continue
-            for ws in self.user_websockets.pop(access_token).values():
+        for access_token in self.session_tokens.pop(sid, ()):
+            for ws in self.user_websockets.pop(access_token, {}).values():
                 if not isinstance(ws, WebSocket) or ws.terminated:
                     continue
                 try:

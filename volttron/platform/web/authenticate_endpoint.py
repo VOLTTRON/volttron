@@ -246,8 +246,8 @@ class AuthenticateEndpoints:
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):
             return Response('Invalid refresh token.', status="401 Unauthorized")
         if not self._revoked_sessions.allows(claims):
-            _log.warning("Refresh attempted with a revoked or unrevocable token at {}".format(
-                printable_text(env.get('PATH_INFO'))))
+            _log.warning(f"Refresh attempted with a revoked or unrevocable token at "
+                         f"{printable_text(env.get('PATH_INFO'))}")
             return Response('Unauthorized User', status="401 Unauthorized")
         # TODO: Consider blacklisting and reissuing refresh tokens also when used.
         new_access_token, _ = self._get_tokens(claims)
@@ -272,18 +272,17 @@ class AuthenticateEndpoints:
         path = printable_text(env.get('PATH_INFO'))
         bearer = get_authorization_bearer(env)
         if not bearer:
-            _log.error("Revocation request to {} without a bearer Authorization header".format(path))
+            _log.error(f"Revocation request to {path} without a bearer Authorization header")
             return Response('Unauthorized User', status="401 Unauthorized")
         try:
             claims = get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key,
                                                 tls_public_key=self._tls_public_key)
         except jwt.PyJWTError as err:
-            _log.error("Revocation request to {} with a token that does not validate: {}".format(
-                path, type(err).__name__))
+            _log.error(f"Revocation request to {path} with a token that does not validate: {type(err).__name__}")
             return Response('Unauthorized User', status="401 Unauthorized")
         sid = session_id(claims)
         if claims.get('grant_type') not in ('access_token', 'refresh_token') or sid is None:
-            _log.error("Revocation request to {} with a token that is not a session token".format(path))
+            _log.error(f"Revocation request to {path} with a token that is not a session token")
             return Response('Unauthorized User', status="401 Unauthorized")
         self._revoked_sessions.revoke(sid, self._session_end(claims))
         _log.info("Web session revoked.")

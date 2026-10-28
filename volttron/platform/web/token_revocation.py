@@ -106,7 +106,7 @@ class RevokedSessions:
 
     def _load(self):
         try:
-            with open(self._path) as fp:
+            with open(self._path, encoding='utf-8') as fp:
                 stored = json.load(fp)
         except FileNotFoundError:
             return
@@ -129,7 +129,7 @@ class RevokedSessions:
         directory = os.path.dirname(self._path) or '.'
         fd, tmp_path = tempfile.mkstemp(prefix='.' + os.path.basename(self._path) + '.', dir=directory)
         try:
-            with os.fdopen(fd, 'w') as fp:
+            with os.fdopen(fd, 'w', encoding='utf-8') as fp:
                 json.dump(self._expiry, fp, sort_keys=True)
             os.chmod(tmp_path, 0o600)
             os.replace(tmp_path, self._path)

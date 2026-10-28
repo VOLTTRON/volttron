@@ -82,7 +82,12 @@ def endpoint(func=None, *, admin_post=False):
 
 
 def _refuse_request(agent, env, admin_request):
-    """Return the refusal Response for a VUI request, or None to proceed.
+    """Return the refusal Response for a VUI request, or None to proceed. See :func:`_check_request`."""
+    return _check_request(agent, env, admin_request)[0]
+
+
+def _check_request(agent, env, admin_request):
+    """Return ``(refusal, claims)``: a refusal Response and None, or None and the verified token claims.
 
     Every request needs a valid token in the ``vui`` group. Any request other
     than GET takes the token from the Authorization header, never the cookie,
@@ -103,19 +108,19 @@ def _refuse_request(agent, env, admin_request):
             raise ValueError('not a valid access token')
     except Exception as e:
         _log.warning(f"Unauthorized user attempted to connect to {path}. Caught Exception: {e}")
-        return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+        return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json'), None
 
     groups = get_claim_groups(claims)
     if groups is None or 'vui' not in groups:
         _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {path}.")
-        return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
+        return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json'), None
     if admin_request and 'admin' not in groups:
         _log.warning(f"Non-admin user attempted an admin request at {path}.")
-        return _forbidden()
+        return _forbidden(), None
     if admin_request and get_media_type(env) != 'application/json':
         return Response(json.dumps({'error': 'Unsupported Media Type'}), 415,
-                        content_type='application/json')
-    return None
+                        content_type='application/json'), None
+    return None, claims
 
 
 def _same_origin(env):
@@ -844,9 +849,10 @@ class VUIEndpoints:
         # the rules for invoking an agent method.
         from volttron.platform.web import (describe_call_error, get_authorization_bearer, get_bearer,
                                            printable_text)
+        from volttron.platform.web.token_revocation import session_id
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
-        refusal = _refuse_request(self._agent, env, admin_request=request_method in ('PUT', 'POST'))
+        refusal, claims = _check_request(self._agent, env, admin_request=request_method in ('PUT', 'POST'))
         if refusal is not None:
             return refusal
         access_token = get_bearer(env)
@@ -870,7 +876,7 @@ class VUIEndpoints:
                                  f"{printable_text(env.get('HTTP_ORIGIN'))!r}, "
                                  f"host {printable_text(env.get('HTTP_HOST'))!r}")
                     return _forbidden()
-                ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
+                ws = self.pubsub_manager.open_subscription_socket(access_token, topic, sid=session_id(claims))
                 env['ws4py.app'] = self.pubsub_manager
                 return [ws(env, start_response)]
 
