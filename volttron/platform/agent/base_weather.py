@@ -117,6 +117,7 @@ class BaseWeatherAgent(Agent):
             self._cache = None
             self.cache_read_error = False
             self.cache_write_error = False
+            self.cache_full = False
 
             self._default_config = \
                 {
@@ -1174,8 +1175,12 @@ class BaseWeatherAgent(Agent):
                                            "Weather agent cache is full")
                 status = Status.from_json(self.vip.health.get_status_json())
                 self.vip.health.send_alert(CACHE_FULL, status)
-            else:
+                self.cache_full = True
+            elif self.cache_full:
+                # Only clear a status that this path set. Other BAD statuses
+                # (e.g. a cache read error) are owned by their own paths.
                 self.vip.health.set_status(STATUS_GOOD)
+                self.cache_full = False
         except Exception as error:
             err_msg = "Weather agent failed to write to cache"
             _log.error("{}. Exception:{}".format(err_msg, error))
@@ -1208,6 +1213,13 @@ class BaseWeatherAgent(Agent):
 
 class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
+
+    # Once the cache reaches max size, trim it to this fraction of the limit.
+    TRIM_TARGET_FRACTION = 0.9
+    # Oldest-record trimming: rows per table in the first round (doubles each
+    # round) and the maximum number of rounds per pass.
+    TRIM_BATCH_SIZE = 100
+    TRIM_MAX_ROUNDS = 100
 
     def __init__(self,
                  database_file,
@@ -1525,8 +1537,10 @@ class WeatherCache:
         cache_full = False
         if self._max_size_gb is not None and \
                 self.page_count(cursor) >= self._max_pages:
-            cache_full = True
             self.manage_cache_size()
+            # Only report full if trimming could not bring the cache back
+            # under its limit.
+            cache_full = self.page_count(cursor) >= self._max_pages
         cursor.close()
         return cache_full
 
@@ -1546,87 +1560,87 @@ class WeatherCache:
 
     def manage_cache_size(self):
         """
-        Removes data from the weather cache until the cache is a safe size.
-        Prioritizes removal from current, then forecast, then historical request types
+        Removes data from the weather cache when it has reached its maximum
+        size. Once the limit is hit, records are removed until the cache is
+        below TRIM_TARGET_FRACTION of the limit, so that a cache hovering at
+        its limit is trimmed in occasional bursts rather than on every write.
+
+        Removal order: expired current records, expired forecast records,
+        oldest historical records, then oldest records from any table.
         """
         if not self._max_size_gb:
             return
 
+        cursor = self._sqlite_conn.cursor()
         try:
-            cursor = self._sqlite_conn.cursor()
             page_count = self.page_count(cursor)
             if page_count < self._max_pages:
                 return
-
-            attempt = 1
-            records_deleted = 0
+            target = int(self._max_pages * self.TRIM_TARGET_FRACTION)
             now = get_aware_utc_now()
-            max_attempts = 10  # Prevent infinite loops
 
-            while page_count >= self._max_pages and attempt <= max_attempts:
-                if attempt == 1:
-                    for table_name, service in self._api_services.items():
-                        # Remove all data that is older than update interval
-                        if service["type"] == "current" and service["update_interval"]:
-                            query = f"DELETE FROM {table_name} WHERE OBSERVATION_TIME < ?;"
-                            cursor.execute(query, (now - service["update_interval"],))
-                elif attempt == 2:
-                    for table_name, service in self._api_services.items():
-                        # Remove all data that is older than update interval
-                        if service["type"] == "forecast" and service["update_interval"]:
-                            query = f"DELETE FROM {table_name} WHERE GENERATION_TIME < ?"
-                            cursor.execute(query, (now - service["update_interval"],))
-                elif attempt > 2:
-                    records_deleted = 0
-                    for table_name, service in self._api_services.items():
-                        if service["type"] == "history":
-                            query = (f"DELETE FROM {table_name}"
-                                     f" WHERE ID IN (SELECT ID FROM {table_name} ORDER BY ID ASC LIMIT 100)")
-                            cursor.execute(query)
-                            records_deleted += cursor.rowcount
-                    if records_deleted == 0:
-                        # all history records removed
-                        break
-
-                # Commit changes so page_count reflects deletions
+            # 1. Expired current, then expired forecast records.
+            for service_type, column in (("current", "OBSERVATION_TIME"),
+                                         ("forecast", "GENERATION_TIME")):
+                for table_name, service in self._api_services.items():
+                    interval = service["update_interval"]
+                    if service["type"] == service_type and interval:
+                        query = f"DELETE FROM {table_name} WHERE {column} < ?;"
+                        cursor.execute(query, (now - interval,))
                 self._sqlite_conn.commit()
-                attempt += 1
                 page_count = self.page_count(cursor)
+                if page_count < target:
+                    return
 
-            # if we still don't have space in cache after targeted deletions,
-            # delete oldest records from any table
+            # 2. Oldest history records, then oldest records from any table.
+            history_tables = [name for name, service in self._api_services.items()
+                              if service["type"] == "history"]
+            for tables in (history_tables, list(self._api_services)):
+                page_count, exhausted = self._trim_oldest(cursor, tables, target)
+                if page_count < target:
+                    return
+                if not exhausted:
+                    break
+
             if page_count >= self._max_pages:
-                _log.warning(f"Cache size still at or above limit after targeted deletions. "
-                           f"Current page count: {page_count}, Max pages: {self._max_pages}. "
-                           f"Removing oldest records from all tables.")
-                delete_attempts = 0
-                max_delete_attempts = 100  # Prevent infinite loops
-                while page_count >= self._max_pages and delete_attempts < max_delete_attempts:
-                    total_deleted = 0
-                    for table_name in self._api_services:
-                        query = f"DELETE FROM {table_name} WHERE ID IN (SELECT ID FROM {table_name} ORDER BY ID ASC LIMIT 100)"
-                        cursor.execute(query)
-                        total_deleted += cursor.rowcount
-
-                    # Commit changes
-                    self._sqlite_conn.commit()
-
-                    if total_deleted == 0:
-                        # No more records to delete
-                        _log.warning("Cache is full but no more records can be deleted")
-                        break
-
-                    page_count = self.page_count(cursor)
-                    delete_attempts += 1
-
-                if delete_attempts >= max_delete_attempts:
-                    _log.error(f"Cache size management exceeded max attempts. "
-                             f"Current page count: {page_count}, Max pages: {self._max_pages}")
-
-            cursor.close()
+                if exhausted:
+                    _log.warning("Cache is full but no more records can be deleted. "
+                                 f"Current page count: {page_count}, Max pages: {self._max_pages}")
+                else:
+                    _log.error("Cache size management exceeded max attempts. "
+                               f"Current page count: {page_count}, Max pages: {self._max_pages}")
         except Exception as e:
             _log.error(f"Error managing cache size: {type(e).__name__}: {e}")
             raise
+        finally:
+            cursor.close()
+
+    def _trim_oldest(self, cursor, tables, target):
+        """
+        Deletes the oldest records from each of the given tables in rounds
+        until the cache is below target pages or the tables are empty. The
+        batch size doubles each round so that large overshoots are cleared
+        in a bounded number of rounds.
+        :return: (page_count, exhausted) where exhausted is True when the
+        tables have no records left to delete.
+        """
+        page_count = self.page_count(cursor)
+        batch = self.TRIM_BATCH_SIZE
+        for _ in range(self.TRIM_MAX_ROUNDS):
+            if page_count < target:
+                break
+            deleted = 0
+            for table_name in tables:
+                query = (f"DELETE FROM {table_name} WHERE ID IN"
+                         f" (SELECT ID FROM {table_name} ORDER BY ID ASC LIMIT ?)")
+                cursor.execute(query, (batch,))
+                deleted += cursor.rowcount
+            self._sqlite_conn.commit()
+            if deleted == 0:
+                return page_count, True
+            page_count = self.page_count(cursor)
+            batch *= 2
+        return page_count, False
 
     def close(self):
         """Close the sqlite database connection when the agent stops"""

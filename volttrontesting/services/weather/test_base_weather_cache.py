@@ -160,3 +160,216 @@ def test_manage_cache_size_trims_oldest_and_commits(tmp_path):
     used_after = WeatherCache.page_count(fresh_cursor)
     assert used_after < cache._max_pages
     fresh.close()
+
+
+# ---------------------------------------------------------------------------
+# Cache-full reporting, trim hysteresis, timed deletes and status handling.
+# ---------------------------------------------------------------------------
+
+import datetime
+from types import SimpleNamespace
+
+from volttron.platform.agent.base_weather import BaseWeatherAgent, CACHE_FULL
+from volttron.platform.agent.utils import get_aware_utc_now
+from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD, Status
+
+UTC = datetime.timezone.utc
+HIST = {"hist_table": {"type": "history", "update_interval": None,
+                       "description": None}}
+
+
+def _fill_history(cache, n=250, payload_size=500):
+    conn = cache._sqlite_conn
+    rows = [("loc", datetime.datetime(2020, 1, 1, tzinfo=UTC)
+             + datetime.timedelta(minutes=i), "x" * payload_size)
+            for i in range(n)]
+    conn.executemany(
+        "INSERT INTO hist_table (LOCATION, OBSERVATION_TIME, POINTS) "
+        "VALUES (?, ?, ?)", rows)
+    conn.commit()
+    return WeatherCache.page_count(conn.cursor())
+
+
+def _set_limit(cache, max_pages):
+    cache._max_size_gb = 1
+    cache._max_pages = max_pages
+
+
+def test_store_reports_full_only_when_trim_cannot_free_space(tmp_path):
+    cache = _make_cache(tmp_path, dict(HIST))
+    used = _fill_history(cache)
+    _set_limit(cache, used)      # exactly at the limit
+
+    record = ("loc", datetime.datetime(2021, 1, 1, tzinfo=UTC), "x" * 500)
+    full = cache.store_weather_records("hist_table", [record])
+
+    assert full is False, "trim freed space, so the cache is not full"
+    assert WeatherCache.page_count(cache._sqlite_conn.cursor()) < used
+
+    # Nothing can satisfy a zero-page limit: now it really is full.
+    _set_limit(cache, 0)
+    assert cache.store_weather_records("hist_table", [record]) is True
+    cache.close()
+
+
+def test_trim_goes_to_low_water_mark_not_just_under_limit(tmp_path):
+    cache = _make_cache(tmp_path, dict(HIST))
+    used = _fill_history(cache, n=2000)
+    _set_limit(cache, used)
+
+    cache.manage_cache_size()
+
+    after = WeatherCache.page_count(cache._sqlite_conn.cursor())
+    assert after < int(used * WeatherCache.TRIM_TARGET_FRACTION)
+    cache.close()
+
+
+def test_expired_current_records_removed_and_fresh_kept(tmp_path):
+    api_services = {"cur_table": {"type": "current",
+                                  "update_interval": datetime.timedelta(hours=1),
+                                  "description": None}}
+    cache = _make_cache(tmp_path, api_services)
+    conn = cache._sqlite_conn
+    now = get_aware_utc_now()
+    old = now - datetime.timedelta(days=2)
+    rows = []
+    for i in range(300):
+        rows.append(("loc", old + datetime.timedelta(seconds=i), "x" * 300))
+        rows.append(("loc", now, "fresh"))
+    conn.executemany(
+        "INSERT INTO cur_table (LOCATION, OBSERVATION_TIME, POINTS) "
+        "VALUES (?, ?, ?)", rows)
+    conn.commit()
+    cursor = conn.cursor()
+    _set_limit(cache, WeatherCache.page_count(cursor) - 1)
+
+    cache.manage_cache_size()
+
+    cursor.execute("SELECT COUNT(*), SUM(POINTS = 'fresh') FROM cur_table")
+    assert cursor.fetchone() == (300, 300)
+    cache.close()
+
+
+def test_expired_forecast_records_removed_and_fresh_kept(tmp_path):
+    api_services = {"fc_table": {"type": "forecast",
+                                 "update_interval": datetime.timedelta(hours=1),
+                                 "description": None}}
+    cache = _make_cache(tmp_path, api_services)
+    conn = cache._sqlite_conn
+    now = get_aware_utc_now()
+    # Rows written by older code carry naive timestamps; they must still
+    # compare correctly against the aware cutoff.
+    old = (now - datetime.timedelta(days=2)).replace(tzinfo=None)
+    rows = [("loc", old, old + datetime.timedelta(hours=h), "y" * 300)
+            for h in range(300)]
+    rows += [("loc", now, now + datetime.timedelta(hours=h), "fresh")
+             for h in range(5)]
+    conn.executemany(
+        "INSERT INTO fc_table (LOCATION, GENERATION_TIME, FORECAST_TIME, "
+        "POINTS) VALUES (?, ?, ?, ?)", rows)
+    conn.commit()
+    cursor = conn.cursor()
+    _set_limit(cache, WeatherCache.page_count(cursor) - 1)
+
+    cache.manage_cache_size()
+
+    cursor.execute("SELECT COUNT(*), SUM(POINTS = 'fresh') FROM fc_table")
+    assert cursor.fetchone() == (5, 5)
+    cache.close()
+
+
+def test_unset_update_interval_falls_through_to_oldest_first(tmp_path):
+    # Before onstart, update_interval is None for every service. The timed
+    # delete must be skipped (no TypeError) and the oldest-first pass must
+    # trim the table instead.
+    api_services = {"cur_table": {"type": "current", "update_interval": None,
+                                  "description": None}}
+    cache = _make_cache(tmp_path, api_services)
+    conn = cache._sqlite_conn
+    rows = [("loc", datetime.datetime(2020, 1, 1, tzinfo=UTC)
+             + datetime.timedelta(minutes=i), "x" * 500) for i in range(250)]
+    conn.executemany(
+        "INSERT INTO cur_table (LOCATION, OBSERVATION_TIME, POINTS) "
+        "VALUES (?, ?, ?)", rows)
+    conn.commit()
+    _set_limit(cache, WeatherCache.page_count(conn.cursor()) - 1)
+
+    cache.manage_cache_size()
+    cache.close()
+
+    fresh = sqlite3.connect(str(tmp_path / "weather.sqlite"))
+    cursor = fresh.cursor()
+    cursor.execute("SELECT MIN(ID), MAX(ID), COUNT(*) FROM cur_table")
+    assert cursor.fetchone() == (101, 250, 150)
+    fresh.close()
+
+
+def test_oldest_first_batch_doubles_and_rounds_are_capped(tmp_path, caplog):
+    cache = _make_cache(tmp_path, dict(HIST))
+    _fill_history(cache, n=1000, payload_size=1)
+    cache.TRIM_MAX_ROUNDS = 2
+    _set_limit(cache, 0)
+
+    with caplog.at_level(logging.ERROR,
+                         logger="volttron.platform.agent.base_weather"):
+        cache.manage_cache_size()
+
+    cursor = cache._sqlite_conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM hist_table")
+    # Two rounds of 100 then 200 rows; hitting the round cap ends trimming
+    # rather than starting the all-tables pass.
+    assert cursor.fetchone()[0] == 1000 - (100 + 200)
+    assert "exceeded max attempts" in caplog.text
+    cache.close()
+
+
+class _FakeHealth:
+    def __init__(self):
+        self.status = Status.build(STATUS_GOOD)
+        self.alerts = []
+
+    def set_status(self, status, context=None):
+        self.status.update_status(status, context)
+
+    def get_status_json(self):
+        return self.status.as_json()
+
+    def send_alert(self, key, status):
+        self.alerts.append(key)
+
+
+def _agent_stub(results):
+    """A stand-in for BaseWeatherAgent with only what store_weather_records
+    touches, and a cache whose store call returns the given values in order."""
+    results = list(results)
+    cache = SimpleNamespace(
+        store_weather_records=lambda *_: results.pop(0))
+    return SimpleNamespace(_cache=cache, vip=SimpleNamespace(health=_FakeHealth()),
+                           cache_write_error=False, cache_full=False)
+
+
+def test_successful_write_does_not_clear_unrelated_bad_status():
+    agent = _agent_stub([False])
+    agent.vip.health.set_status(STATUS_BAD, "Weather agent failed to read from cache")
+
+    BaseWeatherAgent.store_weather_records(agent, "svc", [])
+
+    assert agent.vip.health.status.status == STATUS_BAD
+    assert agent.vip.health.alerts == []
+
+
+def test_cache_full_status_is_set_then_cleared_by_this_path_only():
+    agent = _agent_stub([True, True, False])
+    health = agent.vip.health
+
+    BaseWeatherAgent.store_weather_records(agent, "svc", [])
+    assert health.status.status == STATUS_BAD
+    assert health.alerts == [CACHE_FULL]
+    assert agent.cache_full is True
+
+    BaseWeatherAgent.store_weather_records(agent, "svc", [])
+    assert health.alerts == [CACHE_FULL, CACHE_FULL]
+
+    BaseWeatherAgent.store_weather_records(agent, "svc", [])
+    assert health.status.status == STATUS_GOOD
+    assert agent.cache_full is False
