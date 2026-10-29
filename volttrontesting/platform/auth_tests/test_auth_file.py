@@ -37,7 +37,8 @@ from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
 from volttron.platform import jsonapi
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
-from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
+from volttrontesting.platform.auth_tests.conftest import (
+    assert_auth_entries_same, held_key, hold_volttron_central_key)
 
 
 @pytest.fixture(scope='function')
@@ -332,7 +333,7 @@ def test_upgrade_file_verison_0_to_latest_minimum_entries(tmpdir_factory):
         assert entry["rpc_method_authorizations"] == {}
 
 @pytest.mark.auth
-def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
+def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory, monkeypatch):
     """The only required field in 'version 0' was credentials"""
 
     version1_1 = {
@@ -404,6 +405,11 @@ def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
       ]
     }
 
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmpdir_factory.mktemp("vhome")))
+    for entry in version1_1["allow"]:
+        if entry["user_id"] == CONTROL:
+            entry["credentials"] = held_key(CONTROL)
+
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
         fp.write(jsonapi.dumps(version1_1, indent=2))
@@ -422,7 +428,7 @@ def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
                                           'edit_config_store': {'identity': 'user2'}}
 
 @pytest.mark.auth
-def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
+def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory, monkeypatch):
     """The only required field in 'version 0' was credentials"""
 
     version1_2 = {
@@ -496,6 +502,11 @@ def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
       ]
     }
 
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmpdir_factory.mktemp("vhome")))
+    for entry in version1_2["allow"]:
+        if entry["user_id"] == CONTROL:
+            entry["credentials"] = held_key(CONTROL)
+
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
         fp.write(jsonapi.dumps(version1_2, indent=2))
@@ -545,7 +556,8 @@ def test_add_capabilities_writes_matched_entry_only(tmp_path):
     # this shape (two entries sharing a user_id, differing by key) is
     # seeded with a direct write, bypassing that check.
     seed = AuthFile(auth_path)
-    seed._write([entry_a, entry_b], [], {}, {})
+    with seed._transaction():
+        seed._write([entry_a, entry_b], [], {}, {})
 
     wrapper = PlatformWrapper.__new__(PlatformWrapper)
     wrapper.auth_enabled = True
@@ -655,12 +667,18 @@ def test_write_does_not_read_back(tmp_path, monkeypatch):
     auth_file = AuthFile(auth_path)
     empty = {"allow_list": [], "deny_list": [], "groups": {}, "roles": {},
              "version": {"major": 0, "minor": 0}}
-    monkeypatch.setattr(auth_file, "_read", lambda: empty)
+    read_locked = auth_file._read_locked
+    # A read once the change has loaded the file is a read-back.
+    monkeypatch.setattr(
+        auth_file, "_read_locked",
+        lambda: empty if auth_file._writer else read_locked())
 
     auth_file.add(AuthEntry(user_id="first", credentials=_curve_key("F")))
     auth_file.add(AuthEntry(user_id="second", credentials=_curve_key("S")))
 
     assert [e["user_id"] for e in _disk_allow(auth_path)] == [
+        "first", "second"]
+    assert [e["user_id"] for e in auth_file.auth_data["allow_list"]] == [
         "first", "second"]
 
 
@@ -786,3 +804,170 @@ def test_watcher_survives_a_failed_push(tmp_path, monkeypatch, caplog):
         "InotifyObserver"]
     assert any(r.levelno == logging.ERROR and r.exc_info
                for r in caplog.records)
+
+
+def _version_1_4_entry(user_id, identity, capabilities, credentials="A" * 43):
+    return {"domain": "vip", "address": "127.0.0.1", "mechanism": "CURVE",
+            "credentials": credentials, "user_id": user_id, "identity": identity,
+            "groups": [], "roles": [], "capabilities": capabilities,
+            "rpc_method_authorizations": {}, "comments": None, "enabled": True}
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_grants_web_routes_to_volttron_central_only(tmp_path, caplog, monkeypatch):
+    vc_key = hold_volttron_central_key(tmp_path, monkeypatch)
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    entries = [
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps, vc_key),
+        _version_1_4_entry("volttron.central", "other.agent", {}),
+        _version_1_4_entry("some.user", "volttron.central", {}),
+        _version_1_4_entry("platform.agent", "platform.agent", {}),
+        _version_1_4_entry("Volttron.Central", "Volttron.Central", {}),
+    ]
+    auth_path = str(tmp_path / "auth.json")
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": entries, "deny": [], "groups": {},
+                                "roles": {}, "version": {"major": 1, "minor": 4}}))
+
+    with caplog.at_level(logging.WARNING):
+        AuthFile(auth_path)
+
+    read_back = AuthFile(auth_path).read_allow_entries()
+    granted = [(e.user_id, e.identity) for e in read_back
+               if "register_web_routes" in e.capabilities]
+    assert granted == [("volttron.central", "volttron.central")]
+    assert read_back[0].capabilities == {
+        "edit_config_store": {"identity": "volttron.central"},
+        "register_web_routes": None}
+    with open(auth_path) as fp:
+        assert jsonapi.loads(fp.read())["version"] == {"major": 1, "minor": 5}
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING
+                and "register_web_routes" in r.getMessage()]
+    assert len(warnings) == 1
+
+
+def _write_1_4(auth_path, allow):
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": allow, "deny": [], "groups": {},
+                                "roles": {}, "version": {"major": 1, "minor": 4}}))
+
+
+def _disk_version(auth_path):
+    with open(auth_path) as fp:
+        return jsonapi.loads(fp.read())["version"]
+
+
+@pytest.mark.auth
+def test_upgrade_keeps_a_reserved_entry_the_key_check_withholds(tmp_path, monkeypatch):
+    # No volttron.central agent is installed, so the platform holds no key
+    # for it and the check withholds the entry. The upgrade must not drop it.
+    monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
+    auth_path = str(tmp_path / "auth.json")
+    reserved = _version_1_4_entry("volttron.central", "volttron.central", {})
+    other = _version_1_4_entry("some.agent", "some.agent", {}, "B" * 43)
+    _write_1_4(auth_path, [reserved, other])
+
+    loaded = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.user_id for e in loaded] == ["some.agent"]
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    with open(auth_path) as fp:
+        on_disk = jsonapi.loads(fp.read())["allow"]
+    kept = [e for e in on_disk if e["user_id"] == "volttron.central"]
+    assert len(kept) == 1
+    assert kept[0]["credentials"] == "A" * 43
+    assert kept[0]["identity"] == "volttron.central"
+    assert sorted(e["user_id"] for e in on_disk) == ["some.agent", "volttron.central"]
+
+
+@pytest.mark.auth
+@pytest.mark.parametrize("capabilities", [None, {}, []])
+def test_upgrade_to_1_5_grants_web_routes_when_vc_has_no_capabilities(tmp_path, capabilities, monkeypatch):
+    vc_key = hold_volttron_central_key(tmp_path, monkeypatch)
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [_version_1_4_entry("volttron.central", "volttron.central",
+                                              capabilities, vc_key)])
+
+    entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.capabilities for e in entries] == [{"register_web_routes": None}]
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_leaves_an_existing_grant_alone(tmp_path, caplog, monkeypatch):
+    vc_key = hold_volttron_central_key(tmp_path, monkeypatch)
+    caps = {"register_web_routes": {"note": "kept"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [_version_1_4_entry("volttron.central", "volttron.central", caps, vc_key)])
+
+    with caplog.at_level(logging.WARNING):
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.capabilities for e in entries] == [caps]
+    assert not [r for r in caplog.records if "register_web_routes" in r.getMessage()]
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_skips_entries_it_cannot_read(tmp_path, caplog, monkeypatch):
+    vc_key = hold_volttron_central_key(tmp_path, monkeypatch)
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [
+        "junk",
+        _version_1_4_entry("volttron.central", "volttron.central", 5, vc_key),
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps, vc_key),
+    ])
+
+    with caplog.at_level(logging.WARNING):
+        AuthFile(auth_path)
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    assert [e.capabilities for e in entries] == [
+        {"edit_config_store": {"identity": "volttron.central"}, "register_web_routes": None}]
+    skipped = [r for r in caplog.records if r.levelno == logging.WARNING
+               and "removed from the file" in r.getMessage()]
+    assert len(skipped) == 2
+    assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1
+
+
+def _with_rpc_authorizations(entry, value):
+    entry["rpc_method_authorizations"] = value
+    return entry
+
+
+@pytest.mark.auth
+def test_entry_with_unreadable_rpc_authorizations_is_dropped(tmp_path, caplog):
+    auth_path = str(tmp_path / "auth.json")
+    with open(auth_path, "w") as fp:
+        fp.write(jsonapi.dumps({"allow": [
+            _with_rpc_authorizations(_version_1_4_entry("bad", "bad", {}), ["not", "a", "dict"]),
+            _version_1_4_entry("other", "other", {}),
+        ], "deny": [], "groups": {}, "roles": {}, "version": {"major": 1, "minor": 5}}))
+
+    with caplog.at_level(logging.WARNING):
+        entries = AuthFile(auth_path).read_allow_entries()
+
+    assert [e.user_id for e in entries] == ["other"]
+    assert [r for r in caplog.records if r.levelno == logging.WARNING
+            and "rpc method authorization" in r.getMessage()]
+
+
+@pytest.mark.auth
+def test_upgrade_to_1_5_completes_past_unreadable_rpc_authorizations(tmp_path, monkeypatch):
+    vc_key = hold_volttron_central_key(tmp_path, monkeypatch)
+    vc_caps = {"edit_config_store": {"identity": "volttron.central"}}
+    auth_path = str(tmp_path / "auth.json")
+    _write_1_4(auth_path, [
+        _with_rpc_authorizations(_version_1_4_entry("bad", "bad", {}), "not-a-dict"),
+        _version_1_4_entry("volttron.central", "volttron.central", vc_caps, vc_key),
+    ])
+
+    AuthFile(auth_path)
+    entries = AuthFile(auth_path).read_allow_entries()
+
+    assert _disk_version(auth_path) == {"major": 1, "minor": 5}
+    assert [(e.user_id, "register_web_routes" in e.capabilities) for e in entries] == [
+        ("volttron.central", True)]
+    assert len([p for p in os.listdir(tmp_path) if p.endswith(".bak")]) == 1

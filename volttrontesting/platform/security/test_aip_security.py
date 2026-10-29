@@ -117,7 +117,7 @@ def secure_multi_messagebus_forwarder(volttron_multi_messagebus):
 
     if to_instance.messagebus == 'rmq':
         remote_address = to_instance.bind_web_address
-        to_instance.enable_auto_csr()
+        to_instance.start_csr_approver()
         print("REQUEST CA: {}".format(os.environ.get('REQUESTS_CA_BUNDLE')))
         os.environ['REQUESTS_CA_BUNDLE'] = to_instance.requests_ca_bundle
 

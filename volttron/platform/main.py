@@ -55,8 +55,9 @@ from urllib.parse import urlparse
 
 import gevent
 import zmq
-from zmq import ZMQError, green, NOBLOCK
+from zmq import ZMQError, green
 
+from volttron.platform.agent.known_identities import AUTH, CONTROL, KEY_DISCOVERY
 from volttron.platform.agent.utils import get_platform_instance_name
 # Create a context common to the green and non-green zmq modules.
 from volttron.platform.instance_setup import _update_config_file
@@ -72,15 +73,26 @@ from volttron.platform.auth.auth import AuthService
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.control.control import ControlService
-from volttron.platform.vip.router import BaseRouter, ERROR, INCOMING, UNROUTABLE
+from volttron.platform.vip.router import (BaseRouter, ERROR, INCOMING, UNROUTABLE,
+                                          ORIGIN_INPROC, ORIGIN_NETWORK,
+                                          RouterSender)
 from volttron.platform.vip.socket import Address, decode_key, encode_key
 from volttron.platform.vip.tracking import Tracker
 
 try:
     from .web import PlatformWebService
     HAS_WEB = True
-except ImportError:
+    _WEB_IMPORT_ERROR = None
+except ImportError as _exc:
     HAS_WEB = False
+    _WEB_IMPORT_ERROR = str(_exc)
+
+
+def web_unavailable_message():
+    return (f"Web service unavailable ({_WEB_IMPORT_ERROR}), but bind web address specified\n"
+            "Please install web libraries using python3 bootstrap.py --web\n")
+
+
 from zmq import green as _green
 
 from volttron.platform import is_rabbitmq_available
@@ -94,7 +106,9 @@ from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      PLATFORM, PLATFORM_HEALTH, PLATFORM_WEB,
                                      PROXY_ROUTER, CLEAR_AGENT_STATUS, INSTALL_REMOVE_AGENTS ,
                                      START_STOP_AGENTS, STOP_PLATFORM, TAG_AGENTS)
-from .keystore import KeyStore, KnownHostsStore
+from .keystore import (HomeOwnedByAnotherUser, KeyStore, KnownHostsStore,
+                       create_keystore_dir, tighten_keystore_dirs,
+                       tighten_volttron_home)
 from .store import ConfigStoreService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
@@ -283,9 +297,54 @@ class FramesFormatter:
         self.frames = frames
 
     def __repr__(self):
-        return str([bytes(f) for f in self.frames])
+        return str([bytes(f) if isinstance(f, zmq.Frame) else f
+                    for f in self.frames])
 
     __str__ = __repr__
+
+
+def _from_control(sender, user_id, frames, router):
+    return user_id == CONTROL
+
+
+def _from_control_or_for_itself(sender, user_id, frames, router):
+    return user_id == CONTROL or (len(frames) > 6 and frames[6] == sender)
+
+
+def _from_key_discovery(sender, user_id, frames, router):
+    return user_id == KEY_DISCOVERY
+
+
+def _from_auth_service(sender, user_id, frames, router):
+    return user_id == AUTH
+
+
+def _from_nobody(sender, user_id, frames, router):
+    return False
+
+
+def _from_mapped_platform(sender, user_id, frames, router):
+    return router.pubsub.user_may_send_external(user_id)
+
+
+# Router-addressed operations that change platform state, and who may send
+# each. Keys are (subsystem, operation); the subsystems that have no operation
+# frame use None. The user is the one the router assigned, never a frame value.
+# A rule is called with the sender, the user, the frames and the router.
+_ROUTER_OPERATIONS = {
+    ('quit', None): _from_control,
+    ('agentstop', None): _from_control_or_for_itself,
+    ('routing_table', 'setupmode_platform_connection'): _from_key_discovery,
+    ('routing_table', 'normalmode_platform_connection'): _from_key_discovery,
+    ('routing_table', 'web-addresses'): _from_key_discovery,
+    # No sender in the tree and the handler cannot run, so nobody may call it.
+    ('routing_table', 'update'): _from_nobody,
+    ('pubsub', 'auth_update'): _from_auth_service,
+    ('pubsub', 'protected_update'): _from_auth_service,
+    # The user must map to a platform in the auth service's map.
+    ('pubsub', 'external_publish'): _from_mapped_platform,
+    ('pubsub', 'external_list'): _from_mapped_platform,
+}
 
 
 class Router(BaseRouter):
@@ -309,11 +368,14 @@ class Router(BaseRouter):
                  external_address_file='',
                  msgdebug=None,
                  agent_monitor_frequency=600,
-                 service_notifier=Optional[ServicePeerNotifier]):
+                 service_notifier=Optional[ServicePeerNotifier],
+                 *,
+                 enable_auth):
 
         super(Router, self).__init__(context=context,
                                      default_user_id=default_user_id,
                                      service_notifier=service_notifier)
+        self.enable_auth = enable_auth
         self.local_address = Address(local_address)
         self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
@@ -350,9 +412,19 @@ class Router(BaseRouter):
         identity = str(uuid.uuid4())
         sock.identity = identity.encode("utf-8")
         _log.debug("ROUTER SOCK identity: {}".format(sock.identity))
+        # In-process peers get a socket of their own, bound only to inproc://vip
+        # and with no ZAP domain, so the socket a message arrives on says
+        # whether it came from inside the platform process.
+        inproc = self._socket_class(self.context, zmq.ROUTER)
+        inproc.identity = sock.identity
+        inproc.router_mandatory = True
+        inproc.sndtimeo = sock.sndtimeo
+        inproc.set_hwm(6000)
+        self.inproc_socket = inproc
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
-        sock.bind('inproc://vip')
+            Monitor(inproc.get_monitor_socket()).start()
+        inproc.bind('inproc://vip')
         _log.debug('In-process VIP router bound to inproc://vip')
         sock.zap_domain = b'vip'
         addr = self.local_address
@@ -382,14 +454,17 @@ class Router(BaseRouter):
             _log.debug('Additional VIP router bound to %s' % address)
         self._ext_routing = None
 
-        self._ext_routing = RoutingService(self.socket, self.context,
+        self._sender = RouterSender(self)
+        self._ext_routing = RoutingService(self._sender, self.context,
                                            self._socket_class, self._poller,
                                            self._addr, self._instance_name)
 
-        self.pubsub = PubSubService(self.socket, self._protected_topics,
-                                    self._ext_routing)
-        self.ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
+        self.pubsub = PubSubService(self._sender, self._protected_topics,
+                                    self._ext_routing,
+                                    enable_auth=self.enable_auth)
+        self.ext_rpc = ExternalRPCService(self._sender, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
+        self._poller.register(inproc, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
     def issue(self, topic, frames, extra=None):
@@ -435,21 +510,34 @@ class Router(BaseRouter):
     #            result.append(f.bytes)
     #    return result
 
+    def _operation_allowed(self, frames, user_id):
+        subsystem = frames[5]
+        operation = frames[6] if len(frames) > 6 else None
+        # Frames are JSON-decoded, so an operation may not be hashable text.
+        if not isinstance(subsystem, str):
+            return True
+        rule = _ROUTER_OPERATIONS.get((subsystem, None))
+        if rule is None and isinstance(operation, str):
+            rule = _ROUTER_OPERATIONS.get((subsystem, operation))
+            label = '{} {}'.format(subsystem, operation)
+        else:
+            label = subsystem
+        if rule is None or rule(frames[0], user_id, frames, self):
+            return True
+        self._log_once(
+            'refused ' + label, frames[0],
+            'Refused router operation "%s" from %%r' % label)
+        return False
+
     def handle_subsystem(self, frames, user_id):
         subsystem = frames[5]
+        if not self._operation_allowed(frames, user_id):
+            return False
         if subsystem == 'quit':
-            sender = frames[0]
-            # was if sender == 'control' and user_id == self.default_user_id:
-            # now we serialize frames and if user_id is always the sender and not
-            # recipents.get('User-Id') or default user name
-            if sender == 'control':
-                if self._ext_routing:
-                    self._ext_routing.close_external_connections()
-                self.stop()
-                raise KeyboardInterrupt()
-            else:
-                _log.error(
-                    f"Sender {sender} not authorized to shutdown platform")
+            if self._ext_routing:
+                self._ext_routing.close_external_connections()
+            self.stop()
+            raise KeyboardInterrupt()
         elif subsystem == 'agentstop':
             try:
                 drop = frames[6]
@@ -519,6 +607,34 @@ class Router(BaseRouter):
     def _add_pubsub_peers(self, peer):
         self.pubsub.peer_add(peer)
 
+    def _route_guarded(self, frames, origin, raw_frames=None):
+        """Route one message; a message that makes routing raise is dropped.
+
+        Any peer can send frames the services do not expect, and an exception
+        here would stop the whole platform. The warning names the exception
+        type and subsystem once per sender; the message body is
+        peer-controlled and is not logged, and the traceback is kept at DEBUG.
+        """
+        sender = '<unreadable>'
+        subsystem = '<unknown>'
+        try:
+            decoded = deserialize_frames(frames)
+            sender = decoded[0] if decoded and isinstance(
+                decoded[0], str) else '<not text>'
+            if len(decoded) > 5:
+                subsystem = repr(decoded[5])[:100]
+            self.route(decoded, origin, raw_frames)
+        except Exception as ex:
+            name = type(ex).__name__
+            kind = 'route failed ' + name
+            count = self._count_drop(kind)
+            _log.debug('Dropped a message from %r in subsystem %s',
+                       sender, subsystem, exc_info=True)
+            self._log_once(
+                kind, sender,
+                'Dropped a message from %%r in subsystem %%s: routing raised '
+                '%s (%%d dropped so far)' % name, subsystem, count)
+
     def poll_sockets(self):
         """
         Poll for incoming messages through router socket or other external socket connections
@@ -526,13 +642,20 @@ class Router(BaseRouter):
         try:
             sockets = dict(self._poller.poll())
         except ZMQError as ex:
+            if ex.errno in (zmq.ETERM, zmq.ENOTSOCK):
+                raise
             _log.error("ZMQ Error while polling: {}".format(ex))
+            return
 
         for sock in sockets:
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(deserialize_frames(frames))
+                    self._route_guarded(frames, ORIGIN_NETWORK, frames)
+            elif sock == self.inproc_socket:
+                if sockets[sock] == zmq.POLLIN:
+                    frames = sock.recv_multipart(copy=False)
+                    self._route_guarded(frames, ORIGIN_INPROC)
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -549,53 +672,10 @@ class Router(BaseRouter):
         :param socket: socket affected files: {}
         :return:
         """
-        # Expecting incoming frames to follow this VIP format:
-        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
-        self.route(deserialize_frames(frames))
-        # for f in frames:
-        #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
-        if len(frames) < 6:
-            return
-
-        sender, proto, user_id, msg_id, subsystem = frames[:5]
-        if proto != 'VIP1':
-            return
-
-        # Handle 'EXT_RPC' subsystem messages
-        name = subsystem
-        if name == 'external_rpc':
-            # Reframe the frames
-            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loads(msg)
-            peer = msg_data['to_peer']
-            # Send to destionation agent/peer
-            # Form new frame for local
-            frames[:9] = [
-                peer, sender, proto, usr_id, msg_id, 'external_rpc', msg
-            ]
-            try:
-                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-            except ZMQError as ex:
-                _log.debug("ZMQ error: {}".format(ex))
-                pass
-        # Handle 'pubsub' subsystem messages
-        elif name == 'pubsub':
-            if frames[1] == 'VIP1':
-                recipient = ''
-                frames[:1] = ['', '']
-                # for f in frames:
-                #     _log.debug("frames: {}".format(bytes(f)))
-            result = self.pubsub.handle_subsystem(frames, user_id)
-            return result
-        # Handle 'routing_table' subsystem messages
-        elif name == 'routing_table':
-            # for f in frames:
-            #     _log.debug("frames: {}".format(bytes(f)))
-            if frames[1] == 'VIP1':
-                frames[:1] = ['', '']
-            result = self._ext_routing.handle_subsystem(frames)
-            return result
+        # Read the socket empty and drop the message: a remote platform
+        # chooses every frame, and nothing it sends on this socket may act on
+        # local peers or claim an identity.
+        socket.recv_multipart(copy=False)
 
 
 class GreenRouter(Router):
@@ -620,7 +700,9 @@ class GreenRouter(Router):
                  external_address_file='',
                  msgdebug=None,
                  volttron_central_rmq_address=None,
-                 service_notifier=Optional[ServicePeerNotifier]):
+                 service_notifier=Optional[ServicePeerNotifier],
+                 *,
+                 enable_auth):
         self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
@@ -640,7 +722,8 @@ class GreenRouter(Router):
             protected_topics=protected_topics,
             external_address_file=external_address_file,
             msgdebug=msgdebug,
-            service_notifier=service_notifier)
+            service_notifier=service_notifier,
+            enable_auth=enable_auth)
 
     def start(self):
         '''Create the socket and call setup().
@@ -656,6 +739,12 @@ class GreenRouter(Router):
         sock.tcp_keepalive_cnt = 6
         sock.set_hwm(6000)
         self.setup()
+
+
+def parse_web_static_roots(value):
+    """Split the comma-separated web-static-roots option into expanded entries."""
+    return [config.expandall(entry.strip()) for entry in (value or '').split(',')
+            if entry.strip()]
 
 
 def start_volttron_process(opts):
@@ -701,6 +790,9 @@ def start_volttron_process(opts):
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
 
+    report_resolved_home(getattr(opts, 'requested_home', opts.volttron_home),
+                         opts.volttron_home)
+
     if opts.agent_isolation_mode == "True":
         _log.info("VOLTTRON starting in agent isolation mode")
         os.umask(0o007)
@@ -716,6 +808,7 @@ def start_volttron_process(opts):
         opts.web_ssl_key = config.expandall(opts.web_ssl_key)
     if opts.web_ssl_cert:
         opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
+    opts.web_static_roots = parse_web_static_roots(opts.web_static_roots)
 
     if opts.web_ssl_key and not opts.web_ssl_cert:
         raise Exception(
@@ -813,11 +906,15 @@ def start_volttron_process(opts):
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
-    # Check for agent isolation mode/permissions on VOLTTRON_HOME directory
-    mode = os.stat(opts.volttron_home).st_mode
-    if mode & (stat.S_IWGRP | stat.S_IWOTH):
-        _log.warning('insecure access control on directory: %s',
-                     opts.volttron_home)
+    # The platform's key lives in VOLTTRON_HOME and is refused while the
+    # directory is writable by group or others.
+    try:
+        tighten_volttron_home()
+    except HomeOwnedByAnotherUser as err:
+        _log.error('%s', err)
+        sys.exit(1)
+
+    tighten_keystore_dirs()
 
     # Initialize public and secret keys for Non-auth.
     publickey = None
@@ -856,7 +953,7 @@ def start_volttron_process(opts):
         # Add the control.connection so that volttron-ctl can access the bus
         control_conn_path = KeyStore.get_agent_keystore_path(
             CONTROL_CONNECTION)
-        os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+        create_keystore_dir(os.path.dirname(control_conn_path))
         ks_control_conn = KeyStore(
             KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
         entry = AuthEntry(credentials=encode_key(
@@ -923,7 +1020,8 @@ def start_volttron_process(opts):
                    protected_topics=protected_topics,
                    external_address_file=external_address_file,
                    msgdebug=opts.msgdebug,
-                   service_notifier=notifier).run()
+                   service_notifier=notifier,
+                   enable_auth=opts.allow_auth).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -1025,15 +1123,8 @@ def start_volttron_process(opts):
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if not HAS_WEB:
-                _log.info(
-                    f"Web libraries not installed, but bind web address specified\n"
-                )
-                sys.stderr.write(
-                    "Web libraries not installed, but bind web address specified\n"
-                )
-                sys.stderr.write(
-                    "Please install web libraries using python3 bootstrap.py --web\n"
-                )
+                _log.info(web_unavailable_message())
+                sys.stderr.write(web_unavailable_message())
                 sys.exit(-1)
 
             if opts.instance_name is None:
@@ -1069,6 +1160,7 @@ def start_volttron_process(opts):
                     web_ssl_key=opts.web_ssl_key,
                     web_ssl_cert=opts.web_ssl_cert,
                     web_secret_key=opts.web_secret_key,
+                    web_static_roots=opts.web_static_roots,
                     enable_auth=opts.allow_auth))
 
         if opts.message_bus == 'zmq':
@@ -1150,7 +1242,8 @@ def start_volttron_process(opts):
                 protected_topics=protected_topics,
                 external_address_file=external_address_file,
                 msgdebug=opts.msgdebug,
-                service_notifier=notifier)
+                service_notifier=notifier,
+                enable_auth=opts.allow_auth)
 
             proxy_router = ZMQProxyRouter(address=address,
                                           identity=PROXY_ROUTER,
@@ -1310,6 +1403,23 @@ def setup_auth_service(opts, address, services):
     AuthFile().add(entry, overwrite=True)
 
 
+def resolve_volttron_home(raw):
+    """Sets VOLTTRON_HOME to the real path of `raw` and returns (real path,
+    requested path). The key checks read directories with lstat, which does
+    not follow a symlink, so every reader and child process gets the real
+    path."""
+    requested = os.path.normpath(config.expandall(raw))
+    resolved = os.path.realpath(requested)
+    os.environ['VOLTTRON_HOME'] = resolved
+    return resolved, requested
+
+
+def report_resolved_home(requested, resolved):
+    if requested != resolved:
+        _log.warning('VOLTTRON_HOME %s goes through a symlink; using its real '
+                     'path %s', requested, resolved)
+
+
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
@@ -1317,9 +1427,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(
-        config.expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    os.environ['VOLTTRON_HOME'] = volttron_home
+    volttron_home, requested_home = resolve_volttron_home(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
@@ -1434,6 +1543,12 @@ def main(argv=sys.argv):
         metavar='CERTFILE',
         default=None,
         help='ssl certficate file for using https with the volttron server')
+    agents.add_argument(
+        '--web-static-roots',
+        metavar='DIRS',
+        default=None,
+        help='comma-separated absolute directories outside VOLTTRON_HOME from which '
+             'agents may serve static files, in addition to their install directories')
     agents.add_argument(
         '--volttron-central-address',
         default=None,
@@ -1557,6 +1672,7 @@ def main(argv=sys.argv):
         monitor=False,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
+        requested_home=requested_home,
         autostart=True,
         publish_address=ipc + 'publish',
         subscribe_address=ipc + 'subscribe',
@@ -1586,6 +1702,7 @@ def main(argv=sys.argv):
         web_ca_cert=None,
         # If we aren't using ssl then we need a secret key available for us to use.
         web_secret_key=None,
+        web_static_roots=None,
         allow_auth='True')
 
     # Parse and expand options

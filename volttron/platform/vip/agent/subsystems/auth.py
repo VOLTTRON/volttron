@@ -51,6 +51,9 @@ __version__ = "1.1"
 
 _log = logging.getLogger(__name__)
 
+# Bounds the set of peers whose refused updates were logged.
+_REFUSED_PEERS_LIMIT = 1024
+
 
 class Auth(SubsystemBase):
     def __init__(self, owner, core, rpc):
@@ -59,6 +62,8 @@ class Auth(SubsystemBase):
         self._rpc = weakref.ref(rpc)
         self._user_to_capabilities = {}
         self._dirty = True
+        self._refused_peers = set()
+        self._refusals_suppressed = False
         self._csr_certs = dict()
         self.remote_certs_dir = None
 
@@ -128,11 +133,32 @@ class Auth(SubsystemBase):
         self._fetch_capabilities()
         return self._user_to_capabilities.get(user_id, [])
 
+    def _log_refusal(self, peer, user):
+        """One warning per refusing peer, up to a limit, so a peer that keeps
+        sending updates cannot flood the log or grow the set without bound."""
+        if peer in self._refused_peers:
+            return
+        if len(self._refused_peers) >= _REFUSED_PEERS_LIMIT:
+            if not self._refusals_suppressed:
+                self._refusals_suppressed = True
+                _log.warning(
+                    "further refused capabilities updates are suppressed "
+                    "after %d peers", _REFUSED_PEERS_LIMIT)
+            return
+        self._refused_peers.add(peer)
+        _log.warning(
+            "ignoring a capabilities update from peer %r, user %r",
+            peer, user)
+
     def _update_capabilities(self, user_to_capabilities):
-        identity = self._rpc().context.vip_message.peer
-        if identity == AUTH:
-            self._user_to_capabilities = user_to_capabilities
-            self._dirty = True
+        message = self._rpc().context.vip_message
+        # peer is whoever the sender says it is; user is what the router
+        # authenticated.
+        if message.user != AUTH:
+            self._log_refusal(message.peer, message.user)
+            return
+        self._user_to_capabilities = user_to_capabilities
+        self._dirty = True
 
     def get_rpc_exports(self):
         """
@@ -308,12 +334,14 @@ class Auth(SubsystemBase):
             _log.exception(f"Exception when calling rpc method update_id_rpc_authorizations for identity: "
                            f"{self._core().identity}  Exception:{e}")
         if updated_rpc_authorizations is None:
+            # The auth service answers None for both causes, so the
+            # warning names both.
             _log.warning(
-                f"Auth entry not found for {self._core().identity}: "
-                f"rpc_method_authorizations not updated. If this agent "
-                f"does have an auth entry, verify that the 'identity' field "
-                f"has been included in the auth entry. This should be set to "
-                f"the identity of the agent"
+                f"rpc_method_authorizations not recorded for "
+                f"{self._core().identity}, keeping the decorator defaults: "
+                f"either no auth entry has this identity, or the auth "
+                f"service refused because the entry's user_id is not the "
+                f"user this agent authenticated as"
             )
             return
         if rpc_method_authorizations != updated_rpc_authorizations and updated_rpc_authorizations is not None:

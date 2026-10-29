@@ -46,10 +46,13 @@ instance with VCA.
 
 import datetime
 import logging
+import math
 import os
 import os.path as p
 import sys
 from collections import namedtuple
+from http.cookies import CookieError, SimpleCookie
+from urllib.parse import urlparse
 
 import gevent
 
@@ -57,14 +60,14 @@ from volttron.platform import jsonapi
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN, AUTH)
+    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN, PLATFORM_WEB, AUTH)
 from volttron.platform.agent.utils import (
     get_aware_utc_now, get_messagebus)
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT, INTERNAL_ERROR)
+    UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
 from volttron.platform.vip.agent import Agent, RPC, Unreachable
 from .platforms import Platforms, PlatformHandler
 from .sessions import SessionHandler
@@ -81,9 +84,124 @@ _log = logging.getLogger(__name__)
 # current agent's installed path
 DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 
+SESSION_COOKIE = 'vcsession'
+WS_PREFIX = '/vc/ws/'
+LOGIN_CHECK_TIMEOUT = 10
+
+# Largest accepted agent upload, before base64 encoding.
+MAX_UPLOAD_BYTES = 64 * 1024 * 1024
+MAX_ENCODED_UPLOAD = 4 * math.ceil(MAX_UPLOAD_BYTES / 3)
+
+ANY_USER = 'user'
+ADMIN = 'admin'
+
+# Every JSON-RPC method VC accepts, with the group it needs. A name that is
+# not here, exactly, is refused. Config reads and writes are admin only
+# because config files hold historian credentials.
+VC_METHODS = {
+    'register_management_endpoint': ANY_USER,
+    'list_platforms': ANY_USER,
+    'list_performance': ANY_USER,
+    'get_setting': ANY_USER,
+    'get_setting_keys': ANY_USER,
+    'set_setting': ADMIN,
+    'enable_setup_mode': ADMIN,
+    'disable_setup_mode': ADMIN,
+}
+HISTORIAN_METHODS = {
+    'historian.query': ANY_USER,
+    'historian.get_topic_list': ANY_USER,
+}
+# Methods VC runs on behalf of a platform. They are accepted bare, with the
+# platform in the params, or as platforms.uuid.<uuid>.<method>.
+PLATFORM_METHODS = {
+    'list_agents': ANY_USER,
+    'status_agents': ANY_USER,
+    'get_devices': ANY_USER,
+    'store_agent_config': ADMIN,
+    'get_agent_config': ADMIN,
+    'delete_agent_config': ADMIN,
+    'list_agent_configs': ADMIN,
+    'start_bacnet_scan': ADMIN,
+    'publish_bacnet_props': ADMIN,
+}
+# Methods only the platforms.uuid.<uuid>.<method> form accepts; the managed
+# platform's agent runs them.
+PLATFORM_ONLY_METHODS = {
+    'agent_status': ANY_USER,
+    'start_agent': ADMIN,
+    'stop_agent': ADMIN,
+    'restart_agent': ADMIN,
+    'remove_agent': ADMIN,
+    'install': ADMIN,
+}
+
 Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
+
+
+def _parse_method(method):
+    """Map a JSON-RPC method name to (platform_uuid, name, required group).
+
+    The name must be exactly one of the tables' entries, or exactly four
+    dot-separated segments platforms.uuid.<uuid>.<method>. Returns None for
+    anything else.
+    """
+    if not isinstance(method, str):
+        return None
+    for table in (VC_METHODS, HISTORIAN_METHODS, PLATFORM_METHODS):
+        if method in table:
+            return None, method, table[method]
+    parts = method.split('.')
+    if len(parts) == 4 and parts[0] == 'platforms' and parts[1] == 'uuid' \
+            and parts[2]:
+        for table in (PLATFORM_METHODS, PLATFORM_ONLY_METHODS):
+            if parts[3] in table:
+                return parts[2], parts[3], table[parts[3]]
+    return None
+
+
+def _session_cookie(cookie_header):
+    if not isinstance(cookie_header, str):
+        return None
+    jar = SimpleCookie()
+    try:
+        jar.load(cookie_header)
+    except CookieError:
+        return None
+    morsel = jar.get(SESSION_COOKIE)
+    return morsel.value if morsel else None
+
+
+def _ws_channel(path):
+    """The channel id of /vc/ws/<channel>/<name>, or None."""
+    if not isinstance(path, str) or not path.startswith(WS_PREFIX):
+        return None
+    parts = path[len(WS_PREFIX):].split('/')
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return None
+    return parts[0]
+
+
+def _origin_allowed(request):
+    """An Origin header, when sent, must name this request's own host.
+
+    A browser sends the session cookie on a websocket opened by any site, so
+    the page that opens it has to come from this host. 'null' and anything
+    unparsable are refused.
+    """
+    if 'HTTP_ORIGIN' not in request:
+        return True
+    origin, host = request['HTTP_ORIGIN'], request.get('HTTP_HOST')
+    if not isinstance(origin, str) or not isinstance(host, str) or not host:
+        return False
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return False
+    return (parsed.scheme in ('http', 'https')
+            and parsed.netloc.lower() == host.lower())
 
 
 def init_volttron_central(config_path, **kwargs):
@@ -186,9 +304,14 @@ class VolttronCentralAgent(Agent):
         self._platforms = Platforms(self)
 
         self._platform_scan_event = None
+        self._platform_scan_running = False
+        self._platform_scan_skip_logged = False
 
         # Sessions that have been authentication with the system.
         self._authenticated_sessions = None
+
+        # channel id -> websocket paths registered for that session.
+        self._session_ws_paths = {}
 
     def _configure(self, config_name, action, contents):
         """
@@ -237,7 +360,9 @@ class VolttronCentralAgent(Agent):
         # Unregister all routes for vc and then re-add down below.
         self.vip.web.unregister_all_routes()
 
-        self._authenticated_sessions = SessionHandler()
+        self._session_ws_paths = {}
+        self._authenticated_sessions = SessionHandler(
+            on_end=self._session_ended)
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
@@ -276,6 +401,36 @@ class VolttronCentralAgent(Agent):
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
 
+        # Schedule first so no error below can end the sweep for good.
+        self._platform_scan_event = self.core.schedule(
+            VolttronCentralAgent._get_next_time_seconds(),
+            self._scan_platform_connect_disconnect)
+
+        try:
+            if self._authenticated_sessions is not None:
+                self._authenticated_sessions.expire()
+        except Exception:
+            _log.exception("Expiring sessions failed")
+
+        # A platform connect can block longer than the sweep interval; a
+        # second scan would see the same platform as new and connect it twice.
+        if self._platform_scan_running:
+            if not self._platform_scan_skip_logged:
+                self._platform_scan_skip_logged = True
+                _log.warning("Previous platform scan still running; "
+                             "skipping until it finishes")
+            return
+
+        self._platform_scan_running = True
+        self._platform_scan_skip_logged = False
+        try:
+            self._scan_platforms()
+        except (Exception, gevent.Timeout):
+            _log.exception("Scanning for platform connections failed")
+        finally:
+            self._platform_scan_running = False
+
+    def _scan_platforms(self):
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
@@ -291,12 +446,6 @@ class VolttronCentralAgent(Agent):
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
 
-        next_platform_scan = VolttronCentralAgent._get_next_time_seconds()
-
-        # reschedule the next scan.
-        self._platform_scan_event = self.core.schedule(
-            next_platform_scan, self._scan_platform_connect_disconnect)
-
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
         _log.debug('ACTION IS {}'.format(action))
@@ -304,9 +453,9 @@ class VolttronCentralAgent(Agent):
 
     def open_authenticate_ws_endpoint(self, fromip, endpoint):
         """
-        Callback method from when websockets are opened.  The endpoint must
-        be '/' delimited with the second to last section being the session
-        of a logged in user to volttron central itself.
+        Callback from when a websocket is opened, after the upgrade. It is a
+        second check behind `_authorize_ws`: the endpoint's channel id must
+        belong to a live session opened from the same ip address.
 
         :param fromip:
         :param endpoint:
@@ -314,15 +463,12 @@ class VolttronCentralAgent(Agent):
         :return:
         """
         _log.debug("OPENED ip: {} endpoint: {}".format(fromip, endpoint))
-        try:
-            session = endpoint.split('/')[-2]
-        except IndexError:
-            _log.error("Malformed endpoint. Must be delimited by '/'")
-            _log.error(
-                'Endpoint must have valid session in second to last position')
+        channel = _ws_channel(endpoint)
+        if channel is None:
+            _log.error("Malformed websocket endpoint.")
             return False
 
-        if not self._authenticated_sessions.check_session(session, fromip):
+        if not self._authenticated_sessions.check_channel(channel, fromip):
             _log.error("Authentication error for session!")
             return False
 
@@ -330,6 +476,60 @@ class VolttronCentralAgent(Agent):
         self._websocket_endpoints.add(endpoint)
 
         return True
+
+    def _authorize_ws(self, request):
+        """
+        Called by the platform before a websocket is upgraded. The request is
+        a dict of REMOTE_ADDR, PATH_INFO, HTTP_HOST, HTTP_ORIGIN and
+        HTTP_COOKIE. Only True lets the upgrade through: the origin must be
+        this host's, the session cookie must name a live session opened from
+        the request's ip address, and the path's channel must be that
+        session's channel.
+        """
+        if not isinstance(request, dict) or not _origin_allowed(request):
+            return False
+        channel = _ws_channel(request.get('PATH_INFO'))
+        session_id = _session_cookie(request.get('HTTP_COOKIE'))
+        if channel is None or session_id is None:
+            return False
+        session = self._authenticated_sessions.check_session(
+            session_id, request.get('REMOTE_ADDR'), channel=channel)
+        return bool(session)
+
+    def _register_session_ws(self, channel, name, received):
+        """Register /vc/ws/<channel>/<name>; the only place VC registers a
+        websocket, so every one carries the same callbacks and is closed with
+        its session."""
+        path = "{}{}/{}".format(WS_PREFIX, channel, name)
+        self.vip.web.register_websocket(
+            path,
+            opened=self.open_authenticate_ws_endpoint,
+            closed=self._ws_closed,
+            received=received,
+            authorize=self._authorize_ws)
+        self._session_ws_paths.setdefault(channel, set()).add(path)
+        return path
+
+    def _unregister_session_ws(self, channel, path):
+        paths = self._session_ws_paths.get(channel)
+        if paths is not None:
+            paths.discard(path)
+            if not paths:
+                del self._session_ws_paths[channel]
+        try:
+            self.vip.web.unregister_websocket(path)
+        except (RemoteError, Unreachable, gevent.Timeout) as err:
+            _log.error("Could not unregister websocket %s: %s", path, err)
+
+    def _session_ended(self, channel):
+        """Close the routes and sockets of a session that expired or was
+        replaced."""
+        paths = self._session_ws_paths.pop(channel, set())
+        # The platform closes these sockets without telling VC, so VC must
+        # stop sending to them here.
+        self._websocket_endpoints.difference_update(paths)
+        for path in paths:
+            gevent.spawn(self._unregister_session_ws, channel, path)
 
     def _ws_closed(self, endpoint):
         _log.debug("CLOSED endpoint: {}".format(endpoint))
@@ -377,8 +577,9 @@ class VolttronCentralAgent(Agent):
 
         This method will only accept rpcdata.  The first time this method
         is called, per session, it must be using get_authorization.  That
-        will return a session token that must be included in every
-        subsequent request.  The session is tied to the ip address
+        sets the vcsession cookie and returns a channel id; every
+        subsequent request must carry both, as the cookie and as the
+        authorization field.  The session is tied to the ip address
         of the caller.
 
         :param object env: Environment dictionary for the request.
@@ -394,64 +595,17 @@ class VolttronCentralAgent(Agent):
             _log.info('rpc method: {}'.format(rpcdata.method))
 
             if rpcdata.method == 'get_authorization':
+                return self._login(env, rpcdata)
 
-                # Authentication url
-                # This does not need to be local, however for now we are going to
-                # make it so assuming only one level of authentication.
-                auth_url = "{url_scheme}://{HTTP_HOST}/authenticate".format(
-                    url_scheme=env['wsgi.url_scheme'],
-                    HTTP_HOST=env['HTTP_HOST'])
-                user = rpcdata.params['username']
-                args = {'username': rpcdata.params['username'],
-                        'password': rpcdata.params['password'],
-                        'ip': env['REMOTE_ADDR']}
-                resp = grequests.post(auth_url, json=args, verify=False).send().response
-
-                if resp is not None and resp.ok and resp.text:
-                    claims = self.vip.web.get_user_claims(jsonapi.loads(resp.text)["access_token"])
-                    # Because the web-user.json has the groups under a key and the
-                    # groups is just passed into the session we need to make sure
-                    # we pass in the proper thing to the _add_sesion function.
-                    assert 'groups' in claims
-                    authentication_token = resp.text
-                    sess = authentication_token
-                    self._authenticated_sessions._add_session(user=user,
-                                                              groups=claims['groups'],
-                                                              token=authentication_token,
-                                                              ip=env['REMOTE_ADDR'])
-                else:
-                    # No local fallback: a failed platform login is a failed
-                    # login.
-                    sess = None
-
-                if not sess:
-                    _log.info('Invalid username/password for {}'.format(
-                        rpcdata.params['username']))
-                    return jsonrpc.json_error(
-                        rpcdata.id, UNAUTHORIZED,
-                        "Invalid username/password specified.")
-                _log.info('Session created for {}'.format(
-                    rpcdata.params['username']))
-                self.vip.web.register_websocket(
-                    "/vc/ws/{}/management".format(sess),
-                    self.open_authenticate_ws_endpoint,
-                    self._ws_closed,
-                    self._received_data)
-                _log.info('Session created for {}'.format(
-                    rpcdata.params['username']))
-
-                gevent.sleep(1)
-                return jsonrpc.json_result(rpcdata.id, sess)
-
-            token = rpcdata.authorization
             ip = env['REMOTE_ADDR']
             _log.debug('REMOTE_ADDR: {}'.format(ip))
-            session_user = self._authenticated_sessions.check_session(token, ip)
-            _log.debug('SESSION_USER IS: {}'.format(session_user))
+            session_id = _session_cookie(env.get('HTTP_COOKIE'))
+            session_user = self._authenticated_sessions.check_session(
+                session_id, ip, channel=rpcdata.authorization)
             if not session_user:
-                _log.debug("Session Check Failed for Token: {}".format(token))
                 return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
                                           "Invalid authentication token")
+            _log.debug('SESSION_USER IS: {}'.format(session_user['user']))
             _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
             # Route any other method that isn't
@@ -475,6 +629,66 @@ class VolttronCentralAgent(Agent):
             )
 
         return self._get_jsonrpc_response(rpcdata.id, result_or_error)
+
+    def _authenticate_web_user(self, username, password):
+        """Ask the platform web service to check a login.
+
+        :return: (user, groups) for a valid login, otherwise None.
+        """
+        try:
+            answer = self.vip.rpc.call(
+                PLATFORM_WEB, 'authenticate_web_user', username,
+                password).get(timeout=LOGIN_CHECK_TIMEOUT)
+        except (RemoteError, Unreachable, gevent.Timeout) as err:
+            _log.error("Web login check failed: %s", type(err).__name__)
+            return None
+        if not isinstance(answer, dict):
+            return None
+        user, groups = answer.get('user'), answer.get('groups')
+        if not isinstance(user, str) or not user or \
+                not isinstance(groups, list) or \
+                not all(isinstance(group, str) for group in groups):
+            return None
+        return user, list(groups)
+
+    def _login(self, env, rpcdata):
+        """Handle get_authorization.
+
+        The platform checks the credentials and VC never sees a platform
+        token. The session id goes to the browser as a cookie; the channel id
+        is the JSON-RPC result.
+        """
+        params = rpcdata.params
+        username = params.get('username') if isinstance(params, dict) else None
+        password = params.get('password') if isinstance(params, dict) else None
+        if not isinstance(username, str) or not isinstance(password, str):
+            return jsonrpc.json_error(
+                rpcdata.id, INVALID_PARAMS,
+                "username and password must be strings")
+
+        login = self._authenticate_web_user(username, password)
+        if login is None:
+            _log.info('Invalid username/password for {}'.format(username))
+            return jsonrpc.json_error(
+                rpcdata.id, UNAUTHORIZED,
+                "Invalid username/password specified.")
+
+        user, groups = login
+        session_id, channel = self._authenticated_sessions._add_session(
+            user=user, ip=env['REMOTE_ADDR'], groups=groups)
+        _log.info('Session created for {}'.format(user))
+        self._register_session_ws(channel, 'management', self._received_data)
+
+        cookie = '{}={}; HttpOnly; SameSite=Strict; Path=/vc'.format(
+            SESSION_COOKIE, session_id)
+        if env.get('wsgi.url_scheme') == 'https':
+            cookie += '; Secure'
+
+        gevent.sleep(1)
+        return ['200 OK',
+                jsonapi.dumps(jsonrpc.json_result(rpcdata.id, channel)),
+                [('Content-Type', 'application/json'),
+                 ('Set-Cookie', cookie)]]
 
     def _get_jsonrpc_response(self, id, result_or_error):
         """ Wrap the response in either a json-rpc error or result.
@@ -615,16 +829,11 @@ class VolttronCentralAgent(Agent):
         id = params.pop('message_id')
         _log.debug('Handling bacnet_props platform: {}'.format(platform_uuid))
 
-        configure_topic = "{}/configure".format(session_user['token'])
-        ws_socket_topic = "/vc/ws/{}".format(configure_topic)
-
-        if configure_topic not in self._websocket_endpoints:
-            self.vip.web.register_websocket(ws_socket_topic,
-                                            self.open_authenticate_ws_endpoint,
-                                            self._ws_closed, self._ws_received)
+        self._register_session_ws(session_user['channel'], 'configure',
+                                  self._ws_received)
 
         def start_sending_props():
-            response_topic = "configure/{}".format(session_user['token'])
+            response_topic = "configure/{}".format(session_user['channel'])
             # Two ways we could have handled this is to pop the identity off
             # of the params and then passed both the identity and the response
             # topic.  Or what I chose to do and to put the argument in a
@@ -655,25 +864,22 @@ class VolttronCentralAgent(Agent):
             scan_length = float(scan_length)
             params['scan_length'] = scan_length
             platform = self._platforms.get_platform(platform_uuid)
-            iam_topic = "{}/iam".format(session_user['token'])
-            ws_socket_topic = "/vc/ws/{}".format(iam_topic)
-            self.vip.web.register_websocket(ws_socket_topic,
-                                            self.open_authenticate_ws_endpoint,
-                                            self._ws_closed, self._ws_received)
+            channel = session_user['channel']
+            ws_socket_path = self._register_session_ws(channel, 'iam',
+                                                       self._ws_received)
 
             def start_scan():
                 # We want the datatype (iam) to be second in the response so
                 # we need to reposition the iam and the session id to the topic
                 # that is passed to the rpc function on vcp
-                iam_session_topic = "iam/{}".format(session_user['token'])
+                iam_session_topic = "iam/{}".format(channel)
                 platform.call("start_bacnet_scan", iam_session_topic, **params)
 
                 def close_socket():
                     _log.debug('Closing bacnet scan for {}'.format(
                         platform_uuid))
-                    gevent.spawn_later(2,
-                                       self.vip.web.unregister_websocket,
-                                       iam_session_topic)
+                    gevent.spawn_later(2, self._unregister_session_ws,
+                                       channel, ws_socket_path)
 
                 gevent.spawn_later(scan_length, close_socket)
 
@@ -696,15 +902,34 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to enable setup mode")
-        entries = self.vip.rpc.call(AUTH, "auth_file.find_by_credentials", ".*")
-        if len(entries) > 0:
-            return "SUCCESS"
-
         entry = {"credentials": "/.*/",
                  "comments": "Un-Authenticated connections allowed here",
                  "user_id": "unknown"
                 }
-        self.vip.rpc.call(AUTH, "auth_file.add", entry)
+        try:
+            auth_data = self.vip.rpc.call(AUTH, "auth_file.read").get(
+                timeout=30)
+        except (RemoteError, Unreachable, gevent.Timeout) as err:
+            _log.error("enable setup mode failed at auth_file.read: %s", err)
+            return jsonrpc.json_error(id, INTERNAL_ERROR,
+                                      "Setup mode could not be enabled")
+        if any(allowed.get("credentials") == entry["credentials"]
+               for allowed in auth_data["allow_list"]):
+            return "SUCCESS"
+        try:
+            self.vip.rpc.call(AUTH, "auth_file.add", entry).get(timeout=30)
+        except RemoteError as err:
+            _log.error("enable setup mode failed at auth_file.add: %s", err)
+            return jsonrpc.json_error(id, INTERNAL_ERROR,
+                                      "Setup mode could not be enabled")
+        except (Unreachable, gevent.Timeout) as err:
+            # The add may still have been applied, so do not report it as
+            # not enabled.
+            _log.error("enable setup mode not confirmed at auth_file.add: "
+                       "%s", err)
+            return jsonrpc.json_error(
+                id, INTERNAL_ERROR,
+                "Setup mode could not be confirmed enabled")
         return "SUCCESS"
 
     def _disable_setup_mode(self, session_user, params):
@@ -714,15 +939,19 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to disable setup mode")
-        self.vip.rpc.call(AUTH, "auth_file.remove_by_credentials", "/.*/")
+        try:
+            self.vip.rpc.call(AUTH, "auth_file.remove_by_credentials",
+                              "/.*/").get(timeout=30)
+        except (RemoteError, Unreachable, gevent.Timeout) as err:
+            _log.error("disable setup mode failed: %s", err)
+            return jsonrpc.json_error(
+                id, INTERNAL_ERROR,
+                "Setup mode could not be confirmed disabled")
         return "SUCCESS"
 
     def _handle_management_endpoint(self, session_user, params):
-        ws_topic = "/vc/ws/{}/management".format(session_user.get('token'))
-        self.vip.web.register_websocket(ws_topic,
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed, self._ws_received)
-        return ws_topic
+        return self._register_session_ws(session_user['channel'], 'management',
+                                         self._ws_received)
 
     def send_management_message(self, type, data={}):
         """
@@ -765,6 +994,9 @@ class VolttronCentralAgent(Agent):
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
 
+        The method must be one the tables name exactly, and the session's
+        groups must include the group that method needs.
+
         :param session_user:
             The authenticated user's session info.
         :param id:
@@ -773,22 +1005,74 @@ class VolttronCentralAgent(Agent):
         :param params:
         :return:
         """
-        _log.debug(
-            'inside _route_request {}, {}, {}'.format(id, method, params))
-
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
 
+        parsed = _parse_method(method)
+        if parsed is None:
+            return err('Unknown method')
+        platform_uuid, name, group = parsed
+        if group == ADMIN and 'admin' not in session_user['groups']:
+            return jsonrpc.json_error(
+                id, UNAUTHORIZED, "Admin access is required for this method")
+
         self.send_management_message(method)
 
-        method_split = method.split('.')
-        # The last part of the jsonrpc method is the actual method to be called.
-        method_check = method_split[-1]
+        if method in HISTORIAN_METHODS:
+            return self._route_historian(name, params, err)
 
-        # These functions will be sent to a platform.agent on either this
-        # instance or another.  All of these functions have the same interface
-        # and can be collected into a dictionary rather than an if tree.
-        platform_methods = dict(
+        if name in VC_METHODS:
+            return self._call_with_message_id(
+                self._vc_method(name), session_user, id, params)
+
+        return self._route_platform_request(
+            session_user, id, platform_uuid, name, params, err)
+
+    def _vc_method(self, name):
+        return dict(
+            register_management_endpoint=self._handle_management_endpoint,
+            list_platforms=self._platforms.get_platform_list,
+            list_performance=self._platforms.get_performance_list,
+            set_setting=self.set_setting,
+            get_setting=self.get_setting,
+            get_setting_keys=self.get_setting_keys,
+            enable_setup_mode=self._enable_setup_mode,
+            disable_setup_mode=self._disable_setup_mode,
+        )[name]
+
+    @staticmethod
+    def _call_with_message_id(method_ref, session_user, id, params):
+        """Run a handler with the signature method(session, params)."""
+        if not params:
+            params = dict(message_id=id)
+        elif isinstance(params, dict):
+            params['message_id'] = id
+        else:
+            return jsonrpc.json_error(id, INVALID_PARAMS,
+                                      "params must be an object")
+        response = method_ref(session_user, params)
+        _log.debug("Handler returned a %s", type(response).__name__)
+        return response
+
+    def _route_historian(self, name, params, err):
+        has_platform_historian = PLATFORM_HISTORIAN in \
+                                 self.vip.peerlist().get(timeout=30)
+        if not has_platform_historian:
+            return err(
+                'The VOLTTRON Central platform historian is unavailable.',
+                UNAVAILABLE_AGENT)
+        _log.debug('Trapping platform.historian to vc.')
+        if name == 'historian.query':
+            if not isinstance(params, dict):
+                return err('params must be an object', INVALID_PARAMS)
+            return self.vip.rpc.call(
+                PLATFORM_HISTORIAN, 'query', **params).get(timeout=30)
+        return self.vip.rpc.call(
+            PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=30)
+
+    def _route_platform_request(self, session_user, id, platform_uuid, name,
+                                params, err):
+        handlers = dict(
             # bacnet related
             start_bacnet_scan=self._handle_bacnet_scan,
             publish_bacnet_props=self._handle_bacnet_props,
@@ -798,152 +1082,57 @@ class VolttronCentralAgent(Agent):
             delete_agent_config="delete_agent_config",
             list_agent_configs="get_agent_config_list",
             # management related
-
             list_agents="get_agent_list",
             get_devices="get_devices",
             status_agents="status_agents"
         )
 
-        # These methods are specifically to be handled by the platform not any
-        # agents on the platform that is why we have the length requirement.
-        #
-        # The jsonrpc method looks like the following
-        #
-        #   platform.uuid.<dynamic entry>.method_on_vcp
-        if method_check in platform_methods:
+        # A bare method name names its platform in the params.
+        if isinstance(params, dict):
+            param_uuid = params.pop('platform_uuid', None)
+            platform_uuid = platform_uuid or param_uuid
+        if not platform_uuid or not isinstance(platform_uuid, str):
+            return err("Invalid platform_uuid specified as parameter",
+                       INVALID_PARAMS)
 
-            platform_uuid = None
-            if isinstance(params, dict):
-                platform_uuid = params.pop('platform_uuid', None)
-
-            if platform_uuid is None:
-                if method_split[0] == 'platforms' and method_split[1] == 'uuid':
-                    platform_uuid = method_split[2]
-
-            if not platform_uuid:
-                return err("Invalid platform_uuid specified as parameter"
-                           .format(platform_uuid),
-                           INVALID_PARAMS)
-
-            if not self._platforms.is_registered(platform_uuid):
-                return err("Unknown or unavailable platform {} specified as "
-                           "parameter".format(platform_uuid),
-                           UNAVAILABLE_PLATFORM)
-
-            try:
-                _log.debug('Calling {} on platform {}'.format(
-                    method_check, platform_uuid
-                ))
-                class_method = platform_methods[method_check]
-                platform = self._platforms.get_platform(platform_uuid)
-                # Determine whether the method to call is on the current class
-                # or on the platform object.
-                if isinstance(class_method, str):
-                    method_ref = getattr(platform, class_method)
-                else:
-                    method_ref = class_method
-                    # Put the platform_uuid in the params so it can be used
-                    # inside the method
-                    params['platform_uuid'] = platform_uuid
-
-            except AttributeError or KeyError:
-                return jsonrpc.json_error(id, INTERNAL_ERROR,
-                                          "Attempted calling function "
-                                          "{} was unavailable".format(
-                                              class_method
-                                          ))
-
-            except ValueError:
-                return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
-                                          "Couldn't connect to platform "
-                                          "{}".format(platform_uuid))
-            else:
-                # pass the id through the message_id parameter.
-                if not params:
-                    params = dict(message_id=id)
-                else:
-                    params['message_id'] = id
-
-                # Methods will all have the signature
-                #   method(session, params)
-                #
-                return method_ref(session_user, params)
-
-        vc_methods = dict(
-            register_management_endpoint=self._handle_management_endpoint,
-            list_platforms=self._platforms.get_platform_list,
-            list_performance=self._platforms.get_performance_list,
-
-            # Settings
-            set_setting=self.set_setting,
-            get_setting=self.get_setting,
-            get_setting_keys=self.get_setting_keys,
-
-            # Setup mode
-            enable_setup_mode=self._enable_setup_mode,
-            disable_setup_mode=self._disable_setup_mode
-        )
-
-        if method in vc_methods:
-            if not params:
-                params = dict(message_id=id)
-            else:
-                params['message_id'] = id
-            response = vc_methods[method](session_user, params)
-            _log.debug("Response is {}".format(response))
-            return response  # vc_methods[method](session_user, params)
-
-        if method == 'register_instance':
-            if isinstance(params, list):
-                return self._register_instance(*params)
-            else:
-                return self._register_instance(**params)
-        elif method == 'unregister_platform':
-            return self.unregister_platform(params['instance_uuid'])
-
-        elif 'historian' in method:
-            has_platform_historian = PLATFORM_HISTORIAN in \
-                                     self.vip.peerlist().get(timeout=30)
-            if not has_platform_historian:
-                return err(
-                    'The VOLTTRON Central platform historian is unavailable.',
-                    UNAVAILABLE_AGENT)
-            _log.debug('Trapping platform.historian to vc.')
-            _log.debug('has_platform_historian: {}'.format(
-                has_platform_historian))
-            if 'historian.query' in method:
-                return self.vip.rpc.call(
-                    PLATFORM_HISTORIAN, 'query', **params).get(timeout=30)
-            elif 'historian.get_topic_list' in method:
-                return self.vip.rpc.call(
-                    PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=30)
-
-        # This isn't known as a proper method on vc or a platform.
-        if len(method_split) < 3:
-            return err('Unknown method {}'.format(method))
-        if method_split[0] != 'platforms' or method_split[1] != 'uuid':
-            return err('Invalid format for instance must start with '
-                       'platforms.uuid')
-        instance_uuid = method_split[2]
-        _log.debug('Instance uuid is: {}'.format(instance_uuid))
-        if not self._platforms.is_registered(instance_uuid):
-            return err('Unknown platform {}'.format(instance_uuid))
-        platform_method = '.'.join(method_split[3:])
-        _log.debug("Platform method is: {}".format(platform_method))
-        platform = self._platforms.get_platform(instance_uuid)
+        if not self._platforms.is_registered(platform_uuid):
+            return err("Unknown or unavailable platform {} specified as "
+                       "parameter".format(platform_uuid),
+                       UNAVAILABLE_PLATFORM)
+        platform = self._platforms.get_platform(platform_uuid)
         if not platform:
-            return jsonrpc.json_error(id,
-                                      UNAVAILABLE_PLATFORM,
-                                      "cannot connect to platform."
-                                      )
+            return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                      "cannot connect to platform.")
 
-        if platform_method.startswith('install'):
-            if 'admin' not in session_user['groups']:
-                return jsonrpc.json_error(
-                    id, UNAUTHORIZED,
-                    "Admin access is required to install agents")
+        if name in handlers:
+            class_method = handlers[name]
+            if isinstance(class_method, str):
+                method_ref = getattr(platform, class_method)
+            else:
+                method_ref = class_method
+                # The handler reads the platform from the params.
+                params = dict(params or {}, platform_uuid=platform_uuid)
+            return self._call_with_message_id(
+                method_ref, session_user, id, params)
 
-        return platform.route_to_agent_method(id, platform_method, params)
+        if name == 'install':
+            too_big = self._install_too_big(params)
+            if too_big:
+                return jsonrpc.json_error(id, INVALID_PARAMS, too_big)
+
+        return platform.route_to_agent_method(id, name, params)
+
+    @staticmethod
+    def _install_too_big(params):
+        """A message when an upload's encoded file is over the bound."""
+        files = params.get('files') if isinstance(params, dict) else None
+        if not isinstance(files, list):
+            return None
+        for fileargs in files:
+            encoded = fileargs.get('file') if isinstance(fileargs, dict) else None
+            if isinstance(encoded, str) and len(encoded) > MAX_ENCODED_UPLOAD:
+                return "Upload is larger than {} bytes".format(MAX_UPLOAD_BYTES)
+        return None
 
 
 def main(argv=sys.argv):

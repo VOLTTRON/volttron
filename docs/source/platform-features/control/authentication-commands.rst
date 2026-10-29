@@ -75,6 +75,30 @@ An authentication record consist of following parameters
 For more details on how to create authentication record, please see section
 :ref:`Agent Authentication <Agent-Authentication>`
 
+.. _Auth-Modification-Capabilities:
+
+Capabilities required to read or change authentication records
+--------------------------------------------------------------
+
+``vctl auth`` reads and changes authentication records through RPC calls to the platform's auth service, and those
+calls require a capability. ``vctl`` holds both capabilities below, so the commands work unchanged for the platform
+owner. An agent that makes the same calls itself must be granted the capability in its own authentication record,
+for example with ``vctl auth update``.
+
+* ``allow_auth_modifications`` is required to read, add, update or remove authentication records, groups and roles,
+  and to list pending, approved and denied credentials: the commands ``list``, ``add``, ``update``, ``remove``,
+  ``list-groups``, ``add-group``, ``update-group``, ``remove-group``, ``list-roles``, ``add-role``, ``update-role``,
+  ``remove-role`` and ``remote list``. It also covers the auth service's ``get_authorizations``,
+  ``get_capabilities``, ``get_groups`` and ``get_roles`` RPC methods.
+* ``modify_rpc_method_allowance`` is required to change another agent's RPC method authorizations: the commands
+  ``rpc add`` and ``rpc remove``.
+
+When an agent starts, it records the authorizations of its own exported RPC methods with the auth service. The
+auth service accepts that only from the agent whose authentication record it is, matched by the record's
+``user_id``; any other caller is refused and the refusal is logged as a warning.
+
+When authentication is disabled, these capabilities are not enforced, and the platform logs a warning at startup.
+
 
 .. _Agent-Authentication:
 
@@ -507,6 +531,10 @@ To dynamically modify an RPC method's authorization, use:
 .. code-block:: console
 
     vctl auth rpc add <agent_id.method> <authorized capability 1> <authorized capability 2> ...
+
+``vctl auth rpc add`` and ``vctl auth rpc remove`` require the ``modify_rpc_method_allowance`` capability, which
+``vctl`` holds. An agent that changes RPC method authorizations itself must be granted it, see
+:ref:`Capabilities required to read or change authentication records <Auth-Modification-Capabilities>`.
 
 For example, AgentA has an RPC exported method 'bar' which can be called by any other agent.
 

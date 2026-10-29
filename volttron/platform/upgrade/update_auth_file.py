@@ -115,12 +115,15 @@ def set_auth_identities(agent_credential_map):
     """Updates auth entries' identity field in auth file based on existing agents"""
 
     auth_file = AuthFile()
-    entries, deny_entries, groups, roles = auth_file.read()
-    for entry in entries:
-        for credential in agent_credential_map:
-            if entry.credentials == credential:
-                entry.identity = agent_credential_map[credential]
-    auth_file._write(entries, deny_entries, groups, roles)
+    # Read and write under one lock, so an entry another process added
+    # since the file was first read is not dropped.
+    with auth_file._transaction():
+        entries, deny_entries, groups, roles = auth_file.read()
+        for entry in entries:
+            for credential in agent_credential_map:
+                if entry.credentials == credential:
+                    entry.identity = agent_credential_map[credential]
+        auth_file._write(entries, deny_entries, groups, roles)
     return
 
 

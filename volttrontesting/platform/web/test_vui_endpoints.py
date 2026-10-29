@@ -9,7 +9,9 @@ from werkzeug import Response
 
 mock.patch('volttron.platform.web.vui_endpoints.endpoint', lambda x: x).start()
 
+from volttron.platform import jsonapi, jsonrpc
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.vip.agent.subsystems.rpc import Dispatcher
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform.web.platform_web_service import PlatformWebService
@@ -300,6 +302,10 @@ def _mock_agents_rpc(peer, meth, *args, external_platform=None, **kwargs):
     elif peer == 'control' and meth == 'inspect':
         return {'methods': ['list_agents', 'peerlist', 'status_agents']}
     elif peer == 'control' and meth == 'status_agents.inspect':
+        return {'params': {}}
+    elif peer == 'agents_rpc' and meth == 'inspect':
+        return {'methods': ['args_and_kw', 'args_only', 'kw_only']}
+    elif peer == 'agents_rpc' and meth == 'args_only.inspect':
         return {'params': {}}
     elif peer == 'agents_rpc' and meth == 'kw_only':
         return [kwargs['foo'], kwargs['bar']]
@@ -600,18 +606,19 @@ def test_handle_platforms_agents_rpc_status_code(mock_platform_web_service, meth
 
 
 def test_handle_platforms_agents_rpc_response(mock_platform_web_service):
-    path = f'/vui/platforms/my_instance_name/agents/control/rpc'
+    path = f'/vui/platforms/my_instance_name/agents/agents_rpc/rpc'
     env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc(env, {})
-    check_links_return(response, ['list_agents', 'peerlist', 'status_agents'], leading_path=path)
+    check_links_return(response, ['args_and_kw', 'args_only', 'kw_only'], leading_path=path)
 
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET', 'POST']))
 def test_handle_platforms_agents_rpc_method_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method=method,
-                           HTTP_AUTHORIZATION='BEARER foo')
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
+    mock_platform_web_service.get_user_claims = lambda x: {'groups': ['vui', 'admin']}
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {})
@@ -619,7 +626,7 @@ def test_handle_platforms_agents_rpc_method_status_code(mock_platform_web_servic
 
 
 def test_handle_platforms_rpc_method_get_response(mock_platform_web_service):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method='GET',
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method='GET',
                            HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
@@ -630,20 +637,21 @@ def test_handle_platforms_rpc_method_get_response(mock_platform_web_service):
 
 
 def test_handle_platforms_rpc_method_post_response(mock_platform_web_service):
+    mock_platform_web_service.get_user_claims = lambda x: {'groups': ['vui', 'admin']}
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/kw_only', method='POST',
-                           HTTP_AUTHORIZATION='BEARER foo')
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {'foo': 1, 'bar': 2})
     body = json.loads(response.response[0])
     assert body == [1, 2]
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_and_kw', method='POST',
-                           HTTP_AUTHORIZATION='BEARER foo')
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {'args': [1, 2], 'foo': 3, 'bar': 4})
     body = json.loads(response.response[0])
     assert body == [1, 2, 3, 4]
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method='POST',
-                           HTTP_AUTHORIZATION='BEARER foo')
+                           HTTP_AUTHORIZATION='BEARER foo', CONTENT_TYPE='application/json')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, [1, 2])
     body = json.loads(response.response[0])
     assert body == [1, 2]
@@ -965,8 +973,97 @@ def test_handle_platforms_devices_delete_response(mock_platform_web_service, top
                     assert "value_check_error" not in keys
 
 
+UNAUTHORIZED_DETAIL = ("method 'set_multiple_points' requires capabilities {'actuator_control'}, but capability "
+                       "{'allow_auth_modifications': None} was provided for user platform_web")
+DEVICE_WRITES_REFUSED = {'error': 'device writes through the VUI are not authorized on this platform'}
+
+
+def _unauthorized_error():
+    # The error the actuator's capability gate raises, as a caller receives it over RPC.
+    return RemoteError('unhandled exception', exc_type='volttron.platform.jsonrpc.Error',
+                       exc_args=[-32001, UNAUTHORIZED_DETAIL])
+
+
+def _refusing_actuator_rpc(error):
+    def _rpc(peer, meth, *args, external_platform=None, **kwargs):
+        if peer == 'platform.actuator' and meth in ('set_multiple_points', 'revert_device', 'revert_point'):
+            raise error
+        return _mock_devices_rpc(peer, meth, *args, external_platform=external_platform, **kwargs)
+    return _rpc
+
+
+@pytest.mark.parametrize('method, topic', [
+    ('PUT', 'Campus/Building1/Fake1/SampleWritableFloat1'),
+    ('DELETE', 'Campus/Building1/Fake1/SampleWritableFloat1'),
+    ('DELETE', 'Campus/Building1/Fake1/'),
+])
+def test_device_write_refused_by_the_actuator_returns_403_with_a_fixed_body(mock_platform_web_service, method, topic):
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env(f'/vui/platforms/my_instance_name/devices/{topic}', query_string='write-all=true',
+                               method=method, HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _refusing_actuator_rpc(_unauthorized_error())
+        response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
+        assert response.status_code == 403
+        assert json.loads(response.response[0]) == DEVICE_WRITES_REFUSED
+        body = response.response[0].decode() if isinstance(response.response[0], bytes) else response.response[0]
+        for leaked in ('actuator_control', 'set_multiple_points', 'allow_auth_modifications', 'platform_web',
+                       '-32001', 'requires capabilities'):
+            assert leaked not in body
+
+
+@pytest.mark.parametrize('method', ['PUT', 'DELETE'])
+@pytest.mark.parametrize('other', [
+    RemoteError('unhandled exception', exc_type='builtins.ValueError', exc_args=['bad value']),
+    RemoteError('unhandled exception', exc_type='volttron.platform.jsonrpc.Error', exc_args=[-32601, 'other']),
+    RemoteError('unhandled exception', exc_type='volttron.platform.jsonrpc.Error', exc_args=[]),
+    RemoteError('unhandled exception'),
+], ids=['value-error', 'other-jsonrpc-code', 'no-args', 'no-exc-info'])
+def test_device_write_failing_for_another_reason_is_not_reported_as_a_refusal(mock_platform_web_service, method,
+                                                                              other):
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
+                               method=method, HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _refusing_actuator_rpc(other)
+        response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
+        assert response.status_code == 500
+        assert json.loads(response.response[0]) != DEVICE_WRITES_REFUSED
+
+
+def test_device_read_does_not_call_the_actuator_write_methods(mock_platform_web_service):
+    calls = []
+
+    def _rpc(peer, meth, *args, external_platform=None, **kwargs):
+        calls.append((peer, meth))
+        return _mock_devices_rpc(peer, meth, *args, external_platform=external_platform, **kwargs)
+
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
+                               method='GET', HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _rpc
+        response = vui_endpoints.handle_platforms_devices(env, {})
+    assert response.status_code == 200
+    assert not [c for c in calls if c[1] in ('set_multiple_points', 'revert_device', 'revert_point')]
+
+
 def test_handle_platforms_pubsub(mock_platform_web_service):
     pass
+
+
+def test_handle_platforms_pubsub_does_not_log_the_token(mock_platform_web_service, caplog):
+    vui_endpoints = VUIEndpoints(mock_platform_web_service)
+    vui_endpoints.pubsub_manager = MagicMock()
+    vui_endpoints.pubsub_manager.get_socket_routes.return_value = {}
+    env = get_test_web_env('/vui/platforms/my_instance_name/pubsub', method='GET',
+                           HTTP_AUTHORIZATION='Bearer TOKEN-MARK', HTTP_COOKIE='Bearer=COOKIE-MARK')
+    with caplog.at_level('DEBUG'):
+        response = vui_endpoints.handle_platforms_pubsub(env, MagicMock(), {})
+    assert response.status_code == 200
+    vui_endpoints.pubsub_manager.get_socket_routes.assert_called_once_with('TOKEN-MARK', '')
+    assert 'TOKEN-MARK' not in caplog.text
+    assert 'COOKIE-MARK' not in caplog.text
 # TODO: handle_platforms_pubsub
 
 
@@ -1106,3 +1203,35 @@ def test_handle_platforms_status_delete_response(mock_platform_web_service):
     check_response_codes(response, '204')
     vui_endpoints._rpc.assert_has_calls([mock.call('control', 'clear_status', True,
                                                    external_platform='my_instance_name')])
+
+
+class _RaisingDispatcher(Dispatcher):
+    def __init__(self, error):
+        super().__init__({}, None)
+        self._error = error
+
+    def method(self, request, ident, name, args, kwargs, batch=None, context=None):
+        raise self._error
+
+
+def _error_after_the_wire(error):
+    """The RemoteError a caller gets when the callee raises ``error``: the callee's JSON-RPC reply, decoded."""
+    reply = jsonapi.loads(_RaisingDispatcher(error).dispatch({'jsonrpc': '2.0', 'id': '1', 'method': 'm', 'params': []}))
+    return jsonrpc.exception_from_json(reply['error']['code'], reply['error']['message'], reply['error'].get('data'))
+
+
+@pytest.mark.parametrize('error, status', [
+    pytest.param(jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, UNAUTHORIZED_DETAIL), 403, id='gate_refusal'),
+    pytest.param(jsonrpc.Error(jsonrpc.UNHANDLED_EXCEPTION, 'other failure'), 500, id='other_code_stays_500'),
+    pytest.param(ValueError(jsonrpc.UNAUTHORIZED, 'not from the gate'), 500, id='same_code_other_type_stays_500'),
+])
+def test_device_write_status_for_an_error_sent_through_json_rpc(mock_platform_web_service, error, status):
+    with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
+        env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
+                               query_string='write-all=true', method='PUT', HTTP_AUTHORIZATION='BEARER foo')
+        vui_endpoints = VUIEndpoints(mock_platform_web_service)
+        vui_endpoints._rpc = _refusing_actuator_rpc(_error_after_the_wire(error))
+        response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
+        assert response.status_code == status
+        if status == 403:
+            assert json.loads(response.response[0]) == DEVICE_WRITES_REFUSED

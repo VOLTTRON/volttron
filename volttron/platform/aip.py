@@ -32,6 +32,7 @@ import os
 import pwd
 import shutil
 import signal
+import stat
 import sys
 import uuid
 
@@ -41,7 +42,8 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, DRIVER_WRITES
+from volttron.platform.agent.known_identities import (VOLTTRON_CENTRAL_PLATFORM, DRIVER_WRITES,
+                                                      VOLTTRON_CENTRAL, REGISTER_WEB_ROUTES)
 from volttron.platform.agent.utils import get_fq_identity, is_secure_mode
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform import jsonapi
@@ -234,6 +236,25 @@ class SecureExecutionEnvironment:
 
     def __call__(self, *args, **kwargs):
         self.execute(*args, **kwargs)
+
+
+def remove_group_write(tree):
+    """Clears the group write bit on tree and everything below it. Run before
+    any setfacl call: the ACL mask is recomputed from the group bits, so a
+    directory left group-writable keeps a writable mask and its key is
+    refused as a reserved key."""
+    def log_walk_error(err):
+        _log.warning("cannot list %s to clear group write: %s",
+                     err.filename, err)
+
+    for root, directories, files in os.walk(tree, onerror=log_walk_error):
+        for name in [root] + [os.path.join(root, n)
+                              for n in directories + files]:
+            if os.path.islink(name):
+                continue
+            mode = stat.S_IMODE(os.stat(name).st_mode)
+            if mode & stat.S_IWGRP:
+                os.chmod(name, mode & ~stat.S_IWGRP)
 
 
 class AIPplatform:
@@ -487,6 +508,7 @@ class AIPplatform:
             else:
                 unpack(agent_wheel, dest=agent_path)
 
+            remove_group_write(agent_path)
             os.remove(agent_wheel)
 
             final_identity = self._setup_agent_vip_id(
@@ -582,6 +604,9 @@ class AIPplatform:
 
         if identity == VOLTTRON_CENTRAL_PLATFORM:
             capabilities = {'edit_config_store': {'identity': '/.*/'}}
+        elif identity == VOLTTRON_CENTRAL:
+            # Every other web agent is granted this by the operator.
+            capabilities[REGISTER_WEB_ROUTES] = None
 
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           identity=identity,

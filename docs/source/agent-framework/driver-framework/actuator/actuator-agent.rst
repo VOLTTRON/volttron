@@ -13,6 +13,40 @@ one or more devices.
 Actuator Agent Communication
 ============================
 
+.. note::
+
+    When authentication is enabled, scheduling a task and setting or reverting points, whether by RPC or through the
+    ``devices/actuators`` pub/sub topics, require the requesting agent to hold the ``actuator_control`` capability.
+    On the pub/sub topics the actuator checks the capability of the publisher's authenticated user, not the
+    ``sender`` name in the message. A pub/sub request published on another platform is not delivered to the
+    actuator, which subscribes to local messages only; if it were, it would carry no authenticated user and be
+    refused. Reading values does not require it, and platforms running with authentication disabled are not
+    affected.
+
+    No agent is granted ``actuator_control`` automatically, and holding ``driver_write`` does not allow use of the
+    actuator. An agent installed with ``vctl install`` gets ``driver_write`` at install, so today it can write straight
+    to the Platform Driver, which skips the actuator's scheduling, whether or not it holds ``actuator_control``. To make
+    an agent write only through the actuator, remove ``driver_write`` from its auth entry with the ``vctl auth update``
+    steps below and leave it out of the capability map. The actuator itself needs ``driver_write``, so keep it on the
+    actuator's own entry. Reinstalling an agent restores ``driver_write``, because the install removes the old auth entry
+    and creates a new one that again includes it; repeat the removal after every reinstall. A request from an agent without the capability is refused with an ``UNAUTHORIZED`` error (RPC), a
+    ``FAILURE`` schedule result (pub/sub schedule request) or an ``Unauthorized`` error reply (pub/sub set or revert).
+
+    To grant it to an agent installed with ``vctl install``, run ``vctl auth list`` to find the agent's entry, then
+    ``vctl auth update <INDEX>``. Press Enter to keep each field. At the ``capabilities`` prompt, type the whole
+    capability map as JSON, keeping the existing entries and adding ``actuator_control``, for example
+    ``{"edit_config_store": {"identity": "my.agent"}, "driver_write": null, "actuator_control": null}``, or, to drop direct
+    writes to the Platform Driver, ``{"edit_config_store": {"identity": "my.agent"}, "actuator_control": null}``. Use the JSON
+    form with ``null``: a comma-separated list removes the restrictions on the existing capabilities. For an agent
+    that connects with its own credentials and has no entry yet, use
+    ``vctl auth add --credentials <public key> --user_id <identity> --capabilities actuator_control``.
+
+    A grant restricted on ``topic`` can set and revert single points but cannot schedule or set multiple points,
+    because those methods have no ``topic`` parameter. Do not restrict on ``requester_id``. A restriction that cannot be evaluated, such as an invalid ``/regex/`` pattern, or a non-empty restriction that is not a map, refuses the call.
+    An empty restriction (``[]``, ``""``, ``0`` or ``false``) is treated as no restriction, and the grant allows any argument.
+
+    Writing and reverting device points through the web interface is refused while authentication is enabled.
+
 
 Scheduling a Task
 -----------------

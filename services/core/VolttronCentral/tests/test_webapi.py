@@ -4,6 +4,9 @@ import gevent
 import pytest
 
 from volttron.platform import get_examples, jsonapi
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.auth import AuthFile
+from volttron.platform.jsonrpc import METHOD_NOT_FOUND
 from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
@@ -15,8 +18,19 @@ from services.core.VolttronCentral.tests.vc_fixtures import \
     vc_and_vcp_together, vc_instance, vcp_instance
 
 
+def grant_install_remove_agents(wrapper, identity=VOLTTRON_CENTRAL_PLATFORM):
+    """Grant install_remove_agents to the agent with the given identity, as an operator would."""
+    auth_file = AuthFile(os.path.join(wrapper.volttron_home, "auth.json"))
+    keys = [str(entry.credentials) for entry in auth_file.read_allow_entries()
+            if entry.identity == identity]
+    assert len(keys) == 1, f"expected one auth entry for {identity}, found {len(keys)}"
+    assert wrapper.add_capabilities(keys[0], "install_remove_agents")
+
+
 @pytest.fixture(scope="module")
 def auto_registered_local(vc_and_vcp_together):
+    # VolttronCentralPlatform is not granted install_remove_agents at install.
+    grant_install_remove_agents(vc_and_vcp_together)
     webapi = APITester(vc_and_vcp_together)
 
     yield webapi
@@ -28,7 +42,7 @@ def test_platform_list(auto_registered_local):
     assert len(webapi.list_platforms()) == 1
 
 
-def test_platform_inspect(auto_registered_local):
+def test_platform_inspect_through_the_generic_agent_route_is_refused(auto_registered_local):
     webapi = auto_registered_local
     gevent.sleep(5)
     platforms = webapi.list_platforms()
@@ -36,12 +50,10 @@ def test_platform_inspect(auto_registered_local):
 
     agents = webapi.list_agents(platform_uuid)
 
+    assert agents
     for agent in agents:
-        agent_uuid = agent['uuid']
-        result = webapi.inspect(platform_uuid, agent_uuid)
-        print(result)
-        method = 'health.get_status'
-        assert method in result['methods']
+        result = webapi.inspect(platform_uuid, agent['uuid'])
+        assert result['code'] == METHOD_NOT_FOUND
 
 
 @pytest.fixture(scope="module")

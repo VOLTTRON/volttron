@@ -1,10 +1,14 @@
 import logging
 
+import gevent
 from ws4py.server.geventserver import WebSocketWSGIApplication
 
 from .websocket import VolttronWebSocket
 
 _log = logging.getLogger(__name__)
+
+AUTHORIZE_TIMEOUT = 10
+_REQUEST_FIELDS = ('REMOTE_ADDR', 'PATH_INFO', 'HTTP_HOST', 'HTTP_ORIGIN')
 
 
 class WebApplicationWrapper:
@@ -31,11 +35,35 @@ class WebApplicationWrapper:
 
         path = environ['PATH_INFO']
         if path in self._wsregistry:
+            identity = self._wsregistry[path]
+            if not self._authorized(environ, identity):
+                start_response('403 Forbidden', [('Content-Type', 'text/plain')])
+                return [b'Forbidden']
             environ['ws4py.app'] = self
-            environ['identity'] = self._wsregistry[environ['PATH_INFO']]
+            environ['identity'] = identity
             return self.ws(environ, start_response)
 
         return self.platformweb.app_routing(environ, start_response)
+
+    def _authorized(self, environ, identity):
+        """Ask the owning agent before the upgrade; only an answer of True passes."""
+        # Imported here because platform_web_service imports this module.
+        from .platform_web_service import _first_segment, _without_login_cookie
+
+        request = {key: environ[key] for key in _REQUEST_FIELDS if key in environ}
+        if 'HTTP_COOKIE' in environ:
+            request['HTTP_COOKIE'] = _without_login_cookie(environ['HTTP_COOKIE'])
+        # Fail closed: Timeout is not an Exception, and any error means no upgrade.
+        try:
+            answer = self.platformweb.vip.rpc.call(
+                identity, 'client.authorize', request).get(timeout=AUTHORIZE_TIMEOUT)
+        except (Exception, gevent.Timeout) as err:
+            answer = err
+        if answer is True:
+            return True
+        _log.warning('websocket refused: owner %r, first segment %r',
+                     identity, _first_segment(environ['PATH_INFO']))
+        return False
 
     def favicon(self, environ, start_response):
         """
@@ -49,9 +77,15 @@ class WebApplicationWrapper:
     def client_opened(self, client, endpoint, identity):
 
         ip = client.environ['REMOTE_ADDR']
-        should_open = self.platformweb.vip.rpc.call(identity, 'client.opened',
-                                                  ip, endpoint)
-        if not should_open:
+        # Fail closed on an error or timeout. None means the owner has no
+        # opened callback, which keeps the socket open.
+        try:
+            should_open = self.platformweb.vip.rpc.call(
+                identity, 'client.opened', ip, endpoint).get(timeout=AUTHORIZE_TIMEOUT)
+        except (Exception, gevent.Timeout) as err:
+            _log.warning('client.opened failed for %r: %s', identity, err)
+            should_open = False
+        if should_open is not None and not should_open:
             _log.error("Authentication failure, closing websocket.")
             client.close(reason='Authentication failure!')
             return
@@ -87,21 +121,35 @@ class WebApplicationWrapper:
         else:
             self.platformweb.vip.rpc.call(identity, 'client.closed', endpoint)
 
+    def _check_owner(self, endpoint, identity):
+        owner = self._wsregistry.get(endpoint)
+        if owner is not None and owner != identity:
+            raise PermissionError(f'websocket {endpoint!r} belongs to another agent')
+        return owner
+
     def create_ws_endpoint(self, endpoint, identity):
+        self._check_owner(endpoint, identity)
         if endpoint not in self.endpoint_clients:
             self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
 
-    def destroy_ws_endpoint(self, endpoint):
-        clients = self.endpoint_clients.get(endpoint, [])
-        for identity, client in clients:
+    def destroy_ws_endpoint(self, endpoint, identity):
+        """Close and remove identity's websocket; an unknown endpoint is ignored."""
+        if self._check_owner(endpoint, identity) is None:
+            _log.debug('no websocket registered at %r; nothing removed', endpoint)
+            return
+        for _, client in list(self.endpoint_clients.get(endpoint, ())):
             client.close(reason="Endpoint closed.")
-        try:
-            del self.endpoint_clients[endpoint]
-        except KeyError:
-            pass
+        self.endpoint_clients.pop(endpoint, None)
+        del self._wsregistry[endpoint]
 
-    def websocket_send(self, endpoint, message):
+    def destroy_owner_endpoints(self, identity):
+        owned = [endpoint for endpoint, owner in self._wsregistry.items() if owner == identity]
+        for endpoint in owned:
+            self.destroy_ws_endpoint(endpoint, identity)
+
+    def websocket_send(self, endpoint, message, identity):
+        self._check_owner(endpoint, identity)
         _log.debug('Sending message to clients!')
         clients = self.endpoint_clients.get(endpoint, [])
         if not clients:

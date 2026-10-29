@@ -21,6 +21,51 @@ vcp-instance name with all invalid characters replaced with an underscore. See
 :py:meth:`volttron.platform.agent.util.normalize_identity` for how the instance
 name is normalized into a identity.
 
+
+.. _VCP-Grant-Agent-Control:
+
+Granting agent control to the VCP agent
+---------------------------------------
+
+The VolttronCentralPlatform (VCP) agent is not granted the capabilities to install, remove, start or stop agents when
+it is installed. Until an operator grants them, VOLTTRON Central cannot install or remove agents on the platform
+(``install_remove_agents``) or start, stop or restart them (``start_stop_agents``). Grant both on each managed
+platform, with the platform running and the VCP agent installed:
+
+1. Find the index of the VCP agent's entry. It is the entry whose ``identity`` is ``platform.agent``. Confirm the
+   identity before you go on:
+
+   .. code-block:: bash
+
+       vctl auth list
+
+2. Update that entry, replacing ``<INDEX>`` with the index you found:
+
+   .. code-block:: bash
+
+       vctl auth update <INDEX>
+
+   The command asks for each field in turn. Press Enter to keep a value. At the ``capabilities`` prompt, enter the
+   entry's current capabilities plus the two new ones. A newly installed VCP agent has only ``edit_config_store``, so
+   enter:
+
+   .. code-block:: json
+
+       {"edit_config_store": {"identity": "/.*/"}, "install_remove_agents": null, "start_stop_agents": null}
+
+3. The update empties the entry's ``rpc_method_authorizations``. Restart the VCP agent so it fills the field again,
+   replacing ``<TAG>`` with the agent's tag or UUID from ``vctl status``:
+
+   .. code-block:: bash
+
+       vctl restart <TAG>
+
+4. Run ``vctl auth list`` again. Check that the entry at your index still has the ``identity`` ``platform.agent``,
+   that it lists ``install_remove_agents`` and ``start_stop_agents`` under ``capabilities``, and that
+   ``rpc_method_authorizations`` lists its methods again (for example ``get_health`` and ``list_agents``).
+
+The ``capabilities`` answer replaces the old value, so include every capability the entry already has.
+
 FAQ / Notes
 -----------
 

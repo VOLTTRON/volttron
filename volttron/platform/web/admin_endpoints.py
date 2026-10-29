@@ -22,9 +22,13 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import hmac
+import json
 import logging
 import os
 import re
+import secrets
+import stat
 from urllib.parse import parse_qs
 
 from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
@@ -49,6 +53,23 @@ from volttron.utils import VolttronHomeFileReloader
 
 
 _log = logging.getLogger(__name__)
+
+SETUP_TOKEN_FILE = 'web-setup-token'
+
+
+def printable_text(text):
+    # Imported lazily: volttron.platform.web imports this module.
+    from volttron.platform.web import printable_text as _printable_text
+    return _printable_text(text)
+
+
+_STATE_CHANGING_API = tuple('/admin/api/' + name for name in (
+    'approve_csr/', 'deny_csr/', 'delete_csr/',
+    'approve_credential/', 'deny_credential/', 'delete_credential/'))
+
+
+def _changes_state(path_info):
+    return path_info.startswith(_STATE_CHANGING_API)
 
 
 def template_env(env):
@@ -85,6 +106,8 @@ class AdminEndpoints:
 
         self._userdict = {}
         self.reload_userdict()
+        if not self._userdict:
+            self._prepare_setup_token()
 
         self._observer = Observer()
         self._observer.schedule(
@@ -115,26 +138,175 @@ class AdminEndpoints:
             (re.compile('^/admin.*'), 'callable', self.admin)
         ]
 
+    @staticmethod
+    def _setup_token_path() -> str:
+        return os.path.join(get_home(), SETUP_TOKEN_FILE)
+
+    @staticmethod
+    def _announce_setup_token(token_path: str):
+        _log.warning("No web users exist. Create the first administrator with the setup token in %s",
+                     token_path)
+
+    def _prepare_setup_token(self):
+        """Create the setup token at start, or announce the one already there."""
+        token_path = self._setup_token_path()
+        existed = os.path.lexists(token_path)
+        if self._ensure_setup_token() and existed:
+            self._announce_setup_token(token_path)
+
+    def _ensure_setup_token(self) -> bool:
+        """Create the one-time setup token file when it does not exist yet.
+
+        Returns False when the file cannot be created, so setup is refused
+        instead of left open without a token.
+        """
+        token_path = self._setup_token_path()
+        if os.path.lexists(token_path):
+            return True
+        try:
+            fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        except FileExistsError:
+            return True
+        except OSError as exc:
+            _log.error("Web setup refused: cannot create the setup token file %s: %s", token_path, exc)
+            return False
+        try:
+            # The create mode is filtered by the umask; set it explicitly so the
+            # read-side 0600 check accepts the file.
+            os.fchmod(fd, 0o600)
+            os.write(fd, secrets.token_urlsafe(32).encode('ascii'))
+        except OSError as exc:
+            _log.error("Web setup refused: cannot write the setup token file %s: %s", token_path, exc)
+            try:
+                os.remove(token_path)
+            except OSError as remove_exc:
+                _log.error("Cannot remove the incomplete setup token file %s: %s", token_path, remove_exc)
+            return False
+        finally:
+            os.close(fd)
+        self._announce_setup_token(token_path)
+        return True
+
+    def _read_setup_token(self) -> str:
+        """Read the setup token, refusing any file the platform user does not solely own.
+
+        O_NONBLOCK keeps a FIFO planted at the path from blocking the server.
+        Raises OSError or ValueError when the file must not be trusted.
+        """
+        fd = os.open(self._setup_token_path(), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as fp:
+            st = os.fstat(fp.fileno())
+            if not stat.S_ISREG(st.st_mode):
+                raise ValueError("not a regular file")
+            if st.st_uid != os.geteuid():
+                raise ValueError("not owned by the platform user")
+            if stat.S_IMODE(st.st_mode) != 0o600:
+                raise ValueError(f"mode is {stat.S_IMODE(st.st_mode):o}, not 600")
+            token = fp.read().decode('ascii').strip()
+        if not token:
+            raise ValueError("empty token file")
+        return token
+
+    @staticmethod
+    def _setup_page(env, status='200 OK'):
+        template = template_env(env).get_template('first.html')
+        return Response(template.render(), status=status, content_type="text/html")
+
+    @staticmethod
+    def _setup_unavailable():
+        return Response('Service temporarily unavailable', status='503 Service Unavailable',
+                        content_type='text/plain')
+
+    def _create_first_admin(self, env, data):
+        form = parse_qs(data)
+
+        def field(name: str) -> str:
+            # A repeated field is treated as absent rather than guessed at.
+            values = form.get(name, [])
+            return values[0] if len(values) == 1 else ''
+
+        submitted_token = field('setup_token')
+        username = field('username')
+        pass1 = field('password1')
+        pass2 = field('password2')
+        remote = env.get('REMOTE_ADDR', 'unknown')
+        token_path = self._setup_token_path()
+
+        try:
+            stored_token = self._read_setup_token()
+        except FileNotFoundError:
+            stored_token = ''
+        except (OSError, ValueError) as exc:
+            _log.error("Web setup refused: the setup token file %s is unusable: %s", token_path, exc)
+            return self._setup_unavailable()
+
+        # compare_digest('', '') is True, so both sides must be non-empty.
+        if not (submitted_token and stored_token
+                and hmac.compare_digest(submitted_token.encode('utf-8'), stored_token.encode('utf-8'))):
+            _log.warning("Web setup refused: missing or wrong setup token from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+
+        if not username.strip() or not pass1:
+            _log.warning("Web setup refused: blank username or password from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+
+        if pass1 != pass2:
+            return self._setup_page(env)
+
+        # Only one request can win this removal, so it precedes any write; nothing
+        # between it and add_user yields to another greenlet.
+        try:
+            os.remove(token_path)
+        except FileNotFoundError:
+            _log.warning("Web setup refused: the setup token was already used, request from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+        except OSError as exc:
+            _log.error("Web setup refused: cannot remove the setup token file %s: %s", token_path, exc)
+            return self._setup_unavailable()
+
+        # Another request or process may have written a user since this one
+        # entered setup; writing now would replace that file.
+        self.reload_userdict()
+        if self._userdict:
+            _log.warning("Web setup refused: a web user already exists, request from %s", remote)
+            return self._setup_page(env, '403 Forbidden')
+
+        _log.debug("Setting administrator password")
+        try:
+            self.add_user(username, pass1, groups=['admin', 'vui'], overwrite=False)
+        except OSError as exc:
+            _log.error("Web setup failed: cannot save the first administrator: %s", exc)
+            self._reopen_setup()
+            return self._setup_unavailable()
+        return Response('', status='302', headers={'Location': '/admin/login.html'})
+
+    def _reopen_setup(self):
+        """Undo a failed first-administrator save so setup can be retried with a new token.
+
+        The re-check above found no users, so a users file present now holds
+        only the failed write and is removed.
+        """
+        self._userdict = {}
+        users_path = os.path.join(get_home(), 'web-users.json')
+        try:
+            os.remove(users_path)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            _log.error("Cannot remove the incomplete web users file %s: %s", users_path, exc)
+        self._ensure_setup_token()
+
     def admin(self, env, data):
         if len(self._userdict) == 0:
+            if not self._ensure_setup_token():
+                return self._setup_unavailable()
             if env.get('REQUEST_METHOD') == 'POST':
-                decoded = dict((k, v if len(v) > 1 else v[0])
-                               for k, v in parse_qs(data).items())
-                username = decoded.get('username')
-                pass1 = decoded.get('password1')
-                pass2 = decoded.get('password2')
-
-                if pass1 == pass2 and pass1 is not None:
-                    _log.debug("Setting administrator password")
-                    self.add_user(username, pass1, groups=['admin', 'vui'])
-                    return Response('', status='302', headers={'Location': '/admin/login.html'})
-
-            template = template_env(env).get_template('first.html')
-            return Response(template.render(), content_type="text/html")
+                return self._create_first_admin(env, data)
+            return self._setup_page(env)
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
+            _log.debug("Login.html: {}".format(printable_text(env.get('PATH_INFO'))))
             return Response(template.render(), content_type='text/html')
 
         return self.verify_and_dispatch(env, data)
@@ -146,17 +318,25 @@ class AdminEndpoints:
         :param data: data associated with a web form or json/xml request data
         :return: Response object.
         """
-        from volttron.platform.web import get_bearer, NotAuthorized
+        from volttron.platform.web import get_authorization_bearer, get_bearer, NotAuthorized
+        path = printable_text(env.get('PATH_INFO'))
+        # A request that changes authorization state takes the token from the
+        # Authorization header only, never the cookie, which a browser sends
+        # on requests other sites make.
+        changes_state = _changes_state(env.get('PATH_INFO') or '')
         try:
-            claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
+            bearer = get_authorization_bearer(env) if changes_state else get_bearer(env)
+            if changes_state and not bearer:
+                raise NotAuthorized()
+            claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', bearer).get()
         except NotAuthorized:
-            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
+            _log.error("Unauthorized user attempted to connect to {}".format(path))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
         except RemoteError as e:
             if "ExpiredSignatureError" in e.exc_info["exc_type"]:
                 _log.warning("Access token has expired! Please re-login to renew.")
                 template = template_env(env).get_template('login.html')
-                _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
+                _log.debug("Login.html: {}".format(path))
                 return Response(template.render(), content_type='text/html')
             else:
                 _log.error(e)
@@ -212,7 +392,7 @@ class AdminEndpoints:
         return Response(resp)
 
     def __api_endpoint(self, endpoint, data):
-        _log.debug("Doing admin endpoint {}".format(endpoint))
+        _log.debug("Doing admin endpoint {}".format(printable_text(endpoint)))
         if endpoint == 'certs':
             response = self.__cert_list_api()
         elif endpoint == 'pending_csrs':
@@ -236,7 +416,7 @@ class AdminEndpoints:
 
     def __approve_csr_api(self, common_name):
         try:
-            _log.debug("Creating cert and permissions for user: {}".format(common_name))
+            _log.debug("Creating cert and permissions for user: {}".format(printable_text(common_name)))
             self._rpc_caller.call(AUTH, 'approve_authorization', common_name).wait(timeout=4)
             data = dict(status=self._rpc_caller.call(AUTH, "get_authorization_status", common_name).get(timeout=2),
                         cert=self._rpc_caller.call(AUTH, "get_authorization", common_name).get(timeout=2))
@@ -296,7 +476,7 @@ class AdminEndpoints:
 
     def __approve_credential_api(self, user_id):
         try:
-            _log.debug("Creating credential and permissions for user: {}".format(user_id))
+            _log.debug("Creating credential and permissions for user: {}".format(printable_text(user_id)))
             self._rpc_caller.call(AUTH, 'approve_authorization', user_id).wait(timeout=4)
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")

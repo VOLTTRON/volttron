@@ -36,7 +36,7 @@ from urllib.parse import urlparse
 
 from ..utils.frozendict import FrozenDict
 
-__version__ = '9.0.4'
+__version__ = '9.2.0'
 
 _log = logging.getLogger(__name__)
 
@@ -51,17 +51,20 @@ def set_home(home=None):
 
 
 def get_home():
-    """ Return the home directory with user and variables expanded.
+    """ Return the real path of the home directory, with user and variables
+    expanded.
 
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
+
+    The platform binds its abstract socket under the real path, so every
+    client has to build the address from the same path.
     """
 
-    vhome = os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    vhome = os.path.realpath(
+        os.path.expanduser(
+            os.path.expandvars(
+                os.environ.get('VOLTTRON_HOME', '~/.volttron'))))
     if vhome.endswith('/'):
         vhome = vhome[:-1]
         if os.environ.get('VOLTTRON_HOME') is not None:
@@ -202,10 +205,30 @@ def is_rabbitmq_available():
     return rabbitmq_available
 
 
+_PYJWT_INSTALL = "install the web libraries with python3 bootstrap.py --web"
+
+
+def check_pyjwt():
+    """Raise ImportError naming the requirement unless PyJWT 2 or later is importable."""
+    required = "volttron.platform.web requires PyJWT 2"
+    try:
+        import jwt
+    except ImportError as exc:
+        raise ImportError(f"{required}; {_PYJWT_INSTALL}") from exc
+    try:
+        major = int(jwt.__version__.split('.')[0])
+    except (AttributeError, ValueError) as exc:
+        raise ImportError(f"{required}, found an unknown version; {_PYJWT_INSTALL}") from exc
+    # PyJWT 1.x returns bytes from encode and decodes without an algorithm list,
+    # so the web token code is correct only on 2.x.
+    if major < 2:
+        raise ImportError(f"{required}, found {jwt.__version__}; {_PYJWT_INSTALL}")
+
+
 def is_web_available():
     web_available = True
     try:
-        import jwt
+        check_pyjwt()
         from jinja2 import Environment, FileSystemLoader, select_autoescape
         from ws4py.server.geventserver import WSGIServer
     except ImportError:

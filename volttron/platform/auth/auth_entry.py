@@ -174,9 +174,9 @@ class AuthEntry(object):
             "Invalid capability value: {} of type {}. Capability "
             "entries can only be a string or "
             "dictionary or list containing string/dictionary. "
-            "dictionaries should be of the format {"
-            "'capability_name':None} or "
-            "{'capability_name':{'arg1':'value',...}"
+            "dictionaries should be of the format {{"
+            "'capability_name':None}} or "
+            "{{'capability_name':{{'arg1':'value',...}}"
         )
         if isinstance(value, str):
             return {value: None}
@@ -205,7 +205,7 @@ class AuthEntry(object):
             "of type {}. Authorized rpc method entries can "
             "only be a dictionary. Dictionaries should be of "
             "the format: "
-            "{'method1:[list of capabilities], 'method2: [], ...}"
+            "{{'method1:[list of capabilities], 'method2: [], ...}}"
         )
         if isinstance(value, dict):
             return value
@@ -265,4 +265,7 @@ class AuthEntry(object):
 
     def _check_validity(self):
         """Raises AuthEntryInvalid if entry is invalid."""
+        # '' is the router's no-user value, so no entry may hold it.
+        if self.user_id == "":
+            raise AuthEntryInvalid("user_id must not be empty")
         AuthEntry.valid_credentials(self.credentials, self.mechanism)

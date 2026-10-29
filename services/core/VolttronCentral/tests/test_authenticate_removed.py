@@ -45,13 +45,10 @@ def _make_agent():
     return agent
 
 
-def _failed_platform_login_chain():
-    """A grequests chain whose .send().response looks like a failed platform login."""
-    response = mock.Mock(ok=False, text=None)
-    chain = mock.Mock()
-    chain.send.return_value = chain
-    chain.response = response
-    return chain
+def _platform_refuses_login(agent):
+    """Make the platform web service answer {} to authenticate_web_user."""
+    agent.vip = mock.Mock()
+    agent.vip.rpc.call.return_value.get.return_value = {}
 
 
 def _get_authorization_call(username, password):
@@ -73,8 +70,7 @@ def _get_authorization_call(username, password):
 def test_failed_platform_login_returns_invalid_credentials(monkeypatch):
     agent = _make_agent()
     agent._authenticated_sessions = SessionHandler()
-    monkeypatch.setattr(vc_agent.grequests, "post",
-                        lambda *a, **k: _failed_platform_login_chain())
+    _platform_refuses_login(agent)
     # Stands in for any code path that would still create a session; a
     # local-login regression would call this.
     add_session = mock.Mock()
@@ -173,8 +169,7 @@ def test_configure_then_failed_platform_login_creates_no_session(monkeypatch):
     monkeypatch.setattr(vc_agent.gevent, "spawn_later", lambda *a, **k: None)
     agent._configure('config', 'NEW', {})
 
-    monkeypatch.setattr(vc_agent.grequests, "post",
-                        lambda *a, **k: _failed_platform_login_chain())
+    _platform_refuses_login(agent)
 
     env, data = _get_authorization_call('reader', 'whatever')
     result = agent.jsonrpc(env, data)

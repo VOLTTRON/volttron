@@ -248,8 +248,8 @@ def auth_instance(volttron_instance):
         yield volttron_instance
     finally:
         with with_os_environ(volttron_instance.env):
-            with open(os.path.join(volttron_instance.volttron_home, "auth.json"), 'w') as f:
-                jsonapi.dump(auth_file, f)
+            # Restored under the auth file lock, since the platform is running.
+            volttron_instance.set_auth_dict(auth_file)
 
 
 # Number of tries to check if auth file is updated properly
@@ -635,12 +635,29 @@ def _remove_known_host(platform, host):
 
 @pytest.fixture()
 def mock_auth_service():
+    # Restored afterwards: tests later in the session inspect the real class.
+    bases = AuthService.__bases__
     AuthService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
-    auth_service = AuthService(
-        auth_file=MagicMock(), protected_topics_file=MagicMock(), setup_mode=MagicMock(), aip=MagicMock())
-    auth_service.authentication_server = ZMQServerAuthentication(auth_service=auth_service)
-    auth_service.authorization_server = ZMQAuthorization(auth_service=auth_service)
-    yield auth_service
+    try:
+        auth_service = AuthService(
+            auth_file=MagicMock(), protected_topics_file=MagicMock(), setup_mode=MagicMock(), aip=MagicMock())
+        auth_service.authentication_server = ZMQServerAuthentication(auth_service=auth_service)
+        auth_service.authorization_server = ZMQAuthorization(auth_service=auth_service)
+        yield auth_service
+    finally:
+        AuthService.__bases__ = bases
+
+
+@pytest.fixture()
+def auth_service_bases_restored():
+    bases = AuthService.__bases__
+    yield
+    assert AuthService.__bases__ == bases
+
+
+def test_mock_auth_service_restores_the_base_class(auth_service_bases_restored,
+                                                   mock_auth_service):
+    assert AuthService.__bases__ != (Agent,)
 
 
 @pytest.fixture()
