@@ -42,8 +42,10 @@ POST /authenticate
 Provide authentication credentials to receive refresh token.
 
 The user provides a username and password in the request body. If authentication succeeds,
-the endpoint will returna a JWT bearer refresh token with user’s claims. An initial access
-token is also returned. The refresh token can then be provided to ``PUT /authenticate``
+the endpoint will return a JWT bearer refresh token with the user's claims. An initial access
+token is also returned. Both tokens carry the user's ``groups``, the username as ``sub``, the
+login session identifier ``sid``, the issue and expiry times (``iat``, ``nbf``, ``exp``) and a
+``grant_type`` of ``refresh_token`` or ``access_token``. The refresh token can then be provided to ``PUT /authenticate``
 to obtain new short-lived access tokens, as needed, without sending the username and
 password again until the refresh token expires.
 
@@ -127,7 +129,8 @@ Revoke the login session (log out).
 The user provides either token of the session (the refresh token, or any access token obtained
 from it) in the Authorization header. The session is revoked: the refresh token can no longer
 be used with ``PUT /authenticate``, every access token of the session is refused by every
-other endpoint, and any websocket subscriptions opened with them are closed. Revocation
+other endpoint, and any websocket subscriptions opened with them are closed (a subscription that
+was renewed over the socket with a token of a later login belongs to that later session instead). Revocation
 persists across a restart of the web service and lasts until the last token of the session
 would have expired anyway.
 

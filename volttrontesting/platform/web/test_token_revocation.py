@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 
 import jwt
 import pytest
-from ws4py.websocket import WebSocket
 
 from volttron.platform import get_home
 from volttron.platform.web.admin_endpoints import AdminEndpoints
@@ -22,7 +21,7 @@ from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttron.platform.web.platform_web_service import PlatformWebService
 from volttron.platform.web.token_revocation import (RevokedSessions, REVOKED_SESSIONS_FILE, SESSION_CLAIM,
                                                     session_id)
-from volttron.platform.web.vui_pubsub import VUIPubsubManager
+from volttron.platform.web.vui_pubsub import VUIPubsubManager, VUIWebSocket
 from volttron.utils import get_random_key
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 from volttrontesting.utils.web_utils import get_test_web_env
@@ -223,40 +222,38 @@ def test_unusable_session_ids_are_not_allowed(tmp_path, claims):
 
 # ---------------------------------------------------------------- websockets
 
-class _FakeSocket(WebSocket):
+class _FakeSocket(VUIWebSocket):
     # ws4py's ``terminated`` property reads these two flags.
     def __init__(self):
         self.client_terminated = self.server_terminated = False
         self.closed_with = None
+        self.environ = {}
 
     def close(self, code=1000, reason=""):
         self.closed_with = reason
         self.client_terminated = self.server_terminated = True
 
 
-def _open(manager, token, topic, sid, sock=None):
-    """Open a subscription as the endpoint does, then stand in a fake socket for the WSGI application."""
-    manager.open_subscription_socket(token, topic, sid=sid)
-    if sock is not None:
-        manager.user_websockets[token][topic] = sock
+def _open(manager, sid, topic, sock=None):
+    """Register a socket with the manager the way VUIWebSocket.opened does once the token has verified."""
+    sock = sock or _FakeSocket()
+    manager.client_opened(sock, topic, f"token-{sid}", {SESSION_CLAIM: sid, "groups": ["vui"]})
+    return sock
 
 
 def test_close_session_sockets_closes_only_the_revoked_session():
-    manager = VUIPubsubManager(MagicMock())
-    doomed_a, doomed_b, kept, legacy = _FakeSocket(), _FakeSocket(), _FakeSocket(), _FakeSocket()
-    _open(manager, "doomed-token", "devices/a", "doomed", doomed_a)
-    _open(manager, "doomed-token", "devices/b", "doomed", doomed_b)
-    _open(manager, "kept-token", "devices/a", "kept", kept)
-    _open(manager, "legacy-token", "devices/a", None, legacy)  # opened without a session id
-    # A pending entry still holds the WSGI application, not a socket.
-    _open(manager, "doomed-token-2", "devices/c", "doomed")
+    agent = MagicMock()
+    manager = VUIPubsubManager(agent)
+    doomed_a, doomed_b = _open(manager, "doomed", "devices/a"), _open(manager, "doomed", "devices/b")
+    kept = _open(manager, "kept", "devices/a")
 
     assert manager.close_session_sockets("doomed") == 2
     assert doomed_a.closed_with == "Session revoked" and doomed_b.terminated
-    assert kept.closed_with is None and legacy.closed_with is None
-    assert "doomed-token" not in manager.user_websockets and "doomed-token-2" not in manager.user_websockets
-    assert "kept-token" in manager.user_websockets and "legacy-token" in manager.user_websockets
-    assert "doomed" not in manager.session_tokens
+    assert kept.closed_with is None
+    # The revoked sockets' subscriptions are released, the kept one's is not.
+    unsubscribed = {(c.args[1], c.args[2]) for c in agent.vip.pubsub.unsubscribe.call_args_list}
+    assert unsubscribed == {("devices/a", doomed_a.on_topic), ("devices/b", doomed_b.on_topic)}
+    assert "doomed" not in manager._sockets and kept in manager._sockets["kept"]
     assert manager.close_session_sockets("doomed") == 0
     assert manager.close_session_sockets("never-seen") == 0
 
@@ -267,14 +264,15 @@ def test_service_closes_websockets_of_a_revoked_session(server):
     endpoints._on_revoke = svc._session_revoked
     svc._session_revoked("nobody-listening")  # no VUI endpoints yet: nothing to do, no error
     svc._vui_endpoints = MagicMock()
-    svc._vui_endpoints.pubsub_manager = VUIPubsubManager(MagicMock())
+    manager = svc._vui_endpoints.pubsub_manager = VUIPubsubManager(MagicMock())
     tokens = _login(endpoints)
     sock = _FakeSocket()
-    sid = session_id(jwt.decode(tokens["access_token"], secret, algorithms=["HS256"]))
-    _open(svc._vui_endpoints.pubsub_manager, tokens["access_token"], "devices/a", sid, sock)
+    claims = jwt.decode(tokens["access_token"], secret, algorithms=["HS256"])
+    assert claims["sub"] == USER    # the user is named independently of the session
+    manager.client_opened(sock, "devices/a", tokens["access_token"], claims)
 
     assert "204" in _revoke(endpoints, tokens["refresh_token"]).status
-    assert sock.terminated
+    assert sock.terminated and sock.closed_with == "Session revoked"
 
 
 def test_pubsub_manager_without_sockets_is_fine(server):

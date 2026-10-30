@@ -173,6 +173,7 @@ class AuthenticateEndpoints:
         if user is None:
             _log.error("No matching user for passed username: {}".format(printable_text(username)))
             return Response('', status='401')
+        user['sub'] = username    # names the user in every token of the session, independent of the session id
         access_token, refresh_token = self._get_tokens(user)
         response = Response(json.dumps({"refresh_token": refresh_token, "access_token": access_token}),
                             content_type="application/json")

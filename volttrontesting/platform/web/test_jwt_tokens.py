@@ -292,3 +292,10 @@ def test_platform_start_message_names_pyjwt_requirement():
     assert has_web == "False"
     assert "requires PyJWT 2, found 1.7.1" in message
     assert "bootstrap.py --web" in message
+
+
+def test_login_names_the_user_in_the_tokens(server):
+    endpoints, algorithm, verify_key = server
+    tokens = _login(endpoints)
+    for token in tokens.values():
+        assert jwt.decode(token, verify_key, algorithms=[algorithm])["sub"] == USER

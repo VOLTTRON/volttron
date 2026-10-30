@@ -153,8 +153,7 @@ def test_invalid_token_does_not_publish_through_the_real_manager():
     response = _send(vui, TOPIC_PATH, 'PUT', token='Bearer not-a-jwt')
     assert response.status_code == 401
     agent.vip.pubsub.publish.assert_not_called()
-    assert len(vui.pubsub_manager.subscription_websockets) == 0
-    assert len(vui.pubsub_manager.user_websockets) == 0
+    assert vui.pubsub_manager._sockets == {}
 
 
 @pytest.mark.parametrize('claims, status', [({'groups': ['admin']}, 403), ({'groups': []}, 403), ({}, 401),
@@ -330,8 +329,8 @@ def test_manager_topic_log_lines_stay_printable(caplog):
     topic = 'devices/x\nEXTRA\x1b[2J'
     with caplog.at_level('DEBUG'):
         manager.open_subscription_socket('tok', topic)
-        manager.client_opened(MagicMock(), topic, 'tok')
+        manager.client_opened(MagicMock(), topic, 'tok', {'sid': 's1', 'groups': ['vui']})
         VUIWebSocket.on_topic(MagicMock(terminated=True), 'peer', 'sender', 'pubsub', topic, {}, 'm')
-    assert len(caplog.records) >= 3
+    assert len(caplog.records) >= 2
     for record in caplog.records:
         assert record.getMessage().isprintable(), record.getMessage()

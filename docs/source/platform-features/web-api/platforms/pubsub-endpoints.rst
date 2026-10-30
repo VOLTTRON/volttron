@@ -97,6 +97,32 @@ Response:
 
 -  **With invalid BEARER token:** ``401 Unauthorized``
 
+Socket lifetime and token renewal:
+----------------------------------
+
+A subscription websocket is authorized by the access token that opened it and lives no longer than that token.
+To keep a subscription open past the token's expiry, the client sends the renewed access token (obtained from
+``PUT /authenticate``, or from a new ``POST /authenticate`` login by the same user) over the socket as a JSON
+text frame:
+
+.. code-block:: javascript
+
+    {"access_token": "<jwt_access_token>"}
+
+The server answers on the socket with ``{"renewed": true, "expires": <unix time>}`` when the token is accepted,
+or ``{"error": "Not Authorized"}`` when it is not (the socket then stays open until its current token expires).
+A token is accepted if it verifies, carries the ``vui`` group, and belongs either to the same login session as
+the socket or to a new login by the same user. Any other message is answered with an error describing this frame.
+
+The server closes the socket with close code ``1008`` and one of these reasons:
+
+- ``Token expired``: the access token expired without a renewal (checked when a message is forwarded and by a
+  periodic sweep, so an idle socket may outlive its token by up to a minute).
+- ``Session revoked``: the login session was revoked with ``DELETE /authenticate``.
+- ``Not Authorized``: the token did not verify when the socket opened, or stopped verifying later.
+
+A client that reconnects after such a close must present a valid access token on the new upgrade request.
+
 -------------
 
 PUT /platforms/:platform/pubsub/:topic
