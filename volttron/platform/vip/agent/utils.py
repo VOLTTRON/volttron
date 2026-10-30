@@ -114,7 +114,33 @@ def build_agent(address=None, identity=None, publickey=None,
                         volttron_central_instance_name=volttron_central_instance_name,
                         message_bus=message_bus, enable_store=enable_store, **kwargs)
     event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    with gevent.Timeout(timeout):
-        event.wait()
+    core_greenlet = gevent.spawn(agent.core.run, event)
+    try:
+        with gevent.Timeout(timeout):
+            event.wait()
+    except gevent.Timeout:
+        _stop_unconnected_core(agent, core_greenlet, timeout)
+        raise
     return agent
+
+
+def _stop_unconnected_core(agent, core_greenlet, timeout):
+    """Stop the core that build_agent spawned but gave up waiting on.
+
+    Without this the core keeps running after the Timeout with nobody
+    holding a reference to it. If the router's welcome arrives after the
+    caller's deadline but before the core's own hello check expires, the
+    orphan connects and holds the identity for the life of the process.
+    The destination's ROUTER socket then silently drops every later
+    connection that uses the same identity, so each retry fails with
+    "No response to hello message" until the process is restarted.
+    """
+    _log.warning(f"No connection for {agent.core.identity} after {timeout} seconds; "
+                 f"stopping its core so it cannot connect later and hold the identity")
+    stopped = False
+    try:
+        stopped = agent.core.stop(timeout=timeout)
+    except Exception as exc:
+        _log.debug(f"Error stopping unconnected core {agent.core.identity}: {exc!r}")
+    if not stopped and not core_greenlet.dead:
+        core_greenlet.kill(block=True, timeout=timeout)
