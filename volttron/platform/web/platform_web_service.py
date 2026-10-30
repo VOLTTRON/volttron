@@ -677,7 +677,13 @@ class PlatformWebService(Agent):
                    'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE',
                    'HTTP_AUTHORIZATION', 'SERVER_NAME', 'wsgi.url_scheme',
                    'HTTP_HOST']
-        data = env['wsgi.input'].read().decode('utf-8')
+        from volttron.platform.web import printable_text
+        try:
+            data = env['wsgi.input'].read().decode('utf-8')
+        except UnicodeDecodeError:
+            _log.warning(f'Request body to {printable_text(path_info)} is not UTF-8')
+            return Response(jsonapi.dumps({'error': 'Request body is not UTF-8'}), status='400 Bad Request',
+                            content_type='application/json')(env, start_response)
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
         if 'HTTP_COOKIE' in passenv:
@@ -685,7 +691,6 @@ class PlatformWebService(Agent):
             if not passenv['HTTP_COOKIE']:
                 del passenv['HTTP_COOKIE']
 
-        from volttron.platform.web import printable_text
         _log.debug('path_info is: {}'.format(printable_text(path_info)))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
@@ -693,7 +698,12 @@ class PlatformWebService(Agent):
         _log.debug('Peer path_info is associated with: {}'.format(peer))
 
         if self.is_json_content(env):
-            data = jsonapi.loads(data)
+            try:
+                data = jsonapi.loads(data)
+            except (TypeError, ValueError):
+                _log.warning(f'Malformed JSON body in a request to {printable_text(path_info)}')
+                return Response(jsonapi.dumps({'error': 'Malformed JSON body'}), status='400 Bad Request',
+                                content_type='application/json')(env, start_response)
 
         # Only if https available and rmq for the admin area.
         if env['wsgi.url_scheme'] == 'https' and self.core.messagebus == 'rmq':
