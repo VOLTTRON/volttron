@@ -134,6 +134,12 @@ was renewed over the socket with a token of a later login belongs to that later 
 persists across a restart of the web service and lasts until the last token of the session
 would have expired anyway.
 
+If the file that records revoked sessions cannot be read at startup, it is moved aside with a
+``.corrupt-<time>`` suffix and every token issued before that moment is refused, so a revoked
+session cannot return through a damaged file. Users who were logged in simply log in again;
+tokens issued afterwards are unaffected. The web service logs the event and the name of the
+kept file.
+
 The token is read from the Authorization header only. A ``Bearer`` cookie is not accepted
 for this request, so a page served by another site cannot log the user out.
 
