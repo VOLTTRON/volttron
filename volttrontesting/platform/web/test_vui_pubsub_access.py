@@ -127,7 +127,7 @@ def test_vui_lists_its_sockets():
     vui, agent = _vui(claims=VUI_ONLY)
     response = _send(vui, LIST_PATH, 'GET')
     assert response.status_code == 200
-    vui.pubsub_manager.get_socket_routes.assert_called_once_with('tok', '')
+    vui.pubsub_manager.get_socket_routes.assert_called_once_with('tok', '', claims=VUI_ONLY)
 
 
 @pytest.mark.parametrize('method', ['GET', 'PUT', 'POST'])

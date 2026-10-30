@@ -867,7 +867,7 @@ class VUIEndpoints:
         # GET -- For ../pubsub and /pubsub/:topic, Get routes to open web sockets for this user.
         if request_method == 'GET':
             if not topic:
-                ret_dict = self.pubsub_manager.get_socket_routes(access_token, topic)
+                ret_dict = self.pubsub_manager.get_socket_routes(access_token, topic, claims=claims)
                 response = Response(json.dumps(ret_dict), 200, content_type='application/json')
                 return response
             else:

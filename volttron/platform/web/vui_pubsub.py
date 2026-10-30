@@ -94,9 +94,15 @@ class VUIPubsubManager:
         _log.debug(f'Opening subscription websocket for topic {topic!r}')
         return WebSocketWSGIApplication(handler_cls=VUIWebSocket)
 
-    def get_socket_routes(self, access_token, topic=None):
-        """The topics with open websockets for the login session of ``access_token``."""
-        sid = session_id(self.verify_token(access_token))
+    def get_socket_routes(self, access_token, topic=None, *, claims=None):
+        """The topics with open websockets for the login session of ``access_token``.
+
+        ``claims`` are the already verified claims of the token when the caller has them; otherwise the token is
+        verified here.
+        """
+        if claims is None:
+            claims = self.verify_token(access_token)
+        sid = session_id(claims)
         return {ws.vui_topic: str(ws) for ws in self._sockets.get(sid, ()) if not ws.terminated}
 
     def publish(self, topic, headers, message):
