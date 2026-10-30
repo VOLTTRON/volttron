@@ -15,15 +15,23 @@ class VUIPubsubManager:
         self.subscription_websockets = WeakValueDictionary() # Websockets for all topics with current subscriptions.
         self.publication_websockets = {}  # Websockets for all topics with current publication queue.
         self.user_websockets = defaultdict(dict)  # References to all websockets for each user access_token.
+        self.session_tokens = defaultdict(set)  # Access tokens that opened websockets, per login session id.
 
     def get_socket_routes(self, access_token, topic=None):
         _log.debug('In get_socket_routes. subscription_websockets is: ')
         _log.debug(self.subscription_websockets)
         return {t: str(w) for t, w in self.user_websockets[access_token].items()}
 
-    def open_subscription_socket(self, access_token, topic):
+    def open_subscription_socket(self, access_token, topic, sid=None):
+        """Open (or join) the websocket for ``topic`` on behalf of the holder of ``access_token``.
+
+        ``sid`` is the login session id of the already verified token; it lets
+        :meth:`close_session_sockets` find the socket when that session is revoked.
+        """
         _log.debug('In open_subscription_socket:')
         _log.debug(f'topic: {topic!r}')
+        if sid is not None:
+            self.session_tokens[sid].add(access_token)
         ws = self.subscription_websockets.get(topic)
         _log.debug(f'subscription_websockets has: {ws}')
         if not ws:
@@ -36,6 +44,23 @@ class VUIPubsubManager:
             self.user_websockets[access_token][topic] = ws
             _log.debug('reached end, returning ws.')
         return ws
+
+    def close_session_sockets(self, sid):
+        """Close and forget every websocket opened with a token of the revoked login session ``sid``.
+
+        Returns the number of sockets closed.
+        """
+        closed = 0
+        for access_token in self.session_tokens.pop(sid, ()):
+            for ws in self.user_websockets.pop(access_token, {}).values():
+                if not isinstance(ws, WebSocket) or ws.terminated:
+                    continue
+                try:
+                    ws.close(reason='Session revoked')
+                    closed += 1
+                except Exception as err:
+                    _log.warning('Could not close a websocket of a revoked session: %s', type(err).__name__)
+        return closed
 
     def close_socket(self, access_token, topic=None):
         # TODO: Cancel subscription to a topic (or all topics for ../pubsub).

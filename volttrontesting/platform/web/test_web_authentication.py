@@ -151,11 +151,22 @@ def test_authenticate_delete_request():
         env = get_test_web_env('/authenticate', method='POST')
         response = authorize_ep.handle_authenticate(env, test_user)
 
-        # Touch Delete endpoint
+        tokens = json.loads(response.response[0].decode('utf-8'))
+
+        # Delete without a token revokes nothing.
         env = get_test_web_env('/authenticate', method='DELETE')
         response = authorize_ep.handle_authenticate(env, test_user)
-        assert ('Content-Type', 'text/plain') in response.headers.items()
-        assert '501 Not Implemented' in response.status
+        assert '401 Unauthorized' in response.status
+
+        # Delete with the refresh token logs the session out: the refresh token no longer renews.
+        env = get_test_web_env('/authenticate', method='DELETE')
+        env["HTTP_AUTHORIZATION"] = "BEARER " + tokens['refresh_token']
+        response = authorize_ep.handle_authenticate(env, None)
+        assert '204 No Content' in response.status
+        env = get_test_web_env('/authenticate', method='PUT')
+        env["HTTP_AUTHORIZATION"] = "BEARER " + tokens['refresh_token']
+        response = authorize_ep.handle_authenticate(env, data={})
+        assert '401 Unauthorized' in response.status
 
 
 def test_no_private_key_or_passphrase():
