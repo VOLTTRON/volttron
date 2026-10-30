@@ -31,6 +31,7 @@ _log = logging.getLogger(__name__)
 
 # Close code for a socket the server closes for an authorization reason (RFC 6455 "policy violation").
 POLICY_VIOLATION = 1008
+GOING_AWAY = 1001    # RFC 6455: the server is shutting down
 
 
 class _TopicDispatcher:
@@ -239,6 +240,28 @@ class VUIPubsubManager:
                 closed += self.close_socket(ws, 'Not Authorized')
         if closed:
             _log.info(f'Closed {closed} websocket(s) whose access token expired or was revoked.')
+        return closed
+
+    def shutdown(self):
+        """Close every open socket, release every topic subscription and stop the sweeper.
+
+        Called from the web service's ``onstop``. Returns the number of sockets closed.
+        """
+        if self._sweeper is not None:
+            try:
+                self._sweeper.cancel()
+            except Exception as e:
+                _log.debug(f'Could not cancel the websocket sweeper: {e.__class__.__name__}')
+            self._sweeper = None
+        closed = sum(1 for ws in [ws for sockets in list(self._sockets.values()) for ws in sockets]
+                     if self.close_socket(ws, 'Server shutting down', code=GOING_AWAY))
+        # Anything still filed under a topic was never reported closed (e.g. a transport that died); release it.
+        for topic in list(self._topics):
+            del self._topics[topic]
+            self._release(topic)
+        self._sockets.clear()
+        if closed:
+            _log.info(f'Closed {closed} websocket(s) for shutdown.')
         return closed
 
     def _ensure_sweeper(self):

@@ -333,3 +333,31 @@ class TestReviewFollowUps:
         _open(manager, 's1', 'devices/a')
         routes = manager.get_socket_routes('token-s1')
         assert routes == {'devices/a': 'open'}
+
+
+class TestShutdown:
+    def test_shutdown_closes_sockets_releases_topics_and_stops_the_sweeper(self, manager):
+        a = _open(manager, 's1', 'devices/a')
+        b = _open(manager, 's2', 'devices/b')
+        sweeper = manager._sweeper = MagicMock()
+
+        assert manager.shutdown() == 2
+
+        assert a.closed_with == (1001, 'Server shutting down') and b.closed_with == (1001, 'Server shutting down')
+        assert manager._sockets == {} and manager._topics == {} and manager._sweeper is None
+        sweeper.cancel.assert_called_once_with()
+        released = {c.args[1] for c in manager._agent.vip.pubsub.unsubscribe.call_args_list}
+        assert released == {'devices/a', 'devices/b'}
+
+    def test_shutdown_releases_a_topic_whose_sockets_died_unreported(self, manager):
+        sock = _open(manager, 's1', 'devices/a')
+        sock.client_terminated = sock.server_terminated = True    # transport gone, closed() never ran
+
+        assert manager.shutdown() == 0
+
+        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/a', manager.dispatcher('devices/a'))
+        assert manager._topics == {}
+
+    def test_shutdown_on_an_idle_manager_is_a_no_op(self, manager):
+        assert manager.shutdown() == 0
+        manager._agent.vip.pubsub.unsubscribe.assert_not_called()

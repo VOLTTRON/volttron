@@ -34,6 +34,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+from volttron.platform.messaging.health import STATUS_BAD
 import werkzeug
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -235,6 +236,7 @@ class PlatformWebService(Agent):
         # noinspection PyTypeChecker
         self.appContainer: WebApplicationWrapper = None
         # noinspection PyTypeChecker
+        self._server: WSGIServer | None = None
         self._server_greenlet: Greenlet = None
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
@@ -1013,7 +1015,29 @@ class PlatformWebService(Agent):
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
+        """Start the web server.
 
+        A failure is logged and reflected in the agent's health status. Left to the core, an exception in an
+        onstart receiver only prints a greenlet traceback to stderr and never reaches volttron.log, so a service
+        that silently failed to start looked healthy until shutdown.
+        """
+        try:
+            self._start_web_server()
+        except Exception as e:
+            _log.exception('Web service failed to start; the HTTP server is not running.')
+            try:
+                self.vip.health.set_status(STATUS_BAD, f'Web service failed to start: {e.__class__.__name__}: {e}')
+            except Exception:    # health is best-effort here; the log line above is the primary signal
+                pass
+
+    @staticmethod
+    def _require_files(**paths):
+        """Raise FileNotFoundError naming every configured path that is not an existing file."""
+        missing = [f'{name}={path}' for name, path in paths.items() if path is not None and not os.path.isfile(path)]
+        if missing:
+            raise FileNotFoundError('Configured web TLS file(s) not found: ' + ', '.join(missing))
+
+    def _start_web_server(self):
         from urllib.parse import urlparse
         parsed = urlparse(self.bind_web_address)
 
@@ -1037,6 +1061,9 @@ class PlatformWebService(Agent):
 
                 if not os.path.isfile(ssl_cert) or not os.path.isfile(ssl_key):
                     self._certs.create_signed_cert_files(base_filename, cert_type='server')
+            else:
+                # Configured paths must exist; otherwise the failure surfaces deep inside the cert reader.
+                self._require_files(web_ssl_cert=ssl_cert, web_ssl_key=ssl_key)
 
             if ssl_key is not None and ssl_cert is not None and self._admin_endpoints is None:
                 self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert),
@@ -1113,13 +1140,39 @@ class PlatformWebService(Agent):
                              keyfile=ssl_key)
         else:
             svr = WSGIServer((hostname, port), self.appContainer)
+        self._server = svr
         self._server_greenlet = gevent.spawn(svr.serve_forever)
+
+    # Seconds onstop gives in-flight requests, then the server greenlet, before giving up on each.
+    STOP_TIMEOUT = 5
 
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
+        """Close websockets, stop the HTTP server and wait for its greenlet.
+
+        Tolerates a service that never finished starting (server and greenlet still None), and stops the server
+        explicitly: ``serve_forever`` never returns on its own, so a bare join would always run to its timeout
+        and leave the listener open.
+        """
         _log.debug("Stopping web agent.")
-        if self._server_greenlet is None:
-            _log.info('web server is not running; nothing to stop')
+        manager = getattr(self._vui_endpoints, 'pubsub_manager', None)
+        if manager is not None:
+            try:
+                manager.shutdown()
+            except Exception as e:
+                _log.warning(f'Error closing websockets on stop: {e.__class__.__name__}: {e}')
+        server, greenlet = self._server, self._server_greenlet
+        self._server = self._server_greenlet = None
+        if server is None and greenlet is None:
+            _log.info('Web server never started; nothing to stop.')
             return
-        if not self._server_greenlet.dead:
-            self._server_greenlet.join(timeout=10)
+        if server is not None:
+            try:
+                server.stop(timeout=self.STOP_TIMEOUT)
+            except Exception as e:
+                _log.warning(f'Error stopping the web server: {e.__class__.__name__}: {e}')
+        if greenlet is not None and not greenlet.dead:
+            greenlet.join(timeout=self.STOP_TIMEOUT)
+            if not greenlet.dead:
+                _log.warning('Web server greenlet did not exit; killing it.')
+                greenlet.kill(block=False)
