@@ -71,15 +71,15 @@ def _open(manager, sid='s1', topic='devices/a', token=None, **extra):
 class TestOpenAndClose:
     def test_opened_socket_is_subscribed_and_filed_under_its_session(self, manager):
         sock = _open(manager, 's1', 'devices/a')
-        manager._agent.vip.pubsub.subscribe.assert_called_once_with('pubsub', 'devices/a', sock.on_topic)
+        manager._agent.vip.pubsub.subscribe.assert_called_once_with('pubsub', 'devices/a', manager.dispatcher('devices/a'))
         assert sock.vui_topic == 'devices/a' and sock.vui_sid == 's1' and sock.vui_token == 'token-s1'
-        assert manager._sockets == {'s1': {sock}}
+        assert manager._sockets == {'s1': {sock}} and manager._topics == {'devices/a': {sock}}
 
     def test_client_closed_unsubscribes_and_forgets_the_socket(self, manager):
         sock = _open(manager)
         assert manager.client_closed(sock) is True
-        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/a', sock.on_topic)
-        assert manager._sockets == {}
+        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/a', manager.dispatcher('devices/a'))
+        assert manager._sockets == {} and manager._topics == {}
 
     def test_client_closed_is_idempotent_and_ignores_unknown_sockets(self, manager):
         sock = _open(manager)
@@ -88,12 +88,24 @@ class TestOpenAndClose:
         assert manager.client_closed(FakeSocket()) is False
         assert manager._agent.vip.pubsub.unsubscribe.call_count == 1
 
-    def test_closing_one_socket_leaves_another_on_the_same_topic_subscribed(self, manager):
+    def test_one_bus_subscription_per_topic_released_with_the_last_socket(self, manager):
+        # Unsubscribing per socket is unsafe (the Monolithic core drops the router prefix on any unsubscribe), so
+        # the topic is subscribed once, on the first socket, and released only when the last socket leaves.
         first, second = _open(manager, 's1', 'devices/a'), _open(manager, 's2', 'devices/a')
+        manager._agent.vip.pubsub.subscribe.assert_called_once()
         manager.client_closed(first)
-        unsubscribed = [c.args[2] for c in manager._agent.vip.pubsub.unsubscribe.call_args_list]
-        assert unsubscribed == [first.on_topic]
-        assert manager._sockets == {'s2': {second}}
+        manager._agent.vip.pubsub.unsubscribe.assert_not_called()
+        assert manager._sockets == {'s2': {second}} and manager._topics == {'devices/a': {second}}
+        manager.client_closed(second)
+        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/a', manager.dispatcher('devices/a'))
+        assert manager._topics == {}
+
+    def test_resubscribing_a_topic_reuses_the_same_dispatcher(self, manager):
+        first = _open(manager, 's1', 'devices/a')
+        manager.client_closed(first)
+        _open(manager, 's2', 'devices/a')
+        callbacks = {c.args[2] for c in manager._agent.vip.pubsub.subscribe.call_args_list}
+        assert callbacks == {manager.dispatcher('devices/a')}
 
     def test_ws4py_closed_callback_reaches_the_manager(self, manager):
         sock = _open(manager)
@@ -133,8 +145,9 @@ class TestSessionRevocation:
         assert manager.close_session_sockets('s1') == 2
         assert a.closed_with == (POLICY_VIOLATION, 'Session revoked') and b.terminated
         assert not other.terminated
-        assert manager._agent.vip.pubsub.unsubscribe.call_count == 2
-        assert manager._sockets == {'s2': {other}}
+        # devices/b lost its last socket and is released; devices/a keeps the other session's socket.
+        assert [c.args[1] for c in manager._agent.vip.pubsub.unsubscribe.call_args_list] == ['devices/b']
+        assert manager._sockets == {'s2': {other}} and manager._topics == {'devices/a': {other}}
         assert manager.close_session_sockets('s1') == 0 and manager.close_session_sockets('nope') == 0
 
 
@@ -167,17 +180,26 @@ class TestRoutesAndVerification:
         assert manager._sockets == {}    # nothing is recorded before the socket verifies its token
 
 
-class TestOnTopic:
-    def test_message_is_forwarded_as_json(self, manager):
-        sock = _open(manager)
-        sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, {'point': 1})
-        assert sock.sent == ['{"point": 1}']
+class TestDelivery:
+    def test_message_is_forwarded_as_json_to_every_socket_of_the_topic(self, manager):
+        a, b = _open(manager, 's1', 'devices/a'), _open(manager, 's2', 'devices/a')
+        other = _open(manager, 's3', 'devices/b')
+        manager.dispatcher('devices/a')('peer', 'sender', 'pubsub', 'devices/a/point', {}, {'point': 1})
+        assert a.sent == b.sent == ['{"point": 1}'] and other.sent == []
 
-    def test_terminated_socket_receives_nothing(self, manager):
+    def test_terminated_socket_is_dropped_on_delivery(self, manager):
         sock = _open(manager)
         sock.client_terminated = sock.server_terminated = True
-        sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
-        assert sock.sent == []
+        manager.deliver('devices/a', 1)
+        assert sock.sent == [] and manager._sockets == {}
+        manager._agent.vip.pubsub.unsubscribe.assert_called_once()
+
+    def test_message_for_a_topic_without_sockets_releases_the_subscription(self, manager):
+        # The core's subscribe is asynchronous: a socket can close before it completes, leaving the dispatcher
+        # registered for a topic nobody listens to. The first message releases it.
+        manager.deliver('devices/orphan', 1)
+        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/orphan',
+                                                                      manager.dispatcher('devices/orphan'))
 
 
 # ---------------------------------------------------------------- token lifetime and renewal
@@ -195,16 +217,15 @@ class TestTokenLifetime:
         plain = _open(manager, 's2', 'devices/a', exp=True)   # bool is not a time; no sub claim
         assert (plain.vui_sub, plain.vui_exp) == (None, None)
 
-    def test_on_topic_closes_an_expired_socket_instead_of_sending(self, manager):
+    def test_delivery_closes_an_expired_socket_instead_of_sending(self, manager):
         sock = _open(manager, exp=time.time() - 1)
-        sock.environ = {'ws4py.app': manager}
-        sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
+        manager.deliver('devices/a', 1)
         assert sock.sent == [] and sock.closed_with == (POLICY_VIOLATION, 'Token expired')
         manager._agent.vip.pubsub.unsubscribe.assert_called_once()
 
-    def test_on_topic_sends_while_the_token_is_valid(self, manager):
+    def test_delivery_sends_while_the_token_is_valid(self, manager):
         sock = _open(manager, exp=time.time() + 60)
-        sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
+        manager.deliver('devices/a', 1)
         assert sock.sent == ['1']
 
     def test_sweep_closes_expired_and_unverifiable_sockets_and_keeps_the_rest(self, manager):
@@ -301,26 +322,6 @@ class TestRenewal:
 # ---------------------------------------------------------------- review follow-ups
 
 class TestReviewFollowUps:
-    def test_a_socket_closed_before_its_subscribe_completed_releases_itself_once(self, manager):
-        # subscribe is asynchronous in the core: the close can arrive first, so client_closed finds nothing and the
-        # callback is registered afterwards. The callback then releases itself on the first matching message.
-        sock = FakeSocket()
-        sock.vui_topic, sock.vui_sid = 'devices/a', 's1'
-        sock.environ = {'ws4py.app': manager}
-        sock.client_terminated = sock.server_terminated = True
-        for _ in range(3):
-            sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
-        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/a', sock.on_topic)
-        assert sock.sent == []
-
-    def test_a_socket_released_by_the_manager_does_not_unsubscribe_again(self, manager):
-        sock = _open(manager)
-        sock.environ = {'ws4py.app': manager}
-        manager.client_closed(sock)
-        sock.client_terminated = sock.server_terminated = True
-        sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
-        assert manager._agent.vip.pubsub.unsubscribe.call_count == 1
-
     def test_no_reply_after_the_server_sent_a_close_frame(self, manager):
         sock = _open(manager)
         sock.environ = {'ws4py.app': manager}

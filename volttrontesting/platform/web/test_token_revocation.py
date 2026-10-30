@@ -297,9 +297,8 @@ def test_close_session_sockets_closes_only_the_revoked_session():
     assert manager.close_session_sockets("doomed") == 2
     assert doomed_a.closed_with == "Session revoked" and doomed_b.terminated
     assert kept.closed_with is None
-    # The revoked sockets' subscriptions are released, the kept one's is not.
-    unsubscribed = {(c.args[1], c.args[2]) for c in agent.vip.pubsub.unsubscribe.call_args_list}
-    assert unsubscribed == {("devices/a", doomed_a.on_topic), ("devices/b", doomed_b.on_topic)}
+    # devices/b has no socket left and is released; devices/a still has the kept socket and stays subscribed.
+    assert [c.args[1] for c in agent.vip.pubsub.unsubscribe.call_args_list] == ["devices/b"]
     assert "doomed" not in manager._sockets and kept in manager._sockets["kept"]
     assert manager.close_session_sockets("doomed") == 0
     assert manager.close_session_sockets("never-seen") == 0

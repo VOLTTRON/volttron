@@ -309,3 +309,10 @@ def test_login_refuses_non_string_credentials_and_non_object_bodies(server, data
     env = get_test_web_env("/authenticate", method="POST")
     response = endpoints.handle_authenticate(env, data)
     _assert_refused(response, repr(data))
+
+
+@pytest.mark.parametrize("data", [{"username": USER, "password": "x" * 1025}, {"username": "u" * 257, "password": PASSWORD}])
+def test_login_refuses_overlong_credentials(server, data):
+    endpoints, _, _ = server
+    response = endpoints.handle_authenticate(get_test_web_env("/authenticate", method="POST"), data)
+    _assert_refused(response, "overlong")

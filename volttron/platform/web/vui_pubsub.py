@@ -1,32 +1,12 @@
-import json
-from weakref import WeakValueDictionary
-from collections import defaultdict
-
-from ws4py.server.geventserver import WebSocketWSGIApplication
-from ws4py.websocket import WebSocket
-import logging
-
-_log = logging.getLogger()
-
-
-class VUIPubsubManager:
-    def __init__(self, agent):
-        self._agent = agent
-        self.subscription_websockets = WeakValueDictionary() # Websockets for all topics with current subscriptions.
-        self.publication_websockets = {}  # Websockets for all topics with current publication queue.
-        self.user_websockets = defaultdict(dict)  # References to all websockets for each user access_token.
-        self.session_tokens = defaultdict(set)  # Access tokens that opened websockets, per login session id.
-
-    def get_socket_routes(self, access_token, topic=None):
-        _log.debug('In get_socket_routes. subscription_websockets is: ')
-        _log.debug(self.subscription_websockets)
-        return {t: str(w) for t, w in self.user_websockets[access_token].items()}
-
 """Websocket subscriptions of the VUI pubsub endpoints.
 
 A subscription websocket belongs to the login session whose access token opened it. The
-manager keeps the open sockets per session so that revoking the session closes them, and
-each socket's message-bus subscription is released when the socket closes.
+manager keeps the open sockets per session so that revoking the session closes them.
+
+The manager holds one message-bus subscription per topic, shared by every socket subscribed
+to that topic, and releases it when the last of those sockets closes. (Unsubscribing a single
+callback is not safe in every core: the Monolithic pubsub subsystem tells the router to drop
+the prefix whenever any callback is removed, which would starve the other sockets.)
 
 A socket lives no longer than its access token. The client keeps a long-lived subscription
 by sending a renewed access token over the socket (a text frame ``{"access_token": "..."}``)
@@ -53,14 +33,34 @@ _log = logging.getLogger(__name__)
 POLICY_VIOLATION = 1008
 
 
+class _TopicDispatcher:
+    """The one pubsub callback the manager registers for a topic; fans each message out to the topic's sockets.
+
+    One persistent object per topic, so that re-subscribing after a release registers the same callable (the
+    cores keep callbacks in a set) and no message is ever delivered twice.
+    """
+
+    def __init__(self, manager, topic):
+        self._manager = manager
+        self.topic = topic
+
+    def __call__(self, peer, sender, bus, topic, headers, message):
+        self._manager.deliver(self.topic, message)
+
+    def __repr__(self):
+        return f'<subscription dispatcher for {self.topic!r}>'
+
+
 class VUIPubsubManager:
     # How often idle sockets are re-checked against their token's expiry and revocation state. Bounds the time a
-    # socket can outlive its token when no message arrives to trigger the check in on_topic.
+    # socket can outlive its token when no message arrives to trigger the check on delivery.
     SWEEP_INTERVAL = 60
 
     def __init__(self, agent):
         self._agent = agent
         self._sockets = defaultdict(set)    # login session id -> open VUIWebSockets of that session
+        self._topics = defaultdict(set)     # topic -> open VUIWebSockets subscribed to it
+        self._dispatchers = {}              # topic -> its _TopicDispatcher (kept once created)
         self._sweeper = None
 
     # ------------------------------------------------------------------ tokens
@@ -109,6 +109,42 @@ class VUIPubsubManager:
         subscriber_count = self._agent.vip.pubsub.publish('pubsub', topic, headers=headers, message=message).get(timeout=5)
         return {'number_of_subscribers': subscriber_count}
 
+    # ------------------------------------------------------------------ bus subscriptions
+
+    def dispatcher(self, topic):
+        """The callback registered on the bus for ``topic`` (created once, reused for the topic's lifetime)."""
+        dispatcher = self._dispatchers.get(topic)
+        if dispatcher is None:
+            dispatcher = self._dispatchers[topic] = _TopicDispatcher(self, topic)
+        return dispatcher
+
+    def _subscribe(self, topic):
+        _log.debug(f'VUIPubsubManager: subscribing to {topic!r}')
+        self._agent.vip.pubsub.subscribe('pubsub', topic, self.dispatcher(topic))
+
+    def _release(self, topic):
+        try:
+            self._agent.vip.pubsub.unsubscribe('pubsub', topic, self.dispatcher(topic))
+        except Exception as e:
+            _log.warning(f'Could not unsubscribe from {topic!r}: {e.__class__.__name__}')
+
+    def deliver(self, topic, message):
+        """Forward a bus message to the open sockets of ``topic``; drop sockets whose token has expired."""
+        sockets = self._topics.get(topic)
+        if not sockets:
+            # The subscribe for this topic completed after its last socket had already closed (the core's
+            # subscribe is asynchronous), so the release at close time found nothing. Release it now.
+            self._release(topic)
+            return
+        now = time.time()
+        for ws in list(sockets):
+            if ws.terminated:
+                self.client_closed(ws)
+            elif ws.vui_exp is not None and now >= ws.vui_exp:
+                self.close_socket(ws, 'Token expired')
+            else:
+                ws.deliver(message)
+
     # ------------------------------------------------------------------ socket lifecycle
 
     @staticmethod
@@ -122,13 +158,51 @@ class VUIPubsubManager:
         ws.vui_exp = float(exp) if isinstance(exp, (int, float)) and not isinstance(exp, bool) else None
 
     def client_opened(self, ws, topic, access_token, claims):
-        """Record an opened socket under its login session and subscribe it to ``topic``."""
+        """Record an opened socket under its login session and topic; subscribe the topic on its first socket."""
         ws.vui_topic = topic
         self._apply_claims(ws, access_token, claims)
-        _log.debug(f'VUIPubsubManager: subscribing a websocket to {topic!r}')
-        self._agent.vip.pubsub.subscribe('pubsub', topic, ws.on_topic)
+        first_on_topic = not self._topics[topic]
+        self._topics[topic].add(ws)
         self._sockets[ws.vui_sid].add(ws)
+        if first_on_topic:
+            self._subscribe(topic)
         self._ensure_sweeper()
+
+    def client_closed(self, ws):
+        """Forget a socket; release the topic's subscription when it was the last socket on that topic.
+
+        Idempotent; returns True when it did anything.
+        """
+        sid, topic = getattr(ws, 'vui_sid', None), getattr(ws, 'vui_topic', None)
+        sockets = self._sockets.get(sid)
+        if sockets is None or ws not in sockets:
+            return False
+        sockets.discard(ws)
+        if not sockets:
+            del self._sockets[sid]
+        on_topic = self._topics.get(topic)
+        if on_topic is not None:
+            on_topic.discard(ws)
+            if not on_topic:
+                del self._topics[topic]
+                self._release(topic)
+        return True
+
+    def close_socket(self, ws, reason, code=POLICY_VIOLATION):
+        """Release a socket and close it. Returns True when a live socket was closed."""
+        self.client_closed(ws)
+        if ws.terminated:
+            return False
+        try:
+            ws.close(code=code, reason=reason)
+        except Exception as e:
+            _log.warning(f'Could not close a websocket ({reason}): {e.__class__.__name__}')
+            return False
+        return True
+
+    def close_session_sockets(self, sid):
+        """Close every websocket of the revoked login session ``sid``. Returns the number closed."""
+        return sum(1 for ws in list(self._sockets.get(sid, ())) if self.close_socket(ws, 'Session revoked'))
 
     def renew_socket(self, ws, access_token):
         """Re-authorize an open socket with a renewed access token. Returns True when accepted.
@@ -180,41 +254,11 @@ class VUIPubsubManager:
         except Exception as e:
             _log.warning(f'Could not schedule websocket re-validation: {e.__class__.__name__}')
 
-    def client_closed(self, ws):
-        """Forget a socket and release its message-bus subscription. Idempotent; returns True when it did anything."""
-        sid = getattr(ws, 'vui_sid', None)
-        sockets = self._sockets.get(sid)
-        if sockets is None or ws not in sockets:
-            return False
-        sockets.discard(ws)
-        if not sockets:
-            del self._sockets[sid]
-        ws.vui_released = True
-        try:
-            self._agent.vip.pubsub.unsubscribe('pubsub', ws.vui_topic, ws.on_topic)
-        except Exception as e:
-            _log.warning(f'Could not unsubscribe a closed websocket from {ws.vui_topic!r}: {e.__class__.__name__}')
-        return True
-
-    def close_socket(self, ws, reason, code=POLICY_VIOLATION):
-        """Release a socket's subscription and close it. Returns True when a live socket was closed."""
-        self.client_closed(ws)
-        if ws.terminated:
-            return False
-        try:
-            ws.close(code=code, reason=reason)
-        except Exception as e:
-            _log.warning(f'Could not close a websocket ({reason}): {e.__class__.__name__}')
-            return False
-        return True
-
-    def close_session_sockets(self, sid):
-        """Close every websocket of the revoked login session ``sid``. Returns the number closed."""
-        return sum(1 for ws in list(self._sockets.get(sid, ())) if self.close_socket(ws, 'Session revoked'))
-
 
 class VUIWebSocket(WebSocket):
     """One client's subscription to one topic."""
+
+    RENEWAL_HELP = 'Unrecognised message. Send {"access_token": "<renewed access token>"} to keep the subscription open.'
 
     def _get_topic(self):
         from volttron.platform.web import get_bearer
@@ -236,8 +280,6 @@ class VUIWebSocket(WebSocket):
             self.close(code=POLICY_VIOLATION, reason='Not Authorized')
             return
         app.client_opened(self, topic, access_token, claims)
-
-    RENEWAL_HELP = 'Unrecognised message. Send {"access_token": "<renewed access token>"} to keep the subscription open.'
 
     def received_message(self, m):
         """The only message a client may send is a renewed access token, as a JSON text frame."""
@@ -267,28 +309,11 @@ class VUIWebSocket(WebSocket):
         if app is not None:
             app.client_closed(self)
 
-    def on_topic(self, peer, sender, bus, topic, headers, message):
+    def deliver(self, message):
+        """Send a bus message to the client (the manager has already checked the token's expiry)."""
         if self.terminated:
-            # The subscribe call is asynchronous, so a socket that closed before it completed can still have its
-            # callback registered (client_closed found nothing to remove). Release it now, once.
-            if not getattr(self, 'vui_released', False):
-                self.vui_released = True
-                app = self.environ.get('ws4py.app')
-                if app is not None:
-                    try:
-                        app._agent.vip.pubsub.unsubscribe('pubsub', topic, self.on_topic)
-                    except Exception as e:
-                        _log.warning(f'Could not release the subscription of a closed websocket: {e.__class__.__name__}')
-            return
-        exp = getattr(self, 'vui_exp', None)
-        if exp is not None and time.time() >= exp:
-            app = self.environ.get('ws4py.app')
-            if app is not None:
-                app.close_socket(self, 'Token expired')
-            else:
-                self.close(code=POLICY_VIOLATION, reason='Token expired')
             return
         try:
             self.send(json.dumps(message))
         except Exception as e:
-            _log.warning(f'Error sending subscription data: {e}')
+            _log.warning(f'Error sending subscription data: {e.__class__.__name__}')

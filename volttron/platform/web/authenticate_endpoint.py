@@ -165,6 +165,8 @@ class AuthenticateEndpoints:
             error += "Invalid username passed"
         if not isinstance(password, str) or not password:
             error += "Invalid password passed"
+        elif len(password) > MAX_PASSWORD_LENGTH or (isinstance(username, str) and len(username) > MAX_USERNAME_LENGTH):
+            error += "Credentials too long"    # bound the work argon2 does for an unauthenticated caller
 
         if error:
             _log.error("Invalid parameters passed: {}".format(printable_text(error)))

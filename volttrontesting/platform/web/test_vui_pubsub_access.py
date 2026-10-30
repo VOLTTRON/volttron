@@ -330,7 +330,7 @@ def test_manager_topic_log_lines_stay_printable(caplog):
     with caplog.at_level('DEBUG'):
         manager.open_subscription_socket('tok', topic)
         manager.client_opened(MagicMock(), topic, 'tok', {'sid': 's1', 'groups': ['vui']})
-        VUIWebSocket.on_topic(MagicMock(terminated=True), 'peer', 'sender', 'pubsub', topic, {}, 'm')
+        manager.dispatcher(topic)('peer', 'sender', 'pubsub', topic, {}, 'm')
     assert len(caplog.records) >= 2
     for record in caplog.records:
         assert record.getMessage().isprintable(), record.getMessage()
