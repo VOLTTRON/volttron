@@ -62,22 +62,34 @@ def _make_cache(tmp_path, api_services, name="weather.sqlite"):
     )
 
 
-def test_page_count_matches_pragma_page_count_minus_freelist_count(tmp_path):
-    api_services = {
-        "hist_table": {"type": "history", "update_interval": None,
-                       "description": None},
-    }
-    cache = _make_cache(tmp_path, api_services)
+HIST_SERVICES = {
+    "hist_table": {"type": "history", "update_interval": None, "description": None},
+}
+
+
+@pytest.fixture
+def hist_cache(tmp_path):
+    """A WeatherCache with one empty history table and no size limit."""
+    cache = _make_cache(tmp_path, HIST_SERVICES)
+    yield cache
+    if cache._sqlite_conn is not None:    # a test may have closed it already
+        cache.close()
+
+
+def _fill_hist_table(conn, rows=250, payload_size=500):
+    """Insert rows of padded records into hist_table so the file spans many pages."""
+    payload = "x" * payload_size
+    conn.cursor().executemany(
+        "INSERT INTO hist_table (LOCATION, OBSERVATION_TIME, POINTS) VALUES (?, ?, ?)",
+        [("loc", f"2020-01-01 00:{i % 60:02d}:00", payload) for i in range(rows)])
+    conn.commit()
+
+
+def test_page_count_matches_pragma_page_count_minus_freelist_count(hist_cache):
+    cache = hist_cache
     conn = cache._sqlite_conn
     cursor = conn.cursor()
-
-    payload = "x" * 500
-    rows = [("loc", f"2020-01-01 00:{i % 60:02d}:00", payload)
-            for i in range(250)]
-    cursor.executemany(
-        "INSERT INTO hist_table (LOCATION, OBSERVATION_TIME, POINTS) "
-        "VALUES (?, ?, ?)", rows)
-    conn.commit()
+    _fill_hist_table(conn)
 
     # Delete the oldest half so freelist_count is nonzero: page_count alone
     # would not exercise the subtraction the fix depends on.
@@ -97,16 +109,12 @@ def test_page_count_matches_pragma_page_count_minus_freelist_count(tmp_path):
 
 
 def test_manage_cache_size_terminates_and_logs_when_nothing_can_be_trimmed(
-        tmp_path, caplog):
+        hist_cache, caplog):
     # Empty tables so no deletion can ever bring page_count below max_pages.
     # Pre-fix, the second (untargeted) trim loop had no exit condition other
     # than page_count dropping below max_pages, and PRAGMA page_count never
     # drops without a VACUUM: against unfixed code this spins forever.
-    api_services = {
-        "hist_table": {"type": "history", "update_interval": None,
-                       "description": None},
-    }
-    cache = _make_cache(tmp_path, api_services)
+    cache = hist_cache
     cache._max_size_gb = 1
     cache._max_pages = 0
 
@@ -118,22 +126,11 @@ def test_manage_cache_size_terminates_and_logs_when_nothing_can_be_trimmed(
     cache.close()
 
 
-def test_manage_cache_size_trims_oldest_and_commits(tmp_path):
-    api_services = {
-        "hist_table": {"type": "history", "update_interval": None,
-                       "description": None},
-    }
-    cache = _make_cache(tmp_path, api_services)
+def test_manage_cache_size_trims_oldest_and_commits(hist_cache, tmp_path):
+    cache = hist_cache
     conn = cache._sqlite_conn
     cursor = conn.cursor()
-
-    payload = "x" * 500
-    rows = [("loc", f"2020-01-01 00:{i % 60:02d}:00", payload)
-            for i in range(250)]
-    cursor.executemany(
-        "INSERT INTO hist_table (LOCATION, OBSERVATION_TIME, POINTS) "
-        "VALUES (?, ?, ?)", rows)
-    conn.commit()
+    _fill_hist_table(conn)
 
     used_before = WeatherCache.page_count(cursor)
     # One page below current usage: any real trim satisfies the threshold,
@@ -169,7 +166,7 @@ def test_manage_cache_size_trims_oldest_and_commits(tmp_path):
 import datetime
 from types import SimpleNamespace
 
-from volttron.platform.agent.base_weather import BaseWeatherAgent, CACHE_FULL
+from volttron.platform.agent.base_weather import BaseWeatherAgent, CACHE_FULL, quote_identifier
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD, Status
 
@@ -334,6 +331,9 @@ class _FakeHealth:
     def get_status_json(self):
         return self.status.as_json()
 
+    def get_status(self):
+        return self.status.as_dict()
+
     def send_alert(self, key, status):
         self.alerts.append(key)
 
@@ -344,8 +344,11 @@ def _agent_stub(results):
     results = list(results)
     cache = SimpleNamespace(
         store_weather_records=lambda *_: results.pop(0))
-    return SimpleNamespace(_cache=cache, vip=SimpleNamespace(health=_FakeHealth()),
-                           cache_write_error=False, cache_full=False)
+    agent = SimpleNamespace(_cache=cache, vip=SimpleNamespace(health=_FakeHealth()),
+                            cache_write_error=False, cache_full=False)
+    agent._clear_status_set_here = (
+        lambda context: BaseWeatherAgent._clear_status_set_here(agent, context))
+    return agent
 
 
 def test_successful_write_does_not_clear_unrelated_bad_status():
@@ -373,3 +376,40 @@ def test_cache_full_status_is_set_then_cleared_by_this_path_only():
     BaseWeatherAgent.store_weather_records(agent, "svc", [])
     assert health.status.status == STATUS_GOOD
     assert agent.cache_full is False
+
+
+def test_cache_full_recovery_leaves_a_newer_unrelated_bad_status_alone():
+    """Cache fills (BAD, cache_full flag set), then another path reports its
+    own fault. When the cache recovers it must not wipe that newer status."""
+    agent = _agent_stub([True, False])
+    health = agent.vip.health
+
+    BaseWeatherAgent.store_weather_records(agent, "svc", [])
+    assert health.status.status == STATUS_BAD
+    health.set_status(STATUS_BAD, "Weather API unreachable")
+
+    BaseWeatherAgent.store_weather_records(agent, "svc", [])
+
+    assert agent.cache_full is False
+    assert health.status.status == STATUS_BAD
+    assert health.status.context == "Weather API unreachable"
+
+
+@pytest.mark.parametrize("bad_name", ["bad name", 'x"; DROP TABLE y; --', "1table", "", None])
+def test_cache_rejects_service_names_that_are_not_plain_identifiers(tmp_path, bad_name):
+    with pytest.raises(ValueError):
+        _make_cache(tmp_path, {bad_name: {"type": "history", "update_interval": None,
+                                          "description": None}})
+
+
+def test_register_service_rejects_names_that_are_not_plain_identifiers():
+    agent = SimpleNamespace(_api_services={})
+    with pytest.raises(ValueError, match="plain identifier"):
+        BaseWeatherAgent.register_service(agent, 'x"; DROP TABLE y; --', None, "history")
+    BaseWeatherAgent.register_service(agent, "get_hourly_historical", None, "history")
+    assert "get_hourly_historical" in agent._api_services
+
+
+def test_quote_identifier_quotes_plain_names():
+    assert quote_identifier("hist_table") == '"hist_table"'
+    assert quote_identifier("API_CALLS") == '"API_CALLS"'
