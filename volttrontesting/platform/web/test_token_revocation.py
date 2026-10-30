@@ -327,3 +327,33 @@ def test_pubsub_manager_without_sockets_is_fine(server):
     svc = _service_with(endpoints, secret)
     svc._vui_endpoints = MagicMock(spec=[])  # VUIEndpoints built without the pubsub route
     svc._session_revoked("whatever")
+
+
+def test_a_cutoff_from_the_future_is_clamped_to_now(tmp_path):
+    path = tmp_path / "revoked.json"
+    path.write_text(json.dumps({ISSUED_BEFORE_KEY: time.time() + 3600}))
+    revoked = RevokedSessions(str(path))
+    assert revoked.issued_before <= time.time()
+    assert revoked.allows({SESSION_CLAIM: "new", "iat": int(time.time()) + 1})
+
+
+def test_cutoff_is_persisted_later_when_the_first_write_fails(tmp_path, monkeypatch):
+    path = tmp_path / "revoked.json"
+    path.write_text("not json")
+    import volttron.platform.web.token_revocation as module
+    real_replace = module.os.replace
+    calls = {"n": 0}
+
+    def failing_replace(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 2:          # the quarantine rename succeeds, the first save's rename fails
+            raise OSError("disk full")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(module.os, "replace", failing_replace)
+    revoked = RevokedSessions(str(path))
+    assert revoked.issued_before is not None and not path.exists()
+    # The next check persists the cutoff, and a restart therefore still refuses the older tokens.
+    assert not revoked.allows({SESSION_CLAIM: "old", "iat": int(time.time()) - 10})
+    assert path.exists()
+    assert RevokedSessions(str(path)).issued_before == revoked.issued_before

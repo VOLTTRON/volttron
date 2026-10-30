@@ -296,3 +296,39 @@ class TestRenewal:
         sock.received_message(_message(payload))
         assert json.loads(sock.sent[-1]) == {'error': VUIWebSocket.RENEWAL_HELP}
         manager._agent.get_user_claims.assert_not_called()
+
+
+# ---------------------------------------------------------------- review follow-ups
+
+class TestReviewFollowUps:
+    def test_a_socket_closed_before_its_subscribe_completed_releases_itself_once(self, manager):
+        # subscribe is asynchronous in the core: the close can arrive first, so client_closed finds nothing and the
+        # callback is registered afterwards. The callback then releases itself on the first matching message.
+        sock = FakeSocket()
+        sock.vui_topic, sock.vui_sid = 'devices/a', 's1'
+        sock.environ = {'ws4py.app': manager}
+        sock.client_terminated = sock.server_terminated = True
+        for _ in range(3):
+            sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
+        manager._agent.vip.pubsub.unsubscribe.assert_called_once_with('pubsub', 'devices/a', sock.on_topic)
+        assert sock.sent == []
+
+    def test_a_socket_released_by_the_manager_does_not_unsubscribe_again(self, manager):
+        sock = _open(manager)
+        sock.environ = {'ws4py.app': manager}
+        manager.client_closed(sock)
+        sock.client_terminated = sock.server_terminated = True
+        sock.on_topic('peer', 'sender', 'pubsub', 'devices/a', {}, 1)
+        assert manager._agent.vip.pubsub.unsubscribe.call_count == 1
+
+    def test_no_reply_after_the_server_sent_a_close_frame(self, manager):
+        sock = _open(manager)
+        sock.environ = {'ws4py.app': manager}
+        sock.server_terminated = True
+        sock.received_message(_message(b'hello'))
+        assert sock.sent == []
+
+    def test_socket_routes_do_not_expose_object_addresses(self, manager):
+        _open(manager, 's1', 'devices/a')
+        routes = manager.get_socket_routes('token-s1')
+        assert routes == {'devices/a': 'open'}

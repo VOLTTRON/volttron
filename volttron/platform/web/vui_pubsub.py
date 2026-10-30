@@ -103,7 +103,7 @@ class VUIPubsubManager:
         if claims is None:
             claims = self.verify_token(access_token)
         sid = session_id(claims)
-        return {ws.vui_topic: str(ws) for ws in self._sockets.get(sid, ()) if not ws.terminated}
+        return {ws.vui_topic: 'open' for ws in self._sockets.get(sid, ()) if not ws.terminated}
 
     def publish(self, topic, headers, message):
         subscriber_count = self._agent.vip.pubsub.publish('pubsub', topic, headers=headers, message=message).get(timeout=5)
@@ -189,6 +189,7 @@ class VUIPubsubManager:
         sockets.discard(ws)
         if not sockets:
             del self._sockets[sid]
+        ws.vui_released = True
         try:
             self._agent.vip.pubsub.unsubscribe('pubsub', ws.vui_topic, ws.on_topic)
         except Exception as e:
@@ -240,6 +241,8 @@ class VUIWebSocket(WebSocket):
 
     def received_message(self, m):
         """The only message a client may send is a renewed access token, as a JSON text frame."""
+        if self.server_terminated or self.client_terminated:
+            return    # the close handshake is under way; nothing may be sent after a close frame
         app = self.environ.get('ws4py.app')
         try:
             body = json.loads(m.data.decode('utf-8') if isinstance(m.data, bytes) else m.data)
@@ -266,6 +269,16 @@ class VUIWebSocket(WebSocket):
 
     def on_topic(self, peer, sender, bus, topic, headers, message):
         if self.terminated:
+            # The subscribe call is asynchronous, so a socket that closed before it completed can still have its
+            # callback registered (client_closed found nothing to remove). Release it now, once.
+            if not getattr(self, 'vui_released', False):
+                self.vui_released = True
+                app = self.environ.get('ws4py.app')
+                if app is not None:
+                    try:
+                        app._agent.vip.pubsub.unsubscribe('pubsub', topic, self.on_topic)
+                    except Exception as e:
+                        _log.warning(f'Could not release the subscription of a closed websocket: {e.__class__.__name__}')
             return
         exp = getattr(self, 'vui_exp', None)
         if exp is not None and time.time() >= exp:

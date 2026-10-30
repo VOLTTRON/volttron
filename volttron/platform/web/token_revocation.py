@@ -71,6 +71,7 @@ class RevokedSessions:
         self._path = path
         self._expiry = {}
         self._issued_before = None
+        self._cutoff_unsaved = False
         self._load()
 
     @property
@@ -110,6 +111,7 @@ class RevokedSessions:
         if sid is None or self.is_revoked(sid):
             return False
         if self._issued_before is not None:
+            self._persist_cutoff()
             iat = claims.get('iat')
             if not _is_time(iat) or iat < self._issued_before:
                 return False
@@ -128,6 +130,7 @@ class RevokedSessions:
             return
         self._expiry[sid] = max(self._expiry.get(sid, 0), float(expires_at))
         self._save()
+        self._cutoff_unsaved = False
 
     def _prune(self, now):
         stale = [sid for sid, expires_at in self._expiry.items() if expires_at <= now]
@@ -151,7 +154,8 @@ class RevokedSessions:
         now = time.time()
         cutoff = stored.pop(ISSUED_BEFORE_KEY, None)
         if _is_time(cutoff) and now - cutoff <= _ISSUED_BEFORE_RETENTION:
-            self._issued_before = float(cutoff)
+            # A cutoff ahead of the clock (the clock was corrected backwards) would refuse every new login.
+            self._issued_before = min(float(cutoff), now)
         for sid, expires_at in stored.items():
             if session_id({SESSION_CLAIM: sid}) is None:
                 continue
@@ -177,8 +181,17 @@ class RevokedSessions:
         _log.error(f'The revoked web sessions file {self._path} could not be read ({problem}). Every web token '
                    f'issued before now is refused until its holder logs in again'
                    + (f'; the damaged file was kept as {kept}.' if kept else '.'))
+        self._cutoff_unsaved = True
+        self._persist_cutoff()
+
+    def _persist_cutoff(self):
+        """Write the cutoff recorded by :meth:`_quarantine`; retried on every check until it succeeds, so a
+        write failure right after the damage does not lose the cutoff at the next restart."""
+        if not self._cutoff_unsaved:
+            return
         try:
             self._save()
+            self._cutoff_unsaved = False
         except OSError as err:
             _log.error(f'Could not write a new revoked web sessions file: {type(err).__name__}')
 
