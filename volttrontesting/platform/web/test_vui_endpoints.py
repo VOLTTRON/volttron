@@ -1061,7 +1061,8 @@ def test_handle_platforms_pubsub_does_not_log_the_token(mock_platform_web_servic
     with caplog.at_level('DEBUG'):
         response = vui_endpoints.handle_platforms_pubsub(env, MagicMock(), {})
     assert response.status_code == 200
-    vui_endpoints.pubsub_manager.get_socket_routes.assert_called_once_with('TOKEN-MARK', '')
+    call, = vui_endpoints.pubsub_manager.get_socket_routes.call_args_list
+    assert call.args == ('TOKEN-MARK', '') and set(call.kwargs) == {'claims'}
     assert 'TOKEN-MARK' not in caplog.text
     assert 'COOKIE-MARK' not in caplog.text
 # TODO: handle_platforms_pubsub

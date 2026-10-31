@@ -145,25 +145,28 @@ class AuthenticateEndpoints:
 
         assert len(self._userdict) > 0, "No users in user dictionary, set the administrator password first!"
 
-        if not isinstance(data, dict):
+        if isinstance(data, dict):
+            username = data.get('username')
+            password = data.get('password')
+        elif isinstance(data, (str, bytes)):
             _log.debug("data is not a dict, decoding")
             decoded = dict((k, v if len(v) > 1 else v[0])
                            for k, v in parse_qs(data).items())
-
             username = decoded.get('username')
             password = decoded.get('password')
-
-        else:
-            username = data.get('username')
-            password = data.get('password')
+        else:    # a JSON body that is not an object
+            username = password = None
 
         _log.debug("Username is: {}".format(printable_text(username)))
 
         error = ""
-        if username is None:
+        # Both must be strings: the username is looked up in a dict and the password handed to the hash check.
+        if not isinstance(username, str) or not username:
             error += "Invalid username passed"
-        if not password:
+        if not isinstance(password, str) or not password:
             error += "Invalid password passed"
+        elif len(password) > MAX_PASSWORD_LENGTH or (isinstance(username, str) and len(username) > MAX_USERNAME_LENGTH):
+            error += "Credentials too long"    # bound the work argon2 does for an unauthenticated caller
 
         if error:
             _log.error("Invalid parameters passed: {}".format(printable_text(error)))
@@ -173,6 +176,7 @@ class AuthenticateEndpoints:
         if user is None:
             _log.error("No matching user for passed username: {}".format(printable_text(username)))
             return Response('', status='401')
+        user['sub'] = username    # names the user in every token of the session, independent of the session id
         access_token, refresh_token = self._get_tokens(user)
         response = Response(json.dumps({"refresh_token": refresh_token, "access_token": access_token}),
                             content_type="application/json")
