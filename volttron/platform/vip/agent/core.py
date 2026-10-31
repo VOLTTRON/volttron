@@ -839,6 +839,12 @@ class ZMQCore(Core):
                                 hello()
                             elif event & zmq.EVENT_DISCONNECTED:
                                 self.connected = False
+                                # Re-arm the hello check. The event is only
+                                # ever set, so without this the check spawned
+                                # by the reconnect's hello() passes at once and
+                                # a connection the router silently rejected
+                                # (conflicting identity) is never detected.
+                                hello_response_event.clear()
                             elif event & zmq.EVENT_CONNECT_RETRIED:
                                 self._reconnect_attempt += 1
                                 if self._reconnect_attempt == 50:
