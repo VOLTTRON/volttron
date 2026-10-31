@@ -168,13 +168,15 @@ def test_get_inspect_needs_only_vui():
     assert agent.vip.rpc.call.call_args[0][:2] == ('some.agent', 'do_thing.inspect')
 
 
-@pytest.mark.parametrize('claims', [{}, {'groups': None}, {'groups': 'vui admin'}, None],
-                         ids=['no-groups', 'groups-none', 'groups-str', 'claims-none'])
+@pytest.mark.parametrize('claims, status', [({}, 401), ({'groups': None}, 403), ({'groups': 'vui admin'}, 403),
+                                            (None, 401)],
+                         ids=['no-claims', 'groups-none', 'groups-str', 'claims-none'])
 @pytest.mark.parametrize('method', ['GET', 'POST'])
-def test_missing_or_malformed_groups_is_forbidden(claims, method):
+def test_missing_or_malformed_groups_is_refused(claims, status, method):
+    # Empty claims (a refresh token, or a revoked session) are 401: log in again. Malformed groups are 403.
     vui, agent = _vui(claims=claims)
     env = _env(_method_path('some.agent', 'do_thing'), method=method)
-    assert vui.handle_platforms_agents_rpc_method(env, {}).status_code == 403
+    assert vui.handle_platforms_agents_rpc_method(env, {}).status_code == status
     assert _calls(agent) == []
 
 

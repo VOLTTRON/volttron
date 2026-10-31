@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 from urllib.parse import parse_qs
 from datetime import datetime, timedelta
 import json
@@ -14,6 +15,8 @@ from volttron.platform import get_home
 from volttron.platform.agent.web import Response
 from volttron.utils import VolttronHomeFileReloader
 from volttron.utils.persistance import PersistentDict
+from .token_revocation import (RevokedSessions, REVOKED_SESSIONS_FILE, SESSION_CLAIM, new_session_id,
+                               session_id)
 
 _log = logging.getLogger(__name__)
 
@@ -44,7 +47,13 @@ MAX_PASSWORD_LENGTH = 1024
 
 class AuthenticateEndpoints:
 
-    def __init__(self, tls_private_key=None, tls_public_key=None, web_secret_key=None):
+    def __init__(self, tls_private_key=None, tls_public_key=None, web_secret_key=None, revoked_sessions=None,
+                 on_revoke=None):
+        """
+        :param revoked_sessions: the RevokedSessions deny-list to record revocations in. The web service shares
+            its own so that every token check sees them; by default a list persisted in VOLTTRON_HOME is used.
+        :param on_revoke: optional callable(session_id) run after a session is revoked, e.g. to close websockets.
+        """
 
         self.refresh_token_timeout = 240  # minutes before token expires. TODO: Should this be a setting somewhere?
         self.access_token_timeout = 15  # minutes before token expires. TODO: Should this be a setting somewhere?
@@ -55,6 +64,10 @@ class AuthenticateEndpoints:
             raise ValueError("Must have either ssl_private_key or web_secret_key specified!")
         if self._tls_private_key is not None and self._web_secret_key is not None:
             raise ValueError("Must use either ssl_private_key or web_secret_key not both!")
+        if revoked_sessions is None:
+            revoked_sessions = RevokedSessions(os.path.join(get_home(), REVOKED_SESSIONS_FILE))
+        self._revoked_sessions = revoked_sessions
+        self._on_revoke = on_revoke
         self._userdict = None
         self.reload_userdict()
         self._observer = Observer()
@@ -67,6 +80,10 @@ class AuthenticateEndpoints:
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
         self._userdict = PersistentDict(webuserpath)
+
+    @property
+    def revoked_sessions(self):
+        return self._revoked_sessions
 
     def get_routes(self):
         """
@@ -128,25 +145,28 @@ class AuthenticateEndpoints:
 
         assert len(self._userdict) > 0, "No users in user dictionary, set the administrator password first!"
 
-        if not isinstance(data, dict):
+        if isinstance(data, dict):
+            username = data.get('username')
+            password = data.get('password')
+        elif isinstance(data, (str, bytes)):
             _log.debug("data is not a dict, decoding")
             decoded = dict((k, v if len(v) > 1 else v[0])
                            for k, v in parse_qs(data).items())
-
             username = decoded.get('username')
             password = decoded.get('password')
-
-        else:
-            username = data.get('username')
-            password = data.get('password')
+        else:    # a JSON body that is not an object
+            username = password = None
 
         _log.debug("Username is: {}".format(printable_text(username)))
 
         error = ""
-        if username is None:
+        # Both must be strings: the username is looked up in a dict and the password handed to the hash check.
+        if not isinstance(username, str) or not username:
             error += "Invalid username passed"
-        if not password:
+        if not isinstance(password, str) or not password:
             error += "Invalid password passed"
+        elif len(password) > MAX_PASSWORD_LENGTH or (isinstance(username, str) and len(username) > MAX_USERNAME_LENGTH):
+            error += "Credentials too long"    # bound the work argon2 does for an unauthenticated caller
 
         if error:
             _log.error("Invalid parameters passed: {}".format(printable_text(error)))
@@ -156,12 +176,17 @@ class AuthenticateEndpoints:
         if user is None:
             _log.error("No matching user for passed username: {}".format(printable_text(username)))
             return Response('', status='401')
+        user['sub'] = username    # names the user in every token of the session, independent of the session id
         access_token, refresh_token = self._get_tokens(user)
         response = Response(json.dumps({"refresh_token": refresh_token, "access_token": access_token}),
                             content_type="application/json")
         return response
 
     def _get_tokens(self, claims):
+        # One session id per login; renewed access tokens inherit it from the refresh token, so revoking the
+        # session revokes every token minted for it.
+        if session_id(claims) is None:
+            claims[SESSION_CLAIM] = new_session_id()
         now = datetime.utcnow()
         claims['iat'] = now
         claims['nbf'] = now
@@ -224,17 +249,67 @@ class AuthenticateEndpoints:
 
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):
             return Response('Invalid refresh token.', status="401 Unauthorized")
-        else:
-            # TODO: Consider blacklisting and reissuing refresh tokens also when used.
-            new_access_token, _ = self._get_tokens(claims)
-            if current_access_token:
-                pass  # TODO: keep current subscriptions? blacklist old token?
-            return Response(json.dumps({"access_token": new_access_token}), content_type="application/json")
+        if not self._revoked_sessions.allows(claims):
+            _log.warning(f"Refresh attempted with a revoked or unrevocable token at "
+                         f"{printable_text(env.get('PATH_INFO'))}")
+            return Response('Unauthorized User', status="401 Unauthorized")
+        # TODO: Consider blacklisting and reissuing refresh tokens also when used.
+        new_access_token, _ = self._get_tokens(claims)
+        if current_access_token:
+            pass  # TODO: keep current subscriptions? blacklist old token?
+        return Response(json.dumps({"access_token": new_access_token}), content_type="application/json")
 
     def revoke_auth_token(self, env, data):
-        # TODO: Blacklist old token? Immediately close websockets?
-        return Response('DELETE /authenticate is not yet implemented', status='501 Not Implemented',
-                        content_type='text/plain')
+        """
+        Revokes the login session of the presented token (logout).  Request should contain:
+            • Authorization: BEARER <jwt_access_token or jwt_refresh_token>
+
+        Every token minted for that login - the access token, the refresh token and any access token renewed
+        from it - is refused from then on, and websockets opened with them are closed. The token is read from
+        the Authorization header only, never the cookie, so a request made by another site cannot log the
+        user out.
+
+        :return: 204 when the session is revoked (also when it already was); 401 when no valid token of this
+            server is presented.
+        """
+        from volttron.platform.web import get_authorization_bearer, get_user_claim_from_bearer
+        path = printable_text(env.get('PATH_INFO'))
+        bearer = get_authorization_bearer(env)
+        if not bearer:
+            _log.error(f"Revocation request to {path} without a bearer Authorization header")
+            return Response('Unauthorized User', status="401 Unauthorized")
+        try:
+            claims = get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key,
+                                                tls_public_key=self._tls_public_key)
+        except jwt.PyJWTError as err:
+            _log.error(f"Revocation request to {path} with a token that does not validate: {type(err).__name__}")
+            return Response('Unauthorized User', status="401 Unauthorized")
+        sid = session_id(claims)
+        if claims.get('grant_type') not in ('access_token', 'refresh_token') or sid is None:
+            _log.error(f"Revocation request to {path} with a token that is not a session token")
+            return Response('Unauthorized User', status="401 Unauthorized")
+        self._revoked_sessions.revoke(sid, self._session_end(claims))
+        _log.info("Web session revoked.")
+        if self._on_revoke is not None:
+            try:
+                self._on_revoke(sid)
+            except Exception as err:
+                # The deny-list is already written; a cleanup failure must not look like a failed logout.
+                _log.error("Post-revocation cleanup failed: %s", type(err).__name__)
+        return Response('', status='204 No Content', content_type='text/plain')
+
+    def _session_end(self, claims):
+        """Latest moment any token of the session can still be valid.
+
+        The refresh token lives refresh_token_timeout past the login that minted it, and an access token renewed
+        just before that lives access_token_timeout longer. The ``iat`` of any token of the session is at or
+        after the login, so this is an upper bound whichever token was presented.
+        """
+        now = time.time()
+        issued = claims.get('iat')
+        if not isinstance(issued, (int, float)) or isinstance(issued, bool):
+            issued = now
+        return max(issued, now) + (self.refresh_token_timeout + self.access_token_timeout) * 60
 
     def authenticate_web_user(self, username, password):
         """Check a login against the user store without minting a token.

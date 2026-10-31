@@ -34,6 +34,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+from volttron.platform.messaging.health import STATUS_BAD
 import werkzeug
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -46,6 +47,7 @@ from .admin_endpoints import AdminEndpoints
 from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
+from .token_revocation import RevokedSessions, REVOKED_SESSIONS_FILE
 from .webapp import WebApplicationWrapper
 from .static_roots import configured_roots, file_to_serve, open_checked, root_refusal
 from volttron.platform.agent.known_identities import \
@@ -56,7 +58,6 @@ from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
 from volttron.platform.auth.certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
-                       json_validate_request,
                        INVALID_REQUEST,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
@@ -148,6 +149,10 @@ def _without_login_cookie(cookie_header):
     return '; '.join(c for c in kept if c)
 
 
+# A CURVE public key as VOLTTRON credentials: URL-safe base64 without padding (vip.socket.encode_key).
+_CURVE_PUBLIC_KEY_RE = re.compile(r'^[A-Za-z0-9_-]{43}$')
+
+
 class CouldNotRegister(Exception):
     pass
 
@@ -231,6 +236,7 @@ class PlatformWebService(Agent):
         # noinspection PyTypeChecker
         self.appContainer: WebApplicationWrapper = None
         # noinspection PyTypeChecker
+        self._server: WSGIServer | None = None
         self._server_greenlet: Greenlet = None
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
@@ -238,6 +244,9 @@ class PlatformWebService(Agent):
         self._vui_endpoints: VUIEndpoints = None
         # Set when the web service starts; None until then.
         self._authenticate_endpoints: AuthenticateEndpoints = None
+        # Login sessions revoked through DELETE /authenticate. Shared with the authenticate endpoint and
+        # consulted on every token check, so a revoked token is refused everywhere at once.
+        self._revoked_sessions = RevokedSessions(os.path.join(get_home(), REVOKED_SESSIONS_FILE))
 
     def remove_unconnnected_routes(self):
         peers = self.vip.peerlist().get()
@@ -262,7 +271,18 @@ class PlatformWebService(Agent):
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
 
-        return claims if claims.get('grant_type') == 'access_token' else {}
+        if claims.get('grant_type') != 'access_token' or not self._revoked_sessions.allows(claims):
+            return {}
+        return claims
+
+    def _session_revoked(self, sid):
+        """Close the websockets that were opened with tokens of a revoked login session."""
+        manager = getattr(self._vui_endpoints, 'pubsub_manager', None)
+        if manager is None:
+            return
+        closed = manager.close_session_sockets(sid)
+        if closed:
+            _log.info('Closed %d websocket(s) of a revoked web session.', closed)
 
     @RPC.export
     def websocket_send(self, endpoint, message):
@@ -532,6 +552,32 @@ class PlatformWebService(Agent):
         return [jsonapi.dumpb(
             jsonrpc.json_error(request_id, UNAUTHORIZED, status))]
 
+    def _bad_request(self, environ, start_response, request_id='NA'):
+        start_response('400 Bad Request', [('Content-Type', 'application/json')])
+        return [jsonapi.dumpb(jsonrpc.json_error(request_id, INVALID_PARAMS, '400 Bad Request'))]
+
+    @staticmethod
+    def _allowvc_public_key(jsondata):
+        """Return the VC public key from a well-formed ``allowvc`` request, else None.
+
+        Explicit checks rather than assert statements: assertions vanish under ``python -O`` and this is
+        network input, even though only an authenticated admin reaches it.
+        """
+        if not isinstance(jsondata, dict) or jsondata.get('jsonrpc') != '2.0' or not jsondata.get('id'):
+            return None
+        if jsondata.get('method') != 'allowvc':
+            return None
+        params = jsondata.get('params')
+        if isinstance(params, list) and params:
+            key = params[0]
+        elif isinstance(params, dict):
+            key = params.get('vcpublickey')
+        else:
+            return None
+        if not isinstance(key, str) or not _CURVE_PUBLIC_KEY_RE.fullmatch(key):
+            return None
+        return key
+
     def _allow(self, environ, start_response, data=None):
         _log.info('Allowing new vc instance to connect to server.')
         # GHSA-j9rp-3mvh-v57x (VO-001): the allow-list mutates platform trust
@@ -544,20 +590,19 @@ class PlatformWebService(Agent):
         if get_media_type(environ) != 'application/json':
             return self._unauthorized(environ, start_response, '415 Unsupported Media Type')
         # app_routing has already decoded a JSON body.
-        jsondata = data if isinstance(data, dict) else jsonapi.loads(data)
-        json_validate_request(jsondata)
-
-        assert jsondata.get('method') == 'allowvc'
-        assert jsondata.get('params')
-
-        params = jsondata.get('params')
-        if isinstance(params, list):
-            vcpublickey = params[0]
-        else:
-            vcpublickey = params.get('vcpublickey')
-
-        assert vcpublickey
-        assert len(vcpublickey) == 43
+        jsondata = data
+        if not isinstance(jsondata, dict):
+            try:
+                jsondata = jsonapi.loads(data)
+            except (TypeError, ValueError):
+                jsondata = None
+        request_id = jsondata.get('id') if isinstance(jsondata, dict) else None
+        if not isinstance(request_id, (str, int)) or isinstance(request_id, bool):
+            request_id = 'NA'
+        vcpublickey = self._allowvc_public_key(jsondata)
+        if vcpublickey is None:
+            _log.warning('Refused a malformed allowvc request.')
+            return self._bad_request(environ, start_response, request_id)
 
         authentry = {"credentials": vcpublickey, "identity": VOLTTRON_CENTRAL}
         try:
@@ -568,7 +613,7 @@ class PlatformWebService(Agent):
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
         return [jsonapi.dumpb(
-            json_result(jsondata['id'], "Added")
+            json_result(request_id, "Added")
         )]
 
     def _get_discovery(self, environ, start_response, data=None):
@@ -634,7 +679,13 @@ class PlatformWebService(Agent):
                    'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE',
                    'HTTP_AUTHORIZATION', 'SERVER_NAME', 'wsgi.url_scheme',
                    'HTTP_HOST']
-        data = env['wsgi.input'].read().decode('utf-8')
+        from volttron.platform.web import printable_text
+        try:
+            data = env['wsgi.input'].read().decode('utf-8')
+        except UnicodeDecodeError:
+            _log.warning(f'Request body to {printable_text(path_info)} is not UTF-8')
+            return Response(jsonapi.dumps({'error': 'Request body is not UTF-8'}), status='400 Bad Request',
+                            content_type='application/json')(env, start_response)
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
         if 'HTTP_COOKIE' in passenv:
@@ -642,7 +693,6 @@ class PlatformWebService(Agent):
             if not passenv['HTTP_COOKIE']:
                 del passenv['HTTP_COOKIE']
 
-        from volttron.platform.web import printable_text
         _log.debug('path_info is: {}'.format(printable_text(path_info)))
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
@@ -650,7 +700,12 @@ class PlatformWebService(Agent):
         _log.debug('Peer path_info is associated with: {}'.format(peer))
 
         if self.is_json_content(env):
-            data = jsonapi.loads(data)
+            try:
+                data = jsonapi.loads(data)
+            except (TypeError, ValueError):
+                _log.warning(f'Malformed JSON body in a request to {printable_text(path_info)}')
+                return Response(jsonapi.dumps({'error': 'Malformed JSON body'}), status='400 Bad Request',
+                                content_type='application/json')(env, start_response)
 
         # Only if https available and rmq for the admin area.
         if env['wsgi.url_scheme'] == 'https' and self.core.messagebus == 'rmq':
@@ -960,7 +1015,29 @@ class PlatformWebService(Agent):
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
+        """Start the web server.
 
+        A failure is logged and reflected in the agent's health status. Left to the core, an exception in an
+        onstart receiver only prints a greenlet traceback to stderr and never reaches volttron.log, so a service
+        that silently failed to start looked healthy until shutdown.
+        """
+        try:
+            self._start_web_server()
+        except Exception as e:
+            _log.exception('Web service failed to start; the HTTP server is not running.')
+            try:
+                self.vip.health.set_status(STATUS_BAD, f'Web service failed to start: {e.__class__.__name__}: {e}')
+            except Exception:    # health is best-effort here; the log line above is the primary signal
+                pass
+
+    @staticmethod
+    def _require_files(**paths):
+        """Raise FileNotFoundError naming every configured path that is not an existing file."""
+        missing = [f'{name}={path}' for name, path in paths.items() if path is not None and not os.path.isfile(path)]
+        if missing:
+            raise FileNotFoundError('Configured web TLS file(s) not found: ' + ', '.join(missing))
+
+    def _start_web_server(self):
         from urllib.parse import urlparse
         parsed = urlparse(self.bind_web_address)
 
@@ -984,6 +1061,9 @@ class PlatformWebService(Agent):
 
                 if not os.path.isfile(ssl_cert) or not os.path.isfile(ssl_key):
                     self._certs.create_signed_cert_files(base_filename, cert_type='server')
+            else:
+                # Configured paths must exist; otherwise the failure surfaces deep inside the cert reader.
+                self._require_files(web_ssl_cert=ssl_cert, web_ssl_key=ssl_key)
 
             if ssl_key is not None and ssl_cert is not None and self._admin_endpoints is None:
                 self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert),
@@ -1026,12 +1106,15 @@ class PlatformWebService(Agent):
                 ssl_private_key = CertWrapper.get_private_key(ssl_key)
                 ssl_public_key = CertWrapper.get_cert_public_key(self.web_ssl_cert)
             self._authenticate_endpoints = AuthenticateEndpoints(
-                tls_private_key=ssl_private_key, tls_public_key=ssl_public_key)
+                tls_private_key=ssl_private_key, tls_public_key=ssl_public_key,
+                revoked_sessions=self._revoked_sessions, on_revoke=self._session_revoked)
             for rt in self._authenticate_endpoints.get_routes():
                 self.registeredroutes.append(rt)
         else:
             # We don't have a private ssl key if we aren't using ssl.
-            self._authenticate_endpoints = AuthenticateEndpoints(web_secret_key=self._web_secret_key)
+            self._authenticate_endpoints = AuthenticateEndpoints(
+                web_secret_key=self._web_secret_key,
+                revoked_sessions=self._revoked_sessions, on_revoke=self._session_revoked)
             for rt in self._authenticate_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
@@ -1057,13 +1140,39 @@ class PlatformWebService(Agent):
                              keyfile=ssl_key)
         else:
             svr = WSGIServer((hostname, port), self.appContainer)
+        self._server = svr
         self._server_greenlet = gevent.spawn(svr.serve_forever)
+
+    # Seconds onstop gives in-flight requests, then the server greenlet, before giving up on each.
+    STOP_TIMEOUT = 5
 
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
+        """Close websockets, stop the HTTP server and wait for its greenlet.
+
+        Tolerates a service that never finished starting (server and greenlet still None), and stops the server
+        explicitly: ``serve_forever`` never returns on its own, so a bare join would always run to its timeout
+        and leave the listener open.
+        """
         _log.debug("Stopping web agent.")
-        if self._server_greenlet is None:
-            _log.info('web server is not running; nothing to stop')
+        manager = getattr(self._vui_endpoints, 'pubsub_manager', None)
+        if manager is not None:
+            try:
+                manager.shutdown()
+            except Exception as e:
+                _log.warning(f'Error closing websockets on stop: {e.__class__.__name__}: {e}')
+        server, greenlet = self._server, self._server_greenlet
+        self._server = self._server_greenlet = None
+        if server is None and greenlet is None:
+            _log.info('Web server never started; nothing to stop.')
             return
-        if not self._server_greenlet.dead:
-            self._server_greenlet.join(timeout=10)
+        if server is not None:
+            try:
+                server.stop(timeout=self.STOP_TIMEOUT)
+            except Exception as e:
+                _log.warning(f'Error stopping the web server: {e.__class__.__name__}: {e}')
+        if greenlet is not None and not greenlet.dead:
+            greenlet.join(timeout=self.STOP_TIMEOUT)
+            if not greenlet.dead:
+                _log.warning('Web server greenlet did not exit; killing it.')
+                greenlet.kill(block=False)

@@ -292,3 +292,27 @@ def test_platform_start_message_names_pyjwt_requirement():
     assert has_web == "False"
     assert "requires PyJWT 2, found 1.7.1" in message
     assert "bootstrap.py --web" in message
+
+
+def test_login_names_the_user_in_the_tokens(server):
+    endpoints, algorithm, verify_key = server
+    tokens = _login(endpoints)
+    for token in tokens.values():
+        assert jwt.decode(token, verify_key, algorithms=[algorithm])["sub"] == USER
+
+
+@pytest.mark.parametrize("data", [{"username": ["a"], "password": "x"}, {"username": "a", "password": ["x"]},
+                                  {"username": 5, "password": "x"}, {"username": {"a": 1}, "password": "x"},
+                                  "\"text\"", ["a", "b"], 7, None])
+def test_login_refuses_non_string_credentials_and_non_object_bodies(server, data):
+    endpoints, _, _ = server
+    env = get_test_web_env("/authenticate", method="POST")
+    response = endpoints.handle_authenticate(env, data)
+    _assert_refused(response, repr(data))
+
+
+@pytest.mark.parametrize("data", [{"username": USER, "password": "x" * 1025}, {"username": "u" * 257, "password": PASSWORD}])
+def test_login_refuses_overlong_credentials(server, data):
+    endpoints, _, _ = server
+    response = endpoints.handle_authenticate(get_test_web_env("/authenticate", method="POST"), data)
+    _assert_refused(response, "overlong")

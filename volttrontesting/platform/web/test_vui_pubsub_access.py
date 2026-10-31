@@ -111,14 +111,23 @@ def test_vui_subscribe_opens_one_socket():
                      HTTP_COOKIE='Bearer=tok', HTTP_ORIGIN='http://v2:8080')
     assert isinstance(response, list)
     vui.pubsub_manager.open_subscription_socket.assert_called_once_with(
-        'tok', 'devices/campus/building/point')
+        'tok', 'devices/campus/building/point', sid=None)
+
+
+def test_vui_subscribe_records_the_login_session():
+    # The verified token's session id is handed to the manager so that revoking the session closes the socket.
+    vui, agent = _vui(claims={'groups': ['vui'], 'sid': 'session-1'})
+    response = _send(vui, TOPIC_PATH, 'GET', content_type=None)
+    assert isinstance(response, list)
+    vui.pubsub_manager.open_subscription_socket.assert_called_once_with(
+        'tok', 'devices/campus/building/point', sid='session-1')
 
 
 def test_vui_lists_its_sockets():
     vui, agent = _vui(claims=VUI_ONLY)
     response = _send(vui, LIST_PATH, 'GET')
     assert response.status_code == 200
-    vui.pubsub_manager.get_socket_routes.assert_called_once_with('tok', '')
+    vui.pubsub_manager.get_socket_routes.assert_called_once_with('tok', '', claims=VUI_ONLY)
 
 
 @pytest.mark.parametrize('method', ['GET', 'PUT', 'POST'])
@@ -144,16 +153,17 @@ def test_invalid_token_does_not_publish_through_the_real_manager():
     response = _send(vui, TOPIC_PATH, 'PUT', token='Bearer not-a-jwt')
     assert response.status_code == 401
     agent.vip.pubsub.publish.assert_not_called()
-    assert len(vui.pubsub_manager.subscription_websockets) == 0
-    assert len(vui.pubsub_manager.user_websockets) == 0
+    assert vui.pubsub_manager._sockets == {}
 
 
-@pytest.mark.parametrize('claims', [{'groups': ['admin']}, {'groups': []}, {}, {'groups': None}])
+@pytest.mark.parametrize('claims, status', [({'groups': ['admin']}, 403), ({'groups': []}, 403), ({}, 401),
+                                            ({'groups': None}, 403)])
 @pytest.mark.parametrize('method', ['GET', 'PUT'])
-def test_vui_group_is_required(claims, method):
+def test_vui_group_is_required(claims, status, method):
+    # Empty claims (a refresh token, or a revoked session) are 401: log in again.
     vui, agent = _vui(claims=claims)
     response = _send(vui, TOPIC_PATH, method)
-    assert response.status_code == 403
+    assert response.status_code == status
     assert _nothing_done(vui, agent)
 
 
@@ -319,8 +329,8 @@ def test_manager_topic_log_lines_stay_printable(caplog):
     topic = 'devices/x\nEXTRA\x1b[2J'
     with caplog.at_level('DEBUG'):
         manager.open_subscription_socket('tok', topic)
-        manager.client_opened(MagicMock(), topic, 'tok')
-        VUIWebSocket.on_topic(MagicMock(terminated=True), 'peer', 'sender', 'pubsub', topic, {}, 'm')
-    assert len(caplog.records) >= 3
+        manager.client_opened(MagicMock(), topic, 'tok', {'sid': 's1', 'groups': ['vui']})
+        manager.dispatcher(topic)('peer', 'sender', 'pubsub', topic, {}, 'm')
+    assert len(caplog.records) >= 2
     for record in caplog.records:
         assert record.getMessage().isprintable(), record.getMessage()

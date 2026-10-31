@@ -256,6 +256,7 @@ class ConfigStoreService(Agent):
         return result
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     @deprecated(reason="Use get_config")
     def manage_get(self, identity, config_name, raw=True):
         """
@@ -264,6 +265,7 @@ class ConfigStoreService(Agent):
         return self.get_config(identity, config_name, raw)
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def get_config(self, identity, config_name, raw=True):
         agent_store = self.store.get(identity)
         if agent_store is None:
@@ -287,6 +289,7 @@ class ConfigStoreService(Agent):
         return agent_configs[real_config_name]
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     @deprecated(reason="Use get_metadata")
     def manage_get_metadata(self, identity, config_name):
         """
@@ -295,6 +298,7 @@ class ConfigStoreService(Agent):
         return self.get_metadata(identity, config_name)
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def get_metadata(self, identity, config_name):
         agent_store = self.store.get(identity)
         if agent_store is None:
