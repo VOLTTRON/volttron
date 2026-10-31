@@ -1015,20 +1015,22 @@ class PlatformWebService(Agent):
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
-        """Start the web server.
+        """Start the web server; on failure log it, mark the agent BAD and re-raise.
 
-        A failure is logged and reflected in the agent's health status. Left to the core, an exception in an
+        The failure still propagates (the route-namespace gate relies on startup stopping loudly), but it is also
+        written to the platform log and reflected in health first. Left to the core alone, an exception in an
         onstart receiver only prints a greenlet traceback to stderr and never reaches volttron.log, so a service
         that silently failed to start looked healthy until shutdown.
         """
         try:
             self._start_web_server()
         except Exception as e:
-            _log.exception('Web service failed to start; the HTTP server is not running.')
+            _log.error(f'web server not started: {e}', exc_info=True)
             try:
                 self.vip.health.set_status(STATUS_BAD, f'Web service failed to start: {e.__class__.__name__}: {e}')
             except Exception:    # health is best-effort here; the log line above is the primary signal
                 pass
+            raise
 
     @staticmethod
     def _require_files(**paths):
@@ -1120,11 +1122,7 @@ class PlatformWebService(Agent):
 
         static_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "static"))
         self._builtin_patterns = tuple(pattern for pattern, _, _ in self.registeredroutes)
-        try:
-            builtin = builtin_namespaces(self._builtin_patterns)
-        except ValueError as err:
-            _log.error('web server not started: %s', err)
-            raise
+        builtin = builtin_namespaces(self._builtin_patterns)    # ValueError is logged once by startupagent
         self._reserved_namespaces = frozenset(
             builtin
             | {name.casefold() for name in os.listdir(static_dir)}
@@ -1164,7 +1162,7 @@ class PlatformWebService(Agent):
         server, greenlet = self._server, self._server_greenlet
         self._server = self._server_greenlet = None
         if server is None and greenlet is None:
-            _log.info('Web server never started; nothing to stop.')
+            _log.info('web server is not running; nothing to stop')
             return
         if server is not None:
             try:

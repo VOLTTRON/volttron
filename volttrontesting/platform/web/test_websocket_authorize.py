@@ -400,8 +400,11 @@ def test_the_service_keeps_its_authenticate_endpoints_on_an_https_bind(tmp_path,
     from volttrontesting.platform.web.conftest import build_web_service, start_web_service
     service = build_web_service(tmp_path, monkeypatch, start=False)
     service.bind_web_address = 'https://127.0.0.1:8443'
-    service.web_ssl_key = 'key.pem'
-    service.web_ssl_cert = 'cert.pem'
+    # Configured TLS files must exist for startup to proceed; the contents are never read (CertWrapper is mocked).
+    for name in ('key.pem', 'cert.pem'):
+        (tmp_path / name).write_text('')
+    service.web_ssl_key = str(tmp_path / 'key.pem')
+    service.web_ssl_cert = str(tmp_path / 'cert.pem')
     module = 'volttron.platform.web.platform_web_service.'
     with mock.patch(module + 'CertWrapper') as certs, \
             mock.patch(module + 'AdminEndpoints'), \
