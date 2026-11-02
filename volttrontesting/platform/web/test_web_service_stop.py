@@ -56,13 +56,16 @@ def test_onstop_survives_a_failing_server_stop():
     PlatformWebService.onstop(_service(server, greenlet), None)
 
 
-def test_startup_failure_is_logged_and_sets_bad_health(caplog):
+def test_startup_failure_is_logged_once_sets_bad_health_and_propagates(caplog):
     import logging
+    import pytest
     svc = SimpleNamespace(_start_web_server=MagicMock(side_effect=FileNotFoundError('web.crt')),
                           vip=SimpleNamespace(health=MagicMock()))
     with caplog.at_level(logging.ERROR, logger='volttron.platform.web.platform_web_service'):
-        PlatformWebService.startupagent(svc, None)
-    assert 'failed to start' in caplog.text and 'web.crt' in caplog.text
+        with pytest.raises(FileNotFoundError):
+            PlatformWebService.startupagent(svc, None)
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1 and 'web server not started' in errors[0].getMessage() and 'web.crt' in errors[0].getMessage()
     status, context = svc.vip.health.set_status.call_args.args
     assert status == 'BAD' and 'FileNotFoundError' in context and 'web.crt' in context
 
