@@ -43,7 +43,7 @@ from volttron.platform.web.platform_web_service import PlatformWebService
 from volttron.platform import jsonapi
 from volttrontesting.utils.web_utils import get_test_web_env
 
-# A syntactically valid 43-char CURVE public key (passes the len()==43 assert).
+# A syntactically valid 43-char CURVE public key (URL-safe base64 without padding).
 VALID_CURVE_KEY = "A" * 43
 
 
@@ -214,27 +214,68 @@ def test_allow_rejects_non_dict_claims_and_does_not_mutate_auth_file(bad_claims)
 
 
 @pytest.mark.web
-def test_allow_admin_with_malformed_key_still_rejected_by_validation():
-    # The admin gate must NOT bypass the downstream len()==43 validation: a
-    # legitimate admin caller that supplies a malformed CURVE key is still
-    # rejected, and no bad entry is written to the auth file.
+@pytest.mark.parametrize("bad_body", [
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": {"vcpublickey": "A" * 10}},  # wrong length
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": {"vcpublickey": "A" * 42 + "/"}},  # not url-safe
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": {"vcpublickey": "A" * 42 + "\n"}},
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": {"vcpublickey": 43}},
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": {"vcpublickey": None}},
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": {}},
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": []},
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc", "params": "A" * 43},
+    {"jsonrpc": "2.0", "id": "t", "method": "allowvc"},
+    {"jsonrpc": "2.0", "id": "t", "method": "denyvc", "params": {"vcpublickey": "A" * 43}},
+    {"jsonrpc": "2.0", "id": "t", "params": {"vcpublickey": "A" * 43}},
+    {"jsonrpc": "1.0", "id": "t", "method": "allowvc", "params": {"vcpublickey": "A" * 43}},
+    {"jsonrpc": "2.0", "method": "allowvc", "params": {"vcpublickey": "A" * 43}},
+    ["jsonrpc", "2.0"],
+    "A" * 43,
+    None,
+], ids=lambda body: str(body)[:40])
+def test_allow_admin_with_malformed_request_gets_400_and_writes_nothing(bad_body):
+    # The admin gate must NOT bypass request validation, and that validation must
+    # be real code, not assert statements that ``python -O`` strips: a legitimate
+    # admin caller that supplies a malformed request gets a 400 and no entry is
+    # written to the auth file.
     svc = _make_service(claims={"groups": ["admin", "vui"]})
     env = get_test_web_env('/discovery/allow', method='POST',
                            HTTP_AUTHORIZATION='Bearer admintoken',
                            CONTENT_TYPE='application/json')
-    bad_body = jsonapi.dumpb({
-        "jsonrpc": "2.0",
-        "id": "vo-001-test",
-        "method": "allowvc",
-        "params": {"vcpublickey": "A" * 10},  # wrong length, fails len()==43
-    })
-
     start_response = MagicMock()
-    with pytest.raises(AssertionError):
-        svc._allow(env, start_response, data=bad_body)
-
-    # The malformed key must never reach the auth-file write.
+    body = svc._allow(env, start_response, data=jsonapi.dumpb(bad_body))
+    assert _status_of(start_response).startswith('400')
+    error = jsonapi.loads(body[0])
+    assert error["error"]["code"] == -32602
+    assert error["id"] == ("t" if isinstance(bad_body, dict) and bad_body.get("id") else "NA")
+    # The malformed request must never reach the auth-file write.
     svc.vip.rpc.call.assert_not_called()
+
+
+@pytest.mark.web
+@pytest.mark.parametrize("raw", [b"not json", b"", b"{", "not json"])
+def test_allow_admin_with_unparseable_body_gets_400(raw):
+    svc = _make_service(claims={"groups": ["admin", "vui"]})
+    env = get_test_web_env('/discovery/allow', method='POST',
+                           HTTP_AUTHORIZATION='Bearer admintoken',
+                           CONTENT_TYPE='application/json')
+    start_response = MagicMock()
+    svc._allow(env, start_response, data=raw)
+    assert _status_of(start_response).startswith('400')
+    svc.vip.rpc.call.assert_not_called()
+
+
+@pytest.mark.web
+def test_allow_accepts_key_as_single_positional_param():
+    svc = _make_service(claims={"groups": ["admin", "vui"]})
+    env = get_test_web_env('/discovery/allow', method='POST',
+                           HTTP_AUTHORIZATION='Bearer admintoken',
+                           CONTENT_TYPE='application/json')
+    start_response = MagicMock()
+    body = svc._allow(env, start_response, data={"jsonrpc": "2.0", "id": 7, "method": "allowvc",
+                                                 "params": [VALID_CURVE_KEY]})
+    assert _status_of(start_response).startswith('200')
+    assert jsonapi.loads(body[0])["id"] == 7
+    assert svc.vip.rpc.call.call_args[0][2]["credentials"] == VALID_CURVE_KEY
 
 
 @pytest.mark.web

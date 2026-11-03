@@ -312,6 +312,17 @@ class RMQServerAuthentication(BaseServerAuthentication):
         self.authorization.update_protected_topics(protected_topics)
 
 
+def is_federation_user(user_id):
+    """True for the RabbitMQ user of a federation link, ``<remote instance>.<local instance>.federation``.
+
+    rmq_setup requests that certificate with the identity ``federation`` (see _get_federation_certs and
+    request_cert_for_plugin), so the identity is the last dot-separated part of the user id. Any other
+    user id that merely contains the word, e.g. an agent named ``myfederationagent``, must get the default
+    permissions, not the wildcard grant.
+    """
+    return isinstance(user_id, str) and user_id.endswith(".federation") and len(user_id) > len(".federation")
+
+
 # RMQAuthentication(BaseAuthentication)
 class RMQAuthorization(BaseServerAuthorization):
     def __init__(self, auth_service) -> None:
@@ -332,7 +343,7 @@ class RMQAuthorization(BaseServerAuthorization):
                 user_id
             )
 
-            if "federation" in user_id:
+            if is_federation_user(user_id):
                 # federation needs more than
                 # the current default permissions
                 # TODO: Fix authorization in rabbitmq

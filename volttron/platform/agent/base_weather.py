@@ -28,6 +28,7 @@ import csv
 import sqlite3
 import datetime
 import os
+import re
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
@@ -71,6 +72,24 @@ AGENT_DATA_DIR = os.path.basename(os.getcwd()) + ".agent-data"
 CACHE_READ_ERROR = "Cache read failed"
 CACHE_WRITE_ERROR = "Cache write failed"
 CACHE_FULL = "cache_full"
+CACHE_READ_ERROR_MESSAGE = "Weather agent failed to read from cache"
+CACHE_WRITE_ERROR_MESSAGE = "Weather agent failed to write to cache"
+CACHE_FULL_MESSAGE = "Weather agent cache is full"
+
+# SQLite identifiers cannot be bound as parameters, so every table name that
+# reaches a statement is checked against this pattern and double-quoted.
+_SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def quote_identifier(name):
+    """
+    Return name as a quoted SQLite identifier. Raises ValueError unless name
+    is a plain identifier: letters, digits and underscores, not starting with
+    a digit.
+    """
+    if not isinstance(name, str) or not _SQL_IDENTIFIER.match(name):
+        raise ValueError(f"Invalid SQL identifier: {name!r}")
+    return f'"{name}"'
 WEATHER_WARN = "weather_warnings"
 WEATHER_RESULTS = "weather_results"
 WEATHER_ERROR = "weather_error"
@@ -117,6 +136,7 @@ class BaseWeatherAgent(Agent):
             self._cache = None
             self.cache_read_error = False
             self.cache_write_error = False
+            self.cache_full = False
 
             self._default_config = \
                 {
@@ -184,6 +204,11 @@ class BaseWeatherAgent(Agent):
         :param description: optional description string describing the method's
         usage.
         """
+        if not isinstance(service_function_name, str) or \
+                not _SQL_IDENTIFIER.match(service_function_name):
+            raise ValueError(f"Service name {service_function_name!r} must be a plain "
+                             "identifier (letters, digits, underscores) because it "
+                             "names a cache table.")
         if service_type == "history":
             if interval:
                 raise ValueError("History object does not utilize an interval.")
@@ -595,8 +620,7 @@ class BaseWeatherAgent(Agent):
                         format_timestamp(observation_time)
                     result[WEATHER_RESULTS] = jsonapi.loads(data)
         except Exception as error:
-            bad_cache_message = "Weather agent failed to read from " \
-                                "cache"
+            bad_cache_message = CACHE_READ_ERROR_MESSAGE
             self.vip.health.set_status(STATUS_BAD,
                                        bad_cache_message)
             status = Status.from_json(self.vip.health.get_status_json())
@@ -607,7 +631,7 @@ class BaseWeatherAgent(Agent):
             result[WEATHER_WARN] = [bad_cache_message]
         else:
             if self.cache_read_error:
-                self.vip.health.set_status(STATUS_GOOD)
+                self._clear_status_set_here(CACHE_READ_ERROR_MESSAGE)
                 self.cache_read_error = False
         return result
 
@@ -895,7 +919,7 @@ class BaseWeatherAgent(Agent):
             self.cache_read_error = True
         else:
             if self.cache_read_error:
-                self.vip.health.set_status(STATUS_GOOD)
+                self._clear_status_set_here(CACHE_READ_ERROR_MESSAGE)
                 self.cache_read_error = False
 
         return record_dict
@@ -938,7 +962,7 @@ class BaseWeatherAgent(Agent):
             if not generation_time:
                 # in case api does not return details on when this
                 # forecast data was generated
-                generation_time = datetime.datetime.utcnow()
+                generation_time = get_aware_utc_now()
             else:
                 generation_time, oldtz = process_timestamp(
                     generation_time)
@@ -1170,12 +1194,18 @@ class BaseWeatherAgent(Agent):
             cache_full = self._cache.store_weather_records(service_name,
                                                            records)
             if cache_full:
-                self.vip.health.set_status(STATUS_BAD,
-                                           "Weather agent cache is full")
+                self.vip.health.set_status(STATUS_BAD, CACHE_FULL_MESSAGE)
                 status = Status.from_json(self.vip.health.get_status_json())
                 self.vip.health.send_alert(CACHE_FULL, status)
+                self.cache_full = True
+            elif self.cache_full:
+                # Only clear the status this path set. A BAD status set since
+                # by another path (API error, failed reconfiguration, cache
+                # read error) is owned by that path and left in place.
+                self._clear_status_set_here(CACHE_FULL_MESSAGE)
+                self.cache_full = False
         except Exception as error:
-            err_msg = "Weather agent failed to write to cache"
+            err_msg = CACHE_WRITE_ERROR_MESSAGE
             _log.error("{}. Exception:{}".format(err_msg, error))
             self.vip.health.set_status(STATUS_BAD, err_msg)
             status = Status.from_json(self.vip.health.get_status_json())
@@ -1184,9 +1214,21 @@ class BaseWeatherAgent(Agent):
             raise error
         else:
             if self.cache_write_error:
-                self.vip.health.set_status(STATUS_GOOD)
+                self._clear_status_set_here(CACHE_WRITE_ERROR_MESSAGE)
                 self.cache_write_error = False
 
+
+    def _clear_status_set_here(self, context):
+        """
+        Reset the health status to GOOD only if the current BAD status is the
+        one the calling path set (same context). A BAD status set by another
+        path, such as an API or configuration error, is left alone so that
+        recovery of one fault cannot mask another.
+        :param context: the status context string the calling path uses
+        """
+        current = self.vip.health.get_status()
+        if current.get("status") == STATUS_BAD and current.get("context") == context:
+            self.vip.health.set_status(STATUS_GOOD)
 
     @Core.receiver("onstart")
     def starting(self, sender, **kwargs):
@@ -1206,6 +1248,13 @@ class BaseWeatherAgent(Agent):
 
 class WeatherCache:
     """Caches data to help reduce the number of requests to the API"""
+
+    # Once the cache reaches max size, trim it to this fraction of the limit.
+    TRIM_TARGET_FRACTION = 0.9
+    # Oldest-record trimming: rows per table in the first round (doubles each
+    # round) and the maximum number of rounds per pass.
+    TRIM_BATCH_SIZE = 100
+    TRIM_MAX_ROUNDS = 100
 
     def __init__(self,
                  database_file,
@@ -1230,6 +1279,8 @@ class WeatherCache:
         self._calls_period = calls_period
         self._db_file_path = database_file
         self._api_services = api_services
+        for name in (api_services or {}):
+            quote_identifier(name)    # every service name becomes a table name
         self._max_size_gb = max_size_gb
         self._sqlite_conn = None
         self._max_pages = None
@@ -1287,10 +1338,10 @@ class WeatherCache:
                 table_type = self._api_services[service_name]["type"]
                 if table_type == "forecast":
                     create_table = CREATE_STMT_FORECAST.format(
-                        table=service_name)
+                        table=quote_identifier(service_name))
                 elif table_type == "current" or table_type == "history":
                     create_table = CREATE_STMT_CURRENT.format(
-                        table=service_name)
+                        table=quote_identifier(service_name))
                 else:
                     raise ValueError("Invalid table type {} "
                                      "for table {}.".format(table_type,
@@ -1326,12 +1377,12 @@ class WeatherCache:
         column_names = []
         cursor = self._sqlite_conn.cursor()
         table_info = cursor.execute(
-            "PRAGMA table_info({})".format(service_name)).fetchall()
+            "PRAGMA table_info({})".format(quote_identifier(service_name))).fetchall()
         for row in table_info:
             column_names.append(row[1])
         for column_name in expected_columns:
             if column_name not in column_names:
-                delete_query = "DROP TABLE {};".format(service_name)
+                delete_query = "DROP TABLE {};".format(quote_identifier(service_name))
                 cursor.execute(delete_query)
                 self._sqlite_conn.commit()
                 _log.debug(delete_query)
@@ -1340,10 +1391,10 @@ class WeatherCache:
                     create_table = CREATE_STMT_API_CALLS
                 elif table_type == "forecast":
                     create_table = CREATE_STMT_FORECAST.format(
-                        table=service_name)
+                        table=quote_identifier(service_name))
                 elif table_type == "current" or table_type == "history":
                     create_table = CREATE_STMT_CURRENT.format(
-                        table=service_name)
+                        table=quote_identifier(service_name))
                 if len(create_table):
                     _log.debug(create_table)
                     cursor.execute(create_table)
@@ -1418,7 +1469,7 @@ class WeatherCache:
         cursor = self._sqlite_conn.cursor()
         query = """SELECT max(OBSERVATION_TIME), POINTS
                    FROM {table}
-                   WHERE LOCATION = ?;""".format(table=service_name)
+                   WHERE LOCATION = ?;""".format(table=quote_identifier(service_name))
         _log.debug(query)
         cursor.execute(query, (location,))
         data = cursor.fetchone()
@@ -1456,7 +1507,7 @@ class WeatherCache:
                    (SELECT MAX(GENERATION_TIME)
                     FROM {table}
                     WHERE LOCATION = ?)
-                   ORDER BY FORECAST_TIME ASC;""".format(table=service_name)
+                   ORDER BY FORECAST_TIME ASC;""".format(table=quote_identifier(service_name))
         _log.debug(query)
         cursor.execute(query, (location, forecast_start, forecast_end,
                                location))
@@ -1507,11 +1558,11 @@ class WeatherCache:
         if request_type == "forecast":
             query = """INSERT INTO {}
                        (LOCATION, GENERATION_TIME, FORECAST_TIME, POINTS)
-                       VALUES (?, ?, ?, ?)""".format(service_name)
+                       VALUES (?, ?, ?, ?)""".format(quote_identifier(service_name))
         else:
             query = """INSERT INTO {}
                        (LOCATION, OBSERVATION_TIME, POINTS)
-                       VALUES (?, ?, ?)""".format(service_name)
+                       VALUES (?, ?, ?)""".format(quote_identifier(service_name))
         _log.debug(query)
 
         if request_type == "current":
@@ -1523,8 +1574,10 @@ class WeatherCache:
         cache_full = False
         if self._max_size_gb is not None and \
                 self.page_count(cursor) >= self._max_pages:
-            cache_full = True
             self.manage_cache_size()
+            # Only report full if trimming could not bring the cache back
+            # under its limit.
+            cache_full = self.page_count(cursor) >= self._max_pages
         cursor.close()
         return cache_full
 
@@ -1538,69 +1591,107 @@ class WeatherCache:
         :param cursor: Cache's cursor object used for querying
         :return: number of pages currently written to in the cache database
         """
-        cursor.execute("PRAGMA page_count")
+        cursor.execute("SELECT (page_count - freelist_count) as used_count"
+                       " FROM pragma_page_count(), pragma_freelist_count();")
         return cursor.fetchone()[0]
 
     def manage_cache_size(self):
         """
-        Removes data from the weather cache until the cache is a safe size.
-        Prioritizes removal from current, then forecast, then historical
-        request types
-        """
-        if self._max_size_gb:
+        Removes data from the weather cache when it has reached its maximum
+        size. Once the limit is hit, records are removed until the cache is
+        below TRIM_TARGET_FRACTION of the limit, so that a cache hovering at
+        its limit is trimmed in occasional bursts rather than on every write.
 
-            cursor = self._sqlite_conn.cursor()
+        Removal order: expired current records, expired forecast records,
+        oldest historical records, then oldest records from any table.
+        """
+        if not self._max_size_gb:
+            return
+
+        cursor = self._sqlite_conn.cursor()
+        try:
             page_count = self.page_count(cursor)
             if page_count < self._max_pages:
                 return
+            target = int(self._max_pages * self.TRIM_TARGET_FRACTION)
+            now = get_aware_utc_now()
 
-            attempt = 1
-            records_deleted = 0
-            now = datetime.datetime.utcnow()
-            while page_count >= self._max_pages:
-                if attempt == 1:
-                    for table_name, service in self._api_services.items():
-                        # Remove all data that is older than update interval
-                        if service["type"] == "current":
-                            query = """DELETE FROM {table}
-                                       WHERE OBSERVATION_TIME < ?;""" \
-                                .format(table=table_name)
-                            cursor.execute(query,
-                                           (now - service["update_interval"],))
-                elif attempt == 2:
-                    for table_name, service in self._api_services.items():
-                        # Remove all data that is older than update interval
-                        if service["type"] == "forecast":
-                            query = """DELETE FROM {table}
-                                       WHERE GENERATION_TIME < ?""".format(
-                                table=table_name)
-                            cursor.execute(query,
-                                           (now - service["update_interval"],))
-                elif attempt > 2:
-                    records_deleted = 0
-                    for table_name, service in self._api_services.items():
-                        if service["type"] == "history":
-                            query = "DELETE FROM {table} WHERE ID IN " \
-                                    "(SELECT ID FROM {table} " \
-                                    "ORDER BY ID ASC LIMIT 100)".format(
-                                        table=table_name)
-                            cursor.execute(query)
-                            records_deleted += cursor.rowcount
-                if attempt > 2 and records_deleted == 0:
-                    # all history records removed
+            # 1. Expired current, then expired forecast records.
+            page_count = self._delete_expired(cursor, now, target)
+            if page_count < target:
+                return
+
+            # 2. Oldest history records, then oldest records from any table.
+            history_tables = [name for name, service in self._api_services.items()
+                              if service["type"] == "history"]
+            for tables in (history_tables, list(self._api_services)):
+                page_count, exhausted = self._trim_oldest(cursor, tables, target)
+                if page_count < target:
+                    return
+                if not exhausted:
                     break
-                attempt += 1
-                page_count = self.page_count(cursor)
 
-            # if we still don't have space in cache
-            while page_count >= self._max_pages:
-                for table_name in self._api_services:
-                    query = """DELETE FROM {table} WHERE ID IN
-                               (SELECT ID FROM {table}
-                                ORDER BY ID ASC LIMIT 100)""".format(
-                        table=table_name)
-                    cursor.execute(query)
-                    page_count = self.page_count(cursor)
+            if page_count >= self._max_pages:
+                if exhausted:
+                    _log.warning("Cache is full but no more records can be deleted. "
+                                 f"Current page count: {page_count}, Max pages: {self._max_pages}")
+                else:
+                    _log.error("Cache size management exceeded max attempts. "
+                               f"Current page count: {page_count}, Max pages: {self._max_pages}")
+        except Exception as e:
+            _log.error(f"Error managing cache size: {type(e).__name__}: {e}")
+            raise
+        finally:
+            cursor.close()
+
+    def _delete_expired(self, cursor, now, target):
+        """
+        Deletes expired current records, then expired forecast records, from
+        every table whose service has an update interval, stopping as soon as
+        the cache is below target pages.
+        :return: the page count after the last deletion pass.
+        """
+        page_count = self.page_count(cursor)
+        for service_type, column in (("current", "OBSERVATION_TIME"),
+                                     ("forecast", "GENERATION_TIME")):
+            for table_name, service in self._api_services.items():
+                interval = service["update_interval"]
+                if service["type"] == service_type and interval:
+                    query = f"DELETE FROM {quote_identifier(table_name)} WHERE {column} < ?;"
+                    cursor.execute(query, (now - interval,))
+            self._sqlite_conn.commit()
+            page_count = self.page_count(cursor)
+            if page_count < target:
+                break
+        return page_count
+
+    def _trim_oldest(self, cursor, tables, target):
+        """
+        Deletes the oldest records from each of the given tables in rounds
+        until the cache is below target pages or the tables are empty. The
+        batch size doubles each round so that large overshoots are cleared
+        in a bounded number of rounds.
+        :return: (page_count, exhausted) where exhausted is True when the
+        tables have no records left to delete.
+        """
+        page_count = self.page_count(cursor)
+        batch = self.TRIM_BATCH_SIZE
+        for _ in range(self.TRIM_MAX_ROUNDS):
+            if page_count < target:
+                break
+            deleted = 0
+            for table_name in tables:
+                table = quote_identifier(table_name)
+                query = (f"DELETE FROM {table} WHERE ID IN"
+                         f" (SELECT ID FROM {table} ORDER BY ID ASC LIMIT ?)")
+                cursor.execute(query, (batch,))
+                deleted += cursor.rowcount
+            self._sqlite_conn.commit()
+            if deleted == 0:
+                return page_count, True
+            page_count = self.page_count(cursor)
+            batch *= 2
+        return page_count, False
 
     def close(self):
         """Close the sqlite database connection when the agent stops"""
